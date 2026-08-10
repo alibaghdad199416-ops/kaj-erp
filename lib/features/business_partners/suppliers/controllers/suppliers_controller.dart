@@ -110,9 +110,7 @@ class SuppliersController extends ChangeNotifier {
 
       await _repository.addSupplier(supplier);
       AppDataChangeBus.instance.publish('suppliers', operation: 'insert');
-
-      _suppliers.insert(0, supplier);
-      notifyListeners();
+      await _reloadAuthoritativeSuppliers();
     } catch (error, stackTrace) {
       AppLogger.debug('SuppliersController.addSupplier error: $error');
       AppLogger.stack(stackTrace);
@@ -138,17 +136,9 @@ class SuppliersController extends ChangeNotifier {
         throw StateError('رقم الهاتف مستخدم بالفعل لمورد آخر.');
       }
 
-      final updatedSupplier = supplier.copyWith(updatedAt: DateTime.now());
-
-      await _repository.updateSupplier(updatedSupplier);
+      await _repository.updateSupplier(supplier);
       AppDataChangeBus.instance.publish('suppliers', operation: 'update');
-
-      final index = _suppliers.indexWhere((item) => item.id == supplier.id);
-
-      if (index != -1) {
-        _suppliers[index] = updatedSupplier;
-        notifyListeners();
-      }
+      await _reloadAuthoritativeSuppliers();
     } catch (error, stackTrace) {
       AppLogger.debug('SuppliersController.updateSupplier error: $error');
       AppLogger.stack(stackTrace);
@@ -191,17 +181,7 @@ class SuppliersController extends ChangeNotifier {
 
       await _repository.setSupplierActive(id: supplier.id, isActive: newStatus);
       AppDataChangeBus.instance.publish('suppliers', operation: 'status');
-
-      final index = _suppliers.indexWhere((item) => item.id == supplier.id);
-
-      if (index != -1) {
-        _suppliers[index] = supplier.copyWith(
-          isActive: newStatus,
-          updatedAt: DateTime.now(),
-        );
-
-        notifyListeners();
-      }
+      await _reloadAuthoritativeSuppliers();
     } catch (error, stackTrace) {
       AppLogger.debug('SuppliersController.toggleSupplierStatus error: $error');
       AppLogger.stack(stackTrace);
@@ -219,6 +199,15 @@ class SuppliersController extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> _reloadAuthoritativeSuppliers() async {
+    final suppliers = await _repository.getSuppliers();
+    _suppliers
+      ..clear()
+      ..addAll(suppliers);
+    _hasLoaded = true;
+    notifyListeners();
   }
 
   void clearError() {
