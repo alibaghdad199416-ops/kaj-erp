@@ -7,6 +7,7 @@ $cli = Join-Path $repoRoot 'node_modules\.bin\supabase.cmd'
 $bootstrap = Join-Path $repoRoot 'supabase\fresh_install\r35_cloud_command_compatibility.sql'
 $finalStateTest = Join-Path $repoRoot 'supabase\tests\verify_fresh_install_final_state.sql'
 $runtimeTest = Join-Path $repoRoot 'supabase\tests\verify_r50_r52_runtime.sql'
+$r49TransactionTest = Join-Path $repoRoot 'supabase\tests\verify_r49_erp_transactions_runtime.sql'
 $migrationSource = Join-Path $repoRoot 'supabase\migrations'
 $configSource = Join-Path $repoRoot 'supabase\config.toml'
 
@@ -65,6 +66,7 @@ Assert-File $cli
 Assert-File $bootstrap
 Assert-File $finalStateTest
 Assert-File $runtimeTest
+Assert-File $r49TransactionTest
 Assert-File $configSource
 Assert-NoNonLocalEnvironment
 
@@ -146,7 +148,7 @@ try {
         throw "Applied migration count mismatch: expected=$expectedMigrationCount applied=$appliedMigrationCount"
     }
 
-    foreach ($test in @($finalStateTest, $runtimeTest)) {
+    foreach ($test in @($finalStateTest, $r49TransactionTest, $runtimeTest)) {
         $remotePath = "/tmp/$([IO.Path]::GetFileName($test))"
         Invoke-Checked "Copy $([IO.Path]::GetFileName($test))" 'docker' @('cp', $test, "${container}:$remotePath")
         Invoke-Checked "Run $([IO.Path]::GetFileName($test))" 'docker' @(
