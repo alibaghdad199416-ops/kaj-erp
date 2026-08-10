@@ -78,6 +78,14 @@ npm run check
 powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r49_workspace.ps1
 ```
 
+For a clean-room local Supabase replay, including the repository-owned historical compatibility prelude, canonical replacement proof, database runtime security tests, and schema lint, run:
+
+```powershell
+npm run verify:fresh-db
+```
+
+This command is destructive only to its uniquely named disposable local Docker stack. It programmatically refuses the production project and non-local targets. Do not adapt it to linked/remote execution. The rationale and exact safety contract are documented in `supabase/FRESH_INSTALL.md`.
+
 - `verify:workspace` is the repository's comprehensive verification chain and `verify:all` aliases it.
 - `verify:final` runs the current final/RPC/accounting/source/localization/structure/database/UI audit chain.
 - `verify:database` runs both PostgreSQL contract and type-boundary checks.
