@@ -1,0 +1,35 @@
+PASS r28 migrations exist
+PASS canonical cashbox list/save
+PASS cashbox asset currency validation
+PASS cashbox duplicate ledger rejected
+PASS cashbox row timestamp authoritative
+PASS cashbox repo r28 endpoints
+PASS cash transaction real row dates
+PASS account codes are text identifiers
+PASS dedicated movement rpc
+PASS movement table export pdf excel
+PASS commercial details enriched rpc
+PASS frontend commercial details r28
+PASS web pdf native blob printing
+PASS web blob revoke delayed
+PASS car grid overflow headroom
+PASS product grid overflow headroom
+PASS product action buttons wrap
+PASS car action buttons wrap
+PASS r28 postgrest command exact wrapper
+PASS r28 cache token
+PASS localization mixed workflow phrases covered
+PASS no immutable movement removewhere
+PASS R28 complete runtime closure — 22 gates
+PASS clean package sanity verification
+  - pubspec version: 22.9.8+229008
+  - generated/local paths are excluded by .gitignore
+  - Supabase is the application backend; Firebase is Hosting only
+  - local credentials and generated folders are excluded
+  - root command surface is concise and explicit
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: fjiaxdorunedmltgqtty
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged

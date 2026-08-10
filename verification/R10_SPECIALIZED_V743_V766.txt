@@ -1,0 +1,150 @@
+===== verify:v743 =====
+
+> verify:v743
+> python tool/verify_v743_complete_consistency.py
+
+PASS V7.4.3 complete consistency audit
+  - purchase and sales invoicing fallbacks match database eligibility
+  - historical completed logistics do not hide invoice creation
+  - known Flutter test expectations match current window and schema behavior
+  - purchase localization import remains valid
+===== verify:v744 =====
+
+> verify:v744
+> python tool/verify_v744_cashbox_fixes.py
+
+PASS V7.4.4 cashbox binding, linked FX payments, balanced transfers, and integrated close action
+  - version
+  - migration
+  - links
+  - auto fx link
+  - balanced transfer
+  - persistent binding
+  - linked cash UI
+  - close beside toolbar
+===== verify:v746 =====
+
+> verify:v746
+> python tool/verify_v746_partner_currency_cashbox_inventory.py
+
+PASS V7.4.6 partner currency, user cashbox links, FX payment routing, and live inventory value
+===== verify:v747 =====
+
+> verify:v747
+> python tool/verify_v747_stabilization.py
+
+PASS V7.4.7 stabilization: analyzer blockers, UTF-8 verifier, and close fallback repaired
+===== verify:v748 =====
+
+> verify:v748
+> python tool/verify_v748_fx_cashbox_link_routing.py
+
+PASS V7.4.8 reciprocal FX cashbox link routing and transfer selection
+===== verify:v749 =====
+
+> verify:v749
+> python tool/verify_v749_invoice_currency_draft_recovery.py
+
+PASS V7.4.9 invoice currency preflight, approval repair, and draft deletion
+===== verify:v750 =====
+
+> verify:v750
+> python tool/verify_v750_rpc_runtime_recovery.py
+
+PASS V7.5.0 RPC runtime recovery
+===== verify:v751 =====
+
+> verify:v751
+> python tool/verify_v751_premium_invoice_stage.py
+
+PASS V7.5.1 invoice-stage eligibility, unified close row, localized premium responsive model layout
+===== verify:v752 =====
+
+> verify:v752
+> python tool/verify_v752_cashbox_fx_transfer.py
+
+PASS V7.5.2 linked FX cashbox transfer runtime
+===== verify:v753 =====
+
+> verify:v753
+> python tool/verify_v753_analyzer_test_stabilization.py
+
+PASS V7.5.3 analyzer and full-page window test stabilization
+===== verify:v754 =====
+
+> verify:v754
+> python tool/verify_v754_fx_cashbox_409_conflict.py
+
+PASS V7.5.4 FX cashbox HTTP 409 conflict repair
+===== verify:v755 =====
+
+> verify:v755
+> python tool/verify_v755_fx_transfer_uniqueness_auth.py
+
+PASS V7.5.5 FX transfer unique vouchers/references and authenticated UI preferences
+===== verify:v756 =====
+
+> verify:v756
+> python tool/verify_v756_secure_multicurrency_payment_chain.py
+
+PASS V7.5.6 secure linked multi-currency payment chain for sales, purchases, and maintenance
+===== verify:v757 =====
+
+> verify:v757
+> python tool/verify_v757_multicurrency_payment_hardening.py
+
+PASS V7.5.7 hardened multi-currency payment chain
+===== verify:v758 =====
+
+> verify:v758
+> python tool/verify_v758_invoice_draft_csp_runtime.py
+
+PASS V7.5.8 resilient invoice draft creation and blob-frame CSP runtime
+===== verify:v759 =====
+
+> verify:v759
+> python tool/verify_v759_no_capitalization_balance.py
+
+PASS V7.5.9 no operational capitalization and debit/credit/balance integrity
+===== verify:v760 =====
+
+> verify:v760
+> python tool/verify_v760_no_capitalization_integrity.py
+
+PASS V7.6.0 no capitalization, definition-owned purchase posting, and debit/credit/balance integrity
+===== verify:v761 =====
+
+> verify:v761
+> python tool/verify_v761_strict_no_capitalization_balance.py
+
+PASS V7.6.1 strict no-capitalization posting and debit/credit/balance integrity
+===== verify:v762 =====
+
+> verify:v762
+> python tool/verify_v762_definition_posting_balance.py
+
+PASS V7.6.2 definition-only posting and debit/credit/balance hardening
+===== verify:v763 =====
+
+> verify:v763
+> python tool/verify_v763_zero_capitalization_balance.py
+
+PASS V7.6.3 zero-capitalization policy and debit/credit/balance reconciliation
+===== verify:v764 =====
+
+> verify:v764
+> python tool/verify_v764_adaptive_dialog_localization_numbers.py
+
+PASS V7.6.4 adaptive dialog proportions, unified close rail, localized technical terms, and thousands separators
+===== verify:v765 =====
+
+> verify:v765
+> python tool/verify_v765_dialog_language_number_close_ratio.py
+
+PASS V7.6.5 proportional module windows, unified close rail, localized selectable values, and thousands formatting
+===== verify:v766 =====
+
+> verify:v766
+> python tool/verify_v766_complete_dialog_language_number_close_ratio.py
+
+PASS V7.6.6 complete dialog sizing, fixed top close rail, proportional resize, localization and thousands formatting

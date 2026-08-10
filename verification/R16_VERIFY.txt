@@ -1,0 +1,8 @@
+PASS R16 persistent canonical state
+  - permanent purge no longer erases deletion truth; stale clients cannot recreate a purged master ID
+  - recycle restore is the only path that clears an active canonical tombstone
+  - cashbox journal rebinding requires transaction/header/reference/account identity; amount-only matching is forbidden
+  - ambiguous/unmatched cash journals are recorded as reconciliation issues instead of being rewritten
+  - deferred reconciliation makes future cash postings converge after journal lines exist
+  - production readiness blocks on persistent deletion conflicts and unresolved canonical reconciliation issues
+  - Supabase/Firebase production configuration hashes are unchanged

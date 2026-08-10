@@ -1,0 +1,65 @@
+R43 VERIFICATION SUMMARY
+UTC 2026-08-09 18:30:46
+
+PASS static Dart source sanity verification
+  - checked 338 Dart files
+  - all quality_line_erp package imports and exports resolve
+  - FontWeight values are supported by Flutter
+  - no unresolved merge markers
+
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1260 definitions checked, 711 active signatures
+
+PASS PostgreSQL text/UUID type-boundary verification
+  - 710 active function signatures inspected
+  - 154 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+
+PASS Supabase-only structural verification
+  - Dart graph: 335 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 164 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 234
+
+PASS localization verification
+  - English remains the primary locale and Arabic remains supported
+  - AppText follows the active widget-tree locale
+  - visible form properties and validators use localization
+
+PASS final UI and localization audit generated
+- dartFiles: 338
+- unlocalizedRawUiTextCandidates: 0
+- runtimeLocalizedAppTextLiterals: 375
+- nonDesignSystemColorLiterals: 76
+- nonDesignSystemRadiusLiterals: 114
+
+PASS R30 completion audit — 21 gates
+
+PASS R31 final completion closure — 12 gates
+
+PASS R32 final verified closure — 14 gates
+
+PASS R33 all requirements closure — 13 gates
+
+PASS R34 compile/runtime closure — 15 gates
+
+PASS R35 runtime functional closure — 16 gates
+
+PASS R36 UI/export acceptance — 13 gates
+
+PASS R37 full functional/presentation closure — 20 gates
+
+PASS R38 final functional acceptance — 17 gates
+
+PASS R39 canonical acceptance — 10 gates
+
+PASS R40 language/runtime acceptance — 11 gates
+
+PASS R41 export/language canonical closure — 17 gates
+
+PASS R42 production cashbox guard closure — 17 gates
+
+PASS R43 performance/functional closure — 16 gates
+
+NOTE: Flutter analyze/test/build were not executed in this container because Flutter SDK is not installed here.

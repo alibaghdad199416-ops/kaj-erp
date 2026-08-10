@@ -1,0 +1,48 @@
+Quality Line ERP — R37 Full Functional & Presentation Closure
+Date: 2026-08-09
+
+Scope closed in R37
+- Compact cards: cars, products, warehouses, customers, suppliers.
+- Product Details/Edit no longer depend on optional image/stock fetch success.
+- Product History and Movement exports are structured English documents with date/time, quantity, source, destination, performed-by user, costs and references.
+- Recycle Bin XLSX uses direct binary web download.
+- Opportunity XLSX/PDF exports are enabled.
+- Opportunity ↔ Sales lifecycle reconciliation is bidirectional: opportunity salesOrderId/saleId can backfill sales_orders_cloud.opportunity_id; Delivery/Invoice/Payment lifecycle is synchronized through canonical sales workflow.
+- Sales/Purchase filters/actions and remaining Inventory manager controls follow active locale.
+- Order details suppress transport/raw maps and expose business fields instead.
+- Web PDF uses browser-safe direct download.
+- R37 Cloud Command uses a fresh PostgREST contract.
+- Maintenance creation uses canonical approved sold-vehicle source, supports labor-only maintenance with zero parts, and R37 advance workflow returns the new stage explicitly.
+- Loading-state overflow and detached automatic scrollbar paths retained from R35 fixes.
+
+Production Supabase
+- Applied: 20260809124736 r37_full_functional_presentation_closure
+- Applied: 20260809125507 r37_maintenance_labor_only_closure
+- erp_r37_cloud_command authenticated health check: healthy=true (tested with authenticated user context, transaction rolled back)
+- Opportunity reconciliation RPC: ok=true; no active opportunities currently required backfill at the verification moment.
+- R37 RPCs have authenticated execute grants.
+
+Verification in this environment
+PASS R34 compatibility — 15 gates
+PASS R35 runtime functional closure — 16 gates
+PASS R36 UI/export acceptance — 13 gates
+PASS R37 full functional/presentation closure — 20 gates
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1251 definitions / 703 active signatures
+PASS PostgreSQL text/UUID boundaries — 702 active signatures / 154 schemas
+PASS Supabase-only structure — 162 literal Dart RPCs, all defined; 231 migrations
+PASS static Dart sanity — 338 Dart files
+PASS localization verification
+PASS clean package sanity
+PASS production deployment target
+
+Execution-environment limitation
+Flutter/Dart SDK are not installed in this environment. Therefore flutter analyze, flutter test, flutter build web and visual browser acceptance were NOT run here. They remain mandatory on the workstation before Firebase deployment.
+
+Required workstation acceptance
+1. npm ci
+2. flutter pub get
+3. npm run verify:r37
+4. flutter analyze --fatal-infos --fatal-warnings
+5. flutter test
+6. npm run run:web
+7. Visually verify compact cards, Product Details/Edit, History/Movement Excel+PDF, Recycle Bin Excel, Sales/Purchase/Maintenance PDF, Opportunity sync/export, commercial details, Maintenance Save/Approve, full English/Arabic consistency and absence of yellow/black overflows.

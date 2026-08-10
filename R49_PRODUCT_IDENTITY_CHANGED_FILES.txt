@@ -1,0 +1,41 @@
+R49 Product Identity Full Closure — changed vs prior R49 Full Autonomous baseline
+Changed: 28
+Added: 3
+Removed: 0
+
+MODIFIED
+M  START_HERE_AR.md
+M  docs/audit/final_ui_localization_audit.json
+M  lib/core/exporting/report_template_engine.dart
+M  lib/features/accounting/cashbox/models/cash_account_model.dart
+M  lib/features/accounting/cashbox/models/cash_transaction_model.dart
+M  lib/features/accounting/expenses/data/expense_repository.dart
+M  lib/features/accounting/expenses/models/expense_model.dart
+M  lib/features/accounting/fixed_assets/fixed_assets_page.dart
+M  lib/features/accounting/installments/models/installment_model.dart
+M  lib/features/accounting/models/account_model.dart
+M  lib/features/accounting/models/account_statement_line_model.dart
+M  lib/features/accounting/models/journal_entry_model.dart
+M  lib/features/accounting/pages/accounting_page.dart
+M  lib/features/business_partners/suppliers/models/supplier_model.dart
+M  lib/features/customer_service/models/opportunity_model.dart
+M  lib/features/dashboard/data/dashboard_repository.dart
+M  lib/features/inventory/cars/models/car_model.dart
+M  lib/features/inventory/models/inventory_model.dart
+M  lib/features/maintenance/models/maintenance_order_model.dart
+M  lib/features/purchases/models/purchase_model.dart
+M  lib/features/purchases/pages/purchase_order_draft_page.dart
+M  lib/features/purchases/pages/purchase_workflow_page.dart
+M  lib/features/sales/models/sale_model.dart
+M  lib/features/sales/workflow/pages/order_details_dialog.dart
+M  lib/features/sales/workflow/pages/sales_order_draft_page.dart
+M  lib/features/sales/workflow/pages/sales_workflow_page.dart
+M  tool/deploy_r49_production.ps1
+M  tool/verify_r49_full_erp_functional_crm_ui_performance_closure.py
+
+ADDED
+A  R49_PRODUCT_IDENTITY_FULL_CLOSURE_AUDIT_AR.md
+A  supabase/migrations/20260810060000_r49_product_identity_accounting_integrity.sql
+A  test/authoritative_financial_read_models_test.dart
+
+REMOVED

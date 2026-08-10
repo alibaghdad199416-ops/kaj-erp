@@ -1,0 +1,33 @@
+Quality Line ERP R30 Completion Audit — 2026-08-09
+
+LOCAL SOURCE / CONTRACT VERIFICATION
+PASS R30 completion audit — 21 gates
+PASS R29 final acceptance — 18 gates
+PASS R28 complete runtime closure — 22 gates
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1241 definitions / 694 active signatures
+PASS PostgreSQL UUID/text boundaries — 693 functions / 154 schemas
+PASS static Dart sanity — 338 Dart files
+PASS localization verification
+PASS clean package / production target
+
+PRODUCTION SUPABASE RECHECK
+- EBL USD canonical accountId/account_id: 4b43fb7e-e239-4994-8e2a-fb08e00c691c
+  Ledger: EBL USD, account code 1102, type asset, currency USD.
+- EBL IQD canonical accountId/account_id: a713e3b8-a44b-4225-a08e-5f8afa90d565
+  Ledger: EBL IQD, account code 1110, type asset, currency IQD.
+- duplicate active cashbox ledger bindings: 0
+- erp_r28_cloud_command signature count: 1
+- authoritative remote migrations R23 through R28 are present in Supabase migration history.
+
+ADDITIONAL R30 HARDENING
+- AccountStatementLineModel no longer fabricates 1970 when entryDate is missing; it checks transactionDate/effectiveAt/createdAt before a runtime fallback.
+- ReportTemplateEngine no longer converts invalid or empty export dates to Unix epoch; those cells are blank.
+- deploy:production now points to deploy_r30_production.ps1, not the obsolete R24 script.
+- Production deploy verifies cloud migration history instead of replaying migrations already applied by the Supabase API.
+- Web cache token advanced to r30-completion-audit-20260809.
+
+FINAL WORKSTATION REQUIREMENT
+flutter analyze --fatal-infos --fatal-warnings
+flutter test
+flutter build web / npm run build:web
+Runtime visual acceptance on Edge/Chrome, then Firebase Hosting deployment.

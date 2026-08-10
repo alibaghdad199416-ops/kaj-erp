@@ -1,0 +1,6 @@
+PASS PostgreSQL text/UUID type-boundary verification
+  - 639 active function signatures inspected
+  - 154 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary

@@ -1,0 +1,187 @@
+
+==> verify_supabase_only.py
+PASS Supabase-only structural verification
+  - Dart graph: 329 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 159 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 212
+
+==> verify_postgres_contracts.py
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1148 definitions checked, 640 active signatures
+
+==> verify_postgres_type_boundaries.py
+PASS PostgreSQL text/UUID type-boundary verification
+  - 639 active function signatures inspected
+  - 154 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+
+==> verify_modular_runtime_architecture.py
+PASS modular runtime architecture verification
+  - main.dart is reduced to bootstrap and composition
+  - all long-lived controllers are registered centrally or explicitly page-local
+  - all mutation and Realtime sources have an explicit refresh consumer
+  - data refresh is declarative, debounced, and re-entrant safe
+  - Supabase readiness is visible per module
+  - UI pages and widgets do not access Supabase directly
+  - critical cloud models use defensive key/type conversion
+  - English is the primary default and Arabic remains supported
+
+==> verify_static_dart_sanity.py
+PASS static Dart source sanity verification
+  - checked 332 Dart files
+  - all quality_line_erp package imports and exports resolve
+  - FontWeight values are supported by Flutter
+  - no unresolved merge markers
+
+==> verify_localization.py
+PASS localization verification
+  - English remains the primary locale and Arabic remains supported
+  - AppText follows the active widget-tree locale
+  - visible form properties and validators use localization
+
+==> verify_v72_complete_linked_operations.py
+PASS V7.2 complete linked operations, recycle purge, preserved payments, and product/vehicle account assignment
+  - forward migration follows V7.1.1
+  - primary product transfer entry opens unified documents
+  - unified transfer page exposes create edit delete print actions
+  - product transfer form has no recursive document dependency
+  - transfer deletion uses verified v2 RPC
+  - transfer v2 validates header items and movement cleanup
+  - sales deletion uses latest reversible wrapper
+  - purchase deletion uses v3 reversible wrapper
+  - maintenance deletion uses v3 reversible wrapper
+  - commercial deletion preserves partner advances
+  - preserved payments appear in partner totals and documents
+  - preserved payments are listed and editable
+  - partner account UI manages edit and permanent delete by permission
+  - product accounts use isolated lazy loading with retry
+  - shared vehicle account fields load only chart accounts
+  - vehicle account assignments reset by currency and validate
+  - vehicle cloud map writes normalized and compatibility account aliases
+  - recycle item carries exact archive id
+  - recycle purge targets exact archive and validates result
+  - recycle permanent delete remains visible and runtime permission guarded
+  - exact batch purge removes archive rows and retries FK order
+  - new RPCs are revoked from anon and granted to authenticated
+
+==> verify_v721_recycle_purge_lint_fix.py
+PASS V7.2.1 recycle purge linked-lint repair
+  - forward migration exists after V7.2
+  - purge function is redefined
+  - temporary pg_temp queue is removed
+  - in-memory UUID retry queue is used
+  - exact archive and deletion batch are preserved
+  - foreign-key retry and blocked-state detection remain
+  - source rows and archive rows are counted
+  - permission boundary remains
+
+==> verify_v73_reversible_workflows.py
+PASS V7.3 reversible workflows and shell cleanup
+  - vehicle and product transfers are reversible and rebuild links
+  - orphaned purchased-car transfer chains can be removed
+  - products return to a deletable opening state after linked reversals
+  - sales, purchase, and maintenance components are independently managed
+  - maintenance payments are cashbox-owned
+  - accounting entries route deletion through their source
+  - recycle rows include deleting user and exact archive purge
+  - sidebar duplication is removed and top bar owns runtime actions
+
+==> verify_v731_preserved_payment_reallocation.py
+PASS V7.3.1 preserved payment reallocation
+  - operational reversal preserves cash payments as partner balances
+  - later approved invoices consume available balances by party/currency
+  - allocation deletion restores available balance
+  - deleting the cash transaction reverses every active allocation
+  - maintenance and commercial workflows share the accounting rule
+
+==> verify_v732_operational_state_report_links.py
+PASS V7.3.2 operational state and report links
+  - orphaned purchase receipts tolerate previously deleted vehicles
+  - vehicle warehouse and lifecycle status are replayed after reversals
+  - opening-state products are deletable after active links are removed
+  - duplicate body headers and wide document actions are removed
+  - contextual report tables wrap and link to related modules
+  - email/password login remains enabled while public signup is disabled
+
+==> verify_v733_premium_exports_nomenclature.py
+PASS V7.3.3 premium exports and nomenclature
+  - order command buttons share one system accent and icon language
+  - sales, purchase, maintenance, and field terminology are centralized
+  - Excel files carry typed values, metadata, and a relation index
+  - generic and contextual PDFs use the premium Quality Line identity
+
+==> verify_v734_complete_export_audit.py
+PASS V7.3.4 complete export audit
+  - command bars no longer carry per-action semantic colors
+  - generic Excel exports include profile and relation-index sheets
+  - field and document names share one bilingual catalog
+  - all principal PDF exporters use one premium visual theme
+
+==> verify_v734_analyzer_repairs.py
+PASS V7.3.4 analyzer regression repair
+  - Excel conditional map keys are valid Dart entries
+  - Excel cell values no longer use unsupported const constructors
+  - premium PDF theme is imported by the generic exporter
+  - dashboard user name is sourced from AccessController
+  - the strict analyzer interpolation info is removed
+
+==> verify_v735_workflow_performance_ui.py
+PASS V7.3.5 workflow approval, performance, login and UI
+  - legacy item/account gaps are repaired during stock approvals
+  - sales, purchase and maintenance approval chains share robust fallbacks
+  - refresh requests are coalesced and aggregate screens remain lazy
+  - login routes after the first successful authentication click
+  - command actions use one icon-only system accent
+  - module windows use one headless content surface and integrated close action
+
+==> verify_v736_invoice_owned_accounting_ui.py
+PASS V7.3.6 invoice-owned accounting and UI repair
+  - logistics updates quantity/state only; invoice approval owns accounting
+  - invoice quantities match approved multi-warehouse logistics exactly
+  - IQD/USD revenue and cost-currency journals are separated
+  - invoice cancellation restores journals, FIFO and valuation snapshots
+  - maintenance and opportunities follow the same invoice lifecycle
+  - pill navigation, one-line commands and headless windows are enforced
+  - web runtime assets bypass stale service-worker/browser caches
+
+==> verify_v737_complete_repairs.py
+PASS V7.3.7 invoice-owned accounting, UI, cache and performance repair
+  - logistics updates quantity/state only; invoice approval owns accounting
+  - invoice quantities match approved multi-warehouse logistics exactly
+  - IQD/USD revenue and cost-currency journals are separated
+  - invoice cancellation restores journals, FIFO and valuation snapshots
+  - maintenance and opportunities follow the same invoice lifecycle
+  - maintenance supports atomic multi-currency payment batches and settlements
+  - pill navigation, one-line commands and headless windows are enforced
+  - web runtime assets bypass stale service-worker/browser caches
+
+==> verify_v738_full_requirements.py
+PASS V7.3.8 full requirements verification
+  - heavy module tabs are lazy and hidden controllers are not refreshed
+  - command/metric rows stay horizontal and windows are headless
+  - active workflow documents drive invoice/payment controls
+  - warehouse approval is quantity-only; invoices own accounting/valuation
+  - opportunity, payment, naming and cross-device cache links are verified
+
+==> verify_v741_complete_requirements.py
+PASS V7.4.1 complete requirements verification
+  - version
+  - migration
+  - scaling
+  - integrated close
+  - sales invoice fallback
+  - details invoice fallback
+  - definition accounting
+  - compact references
+
+==> verify_v742_final_audit.py
+PASS V7.4.2 final conflict and completeness audit
+  - invoicing accepts approved historical logistics statuses
+  - sales and purchase projections expose the same eligibility rules
+  - invoice owns accounting; logistics remains quantity-only
+  - purchase postings use inventory nomenclature, not capitalization documents
+
+PASS current Quality Line ERP verification
+NOTE delivery-package cleanliness is checked separately with: npm run verify:package

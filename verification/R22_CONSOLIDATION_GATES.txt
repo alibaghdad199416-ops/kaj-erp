@@ -1,0 +1,104 @@
+R22 STATIC CONSOLIDATION VERIFICATION
+UTC 2026-08-08T03:12:29Z
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1193 definitions checked, 676 active signatures
+PASS PostgreSQL text/UUID type-boundary verification
+  - 675 active function signatures inspected
+  - 154 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+PASS Supabase-only structural verification
+  - Dart graph: 329 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 159 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 213
+PASS static Dart source sanity verification
+  - checked 332 Dart files
+  - all quality_line_erp package imports and exports resolve
+  - FontWeight values are supported by Flutter
+  - no unresolved merge markers
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: fjiaxdorunedmltgqtty
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged
+PASS R8 release closure verification
+- Supabase/Firebase configuration hashes unchanged
+- typed XLSX export and explicit recycle-bin deletion identity verified
+- shared design-system text uses AppText/AppSelectableText localization layer
+- hardened operational-date FX cash transfer chain verified
+- delivery cleanliness is delegated to verify:package; CI compile gates are present
+NOTICE: exhaustive per-field UI permission wiring is not certified by this verifier.
+PASS R9 complete closure
+- production Supabase/Firebase configuration hashes unchanged
+- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes
+- legacy invoice tabs no longer bypass authoritative order workflows
+- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns
+- operational date/time and null-runtime hardening retained
+- source-package cleanliness is delegated to verify:package
+PASS R14 runtime RPC/invoice root closure
+  - R14 master CRUD/tombstone contracts replace the failing R9 browser endpoint and validate legacy table structure
+  - workflow status/accounting writes no longer require unrelated *.update field permission
+  - Phase-26 browser contract is recreated behind an explicit PostgREST schema reload
+  - sales/purchase invoice approval uses one diagnosable R14 contract over V23.0.2/V7.6.2
+  - sales cross-definition currency and purchase single-currency accounting policies are retained
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R15 canonical-state reconciliation
+  - deleted/purged tombstones permanently outrank stale master payloads unless explicitly restored
+  - optimistic versions prevent older screens/devices from silently overwriting newer Supabase state
+  - stale accounting sync cannot overwrite newer account/partner/item-cost state
+  - obsolete capitalization accounts cannot reactivate; contaminated purchase invoices normalize from source
+  - deleted/stale cashbox edits cannot revive or overwrite current definitions
+  - cashbox opening balance and cash-side journals follow the current cashbox ledger binding continuously
+  - production readiness exposes canonical data health and reconciliation drift
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R16 persistent canonical state
+  - permanent purge no longer erases deletion truth; stale clients cannot recreate a purged master ID
+  - recycle restore is the only path that clears an active canonical tombstone
+  - cashbox journal rebinding requires transaction/header/reference/account identity; amount-only matching is forbidden
+  - ambiguous/unmatched cash journals are recorded as reconciliation issues instead of being rewritten
+  - deferred reconciliation makes future cash postings converge after journal lines exist
+  - production readiness blocks on persistent deletion conflicts and unresolved canonical reconciliation issues
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R17 deployment orchestration
+  - runtime identity is certified by contract gates + Dart analyzer/tests/build, not post-format source hashes
+  - pristine ZIP cleanliness is checked only before generated workspace artifacts exist
+  - installed workspace validation rebuilds and rechecks source without package-cleanliness false failures
+  - production deploy never calls pristine validation from an already-built workspace
+  - Supabase dry-run/push remains before Firebase Hosting and rejects unexpected migrations
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R18 formatter-safe deployment closure
+  - no post-format Dart source/token fingerprint can create false runtime failures
+  - R16 functional/canonical-state gates remain mandatory
+  - analyzer/tests/fresh web build remain the authoritative Dart runtime gates
+  - production deploy remains workspace-safe and database-before-hosting
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R19 authoritative-gates deployment closure
+  - post-format Dart hash/token identity gates are removed permanently
+  - R14/R15/R16 runtime, invoice and canonical-state contracts remain mandatory
+  - format-check, analyzer, tests and fresh web build are the authoritative Dart gates
+  - pristine package cleanliness remains separate from installed-workspace validation
+  - production deploy validates/builds first, then Supabase dry-run/push, then Firebase Hosting
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R20 native CLI deployment closure
+  - ordinary Supabase/Firebase stderr cannot become a false PowerShell deployment failure
+  - native process exit codes are authoritative and stderr remains visible for diagnostics
+  - dry-run parsing still rejects every unexpected migration before production push
+  - R14/R15/R16 canonical runtime/state migrations remain the only allowed pending migrations
+  - analyzer/tests/fresh web build remain mandatory before Supabase and Firebase deployment
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R21 R16 tombstone-signature closure
+  - recycle-bin UUID actor columns are explicitly cast to the canonical text actor contract
+  - every R16 seed call resolves to the existing erp_r16_sync_tombstone text signature
+  - the corrected R16 migration remains the only pending canonical-state database step after R15
+  - R20 native CLI exit-code handling and unexpected-migration refusal remain mandatory
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R22 production accounting consolidation
+  - new purchase invoices post directly Supplier <-> Inventory without legacy clearing/capitalization
+  - historical capitalized purchase journals rebuild from source without replaying inventory valuation
+  - sales/purchase approvals converge on one diagnosable R22 contract
+  - cash transfers carry immutable transaction/cashbox identity and ambiguous history is never rewritten blindly
+  - accounting/cash browser RPC exposure is consolidated under the R22 namespace
+  - Production Readiness requires R22 runtime, reconciliation and historical-rebuild contracts
+  - Supabase/Firebase production configuration hashes are unchanged

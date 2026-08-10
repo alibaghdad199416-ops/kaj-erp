@@ -1,0 +1,21 @@
+R21 targeted verification
+UTC 2026-08-08T01:39:58Z
+
+PASS R21 R16 tombstone-signature closure
+  - recycle-bin UUID actor columns are explicitly cast to the canonical text actor contract
+  - every R16 seed call resolves to the existing erp_r16_sync_tombstone text signature
+  - the corrected R16 migration remains the only pending canonical-state database step after R15
+  - R20 native CLI exit-code handling and unexpected-migration refusal remain mandatory
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1148 definitions checked, 640 active signatures
+PASS PostgreSQL text/UUID type-boundary verification
+  - 639 active function signatures inspected
+  - 154 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+PASS Supabase-only structural verification
+  - Dart graph: 329 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 159 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 212

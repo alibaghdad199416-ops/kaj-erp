@@ -1,0 +1,2 @@
+R47 verifier: npm run verify:r47
+Preserves R46 invoice-owned accounting boundary.

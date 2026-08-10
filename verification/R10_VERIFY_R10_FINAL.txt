@@ -1,0 +1,7 @@
+PASS R10 Windows/Flutter build cleanup verification
+  - production Supabase/Firebase files are byte-identical
+  - settings permission and legacy read-only cards are compile-safe
+  - analyzer warnings reported by the user's Flutter run are removed
+  - cashbox async BuildContext usage is mounted-guarded
+  - Python verifiers are UTF-8 deterministic on Windows
+  - deprecated --pwa-strategy is removed while cache cleanup remains

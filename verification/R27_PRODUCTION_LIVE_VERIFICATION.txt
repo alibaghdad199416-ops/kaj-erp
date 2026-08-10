@@ -1,0 +1,56 @@
+Quality Line ERP — R27 Complete Functional Closure
+Date: 2026-08-08
+
+Production target
+- Supabase: fjiaxdorunedmltgqtty
+- Firebase Hosting target: kaj-erp
+- dart_defines.json unchanged by R27 work.
+
+Production migrations applied successfully
+- r27_complete_functional_closure
+- r27_cashbox_concurrency_readback_repair
+
+Live Production validation (transactions rolled back where a write was exercised)
+1. EBL USD cashbox canonical Save -> Readback: PASS
+   - id: cash-main-usd
+   - accountId/account_id/readback all: 4b43fb7e-e239-4994-8e2a-fb08e00c691c
+2. EBL IQD cashbox canonical Save -> Readback: PASS
+   - id: cash-main-iqd
+   - accountId/account_id/readback all: a713e3b8-a44b-4225-a08e-5f8afa90d565
+3. R27 cloud command health check: PASS (healthy=true)
+4. Inventory movement semantic RPC: PASS
+   - sales examples resolve BGW -> customer QWER, user ALI, refs SDN0025/SDN0024
+   - purchase examples resolve supplier china -> BGW, user ALI, refs GRN0021/GRN0020
+5. authenticated EXECUTE grants exist for R27 command/cashbox/movement functions and R22 phase26 compatibility function.
+
+Source/runtime closure changes
+- Cashbox UI reads/saves through R27 dedicated canonical RPCs and row updated_at concurrency token.
+- Old cloud-command frontend path replaced with erp_r27_cloud_command; R22 compatibility RPC also recreated and PostgREST schema reload issued.
+- Inventory movement log no longer mutates an immutable list with removeWhere and uses a dedicated server-side semantic movement feed.
+- Purchase/sales order Details tabs recursively expose full linked record payloads; payment/movement fallbacks are derived from approved invoice/logistics payloads when summary arrays are empty.
+- Product history is tabular and has Excel/PDF export actions.
+- Product card/grid and car card/grid vertical constraints increased so actions/content are not clipped by the previously observed fixed extents.
+- Cash transaction and journal date models no longer fall back to Unix epoch; cash card primary date uses transactionDate.
+- PDF font loading has a built-in font fallback and web PDF paths no longer require rootBundle logo/AssetManifest.
+- Browser downloads use browser-safe Blob/anchor or ExcelDownloadService instead of FileSaver-only paths for PDF/CSV/XLSX report flows.
+- Accounting grouped report account codes normalize as identifiers, matching tree presentation instead of numeric decimal formatting.
+- Localization audit reports zero raw unlocalized UI text candidates under the audit rules; additional requested Arabic/English phrases were added to the translation catalog.
+- Web bootstrap cache token is R27-specific.
+
+Static/package verification
+- npm run verify:r27: PASS (18 gates)
+- npm run verify:database: PASS
+  - PostgreSQL CREATE OR REPLACE: 1235 definitions / 688 active signatures
+  - type boundaries: 687 active function signatures / 154 schemas
+- npm run verify:source: PASS (335 Dart files)
+- npm run verify:delivery: PASS
+  - clean package sanity PASS
+  - production deployment target PASS
+
+Required workstation acceptance before Firebase deploy
+- flutter analyze --fatal-infos --fatal-warnings
+- flutter test
+- fresh Flutter Web build
+- browser acceptance for PDF print/download, Excel downloads, visual layout, full localization and dialog drill-down.
+
+Firebase Hosting was NOT deployed from this environment.

@@ -1,0 +1,7 @@
+R10 environment note
+====================
+Dart/Flutter SDK is not installed in the packaging environment.
+Therefore Dart formatter, Flutter analyzer, Flutter tests, and dart2js web build must be run on the user's Windows Flutter environment.
+The canonical command is:
+  npm run validate:r10:windows
+It auto-formats before running verify:all, format:check, analyzer, tests, and build:web, and fails fast on the first non-zero command.

@@ -1,0 +1,11 @@
+
+> verify:r8
+> python tool/verify_r8_release_closure.py
+
+PASS R8 release closure verification
+- Supabase/Firebase configuration hashes unchanged
+- typed XLSX export and explicit recycle-bin deletion identity verified
+- shared design-system text uses AppText/AppSelectableText localization layer
+- hardened operational-date FX cash transfer chain verified
+- stale build/cache directories excluded and CI compile gates present
+NOTICE: exhaustive per-field UI permission wiring is not certified by this verifier.

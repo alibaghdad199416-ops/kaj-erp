@@ -1,0 +1,7 @@
+PASS R17 deployment orchestration
+  - R16 runtime, migrations and tests remain byte-identical
+  - pristine ZIP cleanliness is checked only before generated workspace artifacts exist
+  - installed workspace validation rebuilds and rechecks source without package-cleanliness false failures
+  - production deploy never calls pristine validation from an already-built workspace
+  - Supabase dry-run/push remains before Firebase Hosting and rejects unexpected migrations
+  - Supabase/Firebase production configuration hashes are unchanged

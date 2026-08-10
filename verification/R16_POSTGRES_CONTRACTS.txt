@@ -1,0 +1,1 @@
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1148 definitions checked, 640 active signatures

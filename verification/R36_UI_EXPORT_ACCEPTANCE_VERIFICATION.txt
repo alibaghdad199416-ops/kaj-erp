@@ -1,0 +1,28 @@
+Quality Line ERP R36 UI / Export Acceptance Closure
+Date: 2026-08-09
+
+Source/UI improvements:
+- Reduced card heights for vehicles, products, warehouses, customers and suppliers.
+- Product Details/Edit remain directly bound and resilient to optional image/stock lookup failures.
+- Product History export is structured English for Excel/PDF with date/time, product, quantity, from/to, performed-by, unit cost, total cost and reference.
+- Inventory Movement export provides English-capable structured Excel/PDF output with date/reference/product/code/from/to/quantity/user.
+- Recycle Bin Excel uses English structured report and browser-safe Excel download.
+- Opportunity Excel/PDF export retained; canonical R35 workflow synchronization retained.
+- R35 cloud command and canonical maintenance create RPCs retained.
+- Web PDF direct Blob download retained.
+
+Verification in this environment:
+PASS R35 runtime functional closure — 16 gates
+PASS R36 UI/export acceptance — 13 gates
+PASS static Dart source sanity — 338 files
+PASS localization verification
+PASS PostgreSQL contracts — 1245 definitions / 697 active signatures
+PASS PostgreSQL type boundaries — 696 active functions / 154 schemas
+PASS Supabase-only structural verification — 162 literal Dart RPC calls defined
+
+Production:
+R35 migration is already deployed on Supabase Production.
+No new database migration is required for R36; R36 is UI/export/source hardening over the R35 backend.
+
+Important:
+Flutter SDK is not installed in this execution environment. Run flutter analyze/test/run:web on the workstation before Firebase deployment.

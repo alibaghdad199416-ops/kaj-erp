@@ -1,0 +1,38 @@
+Quality Line ERP R35 Runtime Functional Closure
+Date: 2026-08-09
+
+Console-confirmed blockers addressed:
+- erp_r28_cloud_command repeated HTTP 404 -> Flutter now uses unique erp_r35_cloud_command; Production function deployed, authenticated execute granted, schema reload issued. Auth-context SQL health check returned healthy=true.
+- erp_create_cloud_maintenance_order HTTP 400 -> new erp_r35_create_cloud_maintenance_order derives sold vehicle/customer from approved canonical sales invoice/order chain rather than legacy erp_sales.
+- KajInventoryLoadingState RenderFlex overflow 39 px -> responsive skeleton heights fit actual constraints.
+- Scrollbar has no ScrollPosition -> global automatic scrollbar wrapper removed to avoid detached-controller assertions.
+- AssetManifest.json 404 in PDF font path -> Web PDF font support no longer calls PdfGoogleFonts/AssetManifest; PDF Web output uses browser-native download rather than popup window.
+
+Functional/UI completion in this closure:
+- Car/product/warehouse/customer/supplier card extents reduced while retaining enough vertical room for actions.
+- Product Edit and Details no longer fail solely because optional image/warehouse-stock lookup fails.
+- Product Asset History now reads the canonical R28 movement log and includes product, quantity, source, destination, performer, cost, reference and date/time.
+- Product history Excel/PDF exports are English-only and structured.
+- Commercial Opportunities now have direct English Excel/PDF export.
+- Opportunity status synchronization follows approved sales invoice and is triggered by sales delivery/invoice workflow changes.
+- Commercial workflow cards no longer mix Arabic labels into the English UI.
+- Order component Details filter raw transport maps and use canonical human labels instead of dumping raw payloads as the primary view.
+- PDF Web uses an anchor download so asynchronous PDF generation is not blocked by browser popup policy.
+
+Production:
+- Migration r35_runtime_ui_opportunity_maintenance_closure applied successfully.
+- Remote migration version: 20260809122052.
+- erp_r35_cloud_command(text,text,jsonb): authenticated execute=true.
+- erp_r35_create_cloud_maintenance_order(...): authenticated execute=true.
+
+Local verification available in this environment:
+- verify:r35 PASS (16 gates)
+- R34 compatibility PASS
+- Static Dart sanity PASS (338 files)
+- Localization PASS
+- PostgreSQL CREATE OR REPLACE compatibility PASS (1245 definitions / 697 active signatures)
+- PostgreSQL UUID/text boundaries PASS (696 signatures / 154 schemas)
+- Clean package sanity PASS
+- Production deployment target PASS
+
+Flutter SDK is not installed in this execution environment. flutter analyze/test/run must be executed on the workstation before Firebase deployment.

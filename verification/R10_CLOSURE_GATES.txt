@@ -1,0 +1,53 @@
+
+> verify:r8
+> python tool/verify_r8_release_closure.py
+
+PASS R8 release closure verification
+- Supabase/Firebase configuration hashes unchanged
+- typed XLSX export and explicit recycle-bin deletion identity verified
+- shared design-system text uses AppText/AppSelectableText localization layer
+- hardened operational-date FX cash transfer chain verified
+- stale build/cache directories excluded and CI compile gates present
+NOTICE: exhaustive per-field UI permission wiring is not certified by this verifier.
+
+> verify:r9
+> python tool/verify_r9_complete_closure.py
+
+PASS R9 complete closure
+- production Supabase/Firebase configuration hashes unchanged
+- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes
+- legacy invoice tabs no longer bypass authoritative order workflows
+- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns
+- operational date/time and null-runtime hardening retained
+- source delivery excludes stale build/cache artifacts
+
+> verify:r10
+> python tool/verify_r10_windows_flutter_build_cleanup.py
+
+PASS R10 Windows/Flutter build cleanup verification
+  - production Supabase/Firebase files are byte-identical
+  - settings permission and legacy read-only cards are compile-safe
+  - analyzer warnings reported by the user's Flutter run are removed
+  - cashbox async BuildContext usage is mounted-guarded
+  - Python verifiers are UTF-8 deterministic on Windows
+  - deprecated --pwa-strategy is removed while cache cleanup remains
+
+> verify:package
+> python tool/verify_package_sanity.py
+
+PASS clean package sanity verification
+  - pubspec version: 22.9.8+229008
+  - generated/local paths are excluded by .gitignore
+  - Supabase is the application backend; Firebase is Hosting only
+  - local credentials and generated folders are excluded
+  - root command surface is concise and explicit
+
+> verify:deployment-target
+> python tool/verify_deployment_target.py
+
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: fjiaxdorunedmltgqtty
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged

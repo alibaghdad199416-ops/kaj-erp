@@ -1,0 +1,41 @@
+Quality Line ERP — R23 Production Live Verification
+Date: 2026-08-08
+Supabase project: fjiaxdorunedmltgqtty
+Firebase Hosting project: kaj-erp
+
+Applied Supabase migrations:
+- 20260808052709_r23_canonical_vehicle_lifecycle_and_phase26_contract.sql
+- 20260808062444_r23_cashbox_ledger_alias_contract.sql
+- 20260808062519_r23_deterministic_cashbox_rebinding.sql
+- 20260808063806_r23_cashbox_rebind_lock_safety.sql
+
+Production smoke checks (writes executed inside ROLLBACK where applicable):
+1. Canonical vehicle state for the reported vehicle resolves to statusValue=known,
+   eligibleForPurchase=true, legacyStatusIgnored=true.
+2. erp_v2300_create_purchase_order accepted the reported vehicle with unitCost=350
+   and returned a temporary order UUID inside a rolled-back transaction.
+3. erp_r22_phase26_cloud_command('system_monitor','health_check',{}) returned healthy=true.
+4. PostgREST contract has one exact (text,text,jsonb) overload and authenticated EXECUTE.
+5. Cashbox/GL reconciliation after canonical ledger alias normalization:
+   BGW IQD: subledger 9,850,000 / ledger 9,850,000 / difference 0
+   EBL IQD: subledger 0 / ledger 0 / difference 0
+   BGW USD: subledger 100 / ledger 100 / difference 0
+   EBL USD: subledger 0 / ledger 0 / difference 0
+6. Historical cash rebinding selects by Cash Transaction ID or Transfer ID + side +
+   cashbox/current ledger identity; amount/direction is validation only after identity.
+7. Live rebind uses FOR UPDATE SKIP LOCKED and reports deferred active rows rather than
+   waiting on Production locks.
+
+Source/static validation:
+- R8 through R23 contract verifiers pass after R23 source integration.
+- PostgreSQL CREATE OR REPLACE compatibility passed: 1207 definitions / 681 active signatures.
+- PostgreSQL text/UUID boundary verification passed: 680 active signatures / 154 schemas.
+- Clean delivery/package verification passed.
+- Production configuration hashes for dart_defines.json, .firebaserc and firebase.json remain unchanged.
+
+Compile gate note:
+- This execution environment does not contain Flutter/Dart SDK, therefore a fresh
+  flutter analyze / flutter test / flutter build web could not be executed here.
+- No Flutter/Dart runtime source was changed by R23; Production functional fixes are
+  Supabase migrations/contracts. CI and tool/validate_r23_workspace.ps1 retain Flutter
+  3.44.8 analyze/test/fresh-build gates before any future Firebase Hosting deployment.

@@ -1,0 +1,11 @@
+
+> verify:r9
+> python tool/verify_r9_complete_closure.py
+
+PASS R9 complete closure
+- production Supabase/Firebase configuration hashes unchanged
+- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes
+- legacy invoice tabs no longer bypass authoritative order workflows
+- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns
+- operational date/time and null-runtime hardening retained
+- source delivery excludes stale build/cache artifacts

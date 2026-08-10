@@ -1,0 +1,5 @@
+# Each entry must remain unreachable from lib/main.dart and must be imported by
+# a real Flutter unit test. The verifier rejects new or stale entries.
+lib/core/performance/cursor_page.dart
+lib/core/performance/ttl_memory_cache.dart
+lib/core/testing/quality_gate.dart

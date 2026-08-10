@@ -1,0 +1,21 @@
+Quality Line ERP R25 Functional Closure — 2026-08-08
+
+Console-confirmed repairs:
+- CarImagesController loading deferred until post-frame; concurrent duplicate image loads coalesced.
+- Sales order delete HTTP 500 root cause fixed: FIFO reversal alias collision (`c`) replaced by explicit `fc`.
+- Sales invoice draft after approved warehouse delivery now uses the approved logistics document as authority instead of stale literal order status.
+- Vehicle state refresh occurs immediately after approved sales delivery (pending_sale); invoice approval remains the sold transition.
+- Sold vehicles for maintenance are sourced from approved canonical sales invoices/order items.
+- Cashbox saves persist one canonical selected ledger account to both accountId/account_id and reject duplicate active ledger bindings.
+- PostgREST schema reload included.
+- Car-card layout pressure reduced to address repeated bottom RenderFlex overflow.
+
+Verification:
+- verify:r25 PASS
+- PostgreSQL CREATE OR REPLACE compatibility PASS: 1226 definitions / 683 active signatures
+- PostgreSQL type-boundary PASS: 682 functions / 154 schemas
+- Static Dart sanity PASS: 332 Dart files
+- R25 migration applied to Production Supabase successfully.
+- Production duplicate active cashbox ledger bindings: 0.
+
+Flutter SDK is not available in this execution environment, so flutter analyze/test/build must still be run on the workstation before Firebase deployment.

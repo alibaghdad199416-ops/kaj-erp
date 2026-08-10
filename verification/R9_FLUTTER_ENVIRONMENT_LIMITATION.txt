@@ -1,0 +1,4 @@
+Flutter executable: NOT AVAILABLE in this execution environment.
+Dart executable: NOT AVAILABLE in this execution environment.
+Required before production deployment: npm run format:check, npm run analyze, npm run test, npm run build:web.
+CI workflow: .github/workflows/quality-gates.yml (Flutter 3.44.8).

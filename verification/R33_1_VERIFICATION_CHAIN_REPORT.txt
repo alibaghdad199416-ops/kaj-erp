@@ -1,0 +1,32 @@
+Quality Line ERP R33.1 Verification Chain Closure
+Date: 2026-08-09
+
+Change:
+- Historical R32 verifier now accepts default production deployment pointing to R32 or any later release (currently R33).
+- This fixes verify:workspace false failure after upgrading the default deploy target.
+
+Verified PASS after patch:
+- R28: 22 gates
+- R29: 18 gates
+- R30: 21 gates
+- R31: 12 gates
+- R32: 14 gates
+- R33: 13 gates
+- Static Dart sanity: 338 files
+- Localization verification
+- PostgreSQL CREATE OR REPLACE compatibility: 1241 definitions / 694 active signatures
+- PostgreSQL UUID/text boundaries: 693 active functions / 154 schemas
+- Package sanity
+- Production deployment target
+
+verify:workspace:
+- Started successfully and passed project/structure/database/architecture/static/localization and many historical gates.
+- Execution environment timeout occurred later during the long historical chain; there was no assertion failure before timeout.
+
+Current Production structural verification:
+- EBL USD accountId/account_id/canonical are identical.
+- EBL IQD accountId/account_id/canonical are identical.
+- duplicateActiveLedgerBindings = 0.
+- erp_r28_cloud_command signature count = 1.
+
+No Production DB or business-logic change in R33.1.

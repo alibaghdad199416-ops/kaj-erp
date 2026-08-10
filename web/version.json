@@ -1,0 +1,30 @@
+{
+  "version": "22.9.8",
+  "build": 229008,
+  "buildNumber": 229008,
+  "channel": "release-candidate",
+  "releaseStage": "F",
+  "syncEngine": "22.9.8-r49-focused-final-completion",
+  "releaseToken": "r49-focused-final-completion-20260810",
+  "operationalRevision": "22.9.8-r49-focused-final-completion",
+  "previousReleaseToken": "v737-verified-workflow-ui-cache-performance-20260805",
+  "legacyReleaseTokens": [
+    "v735-workflow-approval-performance-ui-20260805",
+    "operational-1887-runtime-final-20260802",
+    "operational-1886-conversation-final-20260802",
+    "operational-1885-fullpage-20260802",
+    "operational-1884-overlayfree-20260802",
+    "operational-1884-stage19-20260802",
+    "operational-1883-20260801",
+    "operational-1882-20260801",
+    "operational-1881-20260801",
+    "operational-1884-20260802"
+  ],
+  "build_number": "229008",
+  "legacyAudit": {
+    "version": "18.9.8",
+    "buildNumber": 189800,
+    "releaseToken": "v738-full-verified-runtime-accounting-ui-20260806"
+  },
+  "build_name": "22.9.8"
+}

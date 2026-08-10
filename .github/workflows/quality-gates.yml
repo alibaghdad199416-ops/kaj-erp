@@ -1,0 +1,32 @@
+name: Quality Gates
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm run verify:delivery
+      - run: npm ci
+      - run: flutter pub get
+      - run: npm run format
+      - run: npm run verify:all
+      - run: npm run format:check
+      - run: npm run analyze
+      - run: npm run test
+      - run: npm run build:web

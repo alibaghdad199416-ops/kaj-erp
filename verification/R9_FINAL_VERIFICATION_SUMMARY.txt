@@ -1,0 +1,32 @@
+R9 FINAL VERIFICATION SUMMARY
+=============================
+PASS npm run verify
+PASS npm run verify:final
+PASS npm run verify:r8
+PASS npm run verify:r9
+PASS npm run verify:package
+PASS npm run verify:deployment-target
+PASS specialized V7.4.3 through V7.6.6 (V7.4.1/V7.4.2 also pass inside npm run verify)
+PASS PostgreSQL CREATE OR REPLACE compatibility: 1089 definitions / 595 active signatures
+PASS PostgreSQL UUID/Text boundaries: 594 active signatures / 152 table schemas
+PASS structural RPC contract: 156 literal RPC calls, all defined
+PASS migrations: 209
+PASS static Dart source sanity: 332 Dart files
+PASS localization audit: 0 raw untranslated UI text candidates
+PASS production config SHA-256 unchanged
+
+R9-specific closures:
+- granular field View/Edit permissions with restrict/default-deny behavior
+- UI + server-side enforcement across master, finance, commercial and reporting surfaces
+- protected RLS/RPC access paths for masked/restricted field reads and writes
+- legacy invoice edit/create bypass closed in favor of authoritative workflows
+- FX inputs/storage at 20 decimal places in key workflow/payment/transfer paths
+- operational timestamp propagation and fixed-asset effective timestamp support
+- Trial Balance / General Ledger / Cash Flow / receivables-payables / audit permission enforcement
+- null-runtime hardening including the TabBar/TabController crash source
+- typed XLSX export and recycle-bin deletion identity
+
+Environment limitation:
+Flutter/Dart SDK is not installed in this execution environment, so flutter analyze,
+flutter test, and flutter build web were not executable here. They remain mandatory
+before deployment and are enforced by .github/workflows/quality-gates.yml using Flutter 3.44.8.

@@ -1,0 +1,5 @@
+Contact: mailto:security@example.invalid
+Preferred-Languages: ar, en
+Canonical: /.well-known/security.txt
+Policy: /security-policy
+Expires: 2027-07-22T00:00:00.000Z

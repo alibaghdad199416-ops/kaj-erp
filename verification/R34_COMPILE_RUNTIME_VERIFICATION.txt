@@ -1,0 +1,48 @@
+Quality Line ERP R34 Compile Runtime Closure
+Date: 2026-08-09
+
+Source basis: R33.1 plus compile blockers reproduced from the user's Flutter analyze/test/run:web log.
+
+Fixed compile/analyzer blockers:
+1. module_translation_catalog.dart
+   - Removed all duplicate literal keys in the const translation map (28 earlier duplicates removed, one authoritative definition retained per phrase).
+   - Specifically fixes the compiler error for "مستندات الدورة التجارية" and prevents later duplicate-key failures.
+2. inventory_movements_page.dart
+   - Replaced invalid ExportValueType.number with defined ExportValueType.decimal.
+3. order_details_dialog.dart
+   - Fixed unterminated multiline string in list flattening; list values now join with " | ".
+4. pdf_print_service_web.dart
+   - Removed impossible null comparison/dead code around html.window.open.
+5. cashbox_repository.dart
+   - Removed unused CloudMasterDataService import and _cloud field.
+
+R34 hardening:
+- Added tool/verify_r34_compile_runtime_closure.py.
+- R34 verifier audits duplicate translation keys and ExportValueType contract.
+- verify:workspace includes verify:r34.
+- deploy:production points to deploy_r34_production.ps1.
+- deploy_r34_production invokes validate_r34_workspace.ps1 before Firebase deployment.
+- R28-R33 historical verifiers accept the newer R34 release token/deploy target.
+- Web release/cache metadata updated to r34-compile-runtime-closure-20260809.
+
+Verification executed in this environment:
+PASS R28 runtime closure — 22 gates
+PASS R29 final acceptance — 18 gates
+PASS R30 completion audit — 21 gates
+PASS R31 final completion — 12 gates
+PASS R32 final verified closure — 14 gates
+PASS R33 requirements closure — 13 gates
+PASS R34 compile/runtime closure — 15 gates
+PASS static Dart source sanity — 338 files
+PASS localization verification
+PASS PostgreSQL contracts — 1241 definitions / 694 active signatures
+PASS PostgreSQL UUID/text boundaries — 693 active functions / 154 schemas
+PASS Supabase-only structure — 163 literal Dart RPCs all defined
+PASS clean package sanity
+PASS production deployment target
+PASS targeted compile blocker scan
+
+Environment limitation:
+Flutter/Dart SDK is not installed in this execution environment. Therefore the final authoritative `flutter analyze --fatal-infos --fatal-warnings`, `flutter test`, and `flutter run -d edge` must be executed on the user's workstation. The R34 gate was created specifically from every analyzer/compiler blocker in the supplied workstation log.
+
+No new Production database migration is required for R34.

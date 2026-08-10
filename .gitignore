@@ -1,0 +1,24 @@
+.dart_tool/
+build/
+node_modules/
+.flutter-plugins
+.flutter-plugins-dependencies
+.env
+.firebase/
+coverage/
+
+backups/
+__pycache__/
+*.py[cod]
+supabase/.temp/
+
+# Local tooling, debug, crash, and packaged snapshot artifacts
+.idea/
+*.iml
+firebase-debug.log
+firebase-debug.*.log
+supabase-debug.log
+*.dmp
+*.crash
+*.tmp
+*.zip

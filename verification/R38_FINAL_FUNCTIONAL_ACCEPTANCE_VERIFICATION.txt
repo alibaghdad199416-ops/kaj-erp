@@ -1,0 +1,43 @@
+Quality Line ERP R38 Final Functional Acceptance
+Date: 2026-08-09
+
+R38 closes remaining client-side acceptance gaps discovered after R37:
+- Maintenance labor-only is allowed in Flutter client validation.
+- Maintenance save never dereferences _lines.first when no parts exist.
+- Maintenance continues to use R37 canonical create/advance RPCs already deployed to Production.
+- Web Print now invokes the browser print flow through a blob-backed iframe and window.print(), with download fallback.
+- Product, car, warehouse, customer, and supplier cards were tightened further to reduce unused vertical space.
+- Product Details/Edit remain directly bound and optional image/stock lookups do not block opening them.
+- Product History and Inventory Movement exports remain English structured Excel/PDF with date/time, source, destination, quantity, user, cost and reference fields.
+- Recycle Bin Excel remains browser-safe through ExcelExportService.build + BinaryDownloadService.
+- Opportunity Excel/PDF and R37 bidirectional Sales workflow reconciliation remain enabled.
+- Removed custom web viewport meta to eliminate Flutter Web viewport replacement warning.
+
+Static verification in this environment:
+- PASS R34 compatibility
+- PASS R35 runtime functional closure
+- PASS R36 UI/export acceptance
+- PASS R37 full functional/presentation closure
+- PASS R38 final functional acceptance — 17 gates
+- PASS static Dart source sanity — 338 Dart files
+- PASS localization verification
+- PASS UI/localization audit: 0 unlocalized raw UI text candidates
+- PASS PostgreSQL contracts — 1251 definitions / 703 active signatures
+- PASS PostgreSQL type boundaries — 702 active function signatures / 154 schemas
+- PASS Supabase-only RPC graph — 162 literal Dart RPC calls, all defined
+
+Production backend state:
+- R35 and R37 migrations are already deployed on Supabase Production.
+- R37 Cloud Command was previously smoke-tested authenticated and returned healthy=true.
+- R37 opportunity reconciliation exists and is executable by authenticated/service_role.
+- R37 maintenance create/advance functions exist and are executable by authenticated/service_role.
+- No new database migration is required for R38; R38 is client/UI/print acceptance hardening.
+
+Maintenance smoke-test note:
+There was no currently eligible sold vehicle returned by the Production maintenance-eligible RPC during the R38 verification attempt, so an end-to-end labor-only maintenance create/approve rollback smoke test could not be completed without inventing production data. The client-side blockers that previously prevented labor-only requests were removed.
+
+Not executable in this environment:
+- flutter analyze
+- flutter test
+- flutter build web / browser visual runtime
+These MUST pass on the Windows workstation before Firebase deployment.
