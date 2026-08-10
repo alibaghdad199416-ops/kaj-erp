@@ -27,6 +27,7 @@ dependencies:
   file_saver: ^0.2.14
   excel: ^4.0.6
   supabase_flutter: ^2.16.0
+  cupertino_icons: ^1.0.9
 
 dev_dependencies:
   flutter_test:

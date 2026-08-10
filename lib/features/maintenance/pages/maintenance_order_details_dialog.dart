@@ -25,6 +25,7 @@ class MaintenanceOrderDetailsDialog extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onPayment,
+    this.initialLines,
   });
 
   final MaintenanceOrderModel order;
@@ -32,6 +33,7 @@ class MaintenanceOrderDetailsDialog extends StatefulWidget {
   final Future<void> Function()? onEdit;
   final Future<void> Function()? onDelete;
   final Future<void> Function()? onPayment;
+  final List<MaintenanceLineModel>? initialLines;
 
   @override
   State<MaintenanceOrderDetailsDialog> createState() =>
@@ -85,7 +87,13 @@ class _MaintenanceOrderDetailsDialogState
   void initState() {
     super.initState();
     _order = widget.order;
-    unawaited(_loadDetails());
+    final initialLines = widget.initialLines;
+    if (initialLines == null) {
+      unawaited(_loadDetails());
+    } else {
+      _lines = List<MaintenanceLineModel>.unmodifiable(initialLines);
+      _loading = false;
+    }
   }
 
   Future<void> _loadDetails() async {

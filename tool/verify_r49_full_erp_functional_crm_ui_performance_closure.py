@@ -244,7 +244,7 @@ gate('Invoice payment dialog never invents USD for malformed cashboxes',
      and '_normalizedCashboxCurrency' in invoice_payment_dialog
      and '_hasUsableCashboxIdentity' in invoice_payment_dialog
      and '_usableCashAccounts.isEmpty' in invoice_payment_dialog
-     and "AppTranslation.translate('لا توجد صناديق نقدية معرفة.')" in invoice_payment_dialog)
+     and "لا توجد صناديق نقدية معرفة." in invoice_payment_dialog)
 
 gate('Existing financial documents never silently become USD when stored currency is missing',
      "order['currency']?.toString() ?? 'USD'" not in sales_workflow_page

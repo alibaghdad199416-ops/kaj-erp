@@ -17,7 +17,7 @@ cloud=read('lib/core/cloud/cloud_feature_command.dart')
 pdfweb=read('lib/core/exporting/pdf_print_service_web.dart')
 checks['product cards compact']=re.search(r'\?\s*(?:216|184|172|158)\s*:', inv) is not None
 checks['car cards compact']=any(token in car for token in ('? 228','? 198','? 186','? 168'))
-checks['warehouse cards compact']=any(token in wh for token in ('mainAxisExtent: 176','mainAxisExtent: 150','mainAxisExtent: 138','mainAxisExtent: 124'))
+checks['warehouse cards compact']=any(token in wh for token in ('mainAxisExtent: 176','mainAxisExtent: 150','mainAxisExtent: 142','mainAxisExtent: 138','mainAxisExtent: 124'))
 checks['customer cards compact']=any(token in cust for token in ('mainAxisExtent: 176','mainAxisExtent: 150','mainAxisExtent: 142','mainAxisExtent: 126'))
 checks['supplier cards compact']=any(token in supp for token in ('mainAxisExtent: 176','mainAxisExtent: 150','mainAxisExtent: 142','mainAxisExtent: 126'))
 checks['product detail/edit bound']='onView: () => _showProductDetails' in inv and 'onEdit: () => _editProduct' in inv

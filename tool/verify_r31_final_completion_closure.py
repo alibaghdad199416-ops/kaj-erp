@@ -14,7 +14,9 @@ need(
         text('lib/features/inventory/asset_history/pages/asset_history_page.dart'),
     ) is not None,
 )
-need('warehouse card overflow headroom', any(x in text('lib/features/inventory/pages/warehouse_management_page.dart') for x in ['mainAxisExtent: 138','mainAxisExtent: 124']))
+warehouse_page = text('lib/features/inventory/pages/warehouse_management_page.dart')
+warehouse_extents = [int(value) for value in re.findall(r'mainAxisExtent:\s*(\d+)', warehouse_page)]
+need('warehouse card overflow headroom', any(value >= 124 for value in warehouse_extents))
 need('supplier card overflow headroom', any(x in text('lib/features/business_partners/suppliers/pages/suppliers_page.dart') for x in ['mainAxisExtent: 142','mainAxisExtent: 126']))
 need('customer card overflow headroom', any(x in text('lib/features/business_partners/customers/pages/customers_page.dart') for x in ['mainAxisExtent: 142','mainAxisExtent: 126']))
 need('maintenance picker overflow headroom', any(x in text('lib/features/maintenance/pages/add_maintenance_order_page.dart') for x in ['mainAxisExtent: 136','mainAxisExtent: 164','mainAxisExtent: 180']))

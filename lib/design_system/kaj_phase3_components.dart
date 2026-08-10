@@ -184,15 +184,15 @@ class KajWorkflowStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (steps.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
-    final effectiveIndex = currentIndex < 0
-        ? -1
-        : currentIndex.clamp(0, steps.length - 1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scheme = Theme.of(context).colorScheme;
+        final effectiveIndex = currentIndex < 0
+            ? -1
+            : currentIndex.clamp(0, steps.length - 1);
+        final vertical = compact || constraints.maxWidth < 720;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List<Widget>.generate(steps.length, (index) {
+        Widget step(int index) {
           final complete = index < effectiveIndex;
           final active = index == effectiveIndex;
           final color = complete
@@ -200,77 +200,76 @@ class KajWorkflowStepper extends StatelessWidget {
               : active
               ? activeColor
               : scheme.outlineVariant;
+          final tile = AnimatedContainer(
+            key: ValueKey<String>('workflow-step-$index'),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: vertical ? double.infinity : 148,
+            padding: EdgeInsets.symmetric(
+              horizontal: vertical ? 10 : 11,
+              vertical: vertical ? 8 : 10,
+            ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: complete || active ? .10 : .035),
+              borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
+              border: Border.all(
+                color: color.withValues(alpha: complete || active ? .58 : .34),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: vertical ? 22 : 25,
+                  height: vertical ? 22 : 25,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: complete || active ? color : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: color),
+                  ),
+                  child: complete
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: Colors.white,
+                        )
+                      : AppText(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: active ? Colors.white : color,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: KajDesignTokens.space8),
+                Expanded(
+                  child: AppText(
+                    steps[index],
+                    maxLines: vertical ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: vertical ? 11 : 11,
+                      color: active || complete
+                          ? scheme.onSurface
+                          : scheme.onSurfaceVariant,
+                      fontWeight: active || complete
+                          ? FontWeight.w800
+                          : FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+          if (vertical) return tile;
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                width: compact ? 116 : 148,
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 9 : 11,
-                  vertical: compact ? 8 : 10,
-                ),
-                decoration: BoxDecoration(
-                  color: color.withValues(
-                    alpha: complete || active ? .10 : .035,
-                  ),
-                  borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
-                  border: Border.all(
-                    color: color.withValues(
-                      alpha: complete || active ? .58 : .34,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: compact ? 22 : 25,
-                      height: compact ? 22 : 25,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: complete || active ? color : Colors.transparent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: color),
-                      ),
-                      child: complete
-                          ? const Icon(
-                              Icons.check_rounded,
-                              size: 15,
-                              color: Colors.white,
-                            )
-                          : AppText(
-                              '${index + 1}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: active ? Colors.white : color,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: KajDesignTokens.space8),
-                    Expanded(
-                      child: AppText(
-                        steps[index],
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: compact ? 10 : 11,
-                          color: active || complete
-                              ? scheme.onSurface
-                              : scheme.onSurfaceVariant,
-                          fontWeight: active || complete
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              tile,
               if (index != steps.length - 1)
                 Container(
-                  width: compact ? 18 : 28,
+                  width: 28,
                   height: 1,
                   color: index < effectiveIndex
                       ? completedColor.withValues(alpha: .65)
@@ -278,8 +277,26 @@ class KajWorkflowStepper extends StatelessWidget {
                 ),
             ],
           );
-        }),
-      ),
+        }
+
+        if (vertical) {
+          return Column(
+            children: List<Widget>.generate(
+              steps.length,
+              (index) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == steps.length - 1 ? 0 : 6,
+                ),
+                child: step(index),
+              ),
+            ),
+          );
+        }
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: List<Widget>.generate(steps.length, step)),
+        );
+      },
     );
   }
 }

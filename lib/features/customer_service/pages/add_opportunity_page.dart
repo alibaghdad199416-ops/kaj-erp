@@ -117,6 +117,18 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
 
   @override
   Widget build(BuildContext context) {
+    const standardSources = [
+      'زيارة المعرض',
+      'اتصال هاتفي',
+      'واتساب',
+      'إعلان',
+      'إحالة',
+      'أخرى',
+    ];
+    final sourceOptions = <String>[
+      ...standardSources,
+      if (_source != null && !standardSources.contains(_source)) _source!,
+    ];
     final customers = context.watch<CustomersController>().customers;
     final access = context.watch<AccessController>();
     final users = access.users.where((u) => u.isActive).toList();
@@ -375,19 +387,9 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                   labelText: AppTranslation.translate('مصدر الفرصة (اختياري)'),
                   border: OutlineInputBorder(),
                 ),
-                items:
-                    [
-                          'زيارة المعرض',
-                          'اتصال هاتفي',
-                          'واتساب',
-                          'إعلان',
-                          'إحالة',
-                          'أخرى',
-                        ]
-                        .map(
-                          (v) => DropdownMenuItem(value: v, child: AppText(v)),
-                        )
-                        .toList(),
+                items: sourceOptions
+                    .map((v) => DropdownMenuItem(value: v, child: AppText(v)))
+                    .toList(),
                 onChanged: (v) => setState(() => _source = v),
               ),
             ),

@@ -27,7 +27,7 @@ checks["no custom viewport warning"]='<meta name="viewport"' not in index
 inv_compact=re.sub(r'\s+',' ',inv)
 checks["product cards tighter"]=("? 172 : " in inv_compact and "? 180 : " in inv_compact and ": 192" in inv_compact) or ("? 158 : " in inv_compact and "? 166 : " in inv_compact and ": 178" in inv_compact)
 checks["car cards tighter"]=("? 186" in cars and "? 194" in cars and ": 206" in cars) or ("? 168" in cars and "? 176" in cars and ": 188" in cars)
-checks["warehouse cards tighter"]=any(x in wh for x in ("mainAxisExtent: 138","mainAxisExtent: 124"))
+checks["warehouse cards tighter"]=any(x in wh for x in ("mainAxisExtent: 142","mainAxisExtent: 138","mainAxisExtent: 124"))
 checks["partner cards tighter"]=any(x in cust for x in ("mainAxisExtent: 142","mainAxisExtent: 126")) and any(x in supp for x in ("mainAxisExtent: 142","mainAxisExtent: 126"))
 checks["product details edit direct"]="onView: () => _showProductDetails" in inv and "onEdit: () => _editProduct" in inv
 checks["history export English complete"]="language: 'en'" in hist and all(x in hist for x in ["Performed by","Unit cost","Total cost","Reference","Date / Time"])

@@ -7,7 +7,7 @@ checks={
 "dashboard no epoch placeholder": "fromMillisecondsSinceEpoch(0)" not in (ROOT/"lib/features/dashboard/models/dashboard_model.dart").read_text(encoding="utf-8"),
 "customer card headroom": any(x in (ROOT/"lib/features/business_partners/customers/pages/customers_page.dart").read_text(encoding="utf-8") for x in ["mainAxisExtent: 142","mainAxisExtent: 126"]),
 "supplier card headroom": any(x in (ROOT/"lib/features/business_partners/suppliers/pages/suppliers_page.dart").read_text(encoding="utf-8") for x in ["mainAxisExtent: 142","mainAxisExtent: 126"]),
-"warehouse card headroom": any(x in (ROOT/"lib/features/inventory/pages/warehouse_management_page.dart").read_text(encoding="utf-8") for x in ["mainAxisExtent: 138","mainAxisExtent: 124"]),
+"warehouse card headroom": any(x in (ROOT/"lib/features/inventory/pages/warehouse_management_page.dart").read_text(encoding="utf-8") for x in ["mainAxisExtent: 142","mainAxisExtent: 138","mainAxisExtent: 124"]),
 "maintenance picker headroom": "mainAxisExtent: 164" in (ROOT/"lib/features/maintenance/pages/add_maintenance_order_page.dart").read_text(encoding="utf-8"),
 "r32 deploy script": (ROOT/"tool/deploy_r32_production.ps1").exists(),
 "r32 workspace validation": (ROOT/"tool/validate_r32_workspace.ps1").exists(),

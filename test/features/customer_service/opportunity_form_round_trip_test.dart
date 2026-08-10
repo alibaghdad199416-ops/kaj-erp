@@ -200,9 +200,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final value = tester.widget<TextFormField>(
-      find.byKey(const ValueKey('opportunity-expected-value-field')),
+    final expectedValueField = find.byKey(
+      const ValueKey('opportunity-expected-value-field'),
     );
+    await tester.scrollUntilVisible(
+      expectedValueField,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final value = tester.widget<TextFormField>(expectedValueField);
     expect(value.controller!.text, '0.0');
     expect(
       tester

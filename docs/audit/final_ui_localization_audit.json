@@ -103,42 +103,42 @@
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 178,
+      "line": 177,
       "value": "صندوق نقدي"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 182,
+      "line": 181,
       "value": "حساب مصرفي"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 186,
+      "line": 185,
       "value": "محفظة إلكترونية"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 211,
+      "line": 207,
       "value": "USD - دولار أمريكي"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 215,
+      "line": 211,
       "value": "IQD - دينار عراقي"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 292,
+      "line": 304,
       "value": "بدون ربط"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 339,
+      "line": 351,
       "value": "الصندوق فعال"
     },
     {
       "file": "lib/features/accounting/cashbox/pages/cash_account_form.dart",
-      "line": 350,
+      "line": 362,
       "value": "إلغاء"
     },
     {
@@ -888,17 +888,17 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 427,
+      "line": 429,
       "value": "موعد المتابعة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 495,
+      "line": 497,
       "value": "حفظ الفرصة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 509,
+      "line": 511,
       "value": "حفظ وإنشاء مسودة أمر بيع"
     },
     {
@@ -1273,32 +1273,32 @@
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 463,
+      "line": 465,
       "value": "مخزن اعتيادي"
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 467,
+      "line": 469,
       "value": "مخزن توالف واستهلاك"
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 496,
+      "line": 498,
       "value": "حساب المادة التالفة يُحدد آليًا من حساب تقييم المادة أو السيارة في بطاقة التعريف."
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 575,
+      "line": 577,
       "value": "المخزن فعال"
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 586,
+      "line": 588,
       "value": "إلغاء"
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 591,
+      "line": 593,
       "value": "حفظ"
     },
     {
@@ -2170,47 +2170,47 @@
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 155,
+      "line": 163,
       "value": "Color(0xFFD74747)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 410,
+      "line": 418,
       "value": "Color(0xFF2876C8)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 422,
+      "line": 430,
       "value": "Color(0xFFB87818)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 437,
+      "line": 445,
       "value": "Color(0xFF7A4EC2)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 581,
+      "line": 589,
       "value": "Color(0xFF178A65)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 583,
+      "line": 591,
       "value": "Color(0xFFB87818)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 584,
+      "line": 592,
       "value": "Color(0xFF68737D)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 640,
+      "line": 648,
       "value": "Color(0xFF178A65)"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 645,
+      "line": 653,
       "value": "Color(0xFF178A65)"
     },
     {
@@ -2255,7 +2255,7 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/order_details_dialog.dart",
-      "line": 687,
+      "line": 707,
       "value": "Color(0xFFD74747)"
     },
     {
@@ -2552,12 +2552,12 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 425,
+      "line": 427,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 445,
+      "line": 447,
       "value": "4"
     },
     {
@@ -2672,7 +2672,7 @@
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 303,
+      "line": 305,
       "value": "999"
     },
     {
@@ -2687,17 +2687,17 @@
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 549,
+      "line": 557,
       "value": "12"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 641,
+      "line": 649,
       "value": "12"
     },
     {
       "file": "lib/features/maintenance/pages/maintenance_order_details_dialog.dart",
-      "line": 732,
+      "line": 740,
       "value": "9"
     },
     {
@@ -2782,7 +2782,7 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/order_details_dialog.dart",
-      "line": 1710,
+      "line": 1780,
       "value": "10"
     },
     {
