@@ -1,5 +1,5 @@
 {
-  "dartFiles": 343,
+  "dartFiles": 344,
   "unlocalizedRawUiTextCandidates": 0,
   "runtimeLocalizedAppTextLiterals": 375,
   "nonDesignSystemColorLiterals": 76,
@@ -23,7 +23,7 @@
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 250,
+      "line": 256,
       "value": "Ctrl + K"
     },
     {
@@ -1925,42 +1925,42 @@
     },
     {
       "file": "lib/core/widgets/app_top_navigation.dart",
-      "line": 74,
+      "line": 75,
       "value": "Color(0xFF050B10)"
     },
     {
       "file": "lib/core/widgets/app_top_navigation.dart",
-      "line": 231,
+      "line": 232,
       "value": "Color(0xFF050A0F)"
     },
     {
       "file": "lib/core/widgets/app_top_navigation.dart",
-      "line": 778,
+      "line": 779,
       "value": "Color(0xFFFFC857)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 301,
+      "line": 307,
       "value": "Color(0xFFD3A42F)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 303,
+      "line": 309,
       "value": "Color(0xFF2EB67D)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 304,
+      "line": 310,
       "value": "Color(0xFFE15A5A)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 482,
+      "line": 488,
       "value": "Color(0xFFE84E4E)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 484,
+      "line": 490,
       "value": "Color(0xFF071019)"
     },
     {
@@ -2292,43 +2292,38 @@
     },
     {
       "file": "lib/core/widgets/app_top_navigation.dart",
-      "line": 487,
+      "line": 488,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_top_navigation.dart",
-      "line": 639,
+      "line": 640,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_top_navigation.dart",
-      "line": 737,
+      "line": 738,
       "value": "9"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 61,
+      "line": 62,
       "value": "14"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 150,
+      "line": 156,
       "value": "11"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 184,
+      "line": 190,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 245,
+      "line": 251,
       "value": "6"
-    },
-    {
-      "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 268,
-      "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
@@ -2342,22 +2337,27 @@
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 321,
+      "line": 286,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 328,
+      "line": 327,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 435,
+      "line": 334,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 483,
+      "line": 441,
+      "value": "10"
+    },
+    {
+      "file": "lib/core/widgets/app_workspace_top_bar.dart",
+      "line": 489,
       "value": "9"
     },
     {

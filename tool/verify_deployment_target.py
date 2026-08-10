@@ -69,6 +69,30 @@ if edge_create.is_file():
         if marker not in edge_source:
             errors.append(f"admin-create-user is missing required security behavior: {marker}")
 
+if edge_manage.is_file():
+    manage_source = edge_manage.read_text(encoding="utf-8")
+    for marker in (
+        "auth.admin.updateUserById",
+        "previousMembership",
+        "previousProfile",
+        "previousRecord",
+        "Membership update rollback failed",
+        "ERP user update rollback failed",
+    ):
+        if marker not in manage_source:
+            errors.append(
+                f"admin-manage-user is missing atomic update compensation: {marker}"
+            )
+    auth_update = manage_source.find("auth.admin.updateUserById")
+    erp_update = manage_source.rfind("from('erp_records').upsert", 0, auth_update)
+    if erp_update < 0 or auth_update < erp_update:
+        errors.append("admin-manage-user must update reversible ERP rows before Auth")
+
+for function_name in ("admin-create-user", "admin-manage-user"):
+    marker = f"[functions.{function_name}]\nverify_jwt = true"
+    if marker not in config.replace("\r\n", "\n"):
+        errors.append(f"{function_name} must require a verified user JWT")
+
 if user_admin_service.is_file() and "admin-create-user" not in user_admin_service.read_text(encoding="utf-8"):
     errors.append("Flutter user administration is not connected to admin-create-user")
 
