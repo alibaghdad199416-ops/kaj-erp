@@ -888,17 +888,17 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 425,
+      "line": 427,
       "value": "موعد المتابعة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 492,
+      "line": 495,
       "value": "حفظ الفرصة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 506,
+      "line": 509,
       "value": "حفظ وإنشاء مسودة أمر بيع"
     },
     {
@@ -2552,12 +2552,12 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 423,
+      "line": 425,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 443,
+      "line": 445,
       "value": "4"
     },
     {

@@ -249,6 +249,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             _securedField(
               'value',
               TextFormField(
+                key: const ValueKey('opportunity-expected-value-field'),
                 controller: _value,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -275,6 +276,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             _securedField(
               'currency',
               DropdownButtonFormField<String>(
+                key: const ValueKey('opportunity-currency-field'),
                 isExpanded: true,
                 initialValue: SupportedCurrency.normalize(_currency),
                 validator: (value) => SupportedCurrency.isSupported(value)
@@ -487,6 +489,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
               runSpacing: 10,
               children: [
                 OutlinedButton.icon(
+                  key: const ValueKey('opportunity-save-button'),
                   onPressed: _saving ? null : () => _save(),
                   icon: const Icon(Icons.save_outlined),
                   label: const AppText('حفظ الفرصة'),

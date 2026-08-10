@@ -9,18 +9,33 @@ set local session_replication_role=replica;
 insert into auth.users(
   instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
   raw_app_meta_data,raw_user_meta_data,created_at,updated_at
-) values (
+) values
+(
   '00000000-0000-0000-0000-000000000000','49000000-0000-4000-8000-000000000001',
   'authenticated','authenticated','r49-runtime@local.invalid','',now(),'{}','{}',now(),now()
+),(
+  '00000000-0000-0000-0000-000000000000','49000000-0000-4000-8000-000000000002',
+  'authenticated','authenticated','r49-denied@local.invalid','',now(),'{}','{}',now(),now()
+),(
+  '00000000-0000-0000-0000-000000000000','49000000-0000-4000-8000-000000000003',
+  'authenticated','authenticated','r49-other-company@local.invalid','',now(),'{}','{}',now(),now()
 );
 
 insert into public.companies(id,slug,name_ar,name_en,is_active) values
-  ('49000000-0000-4000-8000-000000000010','r49-runtime','R49 محلي','R49 local',true);
+  ('49000000-0000-4000-8000-000000000010','r49-runtime','R49 محلي','R49 local',true),
+  ('49000000-0000-4000-8000-000000000011','r49-other','R49 أخرى','R49 other',true);
 insert into public.company_memberships(
   company_id,user_id,user_uid,user_email,role_code,is_system_admin,is_active
-) values (
+) values
+(
   '49000000-0000-4000-8000-000000000010','49000000-0000-4000-8000-000000000001',
   '49000000-0000-4000-8000-000000000001','r49-runtime@local.invalid','admin',true,true
+),(
+  '49000000-0000-4000-8000-000000000010','49000000-0000-4000-8000-000000000002',
+  '49000000-0000-4000-8000-000000000002','r49-denied@local.invalid','user',false,true
+),(
+  '49000000-0000-4000-8000-000000000011','49000000-0000-4000-8000-000000000003',
+  '49000000-0000-4000-8000-000000000003','r49-other-company@local.invalid','admin',true,true
 );
 
 insert into public.erp_accounts(
@@ -36,7 +51,10 @@ insert into public.erp_accounts(
   ('49000000-0000-4000-8000-000000000010','r49-supplier-iqd','21002','R49 supplier IQD','liability','IQD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001'),
   ('49000000-0000-4000-8000-000000000010','r49-cash-usd-ledger','11101','R49 cash USD','asset','USD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001'),
   ('49000000-0000-4000-8000-000000000010','r49-cash-iqd-ledger','11102','R49 cash IQD','asset','IQD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001'),
-  ('49000000-0000-4000-8000-000000000010','r49-maintenance-expense','52001','R49 maintenance expense','expense','USD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001');
+  ('49000000-0000-4000-8000-000000000010','r49-maintenance-expense','52001','R49 maintenance expense','expense','USD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001'),
+  ('49000000-0000-4000-8000-000000000010','r49-account-edit','001.02','R49 Account Before','expense','USD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001'),
+  ('49000000-0000-4000-8000-000000000010','r49-account-inactive','001.03','R49 Inactive','asset','USD',0,false,now(),now(),'49000000-0000-4000-8000-000000000001'),
+  ('49000000-0000-4000-8000-000000000010','r49-account-wrong-currency','001.04','R49 Wrong Currency','asset','IQD',0,true,now(),now(),'49000000-0000-4000-8000-000000000001');
 
 insert into public.erp_customers(company_id,id,data) values (
   '49000000-0000-4000-8000-000000000010','49000000-0000-4000-8000-000000000020',
@@ -58,6 +76,10 @@ insert into public.erp_partner_accounts(
 insert into public.erp_warehouses(company_id,id,data) values (
   '49000000-0000-4000-8000-000000000010','r49-warehouse',
   '{"name":"R49 Warehouse","code":"R49-WH","isActive":true}'
+);
+insert into public.erp_warehouses(company_id,id,data) values (
+  '49000000-0000-4000-8000-000000000011','r49-other-warehouse',
+  '{"name":"R49 Other Warehouse","code":"R49-OTHER","isActive":true}'
 );
 insert into public.erp_inventory(company_id,id,data) values (
   '49000000-0000-4000-8000-000000000010','r49-product',
@@ -95,7 +117,119 @@ declare
   movement_rows jsonb;
   purchase_journal text; sales_journal text;
   error_detail text;
+  linked_order uuid; opportunity_state jsonb; cost_journal text;
+  payment_journal text;
+  warehouse_state jsonb; account_state jsonb;
+  car_reference text; product_reference text; opportunity_reference text; search_rows jsonb;
 begin
+  if has_function_privilege(
+       'anon','public.erp_r9_logical_field_for_json_key_pre_r49_roundtrip(text,text)','EXECUTE'
+     ) or not has_function_privilege(
+       'authenticated','public.erp_r9_logical_field_for_json_key_pre_r49_roundtrip(text,text)','EXECUTE'
+     ) then
+    raise exception 'opportunity_mapping_helper_acl_incorrect';
+  end if;
+  insert into public.erp_cars(company_id,id,data) values(
+    c,'r49-reference-car',
+    '{"brand":"R49","model":"Reference Car","status":"known","currency":"USD","costCurrency":"USD",
+      "purchasePrice":100,"salePrice":120,"inventoryAssetAccountId":"r49-inventory-usd",
+      "salesCostExpenseAccountId":"r49-cogs-usd","salesRevenueUsdAccountId":"r49-revenue-usd"}'
+  );
+  insert into public.erp_inventory(company_id,id,data) values(
+    c,'r49-reference-product',
+    '{"name":"R49 Reference Product","itemType":"stock","isActive":true,"currency":"USD",
+      "costCurrency":"USD","purchasePrice":5,"unitCost":5,"salePrice":8,
+      "inventoryAssetAccountId":"r49-inventory-usd","salesCostExpenseAccountId":"r49-cogs-usd",
+      "salesRevenueUsdAccountId":"r49-revenue-usd"}'
+  );
+  select data->>'carNumber' into car_reference from public.erp_cars
+    where company_id=c and id='r49-reference-car';
+  select data->>'code' into product_reference from public.erp_inventory
+    where company_id=c and id='r49-reference-product';
+  if car_reference!~'^CAR[0-9]{4}$' or product_reference!~'^PRD[0-9]{4}$' then
+    raise exception 'master_business_reference_generation_failed:car=% product=%',car_reference,product_reference;
+  end if;
+  insert into public.erp_cars(company_id,id,data) values(
+    c,'r49-reference-car-duplicate',jsonb_build_object(
+      'brand','Duplicate','model','Reference','status','known','carNumber',car_reference,
+      'currency','USD','costCurrency','USD','purchasePrice',100,'salePrice',120,
+      'inventoryAssetAccountId','r49-inventory-usd','salesCostExpenseAccountId','r49-cogs-usd',
+      'salesRevenueUsdAccountId','r49-revenue-usd'
+    )
+  );
+  insert into public.erp_inventory(company_id,id,data) values(
+    c,'r49-reference-product-duplicate',jsonb_build_object(
+      'name','Duplicate product','itemType','stock','isActive',true,'code',product_reference,
+      'currency','USD','costCurrency','USD','purchasePrice',5,'unitCost',5,'salePrice',8,
+      'inventoryAssetAccountId','r49-inventory-usd','salesCostExpenseAccountId','r49-cogs-usd',
+      'salesRevenueUsdAccountId','r49-revenue-usd'
+    )
+  );
+  if (select data->>'carNumber' from public.erp_cars where company_id=c and id='r49-reference-car-duplicate')
+       !~'^CAR[0-9]{4}$'
+     or (select data->>'carNumber' from public.erp_cars where company_id=c and id='r49-reference-car-duplicate')=car_reference
+     or (select data->>'code' from public.erp_inventory where company_id=c and id='r49-reference-product-duplicate')
+       !~'^PRD[0-9]{4}$'
+     or (select data->>'code' from public.erp_inventory where company_id=c and id='r49-reference-product-duplicate')=product_reference then
+    raise exception 'duplicate_business_reference_was_not_reassigned_uniquely';
+  end if;
+
+  warehouse_state := public.erp_r15_get_cloud_master_record(c,'erp_warehouses','r49-warehouse');
+  perform public.erp_r15_upsert_cloud_master_record(
+    c,'erp_warehouses','r49-warehouse',
+    (warehouse_state-'_cloudVersion'-'_cloudUpdatedAt')||jsonb_build_object(
+      'name','R49 Warehouse Updated','code','R49-WH-UPDATED','address','Long runtime address بغداد',
+      'notes','authoritative mutation read-back','isActive',true
+    ),(warehouse_state->>'_cloudVersion')::bigint
+  );
+  warehouse_state := public.erp_r15_get_cloud_master_record(c,'erp_warehouses','r49-warehouse');
+  if warehouse_state->>'name'<>'R49 Warehouse Updated'
+     or warehouse_state->>'code'<>'R49-WH-UPDATED'
+     or warehouse_state->>'address'<>'Long runtime address بغداد'
+     or warehouse_state->>'notes'<>'authoritative mutation read-back' then
+    raise exception 'warehouse_update_readback_failed:%',warehouse_state;
+  end if;
+  perform set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+  begin
+    perform public.erp_r15_upsert_cloud_master_record(
+      c,'erp_warehouses','r49-warehouse',warehouse_state||jsonb_build_object('name','Denied'),
+      (warehouse_state->>'_cloudVersion')::bigint
+    );
+    raise exception 'warehouse_unauthorized_update_unexpected_success';
+  exception when sqlstate '42501' then null; end;
+  perform set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+  begin
+    perform public.erp_r15_upsert_cloud_master_record(
+      c,'erp_warehouses','r49-warehouse',warehouse_state||jsonb_build_object('name','Cross tenant'),
+      (warehouse_state->>'_cloudVersion')::bigint
+    );
+    raise exception 'warehouse_cross_company_update_unexpected_success';
+  exception when sqlstate '42501' then null; end;
+  perform set_config('request.jwt.claims','{"sub":"49000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+
+  perform public.erp_r49_save_cloud_ledger_account(c,jsonb_build_object(
+    'id','r49-account-edit','code','001.02-A','name','R49 Account Updated',
+    'type','expense','currency','USD','openingBalance',0,'isActive',true
+  ),true);
+  account_state := (select x from public.erp_r22_list_cloud_ledger_accounts(c) x
+    where x->>'id'='r49-account-edit' limit 1);
+  if account_state->>'code'<>'001.02-A'
+     or account_state->>'name'<>'R49 Account Updated'
+     or account_state->>'type'<>'expense'
+     or account_state->>'currency'<>'USD' then
+    raise exception 'ledger_account_string_update_readback_failed:%',account_state;
+  end if;
+  begin
+    perform public.erp_phase2_account_guard(c,'r49-account-inactive','asset','USD');
+    raise exception 'inactive_account_guard_unexpected_success';
+  exception when sqlstate 'P0001' then null;
+  end;
+  begin
+    perform public.erp_phase2_account_guard(c,'r49-account-wrong-currency','asset','USD');
+    raise exception 'wrong_currency_account_guard_unexpected_success';
+  exception when sqlstate 'P0001' then null;
+  end;
+
   opportunity := public.erp_r49_opportunity_command('save',jsonb_build_object(
     'create_only',true,'record',jsonb_build_object(
       'id','r49-runtime-opportunity','customerId','49000000-0000-4000-8000-000000000020',
@@ -106,6 +240,15 @@ begin
       'createdByUserName','R49 Admin'
     )
   ));
+  opportunity_reference := (select payload->>'opportunityNumber' from public.erp_records
+    where company_id='r49-runtime' and entity_type='opportunities'
+      and record_id='r49-runtime-opportunity' and deleted_at is null);
+  if opportunity_reference!~'^OPP[0-9]{4}$'
+     or (select record_id from public.erp_records
+        where company_id='r49-runtime' and entity_type='opportunities'
+          and payload->>'opportunityNumber'=opportunity_reference and deleted_at is null)<>'r49-runtime-opportunity' then
+    raise exception 'opportunity_business_reference_generation_or_internal_key_failed:%',opportunity;
+  end if;
   if (opportunity->>'expectedValue')::numeric<>1234.56 or opportunity->>'currency'<>'USD' then
     raise exception 'opportunity_expected_value_create_round_trip_failed:%',opportunity;
   end if;
@@ -164,6 +307,22 @@ begin
   select count(*) into layers from public.erp_inventory_cost_layers where company_id=c and receipt_id=receipt;
   if layers<>1 then raise exception 'purchase_invoice_layer_expected_1_actual_%',layers; end if;
   perform public.erp_v762_assert_posted_journal_balanced(c,purchase_journal,'r49_runtime_purchase');
+  if (select public.erp_try_numeric(data->>'totalDebit',0) from public.erp_journal_entries
+      where company_id=c and id=purchase_journal and not is_deleted)<>100
+     or (select public.erp_try_numeric(data->>'totalCredit',0) from public.erp_journal_entries
+      where company_id=c and id=purchase_journal and not is_deleted)<>100
+     or (select coalesce(sum(public.erp_try_numeric(data->>'debit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=purchase_journal and data->>'accountId'='r49-inventory-usd'
+        and data->>'currency'='USD' and not is_deleted)<>100
+     or (select coalesce(sum(public.erp_try_numeric(data->>'credit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=purchase_journal and data->>'accountId'='r49-supplier-usd'
+        and data->>'currency'='USD' and not is_deleted)<>100
+     or exists(select 1 from public.erp_journal_lines l left join public.erp_accounts a
+        on a.organization_id=c and a.account_id=l.data->>'accountId'
+        where l.company_id=c and l.data->>'entryId'=purchase_journal and not l.is_deleted
+          and (a.account_id is null or not a.is_active or upper(a.currency)<>'USD')) then
+    raise exception 'purchase_invoice_exact_accounting_lines_incorrect';
+  end if;
   result := public.erp_r22_approve_purchase_invoice(c,pi);
   if coalesce((result->>'idempotent')::boolean,false) is not true then raise exception 'purchase_invoice_retry_not_idempotent:%',result; end if;
   select count(*) into journals from public.erp_journal_entries
@@ -179,6 +338,21 @@ begin
      or (select count(*) from public.erp_cash_transactions where company_id=c and data->>'paymentKey'='r49-purchase-payment' and not is_deleted)<>1 then
     raise exception 'purchase_same_currency_payment_state_incorrect';
   end if;
+  payment_journal := (select data->>'journalEntryId' from public.erp_cash_transactions
+    where company_id=c and data->>'paymentKey'='r49-purchase-payment' and not is_deleted limit 1);
+  if payment_journal is null
+     or (select data->>'amount' from public.erp_cash_transactions
+      where company_id=c and data->>'paymentKey'='r49-purchase-payment' and not is_deleted limit 1)::numeric<>100
+     or (select data->>'currency' from public.erp_cash_transactions
+      where company_id=c and data->>'paymentKey'='r49-purchase-payment' and not is_deleted limit 1)<>'USD'
+     or (select data->>'cashAccountId' from public.erp_cash_transactions
+      where company_id=c and data->>'paymentKey'='r49-purchase-payment' and not is_deleted limit 1)<>'r49-cash-usd'
+     or (select coalesce(sum(public.erp_try_numeric(data->>'debit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=payment_journal and data->>'accountId'='r49-supplier-usd' and not is_deleted)<>100
+     or (select coalesce(sum(public.erp_try_numeric(data->>'credit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=payment_journal and data->>'accountId'='r49-cash-usd-ledger' and not is_deleted)<>100 then
+    raise exception 'purchase_payment_exact_cash_or_journal_lines_incorrect:%',payment_journal;
+  end if;
   perform public.erp_pay_cloud_purchase_workflow_invoice(c,pi,jsonb_build_object(
     'paymentKey','r49-purchase-payment','cashAccountId','r49-cash-usd',
     'paymentCurrency','USD','invoiceAmount',100,'cashAmount',100,'exchangeRate',1,
@@ -186,6 +360,10 @@ begin
   ));
   if (select count(*) from public.erp_cash_transactions where company_id=c and data->>'paymentKey'='r49-purchase-payment' and not is_deleted)<>1 then
     raise exception 'purchase_payment_retry_duplicated_cash_transaction';
+  end if;
+  if (select count(*) from public.erp_journal_entries
+      where company_id=c and id=payment_journal and not is_deleted)<>1 then
+    raise exception 'purchase_payment_retry_duplicated_journal';
   end if;
 
   -- A second acquisition at a different cost makes the following sale cross
@@ -203,23 +381,77 @@ begin
   pi2 := public.erp_create_cloud_purchase_workflow_invoice(c,po2);
   result := public.erp_r22_approve_purchase_invoice(c,pi2);
   if coalesce((result->>'ok')::boolean,false) is not true then raise exception 'second_purchase_invoice_failed:%',result; end if;
+  if (select public.erp_try_numeric(data->>'totalDebit',0) from public.erp_journal_entries
+      where company_id=c and id=result->>'journalEntryId' and not is_deleted)<>150
+     or (select public.erp_try_numeric(data->>'totalCredit',0) from public.erp_journal_entries
+      where company_id=c and id=result->>'journalEntryId' and not is_deleted)<>150 then
+    raise exception 'second_purchase_invoice_expected_150_each_side:%',result;
+  end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>20 then raise exception 'two_purchase_receipts_stock_expected_20_actual_%',qty; end if;
 
   so := public.erp_r49_create_sales_order(c,jsonb_build_object(
-    'customerId','49000000-0000-4000-8000-000000000020','currency','USD','exchangeRate',1,'discount',0,
+    'customerId','49000000-0000-4000-8000-000000000020','opportunityId','r49-runtime-opportunity',
+    'currency','USD','exchangeRate',1,'discount',0,
     'effectiveAt','2026-08-10T10:00:00Z','items',jsonb_build_array(jsonb_build_object(
       'itemType','product','itemId','r49-product','description','R49 Product',
       'quantity',15,'unitPrice',20
     ))
   ));
+  linked_order := public.erp_r49_create_sales_order(c,jsonb_build_object(
+    'customerId','49000000-0000-4000-8000-000000000020','opportunityId','r49-runtime-opportunity',
+    'currency','USD','exchangeRate',1,'discount',0,'effectiveAt','2026-08-10T10:00:00Z',
+    'items',jsonb_build_array(jsonb_build_object(
+      'itemType','product','itemId','r49-product','description','R49 Product','quantity',15,'unitPrice',20
+    ))
+  ));
+  if linked_order<>so or (select count(*) from public.erp_sales_orders_cloud
+      where company_id=c and opportunity_id='r49-runtime-opportunity' and not is_deleted)<>1 then
+    raise exception 'opportunity_sales_order_retry_created_duplicate';
+  end if;
+  if (select order_number from public.erp_sales_orders_cloud where id=so) is null
+     or (select order_number from public.erp_sales_orders_cloud where id=so)=so::text
+     or (select order_number from public.erp_purchase_orders_cloud where id=po) is null
+     or (select order_number from public.erp_purchase_orders_cloud where id=po)=po::text then
+    raise exception 'commercial_document_business_reference_missing_or_uuid_substituted';
+  end if;
+  select coalesce(jsonb_agg(x),'[]'::jsonb) into search_rows
+    from public.erp_r49_cloud_global_search(c,car_reference,20) x;
+  if not exists(select 1 from jsonb_array_elements(search_rows) x
+      where x->>'id'='r49-reference-car') then
+    raise exception 'car_business_reference_search_failed:%',search_rows;
+  end if;
+  select coalesce(jsonb_agg(x),'[]'::jsonb) into search_rows
+    from public.erp_r49_cloud_global_search(c,product_reference,20) x;
+  if not exists(select 1 from jsonb_array_elements(search_rows) x
+      where x->>'id'='r49-reference-product') then
+    raise exception 'product_business_reference_search_failed:%',search_rows;
+  end if;
+  select coalesce(jsonb_agg(x),'[]'::jsonb) into search_rows
+    from public.erp_r49_cloud_global_search(c,opportunity_reference,20) x;
+  if not exists(select 1 from jsonb_array_elements(search_rows) x
+      where x->>'id'='r49-runtime-opportunity') then
+    raise exception 'opportunity_business_reference_search_failed:%',search_rows;
+  end if;
+  if (select opportunity_id from public.erp_sales_orders_cloud where id=so)<>'r49-runtime-opportunity'
+     or (select x->>'id' from public.erp_r9_find_sales_order_by_opportunity(c,'r49-runtime-opportunity') x limit 1)<>so::text then
+    raise exception 'opportunity_sales_order_bidirectional_link_failed';
+  end if;
   perform public.erp_r49_approve_sales_order(c,so);
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
+    where x->>'id'='r49-runtime-opportunity');
+  if opportunity_state->>'salesOrderStatus'<>'approved' then raise exception 'opportunity_order_projection_stale:%',opportunity_state; end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>20 then raise exception 'sales_order_approval_changed_stock:%',qty; end if;
   delivery := public.erp_r49_create_sales_delivery(c,so,'r49-warehouse','runtime delivery');
   perform public.erp_phase2_approve_sales_delivery(c,delivery);
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
+    where x->>'id'='r49-runtime-opportunity');
+  if opportunity_state->>'deliveryStatus'<>'approved' then raise exception 'opportunity_delivery_projection_stale:%',opportunity_state; end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>5 then raise exception 'sales_delivery_stock_expected_5_actual_%',qty; end if;
@@ -230,13 +462,37 @@ begin
   perform public.erp_phase2_approve_sales_delivery(c,delivery);
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
-  if qty<>5 then raise exception 'sales_delivery_retry_not_idempotent:%',qty; end if;
+  select count(*) into movements from public.erp_inventory_movements
+    where company_id=c and data->>'movementType'='sale_out'
+      and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
+  if qty<>5 or movements<>1 then
+    raise exception 'sales_delivery_retry_not_idempotent:qty=% movements=%',qty,movements;
+  end if;
 
   si := public.erp_create_cloud_sales_workflow_invoice(c,so);
   result := public.erp_r22_approve_sales_invoice(c,si);
   if coalesce((result->>'ok')::boolean,false) is not true then raise exception 'sales_invoice_failed:%',result; end if;
   sales_journal := result->>'journalEntryId';
   perform public.erp_v762_assert_posted_journal_balanced(c,sales_journal,'r49_runtime_sales');
+  if (select coalesce(sum(public.erp_try_numeric(data->>'debit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=sales_journal and data->>'accountId'='r49-customer-usd' and not is_deleted)<>300
+     or (select coalesce(sum(public.erp_try_numeric(data->>'credit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=sales_journal and data->>'accountId'='r49-revenue-usd' and not is_deleted)<>300 then
+    raise exception 'sales_revenue_or_customer_account_lines_incorrect';
+  end if;
+  cost_journal := (select value->>'journalEntryId' from jsonb_array_elements(
+    (select payload->'costJournalEntries' from public.erp_commercial_workflow_documents where id=si)) limit 1);
+  if cost_journal is null
+     or (select coalesce(sum(public.erp_try_numeric(data->>'debit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=cost_journal and data->>'accountId'='r49-cogs-usd' and not is_deleted)<>175
+     or (select coalesce(sum(public.erp_try_numeric(data->>'credit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=cost_journal and data->>'accountId'='r49-inventory-usd' and not is_deleted)<>175 then
+    raise exception 'sales_cogs_or_inventory_account_lines_incorrect:%',cost_journal;
+  end if;
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
+    where x->>'id'='r49-runtime-opportunity');
+  if opportunity_state->>'invoiceStatus'<>'approved' then raise exception 'opportunity_invoice_projection_stale:%',opportunity_state; end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>5 then raise exception 'sales_invoice_changed_stock:%',qty; end if;
@@ -277,6 +533,37 @@ begin
      or (select count(*) from public.erp_cash_transactions where company_id=c and data->>'paymentKey'='r49-sales-fx' and not is_deleted)<>1 then
     raise exception 'sales_cross_currency_payment_state_incorrect';
   end if;
+  payment_journal := (select data->>'journalEntryId' from public.erp_cash_transactions
+    where company_id=c and data->>'paymentKey'='r49-sales-fx' and not is_deleted limit 1);
+  if payment_journal is null
+     or (select data->>'amount' from public.erp_cash_transactions
+      where company_id=c and data->>'paymentKey'='r49-sales-fx' and not is_deleted limit 1)::numeric<>300
+     or (select data->>'currency' from public.erp_cash_transactions
+      where company_id=c and data->>'paymentKey'='r49-sales-fx' and not is_deleted limit 1)<>'USD'
+     or (select data->>'cashAccountId' from public.erp_cash_transactions
+      where company_id=c and data->>'paymentKey'='r49-sales-fx' and not is_deleted limit 1)<>'r49-cash-usd'
+     or (select coalesce(sum(public.erp_try_numeric(data->>'debit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=payment_journal and data->>'accountId'='r49-cash-usd-ledger' and not is_deleted)<>300
+     or (select coalesce(sum(public.erp_try_numeric(data->>'credit',0)),0) from public.erp_journal_lines
+      where company_id=c and data->>'entryId'=payment_journal and data->>'accountId'='r49-customer-usd' and not is_deleted)<>300
+     or not exists(select 1 from jsonb_array_elements(
+        (select payload->'payments' from public.erp_commercial_workflow_documents where id=si)) p
+        where p->>'paymentKey'='r49-sales-fx' and (p->>'invoiceAmount')::numeric=300
+          and (p->>'cashAmount')::numeric=450000 and (p->>'exchangeRate')::numeric=1500
+          and p->>'cashAccountId'='r49-cash-iqd' and p->>'linkedCashAccountId'='r49-cash-usd')
+     or exists(select 1 from public.erp_journal_lines
+        where company_id=c and data->>'entryId'=payment_journal and not is_deleted
+          and lower(data::text) like '%ledger difference%') then
+    raise exception 'sales_fx_exact_cash_conversion_or_journal_lines_incorrect:%',payment_journal;
+  end if;
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
+    where x->>'id'='r49-runtime-opportunity');
+  if opportunity_state->>'paymentStatus'<>'paid'
+     or (opportunity_state->>'paidAmount')::numeric<>300
+     or (opportunity_state->>'remainingAmount')::numeric<>0 then
+    raise exception 'opportunity_payment_projection_stale:%',opportunity_state;
+  end if;
   perform public.erp_pay_cloud_sales_workflow_invoice(c,si,jsonb_build_object(
     'paymentKey','r49-sales-fx','cashAccountId','r49-cash-iqd','linkedCashAccountId','r49-cash-usd',
     'paymentCurrency','IQD','invoiceAmount',300,'cashAmount',450000,'exchangeRate',1500,
@@ -284,6 +571,10 @@ begin
   ));
   if (select count(*) from public.erp_cash_transactions where company_id=c and data->>'paymentKey'='r49-sales-fx' and not is_deleted)<>1 then
     raise exception 'sales_fx_payment_retry_duplicated_cash_transaction';
+  end if;
+  if (select count(*) from public.erp_journal_entries
+      where company_id=c and id=payment_journal and not is_deleted)<>1 then
+    raise exception 'sales_fx_payment_retry_duplicated_journal';
   end if;
   result := public.erp_r22_approve_sales_invoice(c,si);
   if coalesce((result->>'idempotent')::boolean,false) is not true then raise exception 'sales_invoice_retry_not_idempotent:%',result; end if;

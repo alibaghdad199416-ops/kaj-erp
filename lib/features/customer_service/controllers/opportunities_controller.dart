@@ -10,7 +10,10 @@ import 'package:quality_line_erp/features/customer_service/repositories/opportun
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 
 class OpportunitiesController extends ChangeNotifier {
-  final OpportunityRepository _repository = OpportunityRepository();
+  OpportunitiesController({OpportunityRepository? repository})
+    : _repository = repository ?? OpportunityRepository();
+
+  final OpportunityRepository _repository;
   List<OpportunityModel> _items = [];
   bool _isLoading = false;
   String? _errorMessage;
