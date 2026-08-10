@@ -125,7 +125,8 @@ declare
   payment_journal text;
   warehouse_state jsonb; account_state jsonb;
   car_reference text; product_reference text; opportunity_reference text; search_rows jsonb;
-  transfer_id text; inventory_value numeric;
+  transfer_id text; inventory_value numeric; fifo_quantity numeric; fifo_cost numeric;
+  layer_count_before integer;
 begin
   if has_function_privilege(
        'anon','public.erp_r9_logical_field_for_json_key_pre_r49_roundtrip(text,text)','EXECUTE'
@@ -294,13 +295,29 @@ begin
       from public.erp_inventory_movements where company_id=c and not is_deleted;
     raise exception 'purchase_receipt_movement_expected_1_actual_% rows=%',movements,movement_rows;
   end if;
+  select coalesce(sum(remaining_quantity),0),coalesce(sum(remaining_quantity*unit_cost),0),count(*)
+    into fifo_quantity,inventory_value,layers
+  from public.erp_inventory_cost_layers where company_id=c and receipt_id=receipt;
+  if fifo_quantity<>10 or inventory_value<>100 or layers<>1
+     or (select public.erp_try_numeric(data->>'averageUnitCost',0) from public.erp_warehouse_stock
+         where company_id=c and data->>'productId'='r49-product'
+           and data->>'warehouseId'='r49-warehouse' and not is_deleted)<>10
+     or exists(select 1 from public.erp_journal_entries
+       where company_id=c and data->>'referenceType'='purchase_invoice' and not is_deleted) then
+    raise exception 'purchase_receipt_operational_valuation_expected_qty_10_value_100_layer_1_no_gl';
+  end if;
   perform public.erp_phase2_approve_purchase_receipt(c,receipt);
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   select count(*) into movements from public.erp_inventory_movements
     where company_id=c and data->>'movementType'='purchase_in'
       and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
-  if qty<>10 or movements<>1 then raise exception 'purchase_receipt_retry_not_idempotent:qty=% movements=%',qty,movements; end if;
+  if qty<>10 or movements<>1
+     or (select count(*) from public.erp_inventory_cost_layers where company_id=c and receipt_id=receipt)<>1
+     or (select coalesce(sum(remaining_quantity*unit_cost),0) from public.erp_inventory_cost_layers
+         where company_id=c and receipt_id=receipt)<>100 then
+    raise exception 'purchase_receipt_retry_not_idempotent:qty=% movements=%',qty,movements;
+  end if;
 
   pi := public.erp_create_cloud_purchase_workflow_invoice(c,po);
   result := public.erp_r22_approve_purchase_invoice(c,pi);
@@ -310,7 +327,13 @@ begin
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>10 then raise exception 'purchase_invoice_changed_stock:%',qty; end if;
   select count(*) into layers from public.erp_inventory_cost_layers where company_id=c and receipt_id=receipt;
-  if layers<>1 then raise exception 'purchase_invoice_layer_expected_1_actual_%',layers; end if;
+  if layers<>1
+     or (select coalesce(sum(remaining_quantity),0) from public.erp_inventory_cost_layers
+         where company_id=c and receipt_id=receipt)<>10
+     or (select coalesce(sum(remaining_quantity*unit_cost),0) from public.erp_inventory_cost_layers
+         where company_id=c and receipt_id=receipt)<>100 then
+    raise exception 'purchase_invoice_mutated_operational_valuation:layers=%',layers;
+  end if;
   perform public.erp_v762_assert_posted_journal_balanced(c,purchase_journal,'r49_runtime_purchase');
   if (select public.erp_try_numeric(data->>'totalDebit',0) from public.erp_journal_entries
       where company_id=c and id=purchase_journal and not is_deleted)<>100
@@ -383,6 +406,16 @@ begin
   perform public.erp_r49_approve_purchase_order(c,po2);
   receipt2 := public.erp_r49_create_purchase_receipt(c,po2,'r49-warehouse','second FIFO layer');
   perform public.erp_phase2_approve_purchase_receipt(c,receipt2);
+  select coalesce(sum(remaining_quantity),0),coalesce(sum(remaining_quantity*unit_cost),0),count(*)
+    into fifo_quantity,inventory_value,layers
+  from public.erp_inventory_cost_layers
+  where company_id=c and item_type='product' and item_id='r49-product'
+    and status in ('active','consumed');
+  if fifo_quantity<>20 or inventory_value<>250 or layers<>2
+     or (select count(*) from public.erp_journal_entries
+       where company_id=c and data->>'referenceType'='purchase_invoice' and not is_deleted)<>1 then
+    raise exception 'second_receipt_operational_valuation_expected_qty_20_value_250_layers_2_no_gl';
+  end if;
   pi2 := public.erp_create_cloud_purchase_workflow_invoice(c,po2);
   result := public.erp_r22_approve_purchase_invoice(c,pi2);
   if coalesce((result->>'ok')::boolean,false) is not true then raise exception 'second_purchase_invoice_failed:%',result; end if;
@@ -464,13 +497,36 @@ begin
     where company_id=c and data->>'movementType'='sale_out'
       and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if movements<>1 then raise exception 'sales_delivery_movement_expected_1_actual_%',movements; end if;
+  select coalesce(sum(quantity),0),coalesce(sum(total_cost),0),count(*)
+    into fifo_quantity,fifo_cost,layers
+  from public.erp_inventory_fifo_consumptions
+  where company_id=c and delivery_id=delivery and status='active';
+  select coalesce(sum(remaining_quantity*unit_cost),0) into inventory_value
+  from public.erp_inventory_cost_layers
+  where company_id=c and item_type='product' and item_id='r49-product'
+    and status in ('active','consumed');
+  if fifo_quantity<>15 or fifo_cost<>175 or layers<>2 or inventory_value<>75
+     or exists(select 1 from public.erp_journal_entries
+       where company_id=c and data->>'referenceId'=delivery::text and not is_deleted)
+     or exists(select 1 from public.erp_inventory_fifo_consumptions
+       where company_id=c and delivery_id=delivery and journal_entry_id is not null) then
+    raise exception 'sales_delivery_operational_valuation_expected_qty_15_cost_175_value_75_no_gl';
+  end if;
+  layer_count_before:=layers;
   perform public.erp_phase2_approve_sales_delivery(c,delivery);
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   select count(*) into movements from public.erp_inventory_movements
     where company_id=c and data->>'movementType'='sale_out'
       and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
-  if qty<>5 or movements<>1 then
+  if qty<>5 or movements<>1
+     or (select coalesce(sum(quantity),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=delivery and status='active')<>15
+     or (select coalesce(sum(total_cost),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=delivery and status='active')<>175
+     or (select coalesce(sum(remaining_quantity*unit_cost),0) from public.erp_inventory_cost_layers
+         where company_id=c and item_type='product' and item_id='r49-product'
+           and status in ('active','consumed'))<>75 then
     raise exception 'sales_delivery_retry_not_idempotent:qty=% movements=%',qty,movements;
   end if;
 
@@ -491,7 +547,10 @@ begin
      or (select coalesce(sum(public.erp_try_numeric(data->>'debit',0)),0) from public.erp_journal_lines
       where company_id=c and data->>'entryId'=cost_journal and data->>'accountId'='r49-cogs-usd' and not is_deleted)<>175
      or (select coalesce(sum(public.erp_try_numeric(data->>'credit',0)),0) from public.erp_journal_lines
-      where company_id=c and data->>'entryId'=cost_journal and data->>'accountId'='r49-inventory-usd' and not is_deleted)<>175 then
+      where company_id=c and data->>'entryId'=cost_journal and data->>'accountId'='r49-inventory-usd' and not is_deleted)<>175
+     or (select count(*) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=delivery and status='active'
+           and journal_entry_id=cost_journal)<>2 then
     raise exception 'sales_cogs_or_inventory_account_lines_incorrect:%',cost_journal;
   end if;
   perform public.erp_r43_reconcile_opportunity_sales_links(c);
@@ -519,7 +578,7 @@ begin
     from public.erp_inventory_cost_layers
     where company_id=c and item_type='product' and item_id='r49-product'
       and remaining_quantity>0 and status in ('active','consumed');
-  if inventory_value<>75 then
+  if inventory_value<>75 or layers<>layer_count_before or qty<>5 then
     raise exception 'sales_remaining_inventory_value_expected_75_actual_%',inventory_value;
   end if;
   begin
@@ -628,7 +687,35 @@ begin
     where company_id=c and data->>'movementType'='maintenance_out'
       and data->>'referenceId'=mo::text and not is_deleted;
   if movements<>1 then raise exception 'maintenance_issue_movement_expected_1_actual_%',movements; end if;
+  select coalesce(sum(quantity),0),coalesce(sum(total_cost),0),count(*)
+    into fifo_quantity,fifo_cost,layers
+  from public.erp_inventory_fifo_consumptions
+  where company_id=c and delivery_id=mo and sales_order_id=mo and status='active';
+  select coalesce(sum(remaining_quantity*unit_cost),0) into inventory_value
+  from public.erp_inventory_cost_layers
+  where company_id=c and item_type='product' and item_id='r49-product'
+    and status in ('active','consumed');
+  if fifo_quantity<>2 or fifo_cost<>30 or layers<>1 or inventory_value<>45
+     or (select invoice_journal_entry_id from public.erp_maintenance_orders where id=mo) is not null
+     or exists(select 1 from public.erp_inventory_fifo_consumptions
+       where company_id=c and delivery_id=mo and journal_entry_id is not null) then
+    raise exception 'maintenance_issue_operational_valuation_expected_qty_2_cost_30_value_45_no_gl';
+  end if;
+  layer_count_before:=layers;
   maintenance_result := public.erp_r37_advance_maintenance_workflow(c,mo);
+  if (select workflow_stage from public.erp_maintenance_orders where id=mo)<>'invoice_draft'
+     or (select public.erp_try_numeric(data->>'quantity',0) from public.erp_warehouse_stock
+         where company_id=c and data->>'productId'='r49-product'
+           and data->>'warehouseId'='r49-warehouse' and not is_deleted)<>3
+     or (select coalesce(sum(quantity),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and status='active')<>2
+     or (select coalesce(sum(total_cost),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and status='active')<>30
+     or (select coalesce(sum(remaining_quantity*unit_cost),0) from public.erp_inventory_cost_layers
+         where company_id=c and item_type='product' and item_id='r49-product'
+           and status in ('active','consumed'))<>45 then
+    raise exception 'maintenance_issue_retry_boundary_not_idempotent';
+  end if;
   maintenance_result := public.erp_r37_advance_maintenance_workflow(c,mo);
   if (select workflow_stage from public.erp_maintenance_orders where id=mo)<>'invoice_approved'
      or (select invoice_journal_entry_id from public.erp_maintenance_orders where id=mo) is null then
@@ -652,6 +739,18 @@ begin
   perform public.erp_v762_assert_posted_journal_balanced(
     c,cost_journal,'r49_runtime_maintenance_fifo_cost'
   );
+  if (select public.erp_try_numeric(data->>'quantity',0) from public.erp_warehouse_stock
+      where company_id=c and data->>'productId'='r49-product'
+        and data->>'warehouseId'='r49-warehouse' and not is_deleted)<>3
+     or (select count(*) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and status='active')<>layer_count_before
+     or (select coalesce(sum(total_cost),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and status='active')<>30
+     or (select coalesce(sum(remaining_quantity*unit_cost),0) from public.erp_inventory_cost_layers
+         where company_id=c and item_type='product' and item_id='r49-product'
+           and status in ('active','consumed'))<>45 then
+    raise exception 'maintenance_invoice_mutated_operational_valuation';
+  end if;
   maintenance_result := public.erp_v736_post_maintenance_invoice(c,mo);
   if (select count(*) from public.erp_inventory_movements
       where company_id=c and data->>'movementType'='maintenance_out'
@@ -718,6 +817,28 @@ begin
          where company_id=c and data->>'referenceType'='warehouse_transfer'
            and data->>'referenceId'=transfer_id and not is_deleted)<>2 then
     raise exception 'warehouse_transfer_changed_company_quantity_or_value:%',transfer_id;
+  end if;
+
+  -- Duplicate product lines are accepted by the maintenance input contract.
+  -- The final line receives the exact currency remainder, so line totals must
+  -- reconcile exactly to the FIFO consumption total without cent drift.
+  mo := public.erp_r49_create_cloud_maintenance_order(
+    c,'r49-sold-car','r49-warehouse','paid',0,50,'USD',1,'R54 rounding allocation',
+    jsonb_build_array(
+      jsonb_build_object('product_id','r49-product','quantity',1,'warehouse_id','r49-warehouse','unit_price',20),
+      jsonb_build_object('product_id','r49-product','quantity',1,'warehouse_id','r49-warehouse','unit_price',20)
+    ),'r49-maintenance-expense','2026-08-10T12:00:00Z'
+  );
+  maintenance_result:=public.erp_r37_advance_maintenance_workflow(c,mo);
+  maintenance_result:=public.erp_r37_advance_maintenance_workflow(c,mo);
+  maintenance_result:=public.erp_r37_advance_maintenance_workflow(c,mo);
+  if (select count(*) from public.erp_maintenance_parts
+      where company_id=c and maintenance_order_id=mo and not is_deleted and line_type<>'service')<>2
+     or (select coalesce(sum(total_cost),0) from public.erp_maintenance_parts
+         where company_id=c and maintenance_order_id=mo and not is_deleted and line_type<>'service')<>30
+     or (select coalesce(sum(total_cost),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and status='active')<>30 then
+    raise exception 'maintenance_multiline_fifo_rounding_expected_exact_30';
   end if;
 end
 $runtime$;
