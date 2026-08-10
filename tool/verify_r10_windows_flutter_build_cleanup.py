@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-import hashlib
+from verification_text import normalized_text_sha256
 import json
 import re
 from pathlib import Path
@@ -22,13 +22,14 @@ def read(relative: str) -> str:
 
 
 def sha(relative: str) -> str:
-    return hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+    return normalized_text_sha256(ROOT / relative)
 
 
-# Production connection/hosting files must stay byte-identical to the user-supplied R9 baseline.
+# Production connection/hosting text must stay content-identical to the
+# user-supplied R9 baseline across Git LF/CRLF worktrees.
 expected_hashes = {
     "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
-    ".firebaserc": "003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e",
+    ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }
 for relative, expected in expected_hashes.items():
@@ -150,7 +151,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS R10 Windows/Flutter build cleanup verification")
-print("  - production Supabase/Firebase files are byte-identical")
+print("  - production Supabase/Firebase text is unchanged across LF/CRLF worktrees")
 print("  - settings permission and legacy read-only cards are compile-safe")
 print("  - analyzer warnings reported by the user's Flutter run are removed")
 print("  - cashbox async BuildContext usage is mounted-guarded")
