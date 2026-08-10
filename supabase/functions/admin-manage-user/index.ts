@@ -15,6 +15,8 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
 
 const publicErrorCodes = new Set([
   'unauthenticated',
+  'company_context_required',
+  'membership_not_found',
   'permission_denied',
   'target_membership_not_found',
   'email_already_exists',
@@ -35,7 +37,7 @@ function publicErrorCode(error: unknown) {
 
 function statusFor(code: string) {
   if (code === 'unauthenticated') return 401
-  if (code === 'permission_denied') return 403
+  if (['membership_not_found', 'permission_denied'].includes(code)) return 403
   if (code === 'target_membership_not_found') return 404
   if (['email_already_exists', 'user_delete_blocked'].includes(code)) return 409
   if (['server_configuration_missing', 'company_slug_missing', 'request_failed'].includes(code)) {
@@ -61,20 +63,25 @@ Deno.serve(async (req) => {
     const { data: authData, error: authError } = await callerClient.auth.getUser()
     if (authError || !authData.user) throw new Error('unauthenticated')
 
+    const body = await req.json()
+    const requestedCompanyId = String(body.company_id ?? '').trim()
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedCompanyId)) {
+      throw new Error('company_context_required')
+    }
+
     const admin = createClient(url, serviceKey)
     const { data: callerMembership, error: callerError } = await admin
       .from('company_memberships')
       .select('company_id,role_code,is_system_admin,companies!inner(slug)')
       .eq('user_id', authData.user.id)
+      .eq('company_id', requestedCompanyId)
       .eq('is_active', true)
-      .limit(1)
       .maybeSingle()
-    if (callerError || !callerMembership) throw new Error('permission_denied')
+    if (callerError || !callerMembership) throw new Error('membership_not_found')
     if (!callerMembership.is_system_admin && !['owner', 'admin'].includes(callerMembership.role_code)) {
       throw new Error('permission_denied')
     }
 
-    const body = await req.json()
     const action = String(body.action ?? '').trim()
     const targetUserId = String(body.target_user_id ?? '').trim()
     const localUserId = String(body.local_user_id ?? '').trim()
@@ -85,7 +92,7 @@ Deno.serve(async (req) => {
     const { data: targetMembership, error: targetError } = await admin
       .from('company_memberships')
       .select('company_id,user_id,local_user_id,user_email,role_code,is_system_admin,is_active,updated_at')
-      .eq('company_id', callerMembership.company_id)
+      .eq('company_id', requestedCompanyId)
       .eq('user_id', targetUserId)
       .maybeSingle()
     if (targetError || !targetMembership) throw new Error('target_membership_not_found')
@@ -156,7 +163,7 @@ Deno.serve(async (req) => {
       const { error: membershipCleanupError } = await admin
         .from('company_memberships')
         .delete()
-        .eq('company_id', callerMembership.company_id)
+        .eq('company_id', requestedCompanyId)
         .eq('user_id', targetUserId)
       if (membershipCleanupError) console.error('Membership cleanup failed', membershipCleanupError)
 
@@ -247,7 +254,7 @@ Deno.serve(async (req) => {
         is_active: isActive,
         updated_at: now,
       })
-        .eq('company_id', callerMembership.company_id)
+        .eq('company_id', requestedCompanyId)
         .eq('user_id', targetUserId)
       if (membershipError) throw membershipError
 
@@ -284,7 +291,7 @@ Deno.serve(async (req) => {
             is_active: previousMembership.is_active,
             updated_at: previousMembership.updated_at,
           })
-          .eq('company_id', callerMembership.company_id)
+          .eq('company_id', requestedCompanyId)
           .eq('user_id', targetUserId)
         if (membershipRollbackError) {
           console.error('Membership update rollback failed', membershipRollbackError)

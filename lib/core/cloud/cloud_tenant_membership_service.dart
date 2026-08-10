@@ -3,6 +3,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'cloud_tenant_context.dart';
 import 'supabase_config.dart';
 
+Map<String, dynamic> selectCloudMembershipRow({
+  required List<Map<String, dynamic>> memberships,
+  String? persistedCompanyId,
+}) {
+  if (memberships.isEmpty) {
+    throw StateError('No active cloud company membership is available.');
+  }
+  final normalizedPersisted = persistedCompanyId?.trim();
+  final matchingPersisted =
+      normalizedPersisted == null || normalizedPersisted.isEmpty
+      ? <Map<String, dynamic>>[]
+      : memberships
+            .where(
+              (row) => row['company_id']?.toString() == normalizedPersisted,
+            )
+            .toList(growable: false);
+  if (memberships.length > 1 && matchingPersisted.isEmpty) {
+    throw StateError(
+      'للحساب عضويات في أكثر من شركة. يجب اختيار شركة نشطة قبل متابعة تسجيل الدخول.',
+    );
+  }
+  return matchingPersisted.isNotEmpty
+      ? matchingPersisted.single
+      : memberships.single;
+}
+
 class CloudMembership {
   const CloudMembership({
     required this.companyId,
@@ -46,7 +72,7 @@ class CloudTenantMembershipService {
         .eq('user_id', user.id)
         .eq('is_active', true)
         .eq('companies.is_active', true)
-        .limit(1);
+        .order('company_id');
 
     if (rows.isEmpty) {
       throw StateError(
@@ -55,7 +81,13 @@ class CloudTenantMembershipService {
       );
     }
 
-    final row = Map<String, dynamic>.from(rows.first);
+    final memberships = rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+    final row = selectCloudMembershipRow(
+      memberships: memberships,
+      persistedCompanyId: CloudTenantContext.instance.companyUuid,
+    );
     final company = Map<String, dynamic>.from(row['companies'] as Map);
     final membership = CloudMembership(
       companyId: row['company_id'].toString(),
