@@ -1078,12 +1078,12 @@
     },
     {
       "file": "lib/features/inventory/cars/pages/cars_page.dart",
-      "line": 334,
+      "line": 331,
       "value": "مسح الفلاتر"
     },
     {
       "file": "lib/features/inventory/cars/pages/cars_page.dart",
-      "line": 374,
+      "line": 371,
       "value": "إضافة سيارة جديدة"
     },
     {
@@ -1208,12 +1208,12 @@
     },
     {
       "file": "lib/features/inventory/pages/inventory_movements_page.dart",
-      "line": 120,
+      "line": 166,
       "value": "Excel"
     },
     {
       "file": "lib/features/inventory/pages/inventory_movements_page.dart",
-      "line": 127,
+      "line": 173,
       "value": "PDF"
     },
     {

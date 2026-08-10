@@ -78,6 +78,10 @@ insert into public.erp_warehouses(company_id,id,data) values (
   '{"name":"R49 Warehouse","code":"R49-WH","isActive":true}'
 );
 insert into public.erp_warehouses(company_id,id,data) values (
+  '49000000-0000-4000-8000-000000000010','r49-destination-warehouse',
+  '{"name":"R49 Destination Warehouse","code":"R49-DST","isActive":true}'
+);
+insert into public.erp_warehouses(company_id,id,data) values (
   '49000000-0000-4000-8000-000000000011','r49-other-warehouse',
   '{"name":"R49 Other Warehouse","code":"R49-OTHER","isActive":true}'
 );
@@ -121,6 +125,7 @@ declare
   payment_journal text;
   warehouse_state jsonb; account_state jsonb;
   car_reference text; product_reference text; opportunity_reference text; search_rows jsonb;
+  transfer_id text; inventory_value numeric;
 begin
   if has_function_privilege(
        'anon','public.erp_r9_logical_field_for_json_key_pre_r49_roundtrip(text,text)','EXECUTE'
@@ -510,6 +515,13 @@ begin
     select 1 from public.erp_inventory_cost_layers
     where company_id=c and receipt_id=receipt2 and remaining_quantity=5 and status='active'
   ) then raise exception 'sales_invoice_fifo_remaining_layers_incorrect'; end if;
+  select coalesce(sum(remaining_quantity*unit_cost),0) into inventory_value
+    from public.erp_inventory_cost_layers
+    where company_id=c and item_type='product' and item_id='r49-product'
+      and remaining_quantity>0 and status in ('active','consumed');
+  if inventory_value<>75 then
+    raise exception 'sales_remaining_inventory_value_expected_75_actual_%',inventory_value;
+  end if;
   begin
     perform public.erp_pay_cloud_sales_workflow_invoice(c,si,jsonb_build_object(
       'paymentKey','r49-sales-fx-invalid','cashAccountId','r49-cash-iqd',
@@ -625,6 +637,21 @@ begin
   perform public.erp_v762_assert_posted_journal_balanced(
     c,(select invoice_journal_entry_id from public.erp_maintenance_orders where id=mo),'r49_runtime_maintenance'
   );
+  select cost_journal_entry_ids->0->>'journalEntryId' into cost_journal
+  from public.erp_maintenance_orders where id=mo;
+  if cost_journal is null
+     or (select coalesce(sum(quantity),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and sales_order_id=mo and status='active')<>2
+     or (select coalesce(sum(total_cost),0) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and sales_order_id=mo and status='active')<>30
+     or (select count(*) from public.erp_inventory_fifo_consumptions
+         where company_id=c and delivery_id=mo and sales_order_id=mo and status='active'
+           and journal_entry_id=cost_journal)<>1 then
+    raise exception 'maintenance_fifo_accounting_trace_expected_qty_2_cost_30_journal_%',cost_journal;
+  end if;
+  perform public.erp_v762_assert_posted_journal_balanced(
+    c,cost_journal,'r49_runtime_maintenance_fifo_cost'
+  );
   maintenance_result := public.erp_v736_post_maintenance_invoice(c,mo);
   if (select count(*) from public.erp_inventory_movements
       where company_id=c and data->>'movementType'='maintenance_out'
@@ -653,6 +680,45 @@ begin
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>3 then raise exception 'maintenance_invoice_repeated_stock:%',qty; end if;
+
+  select coalesce(sum(remaining_quantity*unit_cost),0) into inventory_value
+    from public.erp_inventory_cost_layers
+    where company_id=c and item_type='product' and item_id='r49-product'
+      and remaining_quantity>0 and status in ('active','consumed');
+  if inventory_value<>45 then
+    raise exception 'maintenance_remaining_inventory_value_expected_45_actual_%',inventory_value;
+  end if;
+
+  transfer_id:=public.erp_r49_transfer_inventory_stock(
+    c,'r49-product','r49-warehouse','r49-destination-warehouse',1,
+    'R49 company-value-preserving transfer'
+  );
+  if transfer_id is null
+     or (select public.erp_try_numeric(data->>'quantity',0)
+         from public.erp_warehouse_stock
+         where company_id=c and data->>'productId'='r49-product'
+           and data->>'warehouseId'='r49-warehouse' and not is_deleted)<>2
+     or (select public.erp_try_numeric(data->>'quantity',0)
+         from public.erp_warehouse_stock
+         where company_id=c and data->>'productId'='r49-product'
+           and data->>'warehouseId'='r49-destination-warehouse' and not is_deleted)<>1
+     or (select coalesce(sum(public.erp_try_numeric(data->>'quantity',0)),0)
+         from public.erp_warehouse_stock
+         where company_id=c and data->>'productId'='r49-product' and not is_deleted)<>3
+     or (select coalesce(sum(
+           public.erp_try_numeric(data->>'quantity',0)
+           * public.erp_try_numeric(data->>'averageUnitCost',0)
+         ),0) from public.erp_warehouse_stock
+         where company_id=c and data->>'productId'='r49-product' and not is_deleted)<>45
+     or (select coalesce(sum(remaining_quantity*unit_cost),0)
+         from public.erp_inventory_cost_layers
+         where company_id=c and item_type='product' and item_id='r49-product'
+           and remaining_quantity>0 and status in ('active','consumed'))<>45
+     or (select count(*) from public.erp_inventory_movements
+         where company_id=c and data->>'referenceType'='warehouse_transfer'
+           and data->>'referenceId'=transfer_id and not is_deleted)<>2 then
+    raise exception 'warehouse_transfer_changed_company_quantity_or_value:%',transfer_id;
+  end if;
 end
 $runtime$;
 

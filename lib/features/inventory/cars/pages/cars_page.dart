@@ -191,10 +191,7 @@ class _CarsPageState extends State<CarsPage> {
         .length;
     final totalValueByCurrency = <String, double>{};
     for (final car in cars.where(
-      (car) =>
-          car.statusValue != CarStatus.sold &&
-          car.warehouseId != null &&
-          car.warehouseId!.trim().isNotEmpty,
+      (car) => car.isIncludedInCurrentInventoryValue,
     )) {
       final currency = (car.costCurrency ?? car.currency).trim().toUpperCase();
       if (currency.isEmpty) continue;
