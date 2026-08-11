@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:excel/excel.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:quality_line_erp/core/exporting/export_document.dart';
 import 'package:quality_line_erp/core/exporting/report_template_engine.dart';
 import 'package:quality_line_erp/core/exporting/excel_export_service.dart';
 import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/services/cash_voucher_pdf_service.dart';
+import 'package:quality_line_erp/features/settings/reports/services/report_export_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +71,51 @@ void main() {
     expect(excel.take(2), orderedEquals(const [0x50, 0x4b]));
     expect(pdf.length, greaterThan(1000));
     expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
+  });
+
+  test('Arabic Excel and PDF preserve language and workbook RTL', () async {
+    await initializeDateFormatting('ar');
+    const document = ExportDocument(
+      title: 'تقرير الفرص',
+      subtitle: 'ملخص عربي',
+      language: 'ar',
+      currency: 'IQD',
+      columns: [
+        ExportColumn(key: 'reference', label: 'المرجع'),
+        ExportColumn(
+          key: 'total',
+          label: 'الإجمالي',
+          type: ExportValueType.money,
+        ),
+      ],
+      rows: [
+        ['R55.1-001', 1250000],
+      ],
+    );
+
+    final excelBytes = await ExcelExportService().build(document);
+    final pdfBytes = await PdfExportService().build(document);
+    final workbook = Excel.decodeBytes(excelBytes);
+
+    expect(excelBytes.length, greaterThan(1000));
+    expect(excelBytes.take(2), orderedEquals(const [0x50, 0x4b]));
+    expect(workbook.tables.keys, contains('تعريف الملف'));
+    expect(workbook.tables.values.any((sheet) => sheet.isRTL), isTrue);
+    expect(
+      workbook.tables['تعريف الملف']!.rows
+          .expand((row) => row)
+          .map((cell) => cell?.value.toString())
+          .whereType<String>(),
+      contains('العربية'),
+    );
+    expect(pdfBytes.length, greaterThan(1000));
+    expect(String.fromCharCodes(pdfBytes.take(5)), '%PDF-');
+  });
+
+  test('report PDF filename preserves the selected export language', () {
+    final service = ReportExportService();
+    expect(service.fileNameFor('opportunities', 'ar'), endsWith('_ar'));
+    expect(service.fileNameFor('opportunities', 'en'), endsWith('_en'));
   });
 
   test(

@@ -22,7 +22,7 @@ class ExcelExportService {
       columns: document.columns,
       rows: document.rows,
       metadata: document.metadata,
-      language: 'en',
+      language: document.language,
       currency: document.currency,
       generatedAt: document.generatedAt,
     );
@@ -218,6 +218,12 @@ class ExcelExportService {
       ]);
     }
 
+    // The excel package can replace Sheet instances while rows/styles are
+    // appended. Reassert direction on the final workbook objects so the
+    // encoded worksheet XML retains rightToLeft="1" for Arabic exports.
+    for (final sheet in workbook.tables.values) {
+      sheet.isRTL = document.isArabic;
+    }
     workbook.setDefaultSheet(profileName);
     final encoded = workbook.encode();
     if (encoded == null) throw StateError('Unable to encode Excel workbook.');

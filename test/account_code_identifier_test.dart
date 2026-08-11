@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
+import 'package:quality_line_erp/features/accounting/expenses/pages/add_expense_page.dart';
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 
 void main() {
@@ -39,5 +40,22 @@ void main() {
       'createdAt': '2026-08-10T00:00:00Z',
     });
     expect(account.code, '1000.01');
+  });
+
+  test('expense account selector uses canonical identifier display', () {
+    expect(
+      expenseAccountDisplayLabel(const {
+        'code': '1000.009999999',
+        'name': 'Expense account',
+      }),
+      '1000.01 — Expense account',
+    );
+    expect(
+      expenseAccountDisplayLabel(const {
+        'code': '5000.020000000',
+        'name': 'Cost account',
+      }),
+      '5000.02 — Cost account',
+    );
   });
 }

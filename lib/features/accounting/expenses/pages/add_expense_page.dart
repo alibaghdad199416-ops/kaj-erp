@@ -1,5 +1,6 @@
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,10 @@ import 'package:quality_line_erp/core/widgets/app_back_button.dart';
 import 'package:quality_line_erp/features/accounting/expenses/controllers/expenses_controller.dart';
 import 'package:quality_line_erp/features/accounting/expenses/models/expense_model.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
+
+String expenseAccountDisplayLabel(Map<String, Object?> row) =>
+    '${ErpDisplayFormatter.accountCode(row['code'])} — '
+    '${row['name'] ?? row['nameAr'] ?? ''}';
 
 class AddExpensePage extends StatefulWidget {
   const AddExpensePage({super.key});
@@ -399,9 +404,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                             .map(
                               (row) => DropdownMenuItem(
                                 value: row['id']?.toString(),
-                                child: AppText(
-                                  '${row['code'] ?? ''} — ${row['name'] ?? row['nameAr'] ?? ''}',
-                                ),
+                                child: AppText(expenseAccountDisplayLabel(row)),
                               ),
                             )
                             .toList(),

@@ -213,22 +213,22 @@
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 227,
+      "line": 232,
       "value": "إضافة مصروف"
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 249,
+      "line": 254,
       "value": "إعادة المحاولة"
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 445,
+      "line": 448,
       "value": "التاريخ والوقت التشغيلي"
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 475,
+      "line": 478,
       "value": "حفظ المصروف"
     },
     {
@@ -888,17 +888,17 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 431,
+      "line": 479,
       "value": "موعد المتابعة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 499,
+      "line": 547,
       "value": "حفظ الفرصة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 513,
+      "line": 561,
       "value": "حفظ وإنشاء مسودة أمر بيع"
     },
     {
@@ -2482,7 +2482,7 @@
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 442,
+      "line": 445,
       "value": "4"
     },
     {
@@ -2552,12 +2552,12 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 429,
+      "line": 477,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 449,
+      "line": 497,
       "value": "4"
     },
     {

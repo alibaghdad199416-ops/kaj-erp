@@ -60,6 +60,11 @@ class _AllowedAccessController extends AccessController {
   }) => true;
 }
 
+class _UsersNotLoadedAccessController extends _AllowedAccessController {
+  @override
+  List<UserModel> get users => const [];
+}
+
 class _SeededCustomersController extends CustomersController {
   @override
   List<CustomerModel> get customers => const [_customer];
@@ -67,22 +72,30 @@ class _SeededCustomersController extends CustomersController {
 
 class _CapturingOpportunitiesController extends OpportunitiesController {
   OpportunityModel? submitted;
+  bool lostRequested = false;
 
   @override
   Future<void> add(OpportunityModel item) async => submitted = item;
 
   @override
   Future<void> update(OpportunityModel item) async => submitted = item;
+
+  @override
+  Future<void> saveAsLost(OpportunityModel item, {required bool isNew}) async {
+    submitted = item;
+    lostRequested = true;
+  }
 }
 
 Widget _app({
   required OpportunitiesController opportunities,
   OpportunityModel? opportunity,
   Locale locale = const Locale('en'),
+  AccessController? access,
 }) => MultiProvider(
   providers: [
     ChangeNotifierProvider<AccessController>(
-      create: (_) => _AllowedAccessController(),
+      create: (_) => access ?? _AllowedAccessController(),
     ),
     ChangeNotifierProvider<CustomersController>(
       create: (_) => _SeededCustomersController(),
@@ -217,5 +230,149 @@ void main() {
       TextDirection.rtl,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ordinary stage selector excludes Won and persists proposal', (
+    tester,
+  ) async {
+    final controller = _CapturingOpportunitiesController();
+    final row = OpportunityModel.fromMap({
+      'id': 'opportunity-qualified',
+      'opportunityNumber': 'OPP0055',
+      'customerId': _customer.id,
+      'customerName': _customer.name,
+      'customerPhone': _customer.phone,
+      'expectedValue': 500,
+      'currency': 'IQD',
+      'stage': 'qualified',
+      'status': 'pending',
+      'assignedUserId': _user.id,
+      'assignedUserName': _user.fullName,
+      'createdByUserId': _user.id,
+      'createdByUserName': _user.fullName,
+      'createdAt': _createdAt.toIso8601String(),
+      'updatedAt': _createdAt.toIso8601String(),
+    });
+    await tester.pumpWidget(_app(opportunities: controller, opportunity: row));
+    await tester.pumpAndSettle();
+
+    final stageFinder = find.byKey(const ValueKey('opportunity-stage-field'));
+    await tester.scrollUntilVisible(
+      stageFinder,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(stageFinder);
+    await tester.pumpAndSettle();
+    expect(find.text('Won'), findsNothing);
+    expect(find.text('Lost'), findsOneWidget);
+    await tester.tap(find.text('Proposal / Quotation').last);
+    await tester.pumpAndSettle();
+
+    final save = find.byKey(const ValueKey('opportunity-save-button'));
+    await tester.scrollUntilVisible(
+      save,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(controller.submitted?.stage, 'proposal');
+    expect(controller.submitted?.currency, 'IQD');
+    expect(controller.submitted?.assignedUserId, _user.id);
+    expect(controller.lostRequested, isFalse);
+  });
+
+  testWidgets('edit preserves assignee while users are not loaded', (
+    tester,
+  ) async {
+    final controller = _CapturingOpportunitiesController();
+    final row = OpportunityModel.fromMap({
+      'id': 'opportunity-assigned',
+      'opportunityNumber': 'OPP0056',
+      'customerId': _customer.id,
+      'customerName': _customer.name,
+      'customerPhone': _customer.phone,
+      'expectedValue': 750,
+      'currency': 'IQD',
+      'stage': 'qualified',
+      'status': 'pending',
+      'assignedUserId': _user.id,
+      'assignedUserName': _user.fullName,
+      'createdByUserId': _user.id,
+      'createdByUserName': _user.fullName,
+      'createdAt': _createdAt.toIso8601String(),
+      'updatedAt': _createdAt.toIso8601String(),
+    });
+    await tester.pumpWidget(
+      _app(
+        opportunities: controller,
+        opportunity: row,
+        access: _UsersNotLoadedAccessController(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final save = find.byKey(const ValueKey('opportunity-save-button'));
+    await tester.scrollUntilVisible(
+      save,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(controller.submitted?.assignedUserId, _user.id);
+    expect(controller.submitted?.assignedUserName, _user.fullName);
+    expect(controller.submitted?.stage, 'qualified');
+    expect(controller.submitted?.currency, 'IQD');
+    expect(controller.submitted?.expectedValue, 750);
+  });
+
+  testWidgets('Lost selection routes through canonical saveAsLost', (
+    tester,
+  ) async {
+    final controller = _CapturingOpportunitiesController();
+    final row = OpportunityModel.fromMap({
+      'id': 'opportunity-lost',
+      'opportunityNumber': 'OPP0057',
+      'customerId': _customer.id,
+      'customerName': _customer.name,
+      'customerPhone': _customer.phone,
+      'expectedValue': 900,
+      'currency': 'USD',
+      'stage': 'qualified',
+      'status': 'pending',
+      'assignedUserId': _user.id,
+      'assignedUserName': _user.fullName,
+      'createdByUserId': _user.id,
+      'createdByUserName': _user.fullName,
+      'createdAt': _createdAt.toIso8601String(),
+      'updatedAt': _createdAt.toIso8601String(),
+    });
+    await tester.pumpWidget(_app(opportunities: controller, opportunity: row));
+    await tester.pumpAndSettle();
+
+    final stageFinder = find.byKey(const ValueKey('opportunity-stage-field'));
+    await tester.scrollUntilVisible(
+      stageFinder,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(stageFinder);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lost').last);
+    await tester.pumpAndSettle();
+    final save = find.byKey(const ValueKey('opportunity-save-button'));
+    await tester.scrollUntilVisible(
+      save,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(controller.lostRequested, isTrue);
+    expect(controller.submitted?.stage, 'qualified');
+    expect(controller.submitted?.status, OpportunityStatus.pending);
   });
 }

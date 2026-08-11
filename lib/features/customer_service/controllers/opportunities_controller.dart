@@ -105,6 +105,22 @@ class OpportunitiesController extends ChangeNotifier {
     await loadOpportunities();
   }
 
+  Future<void> saveAsLost(OpportunityModel item, {required bool isNew}) async {
+    if (isNew) {
+      await _repository.add(item);
+    } else {
+      await _repository.update(item);
+    }
+    final saved = (await _repository.getOpportunities())
+        .where((value) => value.id == item.id)
+        .firstOrNull;
+    if (saved == null) {
+      throw StateError('Opportunity read-back missing before mark_lost.');
+    }
+    await _repository.markLost(saved);
+    await loadOpportunities();
+  }
+
   Future<SaleModel> markWonAndCreateInvoice({
     required OpportunityModel opportunity,
     required String carId,

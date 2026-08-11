@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
-import 'package:quality_line_erp/features/settings/access/models/user_model.dart';
 import 'package:quality_line_erp/features/business_partners/customers/controllers/customers_controller.dart';
 import 'package:quality_line_erp/features/business_partners/customers/models/customer_model.dart';
 import 'package:quality_line_erp/features/business_partners/customers/pages/add_customer_page.dart';
@@ -55,7 +54,8 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
   String _currency = 'USD';
   String _stage = 'new';
   CustomerModel? _customer;
-  UserModel? _assigned;
+  String _assignedUserId = '';
+  String _assignedUserName = '';
   DateTime? _followUp;
   DateTime? _expectedClose;
   bool _saving = false;
@@ -81,21 +81,25 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       stored: o?.currency,
     );
     _stage = o?.stage ?? 'new';
+    _assignedUserId = o?.assignedUserId.trim() ?? '';
+    _assignedUserName = o?.assignedUserName.trim() ?? '';
     _expectedClose = o?.expectedCloseDate;
     _source = (o?.source ?? '').trim().isEmpty ? null : o!.source;
     _followUp = o?.followUpDate;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final access = context.read<AccessController>();
       final customers = context.read<CustomersController>().customers;
-      final assignedMatches = o == null || o.assignedUserId.trim().isEmpty
-          ? <UserModel>[]
-          : access.users.where((u) => u.id == o.assignedUserId).toList();
       final customerMatches = o?.customerId == null
           ? <CustomerModel>[]
           : customers.where((c) => c.id == o!.customerId).toList();
       if (mounted) {
         setState(() {
-          _assigned = assignedMatches.isEmpty ? null : assignedMatches.first;
+          final assignedMatches = access.users.where(
+            (u) => u.id == _assignedUserId,
+          );
+          if (assignedMatches.isNotEmpty) {
+            _assignedUserName = assignedMatches.first.fullName;
+          }
           _customer = customerMatches.isEmpty ? null : customerMatches.first;
         });
       }
@@ -312,36 +316,57 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             const SizedBox(height: 14),
             _securedField(
               'stage',
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: _stage,
-                decoration: InputDecoration(
-                  labelText: t('مرحلة الفرصة', 'Opportunity stage'),
-                  border: const OutlineInputBorder(),
-                ),
-                items:
-                    <MapEntry<String, String>>[
-                          MapEntry('new', t('جديدة', 'New')),
-                          MapEntry('contacted', t('تم التواصل', 'Contacted')),
-                          MapEntry('qualified', t('مؤهلة', 'Qualified')),
-                          MapEntry(
-                            'proposal',
-                            t('عرض/تسعير', 'Proposal / Quotation'),
-                          ),
-                          MapEntry('negotiation', t('تفاوض', 'Negotiation')),
-                          MapEntry('won', t('رابحة', 'Won')),
-                          MapEntry('lost', t('خاسرة', 'Lost')),
-                          MapEntry('closed', t('مغلقة', 'Closed')),
-                        ]
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (v) => setState(() => _stage = v ?? 'new'),
-              ),
+              _stage == 'won' || _stage == 'closed'
+                  ? TextFormField(
+                      key: const ValueKey('opportunity-terminal-stage-field'),
+                      initialValue: _stage == 'won'
+                          ? t('رابحة', 'Won')
+                          : t('مغلقة', 'Closed'),
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: t('مرحلة الفرصة', 'Opportunity stage'),
+                        helperText: t(
+                          'هذه النتيجة مملوكة لمسار المبيعات المعتمد.',
+                          'This result is owned by the canonical sales workflow.',
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                    )
+                  : DropdownButtonFormField<String>(
+                      key: const ValueKey('opportunity-stage-field'),
+                      isExpanded: true,
+                      initialValue: _stage,
+                      decoration: InputDecoration(
+                        labelText: t('مرحلة الفرصة', 'Opportunity stage'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items:
+                          <MapEntry<String, String>>[
+                                MapEntry('new', t('جديدة', 'New')),
+                                MapEntry(
+                                  'contacted',
+                                  t('تم التواصل', 'Contacted'),
+                                ),
+                                MapEntry('qualified', t('مؤهلة', 'Qualified')),
+                                MapEntry(
+                                  'proposal',
+                                  t('عرض/تسعير', 'Proposal / Quotation'),
+                                ),
+                                MapEntry(
+                                  'negotiation',
+                                  t('تفاوض', 'Negotiation'),
+                                ),
+                                MapEntry('lost', t('خاسرة', 'Lost')),
+                              ]
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e.key,
+                                  child: Text(e.value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (v) => setState(() => _stage = v ?? 'new'),
+                    ),
             ),
             const SizedBox(height: 14),
             _securedField(
@@ -398,24 +423,47 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             const SizedBox(height: 14),
             _securedField(
               'assignedUserId',
-              DropdownButtonFormField<UserModel>(
+              DropdownButtonFormField<String>(
+                key: const ValueKey('opportunity-assigned-user-field'),
                 isExpanded: true,
-                initialValue: _assigned,
+                initialValue: _assignedUserId,
                 decoration: InputDecoration(
                   labelText: AppTranslation.translate(
                     'المستخدم المسؤول (اختياري)',
                   ),
                   border: OutlineInputBorder(),
                 ),
-                items: users
-                    .map(
-                      (u) => DropdownMenuItem(
-                        value: u,
-                        child: AppText(u.fullName),
+                items: <DropdownMenuItem<String>>[
+                  DropdownMenuItem(
+                    value: '',
+                    child: AppText(t('غير مسندة', 'Unassigned')),
+                  ),
+                  ...users.map(
+                    (u) => DropdownMenuItem(
+                      value: u.id,
+                      child: AppText(u.fullName),
+                    ),
+                  ),
+                  if (_assignedUserId.isNotEmpty &&
+                      !users.any((u) => u.id == _assignedUserId))
+                    DropdownMenuItem(
+                      value: _assignedUserId,
+                      child: AppText(
+                        _assignedUserName.isEmpty
+                            ? _assignedUserId
+                            : _assignedUserName,
                       ),
-                    )
-                    .toList(),
-                onChanged: (u) => setState(() => _assigned = u),
+                    ),
+                ],
+                onChanged: (userId) => setState(() {
+                  _assignedUserId = userId ?? '';
+                  _assignedUserName =
+                      users
+                          .where((u) => u.id == _assignedUserId)
+                          .map((u) => u.fullName)
+                          .firstOrNull ??
+                      '';
+                }),
               ),
             ),
             const SizedBox(height: 14),
@@ -611,8 +659,10 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       if (!mounted) return;
       final access = context.read<AccessController>();
       final current = access.currentUser!;
-      final assigned = _assigned;
       final old = widget.opportunity;
+      final marksLost =
+          _stage == 'lost' && old?.status != OpportunityStatus.lost;
+      final savedStage = marksLost ? (old?.stage ?? 'new') : _stage;
       final item = OpportunityModel(
         id: old?.id ?? const Uuid().v4(),
         opportunityNumber:
@@ -625,7 +675,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         source: _source ?? '',
         expectedValue: ThousandsInputFormatter.parse(_value.text) ?? 0,
         currency: _currency,
-        stage: _stage,
+        stage: savedStage,
         probability:
             double.tryParse(_probability.text.replaceAll(',', '')) ?? 0,
         description: _description.text.trim(),
@@ -636,8 +686,8 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         carName: old?.carName,
         saleId: old?.saleId,
         invoiceNumber: old?.invoiceNumber,
-        assignedUserId: assigned?.id ?? '',
-        assignedUserName: assigned?.fullName ?? '',
+        assignedUserId: _assignedUserId,
+        assignedUserName: _assignedUserName,
         createdByUserId: old?.createdByUserId ?? current.id,
         createdByUserName: old?.createdByUserName ?? current.fullName,
         createdAt: old?.createdAt ?? DateTime.now(),
@@ -646,10 +696,13 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         notes: _notes.text.trim(),
         updatedAt: old?.updatedAt,
       );
-      if (old == null) {
-        await context.read<OpportunitiesController>().add(item);
+      final opportunities = context.read<OpportunitiesController>();
+      if (marksLost) {
+        await opportunities.saveAsLost(item, isNew: old == null);
+      } else if (old == null) {
+        await opportunities.add(item);
       } else {
-        await context.read<OpportunitiesController>().update(item);
+        await opportunities.update(item);
       }
       if (!mounted) return;
       if (createSalesDraft) {

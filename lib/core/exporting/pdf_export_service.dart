@@ -28,7 +28,7 @@ class PdfExportService {
       columns: document.columns,
       rows: document.rows,
       metadata: document.metadata,
-      language: 'en',
+      language: document.language,
       currency: document.currency,
       generatedAt: document.generatedAt,
     );

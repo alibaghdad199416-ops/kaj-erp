@@ -9,6 +9,7 @@ $finalStateTest = Join-Path $repoRoot 'supabase\tests\verify_fresh_install_final
 $runtimeTest = Join-Path $repoRoot 'supabase\tests\verify_r50_r52_runtime.sql'
 $r49TransactionTest = Join-Path $repoRoot 'supabase\tests\verify_r49_erp_transactions_runtime.sql'
 $r55NotificationTest = Join-Path $repoRoot 'supabase\tests\verify_r55_opportunity_notifications.sql'
+$r551TerminalTest = Join-Path $repoRoot 'supabase\tests\verify_r55_1_opportunity_terminal_semantics.sql'
 $migrationSource = Join-Path $repoRoot 'supabase\migrations'
 $configSource = Join-Path $repoRoot 'supabase\config.toml'
 
@@ -69,6 +70,7 @@ Assert-File $finalStateTest
 Assert-File $runtimeTest
 Assert-File $r49TransactionTest
 Assert-File $r55NotificationTest
+Assert-File $r551TerminalTest
 Assert-File $configSource
 Assert-NoNonLocalEnvironment
 
@@ -150,7 +152,7 @@ try {
         throw "Applied migration count mismatch: expected=$expectedMigrationCount applied=$appliedMigrationCount"
     }
 
-    foreach ($test in @($finalStateTest, $r49TransactionTest, $runtimeTest, $r55NotificationTest)) {
+    foreach ($test in @($finalStateTest, $r49TransactionTest, $runtimeTest, $r55NotificationTest, $r551TerminalTest)) {
         $remotePath = "/tmp/$([IO.Path]::GetFileName($test))"
         Invoke-Checked "Copy $([IO.Path]::GetFileName($test))" 'docker' @('cp', $test, "${container}:$remotePath")
         Invoke-Checked "Run $([IO.Path]::GetFileName($test))" 'docker' @(

@@ -362,7 +362,7 @@ class ReportExportService {
       sections: sections,
     );
     await PdfPrintService.print(
-      fileName: '${_fileName(module, 'en')}.pdf',
+      fileName: '${fileNameFor(module, options.language)}.pdf',
       bytes: bytes,
     );
   }
@@ -384,7 +384,7 @@ class ReportExportService {
       sections: sections,
     );
     await BinaryDownloadService.save(
-      fileName: '${_fileName(module, 'en')}.pdf',
+      fileName: '${fileNameFor(module, options.language)}.pdf',
       bytes: bytes,
       mimeType: 'application/pdf',
     );
@@ -1064,6 +1064,8 @@ class ReportExportService {
 
   String _fileName(String module, String l) =>
       'quality_line_${module}_${DateTime.now().millisecondsSinceEpoch}_$l';
+  String fileNameFor(String module, String language) =>
+      _fileName(module, PdfTextSupport.canonicalPdfLanguage(language));
   String _exportValue(Object value) =>
       value is num ? _number(value.toDouble()) : value.toString();
 
