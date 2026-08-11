@@ -70,10 +70,25 @@ insert into public.erp_accounts(organization_id,account_id,code,name,account_typ
 ('56010000-0000-4000-8000-000000000010','r56-customer-iqd','1202','Customer IQD','asset','IQD',20,true,now(),now(),'56010000-0000-4000-8000-000000000001'),
 ('56010000-0000-4000-8000-000000000010','r56-supplier-usd','2101','Supplier USD','liability','USD',30,true,now(),now(),'56010000-0000-4000-8000-000000000001'),
 ('56010000-0000-4000-8000-000000000010','r56-supplier-iqd','2102','Supplier IQD','liability','IQD',40,true,now(),now(),'56010000-0000-4000-8000-000000000001');
+insert into public.erp_accounts(organization_id,account_id,code,name,account_type,currency,
+ opening_balance,is_active,source_updated_at,synced_at,synced_by) values
+('56010000-0000-4000-8000-000000000011','r56-other-usd','1299','Other tenant USD','asset','USD',999,true,now(),now(),'56010000-0000-4000-8000-000000000001');
 insert into public.erp_partner_accounts(organization_id,partner_type,partner_id,partner_name,
  usd_account_id,iqd_account_id,is_active,source_updated_at,synced_at,synced_by) values
 ('56010000-0000-4000-8000-000000000010','customer','56010000-0000-4000-8000-000000000020','R56 Customer','r56-customer-usd','r56-customer-iqd',true,now(),now(),'56010000-0000-4000-8000-000000000001'),
 ('56010000-0000-4000-8000-000000000010','supplier','r56-supplier','R56 Supplier','r56-supplier-usd','r56-supplier-iqd',true,now(),now(),'56010000-0000-4000-8000-000000000001');
+insert into public.erp_partner_accounts(organization_id,partner_type,partner_id,partner_name,
+ usd_account_id,iqd_account_id,is_active,source_updated_at,synced_at,synced_by) values
+('56010000-0000-4000-8000-000000000011','customer','56010000-0000-4000-8000-000000000021','Other Customer','r56-other-usd',null,true,now(),now(),'56010000-0000-4000-8000-000000000001');
+
+insert into public.erp_journal_entries(company_id,id,data) values
+('56010000-0000-4000-8000-000000000010','r56-customer-entry','{"entryNumber":"R56-CJ-USD","date":"2026-08-11","referenceType":"sales_invoice","referenceId":"R56-SINV-A"}'),
+('56010000-0000-4000-8000-000000000010','r56-supplier-entry','{"entryNumber":"R56-SJ-IQD","date":"2026-08-11","referenceType":"purchases_invoice","referenceId":"R56-PINV"}'),
+('56010000-0000-4000-8000-000000000011','r56-other-entry','{"entryNumber":"R56-OTHER-JOURNAL","date":"2026-08-11","referenceType":"sales_invoice","referenceId":"R56-OTHER"}');
+insert into public.erp_journal_lines(company_id,id,data) values
+('56010000-0000-4000-8000-000000000010','r56-customer-line','{"entryId":"r56-customer-entry","accountId":"r56-customer-usd","date":"2026-08-11","debit":125,"credit":25,"description":"R56 customer ledger"}'),
+('56010000-0000-4000-8000-000000000010','r56-supplier-line','{"entryId":"r56-supplier-entry","accountId":"r56-supplier-iqd","date":"2026-08-11","debit":0,"credit":75,"description":"R56 supplier ledger"}'),
+('56010000-0000-4000-8000-000000000011','r56-other-line','{"entryId":"r56-other-entry","accountId":"r56-other-usd","date":"2026-08-11","debit":999,"credit":0,"description":"R56 cross tenant sentinel"}');
 
 set local session_replication_role=origin;
 set local role authenticated;
@@ -156,14 +171,18 @@ begin
    and profile->'commercialChain' @> '[{"documentNumber":"R56-SPAY"}]'
    and profile->'crmOpportunities' @> '[{"opportunityNumber":"R56-OPP-CAR"}]'
    and profile->'maintenanceHistory' @> '[{"entityType":"maintenance"}]'
-   and profile->'accountsByCurrency' @> '[{"currencyCode":"USD"},{"currencyCode":"IQD"}]') then
+   and profile->'accountsByCurrency' @> '[{"currencyCode":"USD","debit":125,"credit":25,"currentBalance":110},{"currencyCode":"IQD","currentBalance":20}]'
+   and profile->'ledgerMovements' @> '[{"entryNumber":"R56-CJ-USD","documentType":"sales_invoice","documentReference":"R56-SINV-A","debit":125,"credit":25,"currency":"USD"}]'
+   and profile::text not like '%R56-OTHER-JOURNAL%') then
    raise exception 'r56_customer_360_incomplete:%',profile;
  end if;
  profile:=public.erp_r56_business_partner_360(c,'supplier','r56-supplier');
  if not (profile->'commercialChain' @> '[{"documentNumber":"R56-PREC"}]'
    and profile->'commercialChain' @> '[{"documentNumber":"R56-PINV"}]'
    and profile->'commercialChain' @> '[{"documentNumber":"R56-PPAY"}]'
-   and profile->'accountsByCurrency' @> '[{"currencyCode":"USD"},{"currencyCode":"IQD"}]') then
+   and profile->'accountsByCurrency' @> '[{"currencyCode":"USD","currentBalance":30},{"currencyCode":"IQD","debit":0,"credit":75,"currentBalance":-35}]'
+   and profile->'ledgerMovements' @> '[{"entryNumber":"R56-SJ-IQD","documentType":"purchases_invoice","documentReference":"R56-PINV","debit":0,"credit":75,"currency":"IQD"}]'
+   and profile::text not like '%R56-OTHER-JOURNAL%') then
    raise exception 'r56_supplier_360_incomplete:%',profile;
  end if;
 end

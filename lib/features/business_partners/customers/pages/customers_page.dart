@@ -15,6 +15,7 @@ import 'package:quality_line_erp/features/business_partners/customers/models/cus
 import 'package:quality_line_erp/features/business_partners/customers/widgets/customer_card.dart';
 import 'package:quality_line_erp/features/business_partners/customers/widgets/customers_statistics.dart';
 import 'package:quality_line_erp/features/business_partners/shared/data/business_partner_card_service.dart';
+import 'package:quality_line_erp/features/business_partners/shared/data/partner_record_route.dart';
 import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 import 'package:quality_line_erp/features/customer_service/pages/add_opportunity_page.dart';
@@ -206,6 +207,12 @@ class _CustomersPageState extends State<CustomersPage> {
       photoBase64: customer.photoBase64,
       summary: summary,
       onOpenRecord: _openPartnerRecord,
+      canOpenRecord: (record) {
+        final destination = PartnerRecordRoute.resolve(record)?.destination;
+        return destination == PartnerRecordDestination.opportunity ||
+            destination == PartnerRecordDestination.maintenance ||
+            destination == PartnerRecordDestination.salesOrder;
+      },
       identityFields: [
         if (context.read<AccessController>().canViewField(
           'customers',
@@ -254,40 +261,37 @@ class _CustomersPageState extends State<CustomersPage> {
   }
 
   Future<void> _openPartnerRecord(Map<String, Object?> record) async {
-    final type = record['entityType']?.toString() ?? '';
-    final id = record['id']?.toString() ?? '';
-    if (type == 'opportunity' && id.isNotEmpty) {
+    final route = PartnerRecordRoute.resolve(record);
+    if (route == null) return;
+    if (route.destination == PartnerRecordDestination.opportunity) {
       await showAppModuleDialog<void>(
         context: context,
-        title: 'ØªÙØ§ØµÙŠÙ„ Ø§Ù„ÙØ±ØµØ©',
-        windowKey: 'opportunities:$id',
+        title: 'تفاصيل الفرصة',
+        windowKey: 'opportunities:${route.id}',
         builder: (_) =>
             AddOpportunityPage(opportunity: OpportunityModel.fromMap(record)),
       );
       return;
     }
-    if (type == 'maintenance' && id.isNotEmpty) {
+    if (route.destination == PartnerRecordDestination.maintenance) {
       final orders = await MaintenanceRepository().getOrders();
-      final matches = orders.where((order) => order.id == id);
+      final matches = orders.where((order) => order.id == route.id);
       if (!mounted || matches.isEmpty) return;
       await showAppModuleDialog<void>(
         context: context,
-        title: 'ØªÙØ§ØµÙŠÙ„ Ø£Ù…Ø± Ø§Ù„ØµÙŠØ§Ù†Ø©',
-        windowKey: 'maintenance:$id',
+        title: 'تفاصيل أمر الصيانة',
+        windowKey: 'maintenance:${route.id}',
         builder: (_) => MaintenanceOrderDetailsDialog(order: matches.first),
       );
       return;
     }
-    if (type.startsWith('sales_')) {
-      final orderId = type == 'sales_order'
-          ? id
-          : record['parentId']?.toString() ?? '';
-      if (orderId.isEmpty || !mounted) return;
+    if (route.destination == PartnerRecordDestination.salesOrder) {
+      if (!mounted) return;
       await showAppModuleDialog<void>(
         context: context,
-        title: 'ØªÙØ§ØµÙŠÙ„ Ø£Ù…Ø± Ø§Ù„Ø¨ÙŠØ¹',
-        windowKey: 'sales-order:$orderId',
-        builder: (_) => OrderDetailsDialog(orderId: orderId, purchase: false),
+        title: 'تفاصيل أمر البيع',
+        windowKey: 'sales-order:${route.id}',
+        builder: (_) => OrderDetailsDialog(orderId: route.id, purchase: false),
       );
     }
   }

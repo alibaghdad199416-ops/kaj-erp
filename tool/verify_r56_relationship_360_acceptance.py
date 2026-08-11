@@ -12,6 +12,8 @@ repo = (root / 'lib/features/maintenance/data/maintenance_repository.dart').read
 opportunity = (root / 'lib/features/customer_service/pages/add_opportunity_page.dart').read_text(encoding='utf-8')
 pdf = (root / 'lib/core/printing/vehicle_service_card_pdf_service.dart').read_text(encoding='utf-8')
 partner = (root / 'lib/features/business_partners/shared/data/business_partner_card_service.dart').read_text(encoding='utf-8')
+partner_dialog = (root / 'lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart').read_text(encoding='utf-8')
+partner_route = (root / 'lib/features/business_partners/shared/data/partner_record_route.dart').read_text(encoding='utf-8')
 fresh = (root / 'tool/verify_fresh_database.ps1').read_text(encoding='utf-8')
 failures = []
 
@@ -38,6 +40,25 @@ need('Repository uses R56 authoritative RPCs', all(x in repo for x in (
 for forbidden in ('purchasePrice', 'acquisitionCost', 'unitCost', 'partsCost', 'laborCost', 'totalCost', 'profit', 'carCostAdded'):
     need(f'PDF excludes {forbidden}', forbidden not in pdf)
 need('Partner cards use permission-aware 360 RPC', 'erp_r56_business_partner_360' in partner)
+need('Canonical supplier child documents route through their purchase order',
+     all(value in partner_route for value in ("type.startsWith('purchases_')", 'parentId',
+                                               'PartnerRecordDestination.purchaseOrder')))
+need('Partner accounting has dedicated complete presentations',
+     all(value in partner_dialog for value in ('_PartnerAccountsSection', '_PartnerLedgerSection',
+         "account['openingBalance']", "account['currentBalance']", "movement['documentReference']",
+         "movement['currency']")))
+ui_paths = (
+    root / 'lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart',
+    root / 'lib/features/business_partners/customers/pages/customers_page.dart',
+    root / 'lib/features/business_partners/suppliers/pages/suppliers_page.dart',
+    root / 'lib/features/inventory/cars/pages/vehicle_service_card_page.dart',
+    root / 'lib/features/maintenance/pages/add_maintenance_order_page.dart',
+    root / 'lib/features/customer_service/pages/add_opportunity_page.dart',
+)
+mojibake_markers = ('Ã˜', 'Ã™', 'Ãƒ', 'Ã‚', 'ï¿½', 'Ø', 'Ù')
+need('R56/R56.1 UI contains no mojibake markers',
+     all(marker not in path.read_text(encoding='utf-8')
+         for path in ui_paths for marker in mojibake_markers))
 need('Partner 360 uses field-filtered opportunity projection',
      "erp_r49_opportunity_command('list'" in r561 and 'jsonb_agg(r.payload' not in r561)
 need('Vehicle profile and partner chains are actionable and complete',

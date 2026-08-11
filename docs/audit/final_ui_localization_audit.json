@@ -1,9 +1,9 @@
 {
-  "dartFiles": 346,
+  "dartFiles": 347,
   "unlocalizedRawUiTextCandidates": 0,
   "runtimeLocalizedAppTextLiterals": 375,
   "nonDesignSystemColorLiterals": 76,
-  "nonDesignSystemRadiusLiterals": 112,
+  "nonDesignSystemRadiusLiterals": 114,
   "rawUiText": [],
   "runtimeLocalizedAppText": [
     {
@@ -788,22 +788,22 @@
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 101,
+      "line": 102,
       "value": "إضافة عميل"
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 121,
+      "line": 122,
       "value": "الأحدث"
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 126,
+      "line": 127,
       "value": "الاسم"
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 160,
+      "line": 161,
       "value": "إضافة عميل"
     },
     {
@@ -843,47 +843,47 @@
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 120,
+      "line": 121,
       "value": "إضافة مورد"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 135,
+      "line": 136,
       "value": "الكل"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 138,
+      "line": 139,
       "value": "نشط"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 142,
+      "line": 143,
       "value": "غير نشط"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 157,
+      "line": 158,
       "value": "الأحدث أولاً"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 161,
+      "line": 162,
       "value": "حسب الاسم"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 165,
+      "line": 166,
       "value": "أعلى رصيد"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 220,
+      "line": 221,
       "value": "إعادة المحاولة"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 235,
+      "line": 236,
       "value": "إضافة مورد"
     },
     {
@@ -2517,7 +2517,17 @@
     },
     {
       "file": "lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart",
-      "line": 456,
+      "line": 452,
+      "value": "7"
+    },
+    {
+      "file": "lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart",
+      "line": 637,
+      "value": "12"
+    },
+    {
+      "file": "lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart",
+      "line": 731,
       "value": "20"
     },
     {
