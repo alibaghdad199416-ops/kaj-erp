@@ -11,7 +11,7 @@
 ## الحالة المثبتة في 2026-08-11
 
 - Supabase CLI المقفول في المستودع: `2.109.1`، ويُشغّل عبر `npx supabase`.
-- عدد الهجرات المحلية الموثوقة: **258** ملف SQL، مرتبة بالاسم/الإصدار.
+- عدد الهجرات المحلية الموثوقة: **259** ملف SQL، مرتبة بالاسم/الإصدار.
 - الحساب الحالي لا يملك صلاحية إدارة المشروع `havlqebmnjdcwmpaaqew`: قائمة
   المشاريع لم تعرضه، و`functions list --project-ref` أعاد HTTP 403.
 - المستودع غير مرتبط حاليًا بمشروع بعيد. لذلك حالة الهجرات والوظائف البعيدة
@@ -40,7 +40,7 @@ npx supabase db push --linked --dry-run
 
 ### بيان الهجرات المحلي
 
-الدليل الكامل المادي هو `supabase/migrations/` وعدده 258. في غياب Remote
+الدليل الكامل المادي هو `supabase/migrations/` وعدده 259. في غياب Remote
 access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pending=`UNKNOWN`.
 آخر مجموعة ذات أولوية للإصدار، بالترتيب، هي:
 
@@ -66,9 +66,10 @@ access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pendi
 | `20260810220659_r53_maintenance_fifo_inventory_value_closure.sql` | YES | BLOCKED | forward-only R53 valuation closure |
 | `20260810224144_r54_operational_inventory_valuation_timing_closure.sql` | YES | BLOCKED | forward-only R54; depends on R53 |
 | `20260811084154_r55_opportunity_assignment_notifications.sql` | YES | BLOCKED | tenant-scoped Opportunity notifications |
-| `20260811103921_r55_1_opportunity_terminal_state_guard.sql` | YES | BLOCKED | latest local migration; canonical Won/Lost semantics guard |
+| `20260811103921_r55_1_opportunity_terminal_state_guard.sql` | YES | BLOCKED | canonical Won/Lost semantics guard |
+| `20260811113208_r55_1_sales_order_won_semantics_correction.sql` | YES | BLOCKED | latest local migration; Sales Order approval owns Opportunity Won |
 
-عند توفر الوصول، خزّن ناتج `migration list --linked` وقارنه بكل الملفات الـ258.
+عند توفر الوصول، خزّن ناتج `migration list --linked` وقارنه بكل الملفات الـ259.
 لا تستخدم `migration repair` لإخفاء اختلاف. لا تدفع قبل أن يعرض dry-run فقط
 الهجرات الجديدة المتوقعة وبنفس ترتيبها.
 

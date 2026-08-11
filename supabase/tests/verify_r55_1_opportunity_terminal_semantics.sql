@@ -40,6 +40,14 @@ begin
     )
   ));
 
+  perform public.erp_sync_opportunity_sales_lifecycle(
+    '55100000-0000-4000-8000-000000000010','r55-1-opportunity'
+  );
+  opportunity:=public.erp_r49_opportunity_command('list','{}'::jsonb)->0;
+  if opportunity->>'stage'<>'qualified' or opportunity->>'status'<>'pending' then
+    raise exception 'r55_1_no_link_changed_user_controlled_stage:%',opportunity;
+  end if;
+
   begin
     perform public.erp_r49_opportunity_command('save',jsonb_build_object(
       'create_only',false,'expected_updated_at',opportunity->>'updatedAt',

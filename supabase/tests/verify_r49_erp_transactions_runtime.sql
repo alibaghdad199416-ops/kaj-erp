@@ -116,6 +116,7 @@ declare
   c constant uuid := '49000000-0000-4000-8000-000000000010';
   po uuid; receipt uuid; pi uuid; po2 uuid; receipt2 uuid; pi2 uuid; result jsonb;
   so uuid; delivery uuid; si uuid; mo uuid; maintenance_result jsonb;
+  cancel_order uuid; cancel_opportunity jsonb;
   opportunity jsonb; opportunities jsonb;
   qty numeric; movements integer; layers integer; journals integer;
   movement_rows jsonb;
@@ -127,6 +128,8 @@ declare
   car_reference text; product_reference text; opportunity_reference text; search_rows jsonb;
   transfer_id text; inventory_value numeric; fifo_quantity numeric; fifo_cost numeric;
   layer_count_before integer;
+  movement_count_before integer; journal_count_before integer;
+  payment_count_before integer;
 begin
   if has_function_privilege(
        'anon','public.erp_r9_logical_field_for_json_key_pre_r49_roundtrip(text,text)','EXECUTE'
@@ -476,20 +479,73 @@ begin
      or (select x->>'id' from public.erp_r9_find_sales_order_by_opportunity(c,'r49-runtime-opportunity') x limit 1)<>so::text then
     raise exception 'opportunity_sales_order_bidirectional_link_failed';
   end if;
-  perform public.erp_r49_approve_sales_order(c,so);
-  perform public.erp_r43_reconcile_opportunity_sales_links(c);
   opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
     where x->>'id'='r49-runtime-opportunity');
-  if opportunity_state->>'salesOrderStatus'<>'approved' then raise exception 'opportunity_order_projection_stale:%',opportunity_state; end if;
+  if opportunity_state->>'status'<>'pending'
+     or opportunity_state->>'stage'<>'proposal'
+     or opportunity_state->>'salesOrderStatus'<>'draft'
+     or opportunity_state->>'deliveryId' is not null
+     or opportunity_state->>'invoiceId' is not null
+     or opportunity_state->>'paymentStatus'<>'not_invoiced' then
+    raise exception 'r55_1_sales_order_draft_must_remain_pending:%',opportunity_state;
+  end if;
+  select count(*) into movement_count_before from public.erp_inventory_movements
+    where company_id=c and not is_deleted;
+  select count(*) into journal_count_before from public.erp_journal_entries
+    where company_id=c and not is_deleted;
+  select count(*) into payment_count_before from public.erp_cash_transactions
+    where company_id=c and not is_deleted;
+  perform public.erp_r49_approve_sales_order(c,so);
+  opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
+    where x->>'id'='r49-runtime-opportunity');
+  if opportunity_state->>'salesOrderStatus'<>'approved'
+     or opportunity_state->>'salesOrderId'<>so::text
+     or opportunity_state->>'status'<>'won'
+     or opportunity_state->>'stage'<>'won'
+     or (opportunity_state->>'probability')::numeric<>100 then
+    raise exception 'r55_1_sales_order_approval_must_immediately_win:%',opportunity_state;
+  end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
-  if qty<>20 then raise exception 'sales_order_approval_changed_stock:%',qty; end if;
+  if qty<>20
+     or (select count(*) from public.erp_commercial_workflow_documents
+         where company_id=c and parent_id=so and document_type='delivery' and not is_deleted)<>0
+     or (select count(*) from public.erp_commercial_workflow_documents
+         where company_id=c and parent_id=so and document_type='invoice' and not is_deleted)<>0
+     or (select count(*) from public.erp_inventory_movements
+         where company_id=c and not is_deleted)<>movement_count_before
+     or (select count(*) from public.erp_journal_entries
+         where company_id=c and not is_deleted)<>journal_count_before
+     or (select count(*) from public.erp_cash_transactions
+         where company_id=c and not is_deleted)<>payment_count_before then
+    raise exception 'r55_1_sales_order_approval_crossed_commercial_boundary';
+  end if;
+  if (select count(*) from public.erp_enterprise_notifications
+      where company_id=c and data->>'type'='opportunity_follow_up'
+        and data->>'referenceId'='r49-runtime-opportunity'
+        and data->>'userId'='49000000-0000-4000-8000-000000000001')<>1 then
+    raise exception 'r55_1_won_notification_not_exactly_once';
+  end if;
+  -- Reconciliation retries the canonical projection but must upsert the same
+  -- deterministic assigned-user follow-up notification.
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  if (select count(*) from public.erp_enterprise_notifications
+      where company_id=c and data->>'type'='opportunity_follow_up'
+        and data->>'referenceId'='r49-runtime-opportunity'
+        and data->>'userId'='49000000-0000-4000-8000-000000000001')<>1 then
+    raise exception 'r55_1_won_notification_retry_duplicated';
+  end if;
   delivery := public.erp_r49_create_sales_delivery(c,so,'r49-warehouse','runtime delivery');
   perform public.erp_phase2_approve_sales_delivery(c,delivery);
   perform public.erp_r43_reconcile_opportunity_sales_links(c);
   opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
     where x->>'id'='r49-runtime-opportunity');
-  if opportunity_state->>'deliveryStatus'<>'approved' then raise exception 'opportunity_delivery_projection_stale:%',opportunity_state; end if;
+  if opportunity_state->>'deliveryStatus'<>'approved'
+     or opportunity_state->>'status'<>'won'
+     or opportunity_state->>'stage'<>'won' then
+    raise exception 'r55_1_delivery_reverted_won_opportunity:%',opportunity_state;
+  end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>5 then raise exception 'sales_delivery_stock_expected_5_actual_%',qty; end if;
@@ -556,7 +612,11 @@ begin
   perform public.erp_r43_reconcile_opportunity_sales_links(c);
   opportunity_state := (select x from jsonb_array_elements(public.erp_r49_opportunity_command('list','{}')) x
     where x->>'id'='r49-runtime-opportunity');
-  if opportunity_state->>'invoiceStatus'<>'approved' then raise exception 'opportunity_invoice_projection_stale:%',opportunity_state; end if;
+  if opportunity_state->>'invoiceStatus'<>'approved'
+     or opportunity_state->>'status'<>'won'
+     or opportunity_state->>'stage'<>'won' then
+    raise exception 'r55_1_invoice_reverted_or_first_won_event:%',opportunity_state;
+  end if;
   select public.erp_try_numeric(data->>'quantity',0) into qty from public.erp_warehouse_stock
     where company_id=c and data->>'productId'='r49-product' and data->>'warehouseId'='r49-warehouse' and not is_deleted;
   if qty<>5 then raise exception 'sales_invoice_changed_stock:%',qty; end if;
@@ -632,7 +692,9 @@ begin
     where x->>'id'='r49-runtime-opportunity');
   if opportunity_state->>'paymentStatus'<>'paid'
      or (opportunity_state->>'paidAmount')::numeric<>300
-     or (opportunity_state->>'remainingAmount')::numeric<>0 then
+     or (opportunity_state->>'remainingAmount')::numeric<>0
+     or opportunity_state->>'status'<>'won'
+     or opportunity_state->>'stage'<>'closed' then
     raise exception 'opportunity_payment_projection_stale:%',opportunity_state;
   end if;
   perform public.erp_pay_cloud_sales_workflow_invoice(c,si,jsonb_build_object(
@@ -649,6 +711,45 @@ begin
   end if;
   result := public.erp_r22_approve_sales_invoice(c,si);
   if coalesce((result->>'idempotent')::boolean,false) is not true then raise exception 'sales_invoice_retry_not_idempotent:%',result; end if;
+
+  -- Draft deletion is the supported cancellable Sales Order path. It owns the
+  -- canonical Lost projection and uses the existing R55 follow-up channel.
+  cancel_opportunity:=public.erp_r49_opportunity_command('save',jsonb_build_object(
+    'create_only',true,'record',jsonb_build_object(
+      'id','r55-1-cancel-opportunity','customerId','49000000-0000-4000-8000-000000000020',
+      'customerName','R49 Customer','title','R55.1 cancellation','stage','qualified',
+      'status','pending','probability',60,
+      'assignedUserId','49000000-0000-4000-8000-000000000001',
+      'assignedUserName','R49 Admin'
+    )
+  ));
+  cancel_order:=public.erp_r49_create_sales_order(c,jsonb_build_object(
+    'customerId','49000000-0000-4000-8000-000000000020',
+    'opportunityId','r55-1-cancel-opportunity','currency','USD','exchangeRate',1,
+    'discount',0,'effectiveAt','2026-08-10T10:45:00Z',
+    'items',jsonb_build_array(jsonb_build_object(
+      'itemType','product','itemId','r49-product','description','R49 Product',
+      'quantity',1,'unitPrice',20
+    ))
+  ));
+  perform public.erp_delete_cloud_sales_order_v4(c,cancel_order);
+  cancel_opportunity:=(select x from jsonb_array_elements(
+    public.erp_r49_opportunity_command('list','{}')) x
+    where x->>'id'='r55-1-cancel-opportunity');
+  if cancel_opportunity->>'status'<>'lost'
+     or cancel_opportunity->>'stage'<>'lost'
+     or (cancel_opportunity->>'probability')::numeric<>0
+     or cancel_opportunity->>'salesOrderStatus'<>'deleted' then
+    raise exception 'r55_1_sales_order_cancellation_not_lost:%',cancel_opportunity;
+  end if;
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  perform public.erp_r43_reconcile_opportunity_sales_links(c);
+  if (select count(*) from public.erp_enterprise_notifications
+      where company_id=c and data->>'type'='opportunity_follow_up'
+        and data->>'referenceId'='r55-1-cancel-opportunity'
+        and data->>'userId'='49000000-0000-4000-8000-000000000001')<>1 then
+    raise exception 'r55_1_lost_notification_retry_not_exactly_once';
+  end if;
 
   insert into public.erp_sales_orders_cloud(
     id,company_id,order_number,customer_id,status,currency,exchange_rate,subtotal,discount,total
