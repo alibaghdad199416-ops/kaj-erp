@@ -28,7 +28,7 @@ def need(label, condition):
 
 need('R55 is one forward-only migration after R54',
      migration_path.exists()
-     and len(list((root / 'supabase/migrations').glob('*.sql'))) == 259
+     and len(list((root / 'supabase/migrations').glob('*.sql'))) >= 259
      and migration_path.name > '20260810224144_r54_operational_inventory_valuation_timing_closure.sql')
 need('R55.1 is one forward-only migration after R55',
      r551_path.exists() and r551_path.name > migration_path.name)

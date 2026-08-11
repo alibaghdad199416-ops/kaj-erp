@@ -238,6 +238,35 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             _Documents(title: documentsSectionTitle, documents: documents),
+            if (partnerType.toLowerCase().contains('customer') ||
+                partnerType.contains('عميل')) ...[
+              const SizedBox(height: 14),
+              _RelatedRecords(
+                title: AppTranslation.translate('الفرص وإدارة علاقات العملاء'),
+                icon: Icons.handshake_outlined,
+                records: _records(summary['crmOpportunities']),
+                primaryKeys: const ['opportunityNumber', 'title', 'id'],
+              ),
+              const SizedBox(height: 14),
+              _RelatedRecords(
+                title: AppTranslation.translate('سجل الصيانة'),
+                icon: Icons.car_repair_outlined,
+                records: _records(summary['maintenanceHistory']),
+                primaryKeys: const ['orderNumber', 'carName', 'id'],
+              ),
+            ],
+            const SizedBox(height: 14),
+            _RelatedRecords(
+              title: AppTranslation.translate(
+                partnerType.toLowerCase().contains('supplier') ||
+                        partnerType.contains('مورد')
+                    ? 'سلسلة المشتريات'
+                    : 'سلسلة المبيعات',
+              ),
+              icon: Icons.account_tree_outlined,
+              records: _records(summary['commercialChain']),
+              primaryKeys: const ['orderNumber', 'documentNumber', 'id'],
+            ),
             if ((notes ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 14),
               Card(
@@ -297,6 +326,70 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
         .map((entry) => MoneyFormatter.withCurrency(entry.value, entry.key))
         .join(' • ');
   }
+
+  static List<Map<String, Object?>> _records(Object? raw) => raw is List
+      ? raw
+            .whereType<Map>()
+            .map((value) => Map<String, Object?>.from(value))
+            .toList(growable: false)
+      : const [];
+}
+
+class _RelatedRecords extends StatelessWidget {
+  const _RelatedRecords({
+    required this.title,
+    required this.icon,
+    required this.records,
+    required this.primaryKeys,
+  });
+  final String title;
+  final IconData icon;
+  final List<Map<String, Object?>> records;
+  final List<String> primaryKeys;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          leading: Icon(icon),
+          title: AppText(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          trailing: Chip(label: AppText('${records.length}')),
+        ),
+        const Divider(height: 1),
+        if (records.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: AppText(AppTranslation.translate('لا توجد سجلات مرتبطة.')),
+          )
+        else
+          ...records.take(30).map((record) {
+            final titleValue = primaryKeys
+                .map((key) => record[key]?.toString().trim() ?? '')
+                .firstWhere((value) => value.isNotEmpty, orElse: () => '—');
+            final status = record['workflowStage'] ?? record['status'] ?? '';
+            final date = record['maintenanceDate'] ?? record['createdAt'] ?? '';
+            return ListTile(
+              leading: const Icon(Icons.open_in_new_outlined, size: 19),
+              title: AppSelectableText(
+                titleValue,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: AppText(
+                [date, status]
+                    .map((value) => value.toString().trim())
+                    .where((value) => value.isNotEmpty)
+                    .join(' • '),
+              ),
+            );
+          }),
+      ],
+    ),
+  );
 }
 
 class _Avatar extends StatelessWidget {

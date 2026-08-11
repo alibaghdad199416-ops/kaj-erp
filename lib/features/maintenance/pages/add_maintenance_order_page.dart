@@ -19,9 +19,16 @@ import 'package:quality_line_erp/features/settings/access/widgets/permission_act
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 
 class AddMaintenanceOrderPage extends StatefulWidget {
-  const AddMaintenanceOrderPage({super.key, this.order});
+  const AddMaintenanceOrderPage({
+    super.key,
+    this.order,
+    this.initialCarId,
+    this.opportunityId,
+  });
 
   final MaintenanceOrderModel? order;
+  final String? initialCarId;
+  final String? opportunityId;
 
   @override
   State<AddMaintenanceOrderPage> createState() =>
@@ -61,6 +68,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
   void initState() {
     super.initState();
     final order = widget.order;
+    _carId = widget.initialCarId;
     if (order != null) {
       _carId = order.carId;
       _pricingType = order.pricingType;
@@ -315,6 +323,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
           parts: requests,
           currencyCode: _currency,
           maintenanceExpenseAccountId: null,
+          opportunityId: widget.opportunityId,
           notes: _notes.text.trim(),
           effectiveAt: _maintenanceDate,
         );

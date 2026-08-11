@@ -21,7 +21,7 @@ index=read("web/index.html")
 pkg=json.loads(read("package.json"))
 checks["maintenance labor-only client validation"]="parts.isEmpty" not in maint_repo[maint_repo.find("static void _validate"):]
 checks["maintenance labor-only page safe"]="String _maintenanceWarehouseId()" in maint_page and "orElse: () => _lines.first" not in maint_page
-checks["maintenance R37 or newer create/advance"]=(("erp_r37_create_cloud_maintenance_order" in maint_repo or "erp_r39_create_cloud_maintenance_order" in maint_repo or "erp_r49_create_cloud_maintenance_order" in maint_repo) and "erp_r37_advance_maintenance_workflow" in maint_repo)
+checks["maintenance R37 or newer create/advance"]=(("erp_r37_create_cloud_maintenance_order" in maint_repo or "erp_r39_create_cloud_maintenance_order" in maint_repo or "erp_r49_create_cloud_maintenance_order" in maint_repo or "erp_r56_create_cloud_maintenance_order" in maint_repo) and "erp_r37_advance_maintenance_workflow" in maint_repo)
 checks["web PDF is a reliable download"]="html.Blob" in pdfweb and "AnchorElement" in pdfweb and "..download = safeFileName" in pdfweb and "html.window.open(" not in pdfweb
 checks["no custom viewport warning"]='<meta name="viewport"' not in index
 inv_compact=re.sub(r'\s+',' ',inv)

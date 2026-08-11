@@ -1,5 +1,5 @@
 {
-  "dartFiles": 344,
+  "dartFiles": 346,
   "unlocalizedRawUiTextCandidates": 0,
   "runtimeLocalizedAppTextLiterals": 375,
   "nonDesignSystemColorLiterals": 76,
@@ -888,17 +888,17 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 479,
+      "line": 493,
       "value": "موعد المتابعة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 547,
+      "line": 599,
       "value": "حفظ الفرصة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 561,
+      "line": 613,
       "value": "حفظ وإنشاء مسودة أمر بيع"
     },
     {
@@ -1303,12 +1303,12 @@
     },
     {
       "file": "lib/features/maintenance/pages/add_maintenance_order_page.dart",
-      "line": 611,
+      "line": 620,
       "value": "USD"
     },
     {
       "file": "lib/features/maintenance/pages/add_maintenance_order_page.dart",
-      "line": 612,
+      "line": 621,
       "value": "IQD"
     },
     {
@@ -2517,7 +2517,7 @@
     },
     {
       "file": "lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart",
-      "line": 327,
+      "line": 420,
       "value": "20"
     },
     {
@@ -2552,12 +2552,12 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 477,
+      "line": 491,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 497,
+      "line": 511,
       "value": "4"
     },
     {

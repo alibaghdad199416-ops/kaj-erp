@@ -13,7 +13,7 @@ import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
-import 'package:quality_line_erp/features/inventory/asset_history/pages/asset_history_page.dart';
+import 'package:quality_line_erp/features/inventory/cars/pages/vehicle_service_card_page.dart';
 import 'package:quality_line_erp/features/inventory/cars/controllers/cars_controller.dart';
 import 'package:quality_line_erp/features/inventory/cars/controllers/car_images_controller.dart';
 import 'package:quality_line_erp/features/inventory/cars/models/car_model.dart';
@@ -458,7 +458,7 @@ class _CarsPageState extends State<CarsPage> {
       context: context,
       title: 'سجل ${car.brand} ${car.model}',
       windowKey: 'cars:history:${car.id}',
-      builder: (_) => AssetHistoryPage.car(assetId: car.id),
+      builder: (_) => VehicleServiceCardPage(car: car),
     );
   }
 

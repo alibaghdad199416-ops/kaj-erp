@@ -420,7 +420,8 @@ gate('Logistics draft creation uses backend permission wrappers instead of expos
      and 'revoke execute on function public.erp_create_cloud_purchase_receipt' in r49focused)
 
 gate('Maintenance create/update is permission-protected and stale edits are rejected',
-     'erp_r49_create_cloud_maintenance_order' in maintenance_repo
+     ('erp_r49_create_cloud_maintenance_order' in maintenance_repo
+      or 'erp_r56_create_cloud_maintenance_order' in maintenance_repo)
      and 'erp_r49_update_cloud_maintenance_draft' in maintenance_repo
      and "'p_expected_updated_at': expectedUpdatedAt.toUtc().toIso8601String()" in maintenance_repo
      and 'required DateTime expectedUpdatedAt' in maintenance_controller_full

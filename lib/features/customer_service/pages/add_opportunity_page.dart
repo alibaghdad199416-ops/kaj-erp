@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
@@ -15,6 +17,10 @@ import 'package:quality_line_erp/features/business_partners/customers/models/cus
 import 'package:quality_line_erp/features/business_partners/customers/pages/add_customer_page.dart';
 import 'package:quality_line_erp/features/sales/workflow/pages/sales_order_draft_page.dart';
 import 'package:quality_line_erp/features/sales/workflow/repositories/sales_workflow_repository.dart';
+import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';
+import 'package:quality_line_erp/features/maintenance/pages/add_maintenance_order_page.dart';
+import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/customer_service/controllers/opportunities_controller.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 import 'package:quality_line_erp/core/utils/thousands_input_formatter.dart';
@@ -30,6 +36,8 @@ class AddOpportunityPage extends StatefulWidget {
 
 class _AddOpportunityPageState extends State<AddOpportunityPage> {
   final _key = GlobalKey<FormState>();
+
+  String t(String ar, String en) => context.l10n.isArabic ? ar : en;
 
   String get _writePermission => widget.opportunity == null
       ? 'customer_service.create'
@@ -58,6 +66,9 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
   String _assignedUserName = '';
   DateTime? _followUp;
   DateTime? _expectedClose;
+  String? _carId;
+  String? _carName;
+  List<MaintenanceVehicleOption> _vehicleOptions = const [];
   bool _saving = false;
 
   @override
@@ -86,9 +97,12 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
     _expectedClose = o?.expectedCloseDate;
     _source = (o?.source ?? '').trim().isEmpty ? null : o!.source;
     _followUp = o?.followUpDate;
+    _carId = o?.carId;
+    _carName = o?.carName;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final access = context.read<AccessController>();
       final customers = context.read<CustomersController>().customers;
+      unawaited(_loadVehicleOptions());
       final customerMatches = o?.customerId == null
           ? <CustomerModel>[]
           : customers.where((c) => c.id == o!.customerId).toList();
@@ -535,6 +549,44 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 14),
+            _securedField(
+              'carId',
+              DropdownButtonFormField<String>(
+                key: const ValueKey('opportunity-maintenance-vehicle'),
+                isExpanded: true,
+                initialValue:
+                    _vehicleOptions.any((vehicle) => vehicle.carId == _carId)
+                    ? _carId
+                    : null,
+                decoration: InputDecoration(
+                  labelText: t(
+                    'المركبة المرتبطة (اختياري)',
+                    'Linked vehicle (optional)',
+                  ),
+                  prefixIcon: const Icon(Icons.directions_car_outlined),
+                ),
+                items: _vehicleOptions
+                    .map(
+                      (vehicle) => DropdownMenuItem(
+                        value: vehicle.carId,
+                        child: AppText(vehicle.displayName),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  final matches = _vehicleOptions.where(
+                    (vehicle) => vehicle.carId == value,
+                  );
+                  setState(() {
+                    _carId = value;
+                    _carName = matches.isEmpty
+                        ? null
+                        : matches.first.displayName;
+                  });
+                },
+              ),
+            ),
             const SizedBox(height: 24),
             Wrap(
               spacing: 10,
@@ -559,6 +611,24 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                           )
                         : const Icon(Icons.edit_note_outlined),
                     label: const AppText('حفظ وإنشاء مسودة أمر بيع'),
+                  ),
+                if (access.hasPermission('maintenance.create') &&
+                    access.hasPermission('maintenance.view') &&
+                    access.hasPermission('customer_service.update'))
+                  FilledButton.tonalIcon(
+                    key: const ValueKey(
+                      'opportunity-save-create-maintenance-draft',
+                    ),
+                    onPressed: _saving
+                        ? null
+                        : () => _save(createMaintenanceDraft: true),
+                    icon: const Icon(Icons.car_repair_outlined),
+                    label: AppText(
+                      t(
+                        'حفظ وإنشاء مسودة صيانة',
+                        'Save & Create Maintenance Draft',
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -585,6 +655,15 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       _name.text = created.name;
       _phone.text = created.phone;
     });
+  }
+
+  Future<void> _loadVehicleOptions() async {
+    try {
+      final values = await MaintenanceRepository().getEligibleVehicles();
+      if (mounted) setState(() => _vehicleOptions = values);
+    } catch (_) {
+      // The opportunity remains editable when maintenance data is unavailable.
+    }
   }
 
   Future<void> _pickDate() async {
@@ -642,7 +721,10 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
     return created;
   }
 
-  Future<void> _save({bool createSalesDraft = false}) async {
+  Future<void> _save({
+    bool createSalesDraft = false,
+    bool createMaintenanceDraft = false,
+  }) async {
     if (_saving || !(_key.currentState?.validate() ?? false)) return;
     if (!await PermissionAction.require(context, _writePermission)) return;
     if (!mounted) return;
@@ -650,6 +732,17 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       if (!await PermissionAction.require(context, 'customer_service.update'))
         return;
       if (!mounted || !await PermissionAction.require(context, 'sales.create'))
+        return;
+    }
+    if (createMaintenanceDraft) {
+      if (!mounted) return;
+      if (!await PermissionAction.require(context, 'customer_service.update'))
+        return;
+      if (!mounted ||
+          !await PermissionAction.require(context, 'maintenance.create'))
+        return;
+      if (!mounted ||
+          !await PermissionAction.require(context, 'maintenance.view'))
         return;
     }
     if (!mounted) return;
@@ -682,8 +775,8 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         expectedCloseDate: _expectedClose,
         winLossReason: _winLossReason.text.trim(),
         status: old?.status ?? OpportunityStatus.pending,
-        carId: old?.carId,
-        carName: old?.carName,
+        carId: _carId,
+        carName: _carName,
         saleId: old?.saleId,
         invoiceNumber: old?.invoiceNumber,
         assignedUserId: _assignedUserId,
@@ -705,7 +798,36 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         await opportunities.update(item);
       }
       if (!mounted) return;
-      if (createSalesDraft) {
+      if (createMaintenanceDraft) {
+        final authoritative = opportunities.opportunities
+            .where((value) => value.id == item.id)
+            .firstOrNull;
+        final carId = authoritative?.carId?.trim() ?? '';
+        if (carId.isEmpty) {
+          throw StateError(
+            t(
+              'يجب ربط الفرصة بسيارة قبل إنشاء مسودة الصيانة.',
+              'Link the opportunity to a vehicle before creating a maintenance draft.',
+            ),
+          );
+        }
+        final existing = await context
+            .read<MaintenanceController>()
+            .findByOpportunity(item.id);
+        if (!mounted) return;
+        await showAppModuleDialog<bool>(
+          context: context,
+          title: t('مسودة صيانة مرتبطة', 'Linked Maintenance Draft'),
+          maxWidth: 1080,
+          maxHeight: 780,
+          builder: (_) => AddMaintenanceOrderPage(
+            order: existing,
+            initialCarId: carId,
+            opportunityId: item.id,
+          ),
+        );
+        if (mounted) AppWorkspaceWindowScope.closeCurrent(context, true);
+      } else if (createSalesDraft) {
         final linked = await SalesWorkflowRepository().findOrderByOpportunity(
           item.id,
         );

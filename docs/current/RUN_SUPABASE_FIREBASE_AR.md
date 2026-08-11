@@ -11,7 +11,7 @@
 ## الحالة المثبتة في 2026-08-11
 
 - Supabase CLI المقفول في المستودع: `2.109.1`، ويُشغّل عبر `npx supabase`.
-- عدد الهجرات المحلية الموثوقة: **259** ملف SQL، مرتبة بالاسم/الإصدار.
+- عدد الهجرات المحلية الموثوقة: **260** ملف SQL، مرتبة بالاسم/الإصدار.
 - الحساب الحالي لا يملك صلاحية إدارة المشروع `havlqebmnjdcwmpaaqew`: قائمة
   المشاريع لم تعرضه، و`functions list --project-ref` أعاد HTTP 403.
 - المستودع غير مرتبط حاليًا بمشروع بعيد. لذلك حالة الهجرات والوظائف البعيدة
@@ -40,7 +40,7 @@ npx supabase db push --linked --dry-run
 
 ### بيان الهجرات المحلي
 
-الدليل الكامل المادي هو `supabase/migrations/` وعدده 259. في غياب Remote
+الدليل الكامل المادي هو `supabase/migrations/` وعدده 260. في غياب Remote
 access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pending=`UNKNOWN`.
 آخر مجموعة ذات أولوية للإصدار، بالترتيب، هي:
 
@@ -69,7 +69,7 @@ access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pendi
 | `20260811103921_r55_1_opportunity_terminal_state_guard.sql` | YES | BLOCKED | canonical Won/Lost semantics guard |
 | `20260811113208_r55_1_sales_order_won_semantics_correction.sql` | YES | BLOCKED | latest local migration; Sales Order approval owns Opportunity Won |
 
-عند توفر الوصول، خزّن ناتج `migration list --linked` وقارنه بكل الملفات الـ259.
+عند توفر الوصول، خزّن ناتج `migration list --linked` وقارنه بكل الملفات الـ260.
 لا تستخدم `migration repair` لإخفاء اختلاف. لا تدفع قبل أن يعرض dry-run فقط
 الهجرات الجديدة المتوقعة وبنفس ترتيبها.
 

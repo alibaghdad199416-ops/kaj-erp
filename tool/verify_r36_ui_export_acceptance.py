@@ -25,7 +25,7 @@ checks['history English xlsx/pdf']='language: \'en\'' in hist and 'ExcelExportSe
 checks['movement xlsx/pdf']='ExcelExportService().save(exportDocument)' in mov and 'PdfExportService().save(exportDocument)' in mov and ('Performed by' in mov or "label: arabic ? 'المستخدم' : 'User'" in mov)
 checks['recycle bin English xlsx']="language: 'en'" in recycle and ('ExcelExportService().save(_report())' in recycle or 'ExcelExportService().build(_report())' in recycle)
 checks['opportunity xlsx/pdf']=('ExcelExportService().save(_opportunityExport(rows))' in opp or 'ExcelExportService().build(_opportunityExport(rows))' in opp) and 'PdfExportService().save(_opportunityExport(rows))' in opp
-checks['maintenance R35 create or newer']=any(x in maint for x in ('erp_r35_create_cloud_maintenance_order','erp_r37_create_cloud_maintenance_order','erp_r39_create_cloud_maintenance_order','erp_r49_create_cloud_maintenance_order'))
+checks['maintenance R35 create or newer']=any(x in maint for x in ('erp_r35_create_cloud_maintenance_order','erp_r37_create_cloud_maintenance_order','erp_r39_create_cloud_maintenance_order','erp_r49_create_cloud_maintenance_order','erp_r56_create_cloud_maintenance_order'))
 checks['cloud command R35']=('erp_r35_cloud_command' in cloud or 'erp_r37_cloud_command' in cloud) and 'erp_r28_cloud_command' not in cloud
 checks['web pdf direct download']='html.Blob' in pdfweb and 'AnchorElement' in pdfweb and '..download = safeFileName' in pdfweb and 'html.window.open(' not in pdfweb
 for k,v in checks.items(): print(('PASS' if v else 'FAIL'),k)

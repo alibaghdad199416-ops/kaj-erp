@@ -38,7 +38,7 @@ checks['recycle bin direct xlsx']='ExcelExportService().build(_report())' in rec
 checks['opportunity xlsx/pdf']='ExcelExportService().build(_opportunityExport(rows))' in opp and 'PdfExportService().save(_opportunityExport(rows))' in opp
 checks['opportunity bidirectional reconciliation']='erp_r37_reconcile_opportunity_sales_links' in migration and "payload->>'saleId'" in migration and 'opportunity_id=r.record_id' in migration
 checks['maintenance explicit advance']='erp_r37_advance_maintenance_workflow' in maint and 'erp_r37_advance_maintenance_workflow' in migration
-checks['maintenance labor-only create']=any(x in maint for x in ('erp_r37_create_cloud_maintenance_order','erp_r39_create_cloud_maintenance_order','erp_r49_create_cloud_maintenance_order')) and 'maintenance_parts_required' not in maint_migration and "jsonb_array_length(v_parts)>0" in maint_migration
+checks['maintenance labor-only create']=any(x in maint for x in ('erp_r37_create_cloud_maintenance_order','erp_r39_create_cloud_maintenance_order','erp_r49_create_cloud_maintenance_order','erp_r56_create_cloud_maintenance_order')) and 'maintenance_parts_required' not in maint_migration and "jsonb_array_length(v_parts)>0" in maint_migration
 checks['cloud command R37']='erp_r37_cloud_command' in cloud and 'erp_r28_cloud_command' not in cloud and 'erp_r37_cloud_command' in migration
 checks['sales/purchase localized actions']=re.search(r"_bi\(\s*'تصديق أمر البيع',\s*'Approve sales order',?\s*\)", sales) is not None and re.search(r"_bi\(\s*'تصديق أمر الشراء',\s*'Approve purchase order',?\s*\)", purchases) is not None
 checks['filter chips localized']="context.l10n.isArabic ? 'مفوتر' : 'Invoiced'" in filterbar and "context.l10n.isArabic ? 'مسدد' : 'Paid'" in filterbar

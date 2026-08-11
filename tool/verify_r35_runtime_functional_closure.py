@@ -6,7 +6,7 @@ checks={}
 def txt(rel): return (ROOT/rel).read_text(encoding='utf-8')
 checks['R35 cloud command client']=any(x in txt('lib/core/cloud/cloud_feature_command.dart') for x in ('erp_r35_cloud_command','erp_r37_cloud_command')) and 'erp_r28_cloud_command' not in txt('lib/core/cloud/cloud_feature_command.dart')
 checks['R35 cloud command migration']='erp_r35_cloud_command' in txt('supabase/migrations/20260809153000_r35_runtime_ui_opportunity_maintenance_closure.sql')
-checks['canonical maintenance create client']=any(x in txt('lib/features/maintenance/data/maintenance_repository.dart') for x in ('erp_r35_create_cloud_maintenance_order','erp_r37_create_cloud_maintenance_order','erp_r39_create_cloud_maintenance_order','erp_r49_create_cloud_maintenance_order'))
+checks['canonical maintenance create client']=any(x in txt('lib/features/maintenance/data/maintenance_repository.dart') for x in ('erp_r35_create_cloud_maintenance_order','erp_r37_create_cloud_maintenance_order','erp_r39_create_cloud_maintenance_order','erp_r49_create_cloud_maintenance_order','erp_r56_create_cloud_maintenance_order'))
 checks['canonical maintenance sold invoice source']='erp_sales_order_items_cloud' in txt('supabase/migrations/20260809153000_r35_runtime_ui_opportunity_maintenance_closure.sql') and "document_type='invoice'" in txt('supabase/migrations/20260809153000_r35_runtime_ui_opportunity_maintenance_closure.sql')
 checks['opportunity workflow trigger']='trg_r35_sync_opportunity_workflow' in txt('supabase/migrations/20260809153000_r35_runtime_ui_opportunity_maintenance_closure.sql')
 inventory_stage4 = txt('lib/design_system/kaj_inventory_stage4_components.dart')
