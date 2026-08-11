@@ -12,8 +12,19 @@ checks['opportunity workflow trigger']='trg_r35_sync_opportunity_workflow' in tx
 inventory_stage4 = txt('lib/design_system/kaj_inventory_stage4_components.dart')
 checks['inventory loading responsive']='constraints.maxHeight' in inventory_stage4 and re.search(r'\.clamp\(\s*24\.0,\s*natural,?\s*\)', inventory_stage4) is not None
 checks['no automatic detached scrollbar']='return Scrollbar(' not in txt('lib/core/widgets/app_scroll_behavior.dart')
-checks['web pdf direct download']="html.AnchorElement" in txt('lib/core/exporting/pdf_print_service_web.dart') and ('window.open' not in txt('lib/core/exporting/pdf_print_service_web.dart') or "html.window.open(url, '_blank')" in txt('lib/core/exporting/pdf_print_service_web.dart'))
-checks['web fonts do not consult AssetManifest']='if (kIsWeb)' in txt('lib/core/printing/pdf_text_support.dart') and 'pw.Font.helvetica()' in txt('lib/core/printing/pdf_text_support.dart')
+pdf_web=txt('lib/core/exporting/pdf_print_service_web.dart')
+checks['web pdf direct download']=(
+    'html.AnchorElement' in pdf_web and
+    '..download = safeFileName' in pdf_web and
+    'html.window.open(' not in pdf_web
+)
+pdf_support=txt('lib/core/printing/pdf_text_support.dart')
+checks['web fonts are bundled without AssetManifest/CDN']=(
+    'assets/fonts/NotoNaskhArabic-Regular.ttf' in pdf_support and
+    'assets/fonts/NotoNaskhArabic-Bold.ttf' in pdf_support and
+    'if (kIsWeb)' not in pdf_support and
+    'pw.Font.helvetica()' not in pdf_support
+)
 checks['product details resilient']='Editing the product itself must remain available' in txt('lib/features/inventory/pages/inventory_page.dart')
 checks['asset history canonical movement log']='erp_r28_inventory_movement_log' in txt('lib/features/inventory/asset_history/repositories/asset_history_repository.dart')
 checks['asset history English Excel/PDF']='language: \'en\'' in txt('lib/features/inventory/asset_history/pages/asset_history_page.dart') and "label: 'Performed by'" in txt('lib/features/inventory/asset_history/pages/asset_history_page.dart')

@@ -163,10 +163,17 @@ class SupabaseUserAdministrationService {
         final decoded = jsonDecode(details);
         if (decoded is Map) return decoded['error']?.toString();
       } on FormatException {
-        return null;
+        // Plain gateway errors (for example a missing deployed function) do
+        // not carry the JSON error envelope used by our Edge Functions.
       }
     }
-    return null;
+    return switch (error.status) {
+      401 => 'unauthenticated',
+      403 => 'permission_denied',
+      404 => 'hosted_function_unavailable',
+      _ when error.status >= 500 => 'request_failed',
+      _ => null,
+    };
   }
 
   String _messageFor(String? code) {
@@ -190,6 +197,8 @@ class SupabaseUserAdministrationService {
       'method_not_allowed' => 'طريقة طلب خدمة المستخدمين غير مسموحة.',
       'server_configuration_missing' =>
         'إعداد خدمة المستخدمين السحابية غير مكتمل.',
+      'hosted_function_unavailable' =>
+        'خدمة إدارة المستخدمين غير منشورة أو غير متاحة في بيئة Supabase الحالية. يلزم نشر Edge Function المعتمدة ثم إعادة المحاولة.',
       'company_slug_missing' => 'إعداد الشركة السحابية غير مكتمل.',
       'request_failed' =>
         'تعذر إكمال إدارة المستخدم السحابي بسبب خطأ في الخدمة.',

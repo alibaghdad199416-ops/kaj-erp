@@ -408,20 +408,7 @@ class _WindowContentFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: .35),
-        ),
-        borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
-        child: child,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => child;
 }
 
 class _ScaffoldAsWindow extends StatelessWidget {

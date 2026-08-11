@@ -107,7 +107,7 @@ legacy_pdf=read('lib/core/printing/legacy_commercial_document_pdf_service.dart')
 notification_repo=read('lib/features/notifications/repositories/notification_center_repository.dart')
 gate('Expected Value uses thousands-aware parse on validation and save', "ThousandsInputFormatter.parse(v)" in page and "expectedValue: ThousandsInputFormatter.parse(_value.text) ?? 0" in page)
 for f in ('currency','stage','probability','description','expectedCloseDate','winLossReason'):
-    gate(f'Opportunity {f} persists through model map/read-back', f"'{f}':" in model and (f"map['{f}']" in model))
+    gate(f'Opportunity {f} persists through model map/read-back', f"'{f}':" in model and (f"value('{f}'" in model))
 gate('Opportunity lifecycle UI includes new/contacted/qualified/proposal/negotiation/won/lost/closed', all(f"'{x}'" in page for x in ('new','contacted','qualified','proposal','negotiation','won','lost','closed')))
 gate('Opportunity can find and reuse one linked sales order', 'findOrderByOpportunity' in page and 'erp_r9_find_sales_order_by_opportunity' in repo)
 gate('Canonical workflow projects order/delivery/invoice/payment back to opportunity', all(x in r35 for x in ('salesOrderStatus','deliveryStatus','invoiceStatus','paymentStatus','paidAmount','remainingAmount')))
@@ -144,7 +144,7 @@ gate('R49 production orchestrator validates workspace and permits only the eleve
      and 'deploy_r49_production.ps1' in package.get('scripts',{}).get('deploy:production',''))
 gate('Responsive module windows reflow instead of scaling a fixed canvas', 'FittedBox(' not in route and 'preferred.width.clamp(minimum.width, available.width)' in route and 'current.height + details.delta.dy' in route)
 gate('Workspace AlertDialogs receive bounded responsive content instead of unconditional scroll constraints', 'dialog.scrollable' in route and 'width: double.infinity' in route and 'alignment: AlignmentDirectional.topStart' in route)
-gate('Account codes remain text identifiers without numeric parsing', 'double.tryParse' not in erp_display.split('static String accountCode',1)[1].split('static String number',1)[0] and 'return raw;' in erp_display and 'return raw;' in account_model.split('static String _accountCode',1)[1].split('static String _text',1)[0])
+gate('Account codes remain text identifiers without numeric parsing', 'double.tryParse' not in erp_display.split('static String accountCode',1)[1].split('static String number',1)[0] and 'BigInt.parse' in erp_display and 'ErpDisplayFormatter.accountCode(raw)' in account_model)
 gate('Workflow cards visibly separate logistics, accounting, invoice and payment', all(x in workflow_card for x in ('كمية فقط','القيد المحاسبي','Accounting entry','accountingOwner','invoiceRemaining','paymentStatus')))
 gate('Sales invoice creation is backend-idempotent under concurrent retry',
      'erp_r49_guard_single_active_invoice' in r49idempotency
@@ -259,7 +259,7 @@ gate('Existing financial documents never silently become USD when stored currenc
      ) is not None
      and "a['currency']?.toString() ?? 'USD'" not in fixed_assets_page)
 gate('Financial read models never invent currency, posting status, or completed maintenance state',
-     "currency: text(map['currency']).toUpperCase()" in model
+     "value('currency', aliases: const ['currencyCode'])" in model
      and "final currency = _text(map['currency']).toUpperCase();" in account_model
      and "final rawCurrency = _text(map['currency']).toUpperCase();" in journal_model
      and "status: _text(map['status'])," in journal_model

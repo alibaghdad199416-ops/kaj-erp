@@ -31,7 +31,7 @@ need('R43 migration reconciliation', 'erp_r43_reconcile_opportunity_sales_links'
 need('opportunity export visible with customer service view', "customer_service.view" in opp and 'ExcelExportService().build(_opportunityExport(rows))' in opp and 'PdfExportService().save(_opportunityExport(rows))' in opp)
 need('commercial metric alias resilience', '_first(const' in workflow_card and 'invoice_number' in workflow_card and 'payment_status' in workflow_card)
 need('maintenance approval explicit', 'FilledButton.icon' in maint_page and "maintenance.approve" in maint_page)
-need('web print visible-tab fallback', "html.window.open(url, '_blank')" in pdfweb and 'html.Blob' in pdfweb and 'AnchorElement' in pdfweb and '..download = safeFileName' in pdfweb)
+need('web PDF reliable download', 'html.Blob' in pdfweb and 'AnchorElement' in pdfweb and '..download = safeFileName' in pdfweb and 'html.window.open(' not in pdfweb)
 need('R43 metadata', ('r43-performance-functional-closure-20260809' in version and '22.9.8-r43-performance-functional-closure' in version) or ('r49-' in version and '22.9.8-r49-' in version))
 need('R43 default deploy safe gate', (('deploy_r43_production.ps1' in pkg and '20260809213000' in t('tool/deploy_r43_production.ps1')) or ('deploy_r49_production.ps1' in pkg and '20260810021000_r49_crm_business_reference_closure.sql' in t('tool/deploy_r49_production.ps1'))))
 for n,v in checks.items(): print(('PASS' if v else 'FAIL'),n)

@@ -163,7 +163,7 @@ class _CustomersPageState extends State<CustomersPage> {
                 padding: const EdgeInsets.all(10),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 320,
-                  mainAxisExtent: 126,
+                  mainAxisExtent: 164,
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
                 ),

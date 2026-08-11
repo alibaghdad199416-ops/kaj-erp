@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -27,15 +26,13 @@ class CashVoucherPdfService {
     final bold = fonts.bold;
     String clean(Object? value) => PdfTextSupport.sanitize(value);
     pw.MemoryImage? logo;
-    if (!kIsWeb) {
-      try {
-        final logoBytes = (await rootBundle.load(
-          'assets/images/logo.png',
-        )).buffer.asUint8List();
-        logo = pw.MemoryImage(logoBytes);
-      } catch (_) {
-        logo = null;
-      }
+    try {
+      final logoBytes = (await rootBundle.load(
+        'assets/images/logo.png',
+      )).buffer.asUint8List();
+      logo = pw.MemoryImage(logoBytes);
+    } catch (_) {
+      logo = null;
     }
     final document = pw.Document(
       title: clean(transaction.voucherNumber),
@@ -149,7 +146,7 @@ class CashVoucherPdfService {
                 ],
                 [
                   t('رقم المرجع', 'Reference ID'),
-                  transaction.referenceId ?? '-',
+                  _compactReference(transaction.referenceId),
                 ],
                 [
                   t('حساب الصندوق', 'Cash account'),
@@ -161,7 +158,8 @@ class CashVoucherPdfService {
                 ],
                 [
                   t('رقم القيد المحاسبي', 'Journal entry reference'),
-                  journalEntryNumber ?? transaction.journalEntryId ?? '-',
+                  journalEntryNumber ??
+                      _compactReference(transaction.journalEntryId),
                 ],
                 [t('الملاحظات', 'Notes'), transaction.notes ?? '-'],
               ].map((row) => row.map(clean).toList()).toList(),
@@ -176,15 +174,17 @@ class CashVoucherPdfService {
                 border: pw.Border.all(color: PremiumDocumentTheme.accent),
                 borderRadius: pw.BorderRadius.circular(6),
               ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
                   pw.Text(
                     t('حالة المستند: معتمد', 'Document status: Approved'),
                     style: pw.TextStyle(font: bold),
                   ),
+                  pw.SizedBox(height: 5),
                   pw.Text(
-                    '${t('مرجع الإدخال المحاسبي', 'Accounting posting reference')}: ${journalEntryNumber ?? transaction.journalEntryId ?? '-'}',
+                    '${t('مرجع الإدخال المحاسبي', 'Accounting posting reference')}: ${journalEntryNumber ?? _compactReference(transaction.journalEntryId)}',
+                    softWrap: true,
                   ),
                 ],
               ),
@@ -212,6 +212,17 @@ class CashVoucherPdfService {
       ),
     );
     return document.save();
+  }
+
+  String _compactReference(String? value) {
+    final reference = value?.trim() ?? '';
+    if (reference.isEmpty) return '-';
+    final uuid = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    if (!uuid.hasMatch(reference)) return reference;
+    return '${reference.substring(0, 8)}…${reference.substring(reference.length - 4)}';
   }
 
   Future<void> printVoucher(

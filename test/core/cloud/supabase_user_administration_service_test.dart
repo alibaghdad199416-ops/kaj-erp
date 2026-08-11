@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/core/cloud/supabase_user_administration_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   const companyB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -78,5 +79,34 @@ void main() {
       throwsA(isA<StateError>()),
     );
     expect(calls, isEmpty);
+  });
+
+  test('missing hosted function reports the deployment boundary', () async {
+    final unavailable = SupabaseUserAdministrationService.forTesting(
+      functionInvoker: (_, _) async => throw const FunctionException(
+        status: 404,
+        details: 'Function not found',
+        reasonPhrase: 'Not Found',
+      ),
+    );
+
+    expect(
+      () => unavailable.updateUser(
+        cloudUserId: 'cloud-user',
+        localUserId: 'local-user',
+        email: 'user@example.com',
+        fullName: 'User',
+        roleCode: 'user',
+        isActive: true,
+        erpUserPayload: {'id': 'local-user', 'roleId': 'role-user'},
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Edge Function'),
+        ),
+      ),
+    );
   });
 }

@@ -14,30 +14,18 @@ Future<void> printPdf({
 
   final url = html.Url.createObjectUrlFromBlob(blob);
 
-  var opened = false;
-
+  // PDF generation is asynchronous, so window.open() no longer runs inside
+  // the original browser user-activation turn and Edge may silently block it.
+  // A Blob download anchor is supported after async work and is consistent
+  // with the Excel/binary export path.
+  final anchor = html.AnchorElement(href: url)
+    ..download = safeFileName
+    ..style.display = 'none';
+  html.document.body?.children.add(anchor);
   try {
-    html.window.open(url, '_blank');
-
-    opened = true;
-  } catch (_) {
-    opened = false;
-  }
-
-  if (!opened) {
-    final anchor = html.AnchorElement(href: url)
-      ..download = safeFileName
-      ..target = '_blank'
-      ..rel = 'noopener'
-      ..style.display = 'none';
-
-    html.document.body?.children.add(anchor);
-
-    try {
-      anchor.click();
-    } finally {
-      anchor.remove();
-    }
+    anchor.click();
+  } finally {
+    anchor.remove();
   }
 
   unawaited(

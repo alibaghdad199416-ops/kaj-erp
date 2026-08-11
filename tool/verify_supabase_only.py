@@ -366,17 +366,18 @@ report_pdf=read(ROOT/'lib/features/settings/reports/services/report_export_servi
 pdf_support=read(ROOT/'lib/core/printing/pdf_text_support.dart')
 commercial_safe = (
     'PdfTextSupport.canonicalPdfLanguage(language)' in pdf_service
-    and "kIsWeb ? 'en'" in pdf_support
-    and 'rethrow;' in pdf_support
+    and 'assets/fonts/NotoNaskhArabic-Regular.ttf' in pdf_support
+    and 'assets/fonts/NotoNaskhArabic-Bold.ttf' in pdf_support
+    and "requested.toLowerCase().startsWith('ar')" in pdf_support
 )
 report_safe = (
-    "String get _exportLanguage => 'en'" in report_pdf
-    or 'تم إيقاف التصدير لمنع ظهور رموز بدل الأحرف العربية' in report_pdf
+    'PdfTextSupport.canonicalPdfLanguage(options.language)' in report_pdf
+    and "if (kIsWeb) return null" not in report_pdf
 )
 if not commercial_safe:
-    fail('commercial PDF must use browser-safe English or stop before corrupted Arabic output')
+    fail('commercial PDF must use bundled Arabic-safe fonts without a runtime CDN')
 if not report_safe:
-    fail('report PDF must use canonical English or stop before corrupted Arabic output')
+    fail('report PDF must preserve the requested canonical language and bundled logo')
 
 # Ensure no embedded privileged credential literal exists.
 secret_re=re.compile(r'(sb_secret_[A-Za-z0-9._-]{12,}|service_role_[A-Za-z0-9._-]{12,}|postgres(?:ql)?://[^\s:]+:[^\s@]+@)',re.I)

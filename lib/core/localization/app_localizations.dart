@@ -480,6 +480,7 @@ class AppTranslation {
         'Data is cloud-native and there are no pending local sync operations.',
     'حذف المخزن': 'Delete warehouse',
     'تعديل الحساب': 'Edit account',
+    'إجراءات الحساب': 'Account actions',
     'حذف الفاتورة': 'Delete invoice',
     'أسطول السيارات': 'Vehicle fleet',
     'الأقساط المستحقة': 'Due installments',

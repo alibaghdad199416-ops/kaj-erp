@@ -13,7 +13,6 @@ import 'dart:math' as math;
 import 'package:excel/excel.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -32,7 +31,6 @@ class ReportExportService {
 
   static Future<pw.MemoryImage?> _loadBundledLogo() =>
       _bundledLogoFuture ??= (() async {
-        if (kIsWeb) return null;
         try {
           final data = await rootBundle.load(
             'assets/images/khat_al_jawda_logo.jpg',
@@ -45,11 +43,6 @@ class ReportExportService {
           return null;
         }
       })();
-
-  // Report artifacts are intentionally English-only. Keep the language behind
-  // a runtime getter so the analyzer does not fold English-only branches into
-  // dead code while the shared renderer remains structurally bilingual.
-  String get _exportLanguage => 'en';
 
   bool _isArabicExportLanguage(String language) => language == 'ar';
 
@@ -65,7 +58,7 @@ class ReportExportService {
     final book = Excel.createExcel();
     final defaultSheet = book.getDefaultSheet();
     if (defaultSheet != null) book.delete(defaultSheet);
-    final language = _exportLanguage;
+    final language = PdfTextSupport.canonicalPdfLanguage(options.language);
     final arabic = _isArabicExportLanguage(language);
     final generatedAt = DateTime.now();
     final usedSheetNames = <String>{};
@@ -406,7 +399,7 @@ class ReportExportService {
     List<ContextualReportSection> sections = const [],
   }) async {
     sections = const ContextualReportCustomizer().apply(sections, options);
-    final l = _exportLanguage;
+    final l = PdfTextSupport.canonicalPdfLanguage(options.language);
     final arabic = _isArabicExportLanguage(l);
     // PdfGoogleFonts.notoNaskhArabicRegular is cached by PdfTextSupport.
     late final PdfFontPack fonts;

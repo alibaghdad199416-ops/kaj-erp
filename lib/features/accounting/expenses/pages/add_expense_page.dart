@@ -139,7 +139,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Future<void> saveExpense() async {
-    final amount = double.tryParse(amountController.text.trim()) ?? 0;
+    final amount = ThousandsInputFormatter.parse(amountController.text) ?? 0;
     if (titleController.text.trim().isEmpty ||
         amount <= 0 ||
         accountId == null ||
@@ -324,6 +324,22 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                     (row) => row['id'] == accountId,
                                   )) {
                                     accountId = matches.firstOrNull?['id']
+                                        ?.toString();
+                                  }
+                                  final matchingExpenses = expenseAccounts
+                                      .where((row) {
+                                        final accountCurrency = row['currency']
+                                            ?.toString()
+                                            .trim()
+                                            .toUpperCase();
+                                        return accountCurrency == value ||
+                                            accountCurrency == 'MULTI';
+                                      });
+                                  if (!matchingExpenses.any(
+                                    (row) => row['id'] == expenseAccountId,
+                                  )) {
+                                    expenseAccountId = matchingExpenses
+                                        .firstOrNull?['id']
                                         ?.toString();
                                   }
                                 });

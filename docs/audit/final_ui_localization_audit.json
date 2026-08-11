@@ -223,12 +223,12 @@
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 429,
+      "line": 445,
       "value": "التاريخ والوقت التشغيلي"
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 459,
+      "line": 475,
       "value": "حفظ المصروف"
     },
     {
@@ -423,182 +423,182 @@
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 340,
+      "line": 343,
       "value": "دليل الحسابات الشجري"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 352,
+      "line": 355,
       "value": "إضافة حساب"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 357,
+      "line": 360,
       "value": "أضف حسابات رئيسية أو مسارات فرعية غير محدودة ضمن شجرة الحسابات."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 362,
+      "line": 365,
       "value": "لا توجد حسابات."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 381,
+      "line": 384,
       "value": "حذف حساب من الشجرة"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 382,
+      "line": 385,
       "value": "هل تريد حذف ${account.code} — ${account.name}؟ لا يمكن حذف الحساب إذا كان مستخدماً أو يحتوي على حسابات فرعية."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 388,
+      "line": 391,
       "value": "إلغاء"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 392,
+      "line": 395,
       "value": "حذف"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 593,
+      "line": 619,
       "value": "حساب رئيسي"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 659,
+      "line": 685,
       "value": "أصول"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 660,
+      "line": 686,
       "value": "خصوم"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 663,
+      "line": 689,
       "value": "حقوق ملكية"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 665,
+      "line": 691,
       "value": "إيرادات"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 666,
+      "line": 692,
       "value": "مصروفات"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 685,
+      "line": 711,
       "value": "USD"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 686,
+      "line": 712,
       "value": "IQD"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 855,
+      "line": 889,
       "value": "كل العملات"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 857,
+      "line": 891,
       "value": "USD"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 858,
+      "line": 892,
       "value": "IQD"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 870,
+      "line": 904,
       "value": "كل الفروع"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 874,
+      "line": 908,
       "value": "كل الفروع"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 893,
-      "value": "كل مراكز الكلفة"
-    },
-    {
-      "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 897,
+      "line": 927,
       "value": "كل مراكز الكلفة"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
       "line": 931,
+      "value": "كل مراكز الكلفة"
+    },
+    {
+      "file": "lib/features/accounting/pages/accounting_center_page.dart",
+      "line": 965,
       "value": "مسح الفترة"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 952,
+      "line": 986,
       "value": "طباعة PDF"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 962,
+      "line": 996,
       "value": "تنزيل PDF"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 996,
+      "line": 1030,
       "value": "لا توجد بيانات متاحة ضمن المرشحات الحالية."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1737,
+      "line": 1772,
       "value": "الفروع ومراكز الكلفة"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1742,
+      "line": 1777,
       "value": "إدارة الأبعاد المستخدمة لتصفية التقارير وتوزيع القيود والمستندات المالية."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1758,
+      "line": 1793,
       "value": "لا توجد فروع معرفة."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1790,
+      "line": 1825,
       "value": "لا توجد مراكز كلفة معرفة."
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1829,
+      "line": 1864,
       "value": "إضافة"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1864,
+      "line": 1899,
       "value": "فرع رئيسي"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1880,
+      "line": 1915,
       "value": "حفظ الفرع"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1933,
+      "line": 1968,
       "value": "بدون مركز أب"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1958,
+      "line": 1993,
       "value": "حفظ مركز الكلفة"
     },
     {
@@ -888,17 +888,17 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 429,
+      "line": 431,
       "value": "موعد المتابعة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 497,
+      "line": 499,
       "value": "حفظ الفرصة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 511,
+      "line": 513,
       "value": "حفظ وإنشاء مسودة أمر بيع"
     },
     {
@@ -1313,27 +1313,27 @@
     },
     {
       "file": "lib/features/purchases/pages/purchase_order_draft_page.dart",
-      "line": 525,
+      "line": 527,
       "value": "USD"
     },
     {
       "file": "lib/features/purchases/pages/purchase_order_draft_page.dart",
-      "line": 526,
+      "line": 528,
       "value": "IQD"
     },
     {
       "file": "lib/features/purchases/pages/purchase_order_draft_page.dart",
-      "line": 598,
+      "line": 600,
       "value": "البنود"
     },
     {
       "file": "lib/features/purchases/pages/purchase_order_draft_page.dart",
-      "line": 611,
+      "line": 613,
       "value": "إضافة بند"
     },
     {
       "file": "lib/features/purchases/pages/purchase_order_draft_page.dart",
-      "line": 973,
+      "line": 975,
       "value": "القيمة المحولة: ${NumberFormat("
     },
     {
@@ -1438,32 +1438,32 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 449,
+      "line": 453,
       "value": "أمر البيع مرتبط بفرصة تجارية"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 542,
+      "line": 546,
       "value": "USD"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 543,
+      "line": 547,
       "value": "IQD"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 615,
+      "line": 619,
       "value": "البنود"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 628,
+      "line": 632,
       "value": "إضافة بند"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 999,
+      "line": 1003,
       "value": "القيمة المحولة: ${NumberFormat("
     },
     {
@@ -2462,17 +2462,17 @@
     },
     {
       "file": "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
-      "line": 66,
+      "line": 63,
       "value": "8"
     },
     {
       "file": "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
-      "line": 79,
+      "line": 76,
       "value": "7"
     },
     {
       "file": "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
-      "line": 177,
+      "line": 175,
       "value": "6"
     },
     {
@@ -2482,7 +2482,7 @@
     },
     {
       "file": "lib/features/accounting/expenses/pages/add_expense_page.dart",
-      "line": 426,
+      "line": 442,
       "value": "4"
     },
     {
@@ -2502,12 +2502,12 @@
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 194,
+      "line": 197,
       "value": "12"
     },
     {
       "file": "lib/features/accounting/pages/accounting_center_page.dart",
-      "line": 1209,
+      "line": 1244,
       "value": "12"
     },
     {
@@ -2522,22 +2522,22 @@
     },
     {
       "file": "lib/features/business_partners/shared/widgets/partner_compact_card_parts.dart",
-      "line": 16,
+      "line": 17,
       "value": "7"
     },
     {
       "file": "lib/features/business_partners/shared/widgets/partner_compact_card_parts.dart",
-      "line": 46,
+      "line": 52,
       "value": "999"
     },
     {
       "file": "lib/features/business_partners/shared/widgets/partner_compact_card_parts.dart",
-      "line": 51,
+      "line": 57,
       "value": "999"
     },
     {
       "file": "lib/features/business_partners/shared/widgets/partner_compact_card_parts.dart",
-      "line": 87,
+      "line": 81,
       "value": "999"
     },
     {
@@ -2552,12 +2552,12 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 427,
+      "line": 429,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 447,
+      "line": 449,
       "value": "4"
     },
     {
@@ -2717,22 +2717,22 @@
     },
     {
       "file": "lib/features/notifications/pages/notification_center_page.dart",
-      "line": 386,
+      "line": 395,
       "value": "12"
     },
     {
       "file": "lib/features/notifications/pages/notification_center_page.dart",
-      "line": 401,
+      "line": 410,
       "value": "14"
     },
     {
       "file": "lib/features/notifications/pages/notification_center_page.dart",
-      "line": 533,
+      "line": 542,
       "value": "14"
     },
     {
       "file": "lib/features/purchases/pages/purchase_order_draft_page.dart",
-      "line": 751,
+      "line": 753,
       "value": "18"
     },
     {
@@ -2787,7 +2787,7 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 774,
+      "line": 778,
       "value": "18"
     },
     {
@@ -2812,12 +2812,12 @@
     },
     {
       "file": "lib/features/settings/reports/services/report_export_service.dart",
-      "line": 514,
+      "line": 507,
       "value": "9"
     },
     {
       "file": "lib/features/settings/reports/services/report_export_service.dart",
-      "line": 711,
+      "line": 704,
       "value": "5"
     },
     {

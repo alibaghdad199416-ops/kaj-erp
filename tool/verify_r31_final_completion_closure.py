@@ -17,8 +17,10 @@ need(
 warehouse_page = text('lib/features/inventory/pages/warehouse_management_page.dart')
 warehouse_extents = [int(value) for value in re.findall(r'mainAxisExtent:\s*(\d+)', warehouse_page)]
 need('warehouse card overflow headroom', any(value >= 124 for value in warehouse_extents))
-need('supplier card overflow headroom', any(x in text('lib/features/business_partners/suppliers/pages/suppliers_page.dart') for x in ['mainAxisExtent: 142','mainAxisExtent: 126']))
-need('customer card overflow headroom', any(x in text('lib/features/business_partners/customers/pages/customers_page.dart') for x in ['mainAxisExtent: 142','mainAxisExtent: 126']))
+supplier_extents = [int(value) for value in re.findall(r'mainAxisExtent:\s*(\d+)', text('lib/features/business_partners/suppliers/pages/suppliers_page.dart'))]
+customer_extents = [int(value) for value in re.findall(r'mainAxisExtent:\s*(\d+)', text('lib/features/business_partners/customers/pages/customers_page.dart'))]
+need('supplier card overflow headroom', any(value >= 142 for value in supplier_extents))
+need('customer card overflow headroom', any(value >= 142 for value in customer_extents))
 need('maintenance picker overflow headroom', any(x in text('lib/features/maintenance/pages/add_maintenance_order_page.dart') for x in ['mainAxisExtent: 136','mainAxisExtent: 164','mainAxisExtent: 180']))
 need('r31 cache token', any(x in text('web/index.html') for x in ('r41-export-language-canonical-closure-20260809','r42-production-cashbox-guard-closure-20260809','r43-performance-functional-closure-20260809','r47-production-runtime-dependency-closure-20260810','r49-')))
 need('r31 deploy script exists', (ROOT/'tool/deploy_r31_production.ps1').exists())

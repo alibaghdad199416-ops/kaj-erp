@@ -296,6 +296,9 @@ class InventoryRepository {
     );
   }
 
+  Future<bool> inventoryProductExists(String id) async =>
+      await _cloud.getById('erp_inventory', id) != null;
+
   Future<void> updateInventory(
     InventoryModel item, {
     List<String> imagesBase64 = const [],

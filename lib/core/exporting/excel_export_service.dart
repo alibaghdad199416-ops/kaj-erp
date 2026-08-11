@@ -60,10 +60,12 @@ class ExcelExportService {
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: index + 1))
           .cellStyle = ExcelWorkbookPresentation
           .metadataLabelStyle;
-      profile
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1))
-          .cellStyle = ExcelWorkbookPresentation
-          .metadataValueStyle;
+      ExcelWorkbookPresentation.styleCell(
+        profile.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1),
+        ),
+        ExcelWorkbookPresentation.metadataValueStyle,
+      );
     }
     profile.setColumnWidth(0, 27);
     profile.setColumnWidth(1, 36);
@@ -115,10 +117,12 @@ class ExcelExportService {
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
           .cellStyle = ExcelWorkbookPresentation
           .metadataLabelStyle;
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
-          .cellStyle = ExcelWorkbookPresentation
-          .metadataValueStyle;
+      ExcelWorkbookPresentation.styleCell(
+        sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
+        ),
+        ExcelWorkbookPresentation.metadataValueStyle,
+      );
       rowIndex++;
     }
 

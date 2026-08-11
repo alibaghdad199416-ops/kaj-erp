@@ -11,7 +11,7 @@
 ## الحالة المثبتة في 2026-08-11
 
 - Supabase CLI المقفول في المستودع: `2.109.1`، ويُشغّل عبر `npx supabase`.
-- عدد الهجرات المحلية الموثوقة: **254** ملف SQL، مرتبة بالاسم/الإصدار.
+- عدد الهجرات المحلية الموثوقة: **257** ملف SQL، مرتبة بالاسم/الإصدار.
 - الحساب الحالي لا يملك صلاحية إدارة المشروع `havlqebmnjdcwmpaaqew`: قائمة
   المشاريع لم تعرضه، و`functions list --project-ref` أعاد HTTP 403.
 - المستودع غير مرتبط حاليًا بمشروع بعيد. لذلك حالة الهجرات والوظائف البعيدة
@@ -40,7 +40,7 @@ npx supabase db push --linked --dry-run
 
 ### بيان الهجرات المحلي
 
-الدليل الكامل المادي هو `supabase/migrations/` وعدده 254. في غياب Remote
+الدليل الكامل المادي هو `supabase/migrations/` وعدده 257. في غياب Remote
 access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pending=`UNKNOWN`.
 آخر مجموعة ذات أولوية للإصدار، بالترتيب، هي:
 
@@ -62,9 +62,12 @@ access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pendi
 | `20260810144714_r51_opportunity_reconciliation_permission_bridge.sql` | YES | BLOCKED | depends on R50 |
 | `20260810153311_r52_fresh_database_lint_runtime_closure.sql` | YES | BLOCKED | depends on R50/R51 |
 | `20260810160000_r49_opportunity_round_trip_runtime_repair.sql` | YES | BLOCKED | after R52 by timestamp |
-| `20260810192906_r49_opportunity_helper_acl_hardening.sql` | YES | BLOCKED | latest local migration |
+| `20260810192906_r49_opportunity_helper_acl_hardening.sql` | YES | BLOCKED | opportunity helper ACL hardening |
+| `20260810220659_r53_maintenance_fifo_inventory_value_closure.sql` | YES | BLOCKED | forward-only R53 valuation closure |
+| `20260810224144_r54_operational_inventory_valuation_timing_closure.sql` | YES | BLOCKED | forward-only R54; depends on R53 |
+| `20260811084154_r55_opportunity_assignment_notifications.sql` | YES | BLOCKED | latest local migration; tenant-scoped Opportunity notifications |
 
-عند توفر الوصول، خزّن ناتج `migration list --linked` وقارنه بكل الملفات الـ254.
+عند توفر الوصول، خزّن ناتج `migration list --linked` وقارنه بكل الملفات الـ257.
 لا تستخدم `migration repair` لإخفاء اختلاف. لا تدفع قبل أن يعرض dry-run فقط
 الهجرات الجديدة المتوقعة وبنفس ترتيبها.
 
@@ -77,7 +80,7 @@ access تكون حالة **كل** ملف: Local=`YES`، Remote=`BLOCKED`، Pendi
 - إنشاء مشروع Remote جديد فارغ يتطلب بيئة staging مصرحًا بها أولًا: شغّل
   `npm run verify:fresh-db` محليًا، أنشئ prerequisite مكافئًا ومراجعًا ضمن إجراء
   bootstrap مستقل، طبّق السلسلة الكاملة، أثبت أن R35 canonical استبدله، شغّل
-  اختبارات final-state/R50-R52 وadvisors، ثم وثّق baseline التاريخي. لا تنسخ
+  اختبارات final-state/R50-R55 وadvisors، ثم وثّق baseline التاريخي. لا تنسخ
   `supabase/fresh_install/r35_cloud_command_compatibility.sql` إلى Production
   بصمت ولا تعدّل R37/R35 التاريخيتين. التفاصيل في `supabase/FRESH_INSTALL.md`.
 

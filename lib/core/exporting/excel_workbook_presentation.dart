@@ -139,18 +139,24 @@ abstract final class ExcelWorkbookPresentation {
       final row = startRow + offset;
       final style = dataStyle(arabic: arabic, alternate: offset.isOdd);
       for (var column = 0; column < columnCount; column++) {
-        sheet
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: column,
-                    rowIndex: row,
-                  ),
-                )
-                .cellStyle =
-            style;
+        styleCell(
+          sheet.cell(
+            CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row),
+          ),
+          style,
+        );
       }
       sheet.setRowHeight(row, 24);
     }
+  }
+
+  /// Applying a visual style must not replace the native number format that
+  /// belongs to dates, times, integers, or decimals. The excel package rejects
+  /// a DateTime cell paired with the generic numeric `General` format.
+  static void styleCell(Data cell, CellStyle style) {
+    final format =
+        cell.cellStyle?.numberFormat ?? NumFormat.defaultFor(cell.value);
+    cell.cellStyle = style.copyWith(numberFormat: format);
   }
 
   /// Converts a raw report value to the native XLSX cell type expected by

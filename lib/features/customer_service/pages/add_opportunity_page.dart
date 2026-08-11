@@ -140,36 +140,38 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            KajPhaseHero(
-              eyebrow: t('إدارة رحلة العميل', 'CUSTOMER JOURNEY DESIGN'),
-              title: widget.opportunity == null
-                  ? t(
-                      'إنشاء فرصة تجارية جديدة',
-                      'Create a new commercial opportunity',
-                    )
-                  : t(
-                      'تطوير الفرصة التجارية',
-                      'Refine the commercial opportunity',
-                    ),
-              subtitle: t(
-                'سجّل العميل ومصدر الاهتمام والقيمة المتوقعة والمسؤول وموعد المتابعة، ثم حوّل الفرصة إلى مسودة بيع دون فقدان السياق.',
-                'Capture the customer, source, expected value, owner, and follow-up date, then convert the opportunity into a sales draft without losing context.',
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              KajPhaseHero(
+                eyebrow: t('إدارة رحلة العميل', 'CUSTOMER JOURNEY DESIGN'),
+                title: widget.opportunity == null
+                    ? t(
+                        'إنشاء فرصة تجارية جديدة',
+                        'Create a new commercial opportunity',
+                      )
+                    : t(
+                        'تطوير الفرصة التجارية',
+                        'Refine the commercial opportunity',
+                      ),
+                subtitle: t(
+                  'سجّل العميل ومصدر الاهتمام والقيمة المتوقعة والمسؤول وموعد المتابعة، ثم حوّل الفرصة إلى مسودة بيع دون فقدان السياق.',
+                  'Capture the customer, source, expected value, owner, and follow-up date, then convert the opportunity into a sales draft without losing context.',
+                ),
+                icon: Icons.track_changes_rounded,
+                accent: KajDesignTokens.champagne,
+                trailing: KajStatusBadge(
+                  label: widget.opportunity == null
+                      ? t('فرصة جديدة', 'NEW LEAD')
+                      : t('تحديث الفرصة', 'OPPORTUNITY UPDATE'),
+                  color: widget.opportunity == null
+                      ? KajDesignTokens.electricBlue
+                      : KajDesignTokens.warning,
+                  icon: widget.opportunity == null
+                      ? Icons.add_chart_rounded
+                      : Icons.edit_note_rounded,
+                ),
               ),
-              icon: Icons.track_changes_rounded,
-              accent: KajDesignTokens.champagne,
-              trailing: KajStatusBadge(
-                label: widget.opportunity == null
-                    ? t('فرصة جديدة', 'NEW LEAD')
-                    : t('تحديث الفرصة', 'OPPORTUNITY UPDATE'),
-                color: widget.opportunity == null
-                    ? KajDesignTokens.electricBlue
-                    : KajDesignTokens.warning,
-                icon: widget.opportunity == null
-                    ? Icons.add_chart_rounded
-                    : Icons.edit_note_rounded,
-              ),
-            ),
-            const SizedBox(height: 12),
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              const SizedBox(height: 12),
             KajWorkflowStepper(
               currentIndex: widget.opportunity == null ? 0 : 2,
               compact: MediaQuery.sizeOf(context).width < 980,

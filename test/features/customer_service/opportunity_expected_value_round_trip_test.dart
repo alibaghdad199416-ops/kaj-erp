@@ -23,6 +23,37 @@ Map<String, dynamic> opportunityRow(double value, String currency) => {
 };
 
 void main() {
+  test('snake_case edit projection preserves stage and currency aliases', () {
+    final decoded = OpportunityModel.fromMap(<String, dynamic>{
+      'id': 'opportunity-snake',
+      'opportunity_number': 'OPP-55',
+      'customer_id': 'customer-55',
+      'customer_name': 'R55 Customer',
+      'customer_phone': '07700000055',
+      'title': 'Fleet renewal',
+      'source': 'Referral',
+      'expected_value': '12500.50',
+      'currency_code': 'IQD',
+      'stage': 'qualified',
+      'probability': '65',
+      'status': 'pending',
+      'assigned_user_id': 'user-55',
+      'assigned_user_name': 'R55 Owner',
+      'created_by_user_id': 'admin-55',
+      'created_by_user_name': 'R55 Admin',
+      'created_at': '2026-08-11T00:00:00Z',
+      'follow_up_date': '2026-08-20T00:00:00Z',
+      'updated_at': '2026-08-11T01:00:00Z',
+    });
+
+    expect(decoded.stage, 'qualified');
+    expect(decoded.currency, 'IQD');
+    expect(decoded.expectedValue, 12500.50);
+    expect(decoded.customerId, 'customer-55');
+    expect(decoded.assignedUserId, 'user-55');
+    expect(decoded.followUpDate, DateTime.parse('2026-08-20T00:00:00Z'));
+  });
+
   test(
     'Opportunity expected value and currency survive production model maps',
     () {

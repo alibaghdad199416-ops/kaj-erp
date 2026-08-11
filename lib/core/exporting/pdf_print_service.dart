@@ -7,8 +7,8 @@ import 'pdf_print_service_stub.dart'
 /// Cross-platform PDF print/preview entry point.
 ///
 /// On Flutter Web we deliberately avoid Printing.layoutPdf because browser
-/// plugin/asset failures can reject an otherwise valid PDF. Opening the bytes
-/// as a browser PDF document gives the user the native browser print controls.
+/// plugin/asset failures can reject an otherwise valid PDF. Downloading the
+/// generated Blob avoids popup blockers after asynchronous PDF generation.
 abstract final class PdfPrintService {
   static Future<void> print({
     required String fileName,
