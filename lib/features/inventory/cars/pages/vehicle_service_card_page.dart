@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/printing/vehicle_service_card_pdf_service.dart';
+import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/features/inventory/cars/models/car_model.dart';
 import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
+import 'package:quality_line_erp/features/maintenance/pages/maintenance_order_details_dialog.dart';
 
 class VehicleServiceCardPage extends StatefulWidget {
-  const VehicleServiceCardPage({super.key, required this.car});
+  const VehicleServiceCardPage({
+    super.key,
+    required this.car,
+    this.cardLoader,
+    this.onOpenMaintenance,
+  });
   final CarModel car;
+  final Future<Map<String, Object?>> Function(CarModel car)? cardLoader;
+  final Future<void> Function(Map<String, Object?> order)? onOpenMaintenance;
 
   @override
   State<VehicleServiceCardPage> createState() => _VehicleServiceCardPageState();
 }
 
 class _VehicleServiceCardPageState extends State<VehicleServiceCardPage> {
-  late final Future<Map<String, Object?>> _future = MaintenanceRepository()
-      .getVehicleServiceCard(widget.car.id);
+  late final Future<Map<String, Object?>> _future =
+      widget.cardLoader?.call(widget.car) ??
+      MaintenanceRepository().getVehicleServiceCard(widget.car.id);
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, Object?>>(
@@ -104,18 +115,80 @@ class _VehicleServiceCardPageState extends State<VehicleServiceCardPage> {
                     ),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                     children: [
-                      ListTile(
-                        title: AppText(
-                          '${t('العميل', 'Customer')}: ${order['customerName'] ?? '—'}',
-                        ),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          _Identity(
+                            t('الفرصة', 'Opportunity'),
+                            order['opportunityNumber']?.toString() ?? '—',
+                          ),
+                          _Identity(
+                            t('العميل', 'Customer'),
+                            order['customerName']?.toString() ?? '—',
+                          ),
+                          _Identity(
+                            t('الحالة', 'Status'),
+                            '${order['workflowStage'] ?? '—'} / ${order['status'] ?? '—'}',
+                          ),
+                          _Identity(
+                            t('نوع التسعير', 'Pricing type'),
+                            order['pricingType']?.toString() ?? '—',
+                          ),
+                          _Identity(
+                            t('المخزن', 'Warehouse'),
+                            order['warehouseName']?.toString() ?? '—',
+                          ),
+                          _Identity(
+                            t('إذن الصرف', 'Stock issue'),
+                            '${order['stockIssueNumber'] ?? '—'} / ${order['stockIssueStatus'] ?? '—'}',
+                          ),
+                          _Identity(
+                            t('فاتورة الصيانة', 'Maintenance invoice'),
+                            '${order['invoiceNumber'] ?? '—'} / ${order['invoiceStatus'] ?? '—'}',
+                          ),
+                          _Identity(
+                            t('حالة الدفع', 'Payment status'),
+                            '${order['paidAmount'] ?? 0} ${order['currencyCode'] ?? ''} • ${order['paymentStatus'] ?? '—'}',
+                          ),
+                        ],
                       ),
-                      ListTile(
-                        title: AppText(
-                          '${t('قيمة الخدمة', 'Service amount')}: ${order['salePrice'] ?? 0} ${order['currencyCode'] ?? ''}',
+                      const Divider(),
+                      ..._rows(order['items']).map(
+                        (item) => ListTile(
+                          dense: true,
+                          leading: Icon(
+                            item['lineType'] == 'service'
+                                ? Icons.miscellaneous_services
+                                : Icons.inventory_2_outlined,
+                          ),
+                          title: AppText(item['name']?.toString() ?? '—'),
+                          subtitle: AppText(
+                            '${t('الكمية', 'Quantity')}: ${item['quantity'] ?? 0} • ${t('سعر العميل', 'Customer price')}: ${item['unitPrice'] ?? 0} ${order['currencyCode'] ?? ''} • ${item['warehouseName'] ?? ''}',
+                          ),
                         ),
                       ),
                       if ((order['notes']?.toString().trim() ?? '').isNotEmpty)
                         ListTile(title: AppText(order['notes'].toString())),
+                      if ((order['cancelReason']?.toString().trim() ?? '')
+                          .isNotEmpty)
+                        ListTile(
+                          leading: const Icon(Icons.cancel_outlined),
+                          title: AppText(
+                            '${t('سبب الإلغاء', 'Cancellation reason')}: ${order['cancelReason']}',
+                          ),
+                        ),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: FilledButton.icon(
+                          key: ValueKey('open-maintenance-${order['id']}'),
+                          onPressed: () => _openMaintenance(order),
+                          icon: const Icon(Icons.open_in_new),
+                          label: AppText(
+                            t('فتح أمر الصيانة', 'Open Maintenance Order'),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -125,6 +198,34 @@ class _VehicleServiceCardPageState extends State<VehicleServiceCardPage> {
       );
     },
   );
+
+  static List<Map<String, Object?>> _rows(Object? raw) => raw is List
+      ? raw
+            .whereType<Map>()
+            .map((value) => Map<String, Object?>.from(value))
+            .toList(growable: false)
+      : const [];
+
+  Future<void> _openMaintenance(Map<String, Object?> raw) async {
+    if (widget.onOpenMaintenance != null) {
+      await widget.onOpenMaintenance!(raw);
+      return;
+    }
+    final order = MaintenanceOrderModel.fromMap(Map<String, dynamic>.from(raw));
+    final lines = _rows(raw['items'])
+        .map(
+          (value) =>
+              MaintenanceLineModel.fromMap(Map<String, dynamic>.from(value)),
+        )
+        .toList(growable: false);
+    await showAppModuleDialog<void>(
+      context: context,
+      title: order.orderNumber,
+      windowKey: 'maintenance:details:${order.id}',
+      builder: (_) =>
+          MaintenanceOrderDetailsDialog(order: order, initialLines: lines),
+    );
+  }
 }
 
 class _Identity extends StatelessWidget {

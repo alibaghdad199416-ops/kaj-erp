@@ -802,15 +802,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         final authoritative = opportunities.opportunities
             .where((value) => value.id == item.id)
             .firstOrNull;
-        final carId = authoritative?.carId?.trim() ?? '';
-        if (carId.isEmpty) {
-          throw StateError(
-            t(
-              'يجب ربط الفرصة بسيارة قبل إنشاء مسودة الصيانة.',
-              'Link the opportunity to a vehicle before creating a maintenance draft.',
-            ),
-          );
-        }
+        final carId = authoritative?.carId?.trim();
         final existing = await context
             .read<MaintenanceController>()
             .findByOpportunity(item.id);
@@ -822,7 +814,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
           maxHeight: 780,
           builder: (_) => AddMaintenanceOrderPage(
             order: existing,
-            initialCarId: carId,
+            initialCarId: carId == null || carId.isEmpty ? null : carId,
             opportunityId: item.id,
           ),
         );

@@ -788,22 +788,22 @@
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 96,
+      "line": 101,
       "value": "إضافة عميل"
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 116,
+      "line": 121,
       "value": "الأحدث"
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 121,
+      "line": 126,
       "value": "الاسم"
     },
     {
       "file": "lib/features/business_partners/customers/pages/customers_page.dart",
-      "line": 155,
+      "line": 160,
       "value": "إضافة عميل"
     },
     {
@@ -843,47 +843,47 @@
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 119,
+      "line": 120,
       "value": "إضافة مورد"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 134,
+      "line": 135,
       "value": "الكل"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 137,
+      "line": 138,
       "value": "نشط"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 141,
+      "line": 142,
       "value": "غير نشط"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 156,
+      "line": 157,
       "value": "الأحدث أولاً"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 160,
+      "line": 161,
       "value": "حسب الاسم"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 164,
+      "line": 165,
       "value": "أعلى رصيد"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 219,
+      "line": 220,
       "value": "إعادة المحاولة"
     },
     {
       "file": "lib/features/business_partners/suppliers/pages/suppliers_page.dart",
-      "line": 234,
+      "line": 235,
       "value": "إضافة مورد"
     },
     {
@@ -1303,12 +1303,12 @@
     },
     {
       "file": "lib/features/maintenance/pages/add_maintenance_order_page.dart",
-      "line": 620,
+      "line": 635,
       "value": "USD"
     },
     {
       "file": "lib/features/maintenance/pages/add_maintenance_order_page.dart",
-      "line": 621,
+      "line": 636,
       "value": "IQD"
     },
     {
@@ -2517,7 +2517,7 @@
     },
     {
       "file": "lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart",
-      "line": 420,
+      "line": 456,
       "value": "20"
     },
     {

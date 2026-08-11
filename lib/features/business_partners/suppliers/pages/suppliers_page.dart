@@ -19,6 +19,7 @@ import 'package:quality_line_erp/features/business_partners/suppliers/models/sup
 import 'package:quality_line_erp/features/business_partners/suppliers/widgets/supplier_card.dart';
 import 'package:quality_line_erp/features/business_partners/shared/data/business_partner_card_service.dart';
 import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
+import 'package:quality_line_erp/features/sales/workflow/pages/order_details_dialog.dart';
 import 'add_supplier_page.dart';
 
 enum _SupplierFilter { all, active, inactive }
@@ -280,6 +281,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
       icon: Icons.local_shipping_outlined,
       photoBase64: supplier.photoBase64,
       summary: summary,
+      onOpenRecord: _openPartnerRecord,
       identityFields: [
         if (context.read<AccessController>().canViewField(
           'suppliers',
@@ -364,6 +366,20 @@ class _SuppliersPageState extends State<SuppliersPage> {
           )
           ? supplier.notes
           : null,
+    );
+  }
+
+  Future<void> _openPartnerRecord(Map<String, Object?> record) async {
+    final type = record['entityType']?.toString() ?? '';
+    if (!type.startsWith('purchase_')) return;
+    final id = record['id']?.toString() ?? '';
+    final orderId = type == 'purchase_order'
+        ? id
+        : record['parentId']?.toString() ?? '';
+    if (orderId.isEmpty || !mounted) return;
+    await showAppWorkspaceDialogBuilder<void>(
+      context: context,
+      builder: (_) => OrderDetailsDialog(orderId: orderId, purchase: true),
     );
   }
 

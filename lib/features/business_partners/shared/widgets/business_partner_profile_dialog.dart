@@ -32,6 +32,7 @@ Future<void> showBusinessPartnerProfileDialog({
   List<BusinessPartnerProfileField> contactFields = const [],
   List<BusinessPartnerProfileField> identityFields = const [],
   String? notes,
+  Future<void> Function(Map<String, Object?> record)? onOpenRecord,
 }) => showAppWorkspaceDialogBuilder<void>(
   context: context,
   builder: (_) => _BusinessPartnerProfileDialog(
@@ -48,6 +49,7 @@ Future<void> showBusinessPartnerProfileDialog({
     contactFields: contactFields,
     identityFields: identityFields,
     notes: notes,
+    onOpenRecord: onOpenRecord,
   ),
 );
 
@@ -66,6 +68,7 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
     required this.contactFields,
     required this.identityFields,
     required this.notes,
+    required this.onOpenRecord,
   });
 
   final String title;
@@ -81,6 +84,7 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
   final List<BusinessPartnerProfileField> contactFields;
   final List<BusinessPartnerProfileField> identityFields;
   final String? notes;
+  final Future<void> Function(Map<String, Object?> record)? onOpenRecord;
 
   @override
   Widget build(BuildContext context) {
@@ -246,6 +250,7 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
                 icon: Icons.handshake_outlined,
                 records: _records(summary['crmOpportunities']),
                 primaryKeys: const ['opportunityNumber', 'title', 'id'],
+                onOpenRecord: onOpenRecord,
               ),
               const SizedBox(height: 14),
               _RelatedRecords(
@@ -253,6 +258,7 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
                 icon: Icons.car_repair_outlined,
                 records: _records(summary['maintenanceHistory']),
                 primaryKeys: const ['orderNumber', 'carName', 'id'],
+                onOpenRecord: onOpenRecord,
               ),
             ],
             const SizedBox(height: 14),
@@ -266,6 +272,23 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
               icon: Icons.account_tree_outlined,
               records: _records(summary['commercialChain']),
               primaryKeys: const ['orderNumber', 'documentNumber', 'id'],
+              onOpenRecord: onOpenRecord,
+            ),
+            const SizedBox(height: 14),
+            _RelatedRecords(
+              title: AppTranslation.translate(
+                'Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø­Ø³Ø¨ Ø§Ù„Ø¹Ù…Ù„Ø©',
+              ),
+              icon: Icons.account_balance_outlined,
+              records: _records(summary['accountsByCurrency']),
+              primaryKeys: const ['accountName', 'currencyCode', 'accountId'],
+            ),
+            const SizedBox(height: 14),
+            _RelatedRecords(
+              title: AppTranslation.translate('Ø­Ø±ÙƒØ§Øª Ø§Ù„Ø£Ø³ØªØ§Ø°'),
+              icon: Icons.menu_book_outlined,
+              records: _records(summary['ledgerMovements']),
+              primaryKeys: const ['entryNumber', 'description', 'entryId'],
             ),
             if ((notes ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -341,11 +364,13 @@ class _RelatedRecords extends StatelessWidget {
     required this.icon,
     required this.records,
     required this.primaryKeys,
+    this.onOpenRecord,
   });
   final String title;
   final IconData icon;
   final List<Map<String, Object?>> records;
   final List<String> primaryKeys;
+  final Future<void> Function(Map<String, Object?> record)? onOpenRecord;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -374,7 +399,18 @@ class _RelatedRecords extends StatelessWidget {
             final status = record['workflowStage'] ?? record['status'] ?? '';
             final date = record['maintenanceDate'] ?? record['createdAt'] ?? '';
             return ListTile(
-              leading: const Icon(Icons.open_in_new_outlined, size: 19),
+              key: ValueKey(
+                'related-${record['entityType'] ?? 'record'}-${record['id'] ?? record['accountId'] ?? titleValue}',
+              ),
+              leading: Icon(
+                onOpenRecord == null
+                    ? Icons.description_outlined
+                    : Icons.open_in_new_outlined,
+                size: 19,
+              ),
+              onTap: onOpenRecord == null
+                  ? null
+                  : () async => onOpenRecord!(record),
               title: AppSelectableText(
                 titleValue,
                 style: const TextStyle(fontWeight: FontWeight.w800),

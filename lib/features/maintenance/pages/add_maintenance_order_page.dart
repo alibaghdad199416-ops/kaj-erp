@@ -18,6 +18,17 @@ import 'package:quality_line_erp/features/maintenance/models/maintenance_order_m
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 
+String? resolveInitialMaintenanceVehicle({
+  required String? initialCarId,
+  required String? opportunityId,
+  required Iterable<String> eligibleCarIds,
+}) {
+  final explicit = initialCarId?.trim();
+  if (explicit != null && explicit.isNotEmpty) return explicit;
+  if ((opportunityId?.trim() ?? '').isNotEmpty) return null;
+  return eligibleCarIds.firstOrNull;
+}
+
 class AddMaintenanceOrderPage extends StatefulWidget {
   const AddMaintenanceOrderPage({
     super.key,
@@ -119,7 +130,11 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
       }
       if (!mounted) return;
       final soldCars = maintenance.eligibleVehicles;
-      _carId ??= soldCars.isEmpty ? null : soldCars.first.carId;
+      _carId = resolveInitialMaintenanceVehicle(
+        initialCarId: _carId,
+        opportunityId: widget.opportunityId,
+        eligibleCarIds: soldCars.map((vehicle) => vehicle.carId),
+      );
     } catch (error) {
       if (!mounted) return;
       _loadError = userFacingError(

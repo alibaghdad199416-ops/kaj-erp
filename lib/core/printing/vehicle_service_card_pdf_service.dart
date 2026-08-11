@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 
@@ -28,8 +29,9 @@ class VehicleServiceCardPdfService {
   }) async {
     arabic = PdfTextSupport.canonicalPdfArabic(arabic);
     final fonts = await PdfTextSupport.loadFonts();
-    final vehicle = _map(card['vehicle']);
-    final history = _list(card['maintenanceHistory']);
+    final presentation = buildPresentation(card);
+    final vehicle = _map(presentation['vehicle']);
+    final history = _list(presentation['maintenanceHistory']);
     String t(String ar, String en) => arabic ? ar : en;
     String clean(Object? value) => PdfTextSupport.sanitize(value);
     final document = pw.Document(
@@ -38,6 +40,16 @@ class VehicleServiceCardPdfService {
     );
     final primary = PdfColor.fromHex('#123B49');
     final accent = PdfColor.fromHex('#C59B45');
+    pw.MemoryImage? logo;
+    try {
+      final data = await rootBundle.load(
+        'assets/images/khat_al_jawda_logo.jpg',
+      );
+      logo = pw.MemoryImage(data.buffer.asUint8List());
+    } catch (_) {
+      logo = null;
+    }
+    final generatedAt = DateTime.now().toLocal().toIso8601String();
     document.addPage(
       pw.MultiPage(
         textDirection: arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr,
@@ -50,13 +62,29 @@ class VehicleServiceCardPdfService {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
-                clean(t('خط الجودة', 'QUALITY LINE')),
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  color: primary,
-                  fontSize: 17,
-                ),
+              pw.Row(
+                children: [
+                  if (logo != null)
+                    pw.SizedBox(width: 42, height: 42, child: pw.Image(logo)),
+                  if (logo != null) pw.SizedBox(width: 8),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        clean(t('شركة خط الجودة', 'Quality Line Company')),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          color: primary,
+                          fontSize: 15,
+                        ),
+                      ),
+                      pw.Text(
+                        clean('${t('وقت الإنشاء', 'Generated')}: $generatedAt'),
+                        style: const pw.TextStyle(fontSize: 7),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               pw.Text(
                 clean(t('بطاقة خدمة المركبة', 'Vehicle Service Card')),
@@ -136,6 +164,20 @@ class VehicleServiceCardPdfService {
                     ),
                     style: pw.TextStyle(font: fonts.bold, fontSize: 10),
                   ),
+                  if ((order['opportunityNumber']?.toString() ?? '').isNotEmpty)
+                    pw.Text(
+                      clean(
+                        '${t('الفرصة', 'Opportunity')}: ${order['opportunityNumber']}',
+                      ),
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
+                  if ((order['invoiceNumber']?.toString() ?? '').isNotEmpty)
+                    pw.Text(
+                      clean(
+                        '${t('الفاتورة', 'Invoice')}: ${order['invoiceNumber']}',
+                      ),
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
                   pw.Text(
                     clean(
                       '${t('الحالة', 'Status')}: ${order['workflowStage'] ?? order['status'] ?? '—'}',
@@ -163,6 +205,75 @@ class VehicleServiceCardPdfService {
       ),
     );
     return document.save();
+  }
+
+  Map<String, Object?> buildPresentation(Map<String, Object?> card) {
+    final rawVehicle = _map(card['vehicle']);
+    const vehicleKeys = <String>{
+      'carNumber',
+      'brand',
+      'model',
+      'year',
+      'chassis',
+      'plateNumber',
+      'color',
+      'vehicleType',
+      'status',
+      'warehouseName',
+      'customerName',
+      'purchaseReference',
+      'salesReference',
+    };
+    const orderKeys = <String>{
+      'orderNumber',
+      'opportunityNumber',
+      'maintenanceDate',
+      'workflowStage',
+      'status',
+      'pricingType',
+      'customerName',
+      'currencyCode',
+      'salePrice',
+      'paidAmount',
+      'paymentStatus',
+      'warehouseName',
+      'stockIssueNumber',
+      'stockIssueStatus',
+      'invoiceNumber',
+      'invoiceStatus',
+      'notes',
+      'cancelReason',
+    };
+    const itemKeys = <String>{
+      'name',
+      'quantity',
+      'unitPrice',
+      'lineType',
+      'warehouseName',
+    };
+    return <String, Object?>{
+      'vehicle': <String, Object?>{
+        for (final entry in rawVehicle.entries)
+          if (vehicleKeys.contains(entry.key)) entry.key: entry.value,
+      },
+      'maintenanceHistory': _list(card['maintenanceHistory'])
+          .map(
+            (order) => <String, Object?>{
+              for (final entry in order.entries)
+                if (orderKeys.contains(entry.key)) entry.key: entry.value,
+              'items': _list(order['items'])
+                  .map(
+                    (item) => <String, Object?>{
+                      for (final entry in item.entries)
+                        if (itemKeys.contains(entry.key))
+                          entry.key: entry.value,
+                    },
+                  )
+                  .toList(growable: false),
+            },
+          )
+          .toList(growable: false),
+    };
   }
 
   static Map<String, Object?> _map(Object? raw) =>
