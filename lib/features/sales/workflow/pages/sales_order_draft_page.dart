@@ -430,18 +430,22 @@ class _SalesOrderDraftPageState extends State<SalesOrderDraftPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            KajCommercialDocumentHeader(
-              icon: Icons.point_of_sale_rounded,
-              title: _bi(
-                widget.orderId == null ? 'أمر بيع جديد' : 'تعديل أمر البيع',
-                widget.orderId == null ? 'New sales order' : 'Edit sales order',
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              KajCommercialDocumentHeader(
+                icon: Icons.point_of_sale_rounded,
+                title: _bi(
+                  widget.orderId == null ? 'أمر بيع جديد' : 'تعديل أمر البيع',
+                  widget.orderId == null
+                      ? 'New sales order'
+                      : 'Edit sales order',
+                ),
+                subtitle: _bi(
+                  'بيانات العميل والبنود والأسعار والتاريخ التشغيلي في نموذج واحد مرن.',
+                  'Customer, items, pricing, and operational date in one responsive form.',
+                ),
               ),
-              subtitle: _bi(
-                'بيانات العميل والبنود والأسعار والتاريخ التشغيلي في نموذج واحد مرن.',
-                'Customer, items, pricing, and operational date in one responsive form.',
-              ),
-            ),
-            const SizedBox(height: 12),
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              const SizedBox(height: 12),
             if ((widget.opportunityId ?? '').trim().isNotEmpty) ...[
               Card(
                 child: ListTile(

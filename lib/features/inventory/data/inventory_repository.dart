@@ -163,16 +163,45 @@ class InventoryRepository {
     QueryPage page = const QueryPage(),
     String? productId,
   }) async {
-    final raw = await Supabase.instance.client.rpc(
-      'erp_r28_inventory_movement_log',
-      params: <String, Object?>{
-        'p_company_id': CloudTenantContext.instance.companyUuid,
-        'p_product_id': productId,
-      },
-    );
+    final results = await Future.wait<Object?>([
+      Supabase.instance.client.rpc(
+        'erp_r28_inventory_movement_log',
+        params: <String, Object?>{
+          'p_company_id': CloudTenantContext.instance.companyUuid,
+          'p_product_id': productId,
+        },
+      ),
+      _cloud.list('erp_inventory'),
+    ]);
+    final raw = results[0];
+    final products = (results[1] as List<Map<String, dynamic>>);
+    final productCurrencyById = <String, String>{
+      for (final product in products)
+        if ((product['id']?.toString().trim() ?? '').isNotEmpty)
+          product['id'].toString(): _textValue(product, const [
+            'costCurrency',
+            'cost_currency',
+            'currency',
+          ]).toUpperCase(),
+    };
     final rows = (raw as List)
         .whereType<Map>()
-        .map((row) => Map<String, dynamic>.from(row))
+        .map((row) {
+          final mapped = Map<String, dynamic>.from(row);
+          final movementCurrency = _textValue(mapped, const [
+            'currency',
+            'costCurrency',
+            'cost_currency',
+          ]);
+          if (movementCurrency.isEmpty) {
+            final movementProductId = _textValue(mapped, const [
+              'productId',
+              'product_id',
+            ]);
+            mapped['currency'] = productCurrencyById[movementProductId] ?? '';
+          }
+          return mapped;
+        })
         .toList(growable: false);
     return rows
         .skip(page.offset)
@@ -266,6 +295,9 @@ class InventoryRepository {
       },
     );
   }
+
+  Future<bool> inventoryProductExists(String id) async =>
+      await _cloud.getById('erp_inventory', id) != null;
 
   Future<void> updateInventory(
     InventoryModel item, {

@@ -119,6 +119,10 @@ class CarModel {
   CarStatus get statusValue => CarStatusCodec.parse(status);
   double get totalCost => purchasePrice + maintenanceCost;
   double get expectedGrossProfit => salePrice - totalCost;
+  bool get isIncludedInCurrentInventoryValue =>
+      (statusValue == CarStatus.available ||
+          statusValue == CarStatus.selling) &&
+      warehouseId?.trim().isNotEmpty == true;
 
   void validate() {
     if (id.trim().isEmpty) throw ArgumentError('مرجع السيارة غير صالح');

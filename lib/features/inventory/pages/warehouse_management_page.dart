@@ -45,7 +45,7 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
   Future<void> _openEditor([WarehouseModel? warehouse]) async {
     final result = await showAppWorkspaceDialogBuilder<WarehouseModel>(
       context: context,
-      builder: (_) => _WarehouseEditor(warehouse: warehouse),
+      builder: (_) => WarehouseEditor(warehouse: warehouse),
     );
     if (result == null || !mounted) return;
     try {
@@ -234,7 +234,7 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
                           crossAxisCount: count,
                           mainAxisSpacing: 14,
                           crossAxisSpacing: 14,
-                          mainAxisExtent: 124,
+                          mainAxisExtent: 142,
                         ),
                         itemCount: rows.length,
                         itemBuilder: (_, index) => _WarehouseCard(
@@ -285,6 +285,8 @@ class _WarehouseCard extends StatelessWidget {
                 Expanded(
                   child: AppText(
                     warehouse.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
@@ -377,16 +379,16 @@ class _WarehouseCard extends StatelessWidget {
   );
 }
 
-class _WarehouseEditor extends StatefulWidget {
-  const _WarehouseEditor({this.warehouse});
+class WarehouseEditor extends StatefulWidget {
+  const WarehouseEditor({super.key, this.warehouse});
 
   final WarehouseModel? warehouse;
 
   @override
-  State<_WarehouseEditor> createState() => _WarehouseEditorState();
+  State<WarehouseEditor> createState() => _WarehouseEditorState();
 }
 
-class _WarehouseEditorState extends State<_WarehouseEditor> {
+class _WarehouseEditorState extends State<WarehouseEditor> {
   final _formKey = GlobalKey<FormState>();
 
   String get _writePermission =>

@@ -27,6 +27,8 @@ class MaintenanceOrderModel {
     this.cancelReason,
     this.maintenanceExpenseAccountId,
     this.updatedAt,
+    this.opportunityId,
+    this.opportunityNumber,
   });
 
   final String id;
@@ -56,6 +58,8 @@ class MaintenanceOrderModel {
   final String? cancelReason;
   final String? maintenanceExpenseAccountId;
   final DateTime? updatedAt;
+  final String? opportunityId;
+  final String? opportunityNumber;
 
   bool get isCancelled => workflowStage == 'cancelled';
   bool get canEdit => workflowStage != 'cancelled';
@@ -153,6 +157,8 @@ class MaintenanceOrderModel {
     cancelReason: map['cancelReason']?.toString(),
     maintenanceExpenseAccountId: map['maintenanceExpenseAccountId']?.toString(),
     updatedAt: DateTime.tryParse(map['updatedAt']?.toString() ?? ''),
+    opportunityId: map['opportunityId']?.toString(),
+    opportunityNumber: map['opportunityNumber']?.toString(),
   );
 }
 

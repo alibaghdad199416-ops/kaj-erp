@@ -745,11 +745,15 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
               children: [
                 Icon(icon, size: 20),
                 const SizedBox(width: 8),
-                AppText(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: AppText(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],

@@ -15,8 +15,11 @@ need('static const int buildNumber = 229008;' in release,'AppReleaseInfo build m
 need('fieldFill' not in theme,'unused fieldFill analyzer blocker must be removed')
 need('num _asNumber(' not in excel,'unused _asNumber analyzer blocker must be removed')
 need("const arabic = false" not in reports,'constant English branch must not create analyzer dead code')
-need("final language = _exportLanguage" in reports and "final l = _exportLanguage" in reports,'PDF/Excel must remain English-only through shared runtime language getter')
-need("String get _exportLanguage => 'en';" in reports,'export language must be English-only')
+need("final language = PdfTextSupport.canonicalPdfLanguage(options.language);" in reports,
+     'PDF export must honor the requested canonical Arabic/English language')
+need("final l = options.language;" in reports and
+     "final l = PdfTextSupport.canonicalPdfLanguage(options.language);" in reports,
+     'Excel and PDF export must use the explicitly requested language')
 need('PdfTextSupport.loadFonts()' in reports and 'Unable to load the PDF font pack required for report export' in reports,
      'PDF font safety contract must remain intact')
 if errors:
@@ -26,4 +29,4 @@ if errors:
 print('PASS V22.9.8 R2 analyzer/build closure')
 print('- release metadata synchronized with pubspec')
 print('- 14 known fatal analyzer warnings removed at source')
-print('- English-only report export retained without constant-condition dead code')
+print('- requested Arabic/English report export retained without constant-condition dead code')

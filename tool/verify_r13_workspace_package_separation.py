@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-import hashlib
+from verification_text import normalized_text_sha256
 import json
 from pathlib import Path
 
@@ -21,13 +21,13 @@ def read(relative: str) -> str:
 
 
 def sha(relative: str) -> str:
-    return hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+    return normalized_text_sha256(ROOT / relative)
 
 
 # Production targets must remain untouched.
 expected = {
     "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
-    ".firebaserc": "003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e",
+    ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }
 for relative, digest in expected.items():

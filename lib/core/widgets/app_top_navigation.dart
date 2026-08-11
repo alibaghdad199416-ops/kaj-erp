@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:quality_line_erp/app/brand_identity.dart';
 import 'package:quality_line_erp/app/route_names.dart';
+import 'package:quality_line_erp/core/auth/app_logout_coordinator.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/core/notifications/notification_unread_state.dart';
 import 'package:quality_line_erp/core/preferences/app_preferences_controller.dart';
@@ -855,15 +856,16 @@ class _NavigationActions extends StatelessWidget {
         icon: Icons.logout,
         onPressed: () async {
           final access = context.read<AccessController>();
-          await context.read<AppPreferencesController>().useGuestPreferences();
-          if (!context.mounted) return;
-          await Navigator.of(
-            context,
-            rootNavigator: true,
-          ).pushNamedAndRemoveUntil(AppRouteNames.login, (_) => false);
-          // Do not block the visible logout transition on remote audit/network
-          // work. The controller clears the local session synchronously first.
-          unawaited(access.logout());
+          final preferences = context.read<AppPreferencesController>();
+          await AppLogoutCoordinator.run(
+            clearAuthenticatedSession: access.logout,
+            activateGuestPreferences: preferences.useGuestPreferences,
+            isMounted: () => context.mounted,
+            navigateToLogin: () => Navigator.of(
+              context,
+              rootNavigator: true,
+            ).pushNamedAndRemoveUntil(AppRouteNames.login, (_) => false),
+          );
         },
       ),
     ];

@@ -49,6 +49,23 @@ class MaintenanceRepository {
         .toList(growable: false);
   }
 
+  Future<MaintenanceOrderModel?> findByOpportunity(String opportunityId) async {
+    final result = await _client.rpc(
+      'erp_r56_find_maintenance_by_opportunity',
+      params: {'p_company_id': _companyId, 'p_opportunity_id': opportunityId},
+    );
+    if (result is! Map) return null;
+    return MaintenanceOrderModel.fromMap(Map<String, dynamic>.from(result));
+  }
+
+  Future<Map<String, Object?>> getVehicleServiceCard(String carId) async {
+    final result = await _client.rpc(
+      'erp_r56_vehicle_service_card',
+      params: {'p_company_id': _companyId, 'p_car_id': carId},
+    );
+    return result is Map ? Map<String, Object?>.from(result) : const {};
+  }
+
   Future<void> createDraftOrder({
     required String carId,
     required String warehouseId,
@@ -58,12 +75,13 @@ class MaintenanceRepository {
     required List<MaintenancePartRequest> parts,
     required String currencyCode,
     String? maintenanceExpenseAccountId,
+    String? opportunityId,
     String? notes,
     DateTime? effectiveAt,
   }) async {
     _validate(laborCost, salePrice, parts);
     await _client.rpc(
-      'erp_r49_create_cloud_maintenance_order',
+      'erp_r56_create_cloud_maintenance_order',
       params: {
         'p_company_id': _companyId,
         'p_car_id': carId,
@@ -75,6 +93,7 @@ class MaintenanceRepository {
         'p_exchange_rate': 1,
         'p_notes': notes,
         'p_maintenance_expense_account_id': maintenanceExpenseAccountId,
+        'p_opportunity_id': opportunityId,
         'p_effective_at': (effectiveAt ?? DateTime.now())
             .toUtc()
             .toIso8601String(),

@@ -10,7 +10,10 @@ import 'package:quality_line_erp/features/customer_service/repositories/opportun
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 
 class OpportunitiesController extends ChangeNotifier {
-  final OpportunityRepository _repository = OpportunityRepository();
+  OpportunitiesController({OpportunityRepository? repository})
+    : _repository = repository ?? OpportunityRepository();
+
+  final OpportunityRepository _repository;
   List<OpportunityModel> _items = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -99,6 +102,22 @@ class OpportunitiesController extends ChangeNotifier {
 
   Future<void> markLost(OpportunityModel item) async {
     await _repository.markLost(item);
+    await loadOpportunities();
+  }
+
+  Future<void> saveAsLost(OpportunityModel item, {required bool isNew}) async {
+    if (isNew) {
+      await _repository.add(item);
+    } else {
+      await _repository.update(item);
+    }
+    final saved = (await _repository.getOpportunities())
+        .where((value) => value.id == item.id)
+        .firstOrNull;
+    if (saved == null) {
+      throw StateError('Opportunity read-back missing before mark_lost.');
+    }
+    await _repository.markLost(saved);
     await loadOpportunities();
   }
 

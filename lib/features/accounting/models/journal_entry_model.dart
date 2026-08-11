@@ -28,6 +28,10 @@ class JournalEntryModel {
   final DateTime? updatedAt;
 
   bool get isBalanced => (totalDebit - totalCredit).abs() <= 0.01;
+  String get sourceReferenceLabel => [
+    referenceType?.trim(),
+    referenceId?.trim(),
+  ].whereType<String>().where((value) => value.isNotEmpty).join(' • ');
 
   Map<String, dynamic> toMap() => {
     'id': id,

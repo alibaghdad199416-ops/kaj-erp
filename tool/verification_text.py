@@ -8,6 +8,15 @@ normal code, preserving quoted string contents exactly.
 """
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
+
+
+def normalized_text_sha256(path: Path) -> str:
+    """Hash text bytes while treating Git CRLF and LF worktrees identically."""
+    payload = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(payload).hexdigest()
+
 
 def compact_code(text: str) -> str:
     out: list[str] = []

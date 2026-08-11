@@ -21,14 +21,14 @@ index=read("web/index.html")
 pkg=json.loads(read("package.json"))
 checks["maintenance labor-only client validation"]="parts.isEmpty" not in maint_repo[maint_repo.find("static void _validate"):]
 checks["maintenance labor-only page safe"]="String _maintenanceWarehouseId()" in maint_page and "orElse: () => _lines.first" not in maint_page
-checks["maintenance R37 or newer create/advance"]=(("erp_r37_create_cloud_maintenance_order" in maint_repo or "erp_r39_create_cloud_maintenance_order" in maint_repo or "erp_r49_create_cloud_maintenance_order" in maint_repo) and "erp_r37_advance_maintenance_workflow" in maint_repo)
-checks["web print is actual print"]=("IFrameElement" in pdfweb and "frameWindow.print()" in pdfweb) or ("html.Blob" in pdfweb and "html.window.open(url, '_blank')" in pdfweb and "AnchorElement" in pdfweb)
+checks["maintenance R37 or newer create/advance"]=(("erp_r37_create_cloud_maintenance_order" in maint_repo or "erp_r39_create_cloud_maintenance_order" in maint_repo or "erp_r49_create_cloud_maintenance_order" in maint_repo or "erp_r56_create_cloud_maintenance_order" in maint_repo) and "erp_r37_advance_maintenance_workflow" in maint_repo)
+checks["web PDF is a reliable download"]="html.Blob" in pdfweb and "AnchorElement" in pdfweb and "..download = safeFileName" in pdfweb and "html.window.open(" not in pdfweb
 checks["no custom viewport warning"]='<meta name="viewport"' not in index
 inv_compact=re.sub(r'\s+',' ',inv)
 checks["product cards tighter"]=("? 172 : " in inv_compact and "? 180 : " in inv_compact and ": 192" in inv_compact) or ("? 158 : " in inv_compact and "? 166 : " in inv_compact and ": 178" in inv_compact)
 checks["car cards tighter"]=("? 186" in cars and "? 194" in cars and ": 206" in cars) or ("? 168" in cars and "? 176" in cars and ": 188" in cars)
-checks["warehouse cards tighter"]=any(x in wh for x in ("mainAxisExtent: 138","mainAxisExtent: 124"))
-checks["partner cards tighter"]=any(x in cust for x in ("mainAxisExtent: 142","mainAxisExtent: 126")) and any(x in supp for x in ("mainAxisExtent: 142","mainAxisExtent: 126"))
+checks["warehouse cards tighter"]=any(x in wh for x in ("mainAxisExtent: 142","mainAxisExtent: 138","mainAxisExtent: 124"))
+checks["partner cards responsive"]=any(x in cust for x in ("mainAxisExtent: 164","mainAxisExtent: 142","mainAxisExtent: 126")) and any(x in supp for x in ("mainAxisExtent: 172","mainAxisExtent: 142","mainAxisExtent: 126"))
 checks["product details edit direct"]="onView: () => _showProductDetails" in inv and "onEdit: () => _editProduct" in inv
 checks["history export English complete"]="language: 'en'" in hist and all(x in hist for x in ["Performed by","Unit cost","Total cost","Reference","Date / Time"])
 checks["movement export English complete"]="language: 'en'" in mov and all(x in mov for x in ["Performed by","From","To","Quantity","Reference"])

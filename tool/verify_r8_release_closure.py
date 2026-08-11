@@ -9,16 +9,20 @@ ROOT = Path(__file__).resolve().parents[1]
 def read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding='utf-8')
 
-def sha(rel: str) -> str:
-    return hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
+def normalized_config_digest(rel: str) -> str:
+    # Git may materialize tracked text files with LF or CRLF depending on the
+    # runner/worktree. Preserve configuration content while ignoring only
+    # newline encoding so the same release guard works on Windows and Linux.
+    payload = (ROOT / rel).read_bytes().replace(b'\r\n', b'\n')
+    return hashlib.sha256(payload).hexdigest()
 
 expected_hashes = {
     'dart_defines.json': '1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
-    '.firebaserc': '003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e',
+    '.firebaserc': 'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
     'firebase.json': 'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
 for rel, expected in expected_hashes.items():
-    actual = sha(rel)
+    actual = normalized_config_digest(rel)
     assert actual == expected, f'configuration changed: {rel}: {actual}'
 
 # Recycle-bin spreadsheet must expose explicit deletion identity and use typed XLSX cells.

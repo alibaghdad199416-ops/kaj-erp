@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const publicErrorCodes = new Set([
   'unauthenticated',
+  'company_context_required',
   'membership_not_found',
   'permission_denied',
   'invalid_input',
@@ -58,13 +59,19 @@ Deno.serve(async (req) => {
     const { data: authData, error: authError } = await callerClient.auth.getUser()
     if (authError || !authData.user) throw new Error('unauthenticated')
 
+    const body = await req.json()
+    const requestedCompanyId = String(body.company_id ?? '').trim()
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedCompanyId)) {
+      throw new Error('company_context_required')
+    }
+
     const admin = createClient(url, serviceKey)
     const { data: membership, error: membershipError } = await admin
       .from('company_memberships')
       .select('company_id,is_system_admin,role_code,companies!inner(slug)')
       .eq('user_id', authData.user.id)
+      .eq('company_id', requestedCompanyId)
       .eq('is_active', true)
-      .limit(1)
       .maybeSingle()
     if (membershipError || !membership) throw new Error('membership_not_found')
     // User creation is intentionally restricted to the tenant system
@@ -81,7 +88,6 @@ Deno.serve(async (req) => {
     createdCompanyId = String(membership.company_id)
     createdCompanySlug = companySlug
 
-    const body = await req.json()
     const email = String(body.email ?? '').trim().toLowerCase()
     const password = String(body.password ?? '')
     const fullName = String(body.full_name ?? '').trim()

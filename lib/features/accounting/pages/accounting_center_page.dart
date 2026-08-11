@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:quality_line_erp/core/printing/accounting_report_export_service.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 
 import 'package:flutter/material.dart';
@@ -424,36 +427,59 @@ class _AccountTreeNode extends StatelessWidget {
             Expanded(
               child: AppText(
                 '${account.code} — ${account.name}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-            IconButton(
-              tooltip: AppTranslation.translate('تعديل الحساب'),
-              onPressed: () => showAppModuleDialog<bool>(
-                context: context,
-                title: 'تعديل الحساب',
-                builder: (_) => _AddAccountForm(editing: account),
-              ),
-              icon: const Icon(Icons.edit_outlined),
-            ),
-            IconButton(
-              tooltip: AppTranslation.translate('إضافة حساب فرعي'),
-              onPressed: () => showAppModuleDialog<bool>(
-                context: context,
-                title: 'إضافة حساب فرعي',
-                builder: (_) => _AddAccountForm(parent: account),
-              ),
-              icon: const Icon(Icons.add_circle_outline_rounded),
-            ),
-            IconButton(
-              key: ValueKey('delete-account-${account.id}'),
-              tooltip: AppTranslation.translate('حذف الحساب'),
-              onPressed: () => _confirmDeleteAccount(context),
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
+            const SizedBox(width: 8),
+            AppText(
+              account.type,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
         ),
-        subtitle: AppText(account.type),
+        trailing: PopupMenuButton<String>(
+          key: ValueKey('account-actions-${account.id}'),
+          tooltip: AppTranslation.translate('إجراءات الحساب'),
+          onSelected: (action) {
+            if (action == 'edit') {
+              unawaited(
+                showAppModuleDialog<bool>(
+                  context: context,
+                  title: 'تعديل الحساب',
+                  builder: (_) => _AddAccountForm(editing: account),
+                ),
+              );
+            } else if (action == 'add') {
+              unawaited(
+                showAppModuleDialog<bool>(
+                  context: context,
+                  title: 'إضافة حساب فرعي',
+                  builder: (_) => _AddAccountForm(parent: account),
+                ),
+              );
+            } else if (action == 'delete') {
+              unawaited(_confirmDeleteAccount(context));
+            }
+          },
+          itemBuilder: (_) => <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: AppText(AppTranslation.translate('تعديل الحساب')),
+            ),
+            PopupMenuItem<String>(
+              value: 'add',
+              child: AppText(AppTranslation.translate('إضافة حساب فرعي')),
+            ),
+            PopupMenuItem<String>(
+              key: ValueKey('delete-account-${account.id}'),
+              value: 'delete',
+              child: AppText(AppTranslation.translate('حذف الحساب')),
+            ),
+          ],
+        ),
         children: children.isEmpty
             ? [const SizedBox(height: 8)]
             : children
@@ -794,6 +820,14 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
     _future = _initialize();
   }
 
+  @override
+  void didUpdateWidget(covariant _AccountingReportView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      _future = _load();
+    }
+  }
+
   Future<List<Map<String, Object?>>> _initialize() async {
     final repository = ProfessionalAccountingRepository();
     final results = await Future.wait<List<Map<String, Object?>>>([
@@ -1050,9 +1084,10 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
   }
 
   Widget _accountHierarchyGroupedTable(List<Map<String, Object?>> rows) {
-    String reportAccountCode(Object? value) => value == null
-        ? ''
-        : value.toString().trim().replaceAll(RegExp(r'[.,\s]'), '');
+    String reportAccountCode(Object? value) {
+      final raw = value?.toString().trim() ?? '';
+      return raw.isEmpty ? '' : ErpDisplayFormatter.accountCode(raw);
+    }
 
     String accountKey(Map<String, Object?> row) {
       final code = reportAccountCode(row['accountCode']);

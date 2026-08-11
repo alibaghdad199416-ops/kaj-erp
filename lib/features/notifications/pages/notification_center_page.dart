@@ -78,8 +78,17 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       _error = null;
     });
     try {
+      // Generated operational alerts are supplementary. A deployment that has
+      // not exposed the legacy aggregation RPC must not make the authoritative
+      // persistent notification inbox unusable.
+      final alertsFuture = _repository.loadAlerts().catchError((error, stack) {
+        AppLogger.debug(
+          'Supplementary notification alerts failed: $error\n$stack',
+        );
+        return <NotificationAlert>[];
+      });
       final results = await Future.wait<Object?>([
-        _repository.loadAlerts(),
+        alertsFuture,
         _repository.loadPersistentNotifications(),
         _repository.unreadCount(),
       ]);

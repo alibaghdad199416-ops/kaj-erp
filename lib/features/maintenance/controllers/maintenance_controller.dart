@@ -104,6 +104,7 @@ class MaintenanceController extends ChangeNotifier {
     required List<MaintenancePartRequest> parts,
     required String currencyCode,
     String? maintenanceExpenseAccountId,
+    String? opportunityId,
     String? notes,
     DateTime? effectiveAt,
   }) async {
@@ -116,6 +117,7 @@ class MaintenanceController extends ChangeNotifier {
       parts: parts,
       currencyCode: currencyCode,
       maintenanceExpenseAccountId: maintenanceExpenseAccountId,
+      opportunityId: opportunityId,
       notes: notes,
       effectiveAt: effectiveAt,
     );
@@ -155,6 +157,9 @@ class MaintenanceController extends ChangeNotifier {
 
   Future<List<MaintenanceLineModel>> getOrderLines(String orderId) =>
       _repository.getOrderLines(orderId);
+
+  Future<MaintenanceOrderModel?> findByOpportunity(String opportunityId) =>
+      _repository.findByOpportunity(opportunityId);
 
   Future<void> deleteOrder(String orderId, {String? reason}) async {
     await _repository.deleteOrder(orderId, reason: reason);

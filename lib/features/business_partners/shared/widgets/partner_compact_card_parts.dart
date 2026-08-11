@@ -10,6 +10,7 @@ class PartnerCompactValue extends StatelessWidget {
     final s = Theme.of(context).colorScheme;
     final text = value?.trim() ?? '';
     return Container(
+      constraints: const BoxConstraints(maxWidth: 102),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: s.surfaceContainerHighest.withValues(alpha: .45),
@@ -41,30 +42,23 @@ class PartnerCompactAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Theme.of(context).colorScheme;
     final color = destructive ? s.error : s.primary;
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        height: 25,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: InkWell(
+          onTap: onPressed,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: color.withValues(alpha: .35)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
-            AppText(
-              label,
-              style: TextStyle(
-                fontSize: 8.5,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
+          child: Container(
+            width: 25,
+            height: 25,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: color.withValues(alpha: .35)),
             ),
-          ],
+            child: Icon(icon, size: 13, color: color),
+          ),
         ),
       ),
     );

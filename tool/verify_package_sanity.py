@@ -106,7 +106,13 @@ if dependency_block:
     imported_packages = set(
         re.findall(r"package:([a-zA-Z0-9_]+)/", runtime_text)
     )
-    unused_direct_packages = sorted(direct_packages - imported_packages)
+    # Font packages can be consumed by Flutter's asset bundler without a Dart
+    # import. Keep this allowlist narrow so ordinary unused dependencies still
+    # fail the package gate.
+    asset_only_packages = {"cupertino_icons"}
+    unused_direct_packages = sorted(
+        direct_packages - imported_packages - asset_only_packages
+    )
     if unused_direct_packages:
         errors.append(
             "unused direct runtime dependencies: " + ", ".join(unused_direct_packages)

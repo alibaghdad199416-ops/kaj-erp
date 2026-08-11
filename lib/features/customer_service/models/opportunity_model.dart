@@ -1,3 +1,5 @@
+import 'package:quality_line_erp/core/models/model_value_reader.dart';
+
 enum OpportunityStatus { pending, won, lost }
 
 class OpportunityModel {
@@ -190,6 +192,9 @@ class OpportunityModel {
       return result.isEmpty ? fallback : result;
     }
 
+    Object? value(String key, {List<String> aliases = const []}) =>
+        ModelValueReader.raw(map, key, aliases: aliases);
+
     String? nullableText(Object? value) {
       final result = value?.toString().trim() ?? '';
       return result.isEmpty ? null : result;
@@ -210,50 +215,55 @@ class OpportunityModel {
       );
     }
 
-    final rawStatus = text(map['status']).toLowerCase();
+    final rawStatus = text(value('status')).toLowerCase();
     return OpportunityModel(
-      id: text(map['id']),
-      opportunityNumber: text(map['opportunityNumber'], fallback: '-'),
-      customerId: nullableText(map['customerId']),
-      customerName: text(map['customerName']),
-      customerPhone: text(map['customerPhone']),
-      title: text(map['title']),
-      source: text(map['source']),
-      expectedValue: number(map['expectedValue']),
-      currency: text(map['currency']).toUpperCase(),
-      stage: text(map['stage'], fallback: 'new').toLowerCase(),
-      probability: number(map['probability']).clamp(0, 100).toDouble(),
-      description: nullableText(map['description']),
-      expectedCloseDate: date(map['expectedCloseDate']),
-      winLossReason: nullableText(map['winLossReason']),
+      id: text(value('id')),
+      opportunityNumber: text(value('opportunityNumber'), fallback: '-'),
+      customerId: nullableText(value('customerId')),
+      customerName: text(value('customerName')),
+      customerPhone: text(value('customerPhone')),
+      title: text(value('title')),
+      source: text(value('source')),
+      expectedValue: number(value('expectedValue')),
+      currency: text(
+        value('currency', aliases: const ['currencyCode']),
+      ).toUpperCase(),
+      stage: text(value('stage'), fallback: 'new').toLowerCase(),
+      probability: number(value('probability')).clamp(0, 100).toDouble(),
+      description: nullableText(value('description')),
+      expectedCloseDate: date(value('expectedCloseDate')),
+      winLossReason: nullableText(value('winLossReason')),
       status: OpportunityStatus.values.firstWhere(
         (value) => value.name == rawStatus,
         orElse: () => OpportunityStatus.pending,
       ),
-      carId: nullableText(map['carId']),
-      carName: nullableText(map['carName']),
-      saleId: nullableText(map['salesOrderId'] ?? map['saleId']),
-      invoiceNumber: nullableText(map['invoiceNumber']),
-      salesOrderStatus: nullableText(map['salesOrderStatus']),
-      deliveryNumber: nullableText(map['deliveryNumber']),
-      deliveryStatus: nullableText(map['deliveryStatus']),
-      invoiceStatus: nullableText(map['invoiceStatus']),
-      paymentStatus: nullableText(map['paymentStatus']),
-      paidAmount: number(map['paidAmount']),
-      remainingAmount: number(map['remainingAmount']),
-      assignedUserId: text(map['assignedUserId']),
-      assignedUserName: text(map['assignedUserName']),
-      createdByUserId: text(map['createdByUserId']),
-      createdByUserName: text(map['createdByUserName']),
+      carId: nullableText(value('carId')),
+      carName: nullableText(value('carName')),
+      saleId: nullableText(value('salesOrderId', aliases: const ['saleId'])),
+      invoiceNumber: nullableText(value('invoiceNumber')),
+      salesOrderStatus: nullableText(value('salesOrderStatus')),
+      deliveryNumber: nullableText(value('deliveryNumber')),
+      deliveryStatus: nullableText(value('deliveryStatus')),
+      invoiceStatus: nullableText(value('invoiceStatus')),
+      paymentStatus: nullableText(value('paymentStatus')),
+      paidAmount: number(value('paidAmount')),
+      remainingAmount: number(value('remainingAmount')),
+      assignedUserId: text(value('assignedUserId')),
+      assignedUserName: text(value('assignedUserName')),
+      createdByUserId: text(value('createdByUserId')),
+      createdByUserName: text(value('createdByUserName')),
       createdAt: requiredDate(map, const [
         'createdAt',
+        'created_at',
         'updatedAt',
+        'updated_at',
         '_cloudUpdatedAt',
+        '_cloud_updated_at',
       ]),
-      followUpDate: date(map['followUpDate']),
-      closedAt: date(map['closedAt']),
-      notes: nullableText(map['notes']),
-      updatedAt: date(map['updatedAt']),
+      followUpDate: date(value('followUpDate')),
+      closedAt: date(value('closedAt')),
+      notes: nullableText(value('notes')),
+      updatedAt: date(value('updatedAt')),
     );
   }
 }

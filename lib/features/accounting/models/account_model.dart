@@ -1,3 +1,5 @@
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
+
 class AccountModel {
   const AccountModel({
     required this.id,
@@ -64,10 +66,7 @@ class AccountModel {
 
   static String _accountCode(Object? value) {
     final raw = _text(value);
-    if (raw.isEmpty) return raw;
-    // Account codes are database text identifiers. Preserve their hierarchy
-    // and punctuation exactly; formatting belongs to monetary values only.
-    return raw;
+    return raw.isEmpty ? raw : ErpDisplayFormatter.accountCode(raw);
   }
 
   static String _text(Object? value, {String fallback = ''}) {

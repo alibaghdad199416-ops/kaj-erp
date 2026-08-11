@@ -24,6 +24,7 @@ import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/core/widgets/app_top_navigation.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
+import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
 import 'package:quality_line_erp/features/purchases/pages/purchase_order_draft_page.dart';
 import 'package:quality_line_erp/features/purchases/repositories/purchase_workflow_repository.dart';
 import 'package:quality_line_erp/features/sales/workflow/pages/sales_order_draft_page.dart';
@@ -37,10 +38,14 @@ class OrderDetailsDialog extends StatefulWidget {
     super.key,
     required this.orderId,
     required this.purchase,
+    this.initialDetails,
+    this.initialDocuments = const <Map<String, Object?>>[],
   });
 
   final String orderId;
   final bool purchase;
+  final CommercialOrderDetails? initialDetails;
+  final List<Map<String, Object?>> initialDocuments;
 
   @override
   State<OrderDetailsDialog> createState() => _OrderDetailsDialogState();
@@ -70,7 +75,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       );
 
   final _money = NumberFormat('#,##0.##');
-  final _detailsRepository = CommercialOrderDetailsRepository();
+  CommercialOrderDetailsRepository? _detailsRepository;
   final _documentRepository = DocumentManagementRepository();
   final _documentStorage = DocumentStorageRepository();
   final _pdfService = const EnterpriseDocumentPdfService();
@@ -95,7 +100,24 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    final initial = widget.initialDetails;
+    if (initial == null) {
+      unawaited(_load());
+      return;
+    }
+    _order = initial.order;
+    _items = initial.items;
+    _logistics = initial.logistics;
+    _invoices = initial.invoices;
+    _payments = initial.payments;
+    _movements = initial.movements;
+    _journalEntries = initial.journalEntries;
+    _auditTrail = _sortAuditTrail(initial.auditTrail);
+    _documents = List<Map<String, Object?>>.unmodifiable(
+      widget.initialDocuments,
+    );
+    _documentsLoaded = true;
+    _loading = false;
   }
 
   Future<void> _load() async {
@@ -122,10 +144,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                   return <Map<String, Object?>>[];
                 });
       final results = await Future.wait<Object?>(<Future<Object?>>[
-        _detailsRepository.loadComplete(
-          orderId: widget.orderId,
-          purchase: widget.purchase,
-        ),
+        (_detailsRepository ??= CommercialOrderDetailsRepository())
+            .loadComplete(orderId: widget.orderId, purchase: widget.purchase),
         documentsFuture,
       ]);
       final details = results[0] as CommercialOrderDetails;
@@ -915,6 +935,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
             ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _workflow(order),
+                const SizedBox(height: 12),
                 _summary(order),
                 const SizedBox(height: 12),
                 AppText(
@@ -1036,6 +1058,54 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _workflow(Map<String, Object?> order) {
+    final logisticsApproved = _logistics.any(
+      (row) => row['status']?.toString().toLowerCase() == 'approved',
+    );
+    final invoiceApproved = _invoices.any(
+      (row) => row['status']?.toString().toLowerCase() == 'approved',
+    );
+    final paid = _invoices.any((row) => _number(row['remainingAmount']) <= .01);
+    final orderApproved = const <String>{
+      'approved',
+      'partially_executed',
+      'completed',
+      'closed',
+    }.contains(order['status']?.toString().toLowerCase());
+    final opportunityLinked =
+        !widget.purchase &&
+        (order['opportunityId']?.toString().trim().isNotEmpty ?? false);
+    final index = paid
+        ? (widget.purchase ? 3 : 4)
+        : invoiceApproved
+        ? (widget.purchase ? 2 : 3)
+        : logisticsApproved
+        ? (widget.purchase ? 1 : 2)
+        : orderApproved
+        ? (widget.purchase ? 0 : 1)
+        : opportunityLinked
+        ? 1
+        : 0;
+    return KajWorkflowStepper(
+      currentIndex: index,
+      compact: MediaQuery.sizeOf(context).width < 720,
+      steps: widget.purchase
+          ? <String>[
+              _bi('أمر الشراء', 'Purchase order'),
+              _bi('الاستلام', 'Receipt'),
+              _bi('الفاتورة', 'Invoice'),
+              _bi('الدفع', 'Payment'),
+            ]
+          : <String>[
+              _bi('الفرصة', 'Opportunity'),
+              _bi('أمر البيع', 'Sales order'),
+              _bi('التجهيز', 'Delivery'),
+              _bi('الفاتورة', 'Invoice'),
+              _bi('التحصيل', 'Payment'),
+            ],
     );
   }
 

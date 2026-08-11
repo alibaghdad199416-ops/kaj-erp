@@ -16,7 +16,12 @@ cars_page=text('lib/features/inventory/cars/pages/cars_page.dart')
 checks['car overflow fixed']='mainAxisExtent:' in cars_page and 'columns == 3' in cars_page and 'columns == 2' in cars_page
 inventory_page=text('lib/features/inventory/pages/inventory_page.dart')
 checks['product card overflow fixed']='mainAxisExtent:' in inventory_page and 'columns == 3' in inventory_page and 'columns == 2' in inventory_page
-checks['pdf font fallback']='pw.Font.helvetica()' in text('lib/core/printing/pdf_text_support.dart')
+pdf_support=text('lib/core/printing/pdf_text_support.dart')
+checks['bundled pdf font safety']=(
+    'assets/fonts/NotoNaskhArabic-Regular.ttf' in pdf_support and
+    'assets/fonts/NotoNaskhArabic-Bold.ttf' in pdf_support and
+    'rootBundle.load' in pdf_support
+)
 checks['browser pdf download']='BinaryDownloadService.save' in text('lib/features/sales/workflow/pages/order_details_dialog.dart')
 checks['record drilldown']='Widget _recordDetails' in text('lib/features/sales/workflow/pages/order_details_dialog.dart')
 checks['details no false empty']='Older workflow rows can have complete payloads' in text('lib/features/sales/workflow/models/commercial_order_details.dart')

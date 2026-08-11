@@ -7,9 +7,10 @@ import 'package:quality_line_erp/features/inventory/cars/models/car_model.dart';
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 class CarsController extends ChangeNotifier {
-  CarsController();
+  CarsController({CarRepository? repository})
+    : _repository = repository ?? CarRepository();
 
-  final CarRepository _repository = CarRepository();
+  final CarRepository _repository;
 
   List<CarModel> _cars = [];
   bool _isLoading = false;
@@ -48,6 +49,19 @@ class CarsController extends ChangeNotifier {
       AppDataChangeBus.instance.publish(
         'cars',
         operation: 'insert',
+        entityId: car.id,
+      );
+    } catch (error, stackTrace) {
+      var committed = false;
+      try {
+        committed = await _repository.carExists(car.id);
+      } catch (_) {
+        committed = false;
+      }
+      if (!committed) Error.throwWithStackTrace(error, stackTrace);
+      AppDataChangeBus.instance.publish(
+        'cars',
+        operation: 'insert-reconciled',
         entityId: car.id,
       );
     } finally {

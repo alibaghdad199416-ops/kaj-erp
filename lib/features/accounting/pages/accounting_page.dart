@@ -1201,13 +1201,13 @@ class _AccountingPageState extends State<AccountingPage> {
             AppText(
               '${entry.entryDate.toLocal().toString().split(' ').first} • ${entry.currency} • ${MoneyFormatter.format(entry.totalDebit, currency: entry.currency)}',
             ),
-            if ((entry.referenceType ?? '').trim().isNotEmpty)
+            if (entry.sourceReferenceLabel.isNotEmpty)
               FieldPermissionVisibility(
                 resource: 'accounting',
                 field: 'reference',
                 viewPermission: 'accounting.view',
                 child: AppText(
-                  '${context.l10n.isArabic ? 'المرجع' : 'Reference'}: ${entry.referenceType}',
+                  '${context.l10n.isArabic ? 'المصدر' : 'Source'}: ${entry.sourceReferenceLabel}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

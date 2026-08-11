@@ -11,7 +11,10 @@ import 'package:quality_line_erp/features/inventory/models/warehouse_stock_model
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 class InventoryController extends ChangeNotifier {
-  final InventoryRepository _repository = InventoryRepository();
+  InventoryController({InventoryRepository? repository})
+    : _repository = repository ?? InventoryRepository();
+
+  final InventoryRepository _repository;
 
   List<InventoryModel> _items = [];
   List<InventoryModel> _maintenanceItems = [];
@@ -180,12 +183,26 @@ class InventoryController extends ChangeNotifier {
     required int openingQuantity,
     List<String> imagesBase64 = const [],
   }) async {
-    await _repository.addInventory(
-      item,
-      warehouseId: warehouseId,
-      openingQuantity: openingQuantity,
-      imagesBase64: imagesBase64,
-    );
+    try {
+      await _repository.addInventory(
+        item,
+        warehouseId: warehouseId,
+        openingQuantity: openingQuantity,
+        imagesBase64: imagesBase64,
+      );
+    } catch (error, stackTrace) {
+      // A network response can fail after PostgreSQL committed. Reconcile the
+      // new UUID against the canonical store before reporting a failed save;
+      // otherwise the user sees an error and later finds a "ghost" selector
+      // entry that was actually committed.
+      var committed = false;
+      try {
+        committed = await _repository.inventoryProductExists(item.id);
+      } catch (_) {
+        committed = false;
+      }
+      if (!committed) Error.throwWithStackTrace(error, stackTrace);
+    }
     invalidateMaintenanceCatalog();
     invalidateInventoryCache();
     AppDataChangeBus.instance.publish('inventory', operation: 'insert');

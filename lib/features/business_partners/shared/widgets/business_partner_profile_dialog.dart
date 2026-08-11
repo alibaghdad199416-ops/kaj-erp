@@ -32,6 +32,8 @@ Future<void> showBusinessPartnerProfileDialog({
   List<BusinessPartnerProfileField> contactFields = const [],
   List<BusinessPartnerProfileField> identityFields = const [],
   String? notes,
+  Future<void> Function(Map<String, Object?> record)? onOpenRecord,
+  bool Function(Map<String, Object?> record)? canOpenRecord,
 }) => showAppWorkspaceDialogBuilder<void>(
   context: context,
   builder: (_) => _BusinessPartnerProfileDialog(
@@ -48,6 +50,8 @@ Future<void> showBusinessPartnerProfileDialog({
     contactFields: contactFields,
     identityFields: identityFields,
     notes: notes,
+    onOpenRecord: onOpenRecord,
+    canOpenRecord: canOpenRecord,
   ),
 );
 
@@ -66,6 +70,8 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
     required this.contactFields,
     required this.identityFields,
     required this.notes,
+    required this.onOpenRecord,
+    required this.canOpenRecord,
   });
 
   final String title;
@@ -81,6 +87,8 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
   final List<BusinessPartnerProfileField> contactFields;
   final List<BusinessPartnerProfileField> identityFields;
   final String? notes;
+  final Future<void> Function(Map<String, Object?> record)? onOpenRecord;
+  final bool Function(Map<String, Object?> record)? canOpenRecord;
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +246,49 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             _Documents(title: documentsSectionTitle, documents: documents),
+            if (partnerType.toLowerCase().contains('customer') ||
+                partnerType.contains('عميل')) ...[
+              const SizedBox(height: 14),
+              _RelatedRecords(
+                title: AppTranslation.translate('الفرص وإدارة علاقات العملاء'),
+                icon: Icons.handshake_outlined,
+                records: _records(summary['crmOpportunities']),
+                primaryKeys: const ['opportunityNumber', 'title', 'id'],
+                onOpenRecord: onOpenRecord,
+                canOpenRecord: canOpenRecord,
+              ),
+              const SizedBox(height: 14),
+              _RelatedRecords(
+                title: AppTranslation.translate('سجل الصيانة'),
+                icon: Icons.car_repair_outlined,
+                records: _records(summary['maintenanceHistory']),
+                primaryKeys: const ['orderNumber', 'carName', 'id'],
+                onOpenRecord: onOpenRecord,
+                canOpenRecord: canOpenRecord,
+              ),
+            ],
+            const SizedBox(height: 14),
+            _RelatedRecords(
+              title: AppTranslation.translate(
+                partnerType.toLowerCase().contains('supplier') ||
+                        partnerType.contains('مورد')
+                    ? 'سلسلة المشتريات'
+                    : 'سلسلة المبيعات',
+              ),
+              icon: Icons.account_tree_outlined,
+              records: _records(summary['commercialChain']),
+              primaryKeys: const ['orderNumber', 'documentNumber', 'id'],
+              onOpenRecord: onOpenRecord,
+              canOpenRecord: canOpenRecord,
+            ),
+            const SizedBox(height: 14),
+            _PartnerAccountsSection(
+              accounts: _records(summary['accountsByCurrency']),
+            ),
+            const SizedBox(height: 14),
+            _PartnerLedgerSection(
+              movements: _records(summary['ledgerMovements']),
+            ),
             if ((notes ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 14),
               Card(
@@ -297,6 +348,359 @@ class _BusinessPartnerProfileDialog extends StatelessWidget {
         .map((entry) => MoneyFormatter.withCurrency(entry.value, entry.key))
         .join(' • ');
   }
+
+  static List<Map<String, Object?>> _records(Object? raw) => raw is List
+      ? raw
+            .whereType<Map>()
+            .map((value) => Map<String, Object?>.from(value))
+            .toList(growable: false)
+      : const [];
+}
+
+class _RelatedRecords extends StatelessWidget {
+  const _RelatedRecords({
+    required this.title,
+    required this.icon,
+    required this.records,
+    required this.primaryKeys,
+    this.onOpenRecord,
+    this.canOpenRecord,
+  });
+  final String title;
+  final IconData icon;
+  final List<Map<String, Object?>> records;
+  final List<String> primaryKeys;
+  final Future<void> Function(Map<String, Object?> record)? onOpenRecord;
+  final bool Function(Map<String, Object?> record)? canOpenRecord;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          leading: Icon(icon),
+          title: AppText(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          trailing: Chip(label: AppText('${records.length}')),
+        ),
+        const Divider(height: 1),
+        if (records.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: AppText(AppTranslation.translate('لا توجد سجلات مرتبطة.')),
+          )
+        else
+          ...records.take(30).map((record) {
+            final titleValue = primaryKeys
+                .map((key) => record[key]?.toString().trim() ?? '')
+                .firstWhere((value) => value.isNotEmpty, orElse: () => '—');
+            final status = record['workflowStage'] ?? record['status'] ?? '';
+            final date = record['maintenanceDate'] ?? record['createdAt'] ?? '';
+            final actionable =
+                onOpenRecord != null && (canOpenRecord?.call(record) ?? true);
+            return ListTile(
+              key: ValueKey(
+                'related-${record['entityType'] ?? 'record'}-${record['id'] ?? record['accountId'] ?? titleValue}',
+              ),
+              leading: Icon(
+                !actionable
+                    ? Icons.description_outlined
+                    : Icons.open_in_new_outlined,
+                size: 19,
+              ),
+              onTap: !actionable ? null : () async => onOpenRecord!(record),
+              title: AppSelectableText(
+                titleValue,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Wrap(
+                spacing: 8,
+                runSpacing: 5,
+                children: [
+                  for (final detail in <String, Object?>{
+                    'النوع': record['entityType'],
+                    'التاريخ': date,
+                    'الحالة': status,
+                    'العملة': record['currency'],
+                    'الإجمالي': record['total'],
+                    'المدفوع': record['paid'],
+                    'المستحق': record['outstanding'],
+                  }.entries)
+                    if ((detail.value?.toString().trim() ?? '').isNotEmpty)
+                      _RecordFact(detail.key, detail.value),
+                ],
+              ),
+            );
+          }),
+      ],
+    ),
+  );
+}
+
+class _RecordFact extends StatelessWidget {
+  const _RecordFact(this.label, this.value);
+  final String label;
+  final Object? value;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(7),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      child: AppText(
+        '${AppTranslation.translate(label)}: ${value ?? '—'}',
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+      ),
+    ),
+  );
+}
+
+class _PartnerAccountsSection extends StatelessWidget {
+  const _PartnerAccountsSection({required this.accounts});
+  final List<Map<String, Object?>> accounts;
+
+  @override
+  Widget build(BuildContext context) => _FinancialSection(
+    title: 'الحسابات حسب العملة',
+    icon: Icons.account_balance_outlined,
+    emptyText: 'لا توجد حسابات مرتبطة.',
+    children: [
+      for (final account in accounts)
+        _FinancialCard(
+          key: ValueKey('partner-account-${account['currencyCode']}'),
+          title: account['accountName']?.toString() ?? '—',
+          subtitle:
+              '${account['accountCode'] ?? '—'} • ${account['currencyCode'] ?? '—'}',
+          fields: [
+            _FinancialField('رمز الحساب', account['accountCode'], key: 'code'),
+            _FinancialField('اسم الحساب', account['accountName'], key: 'name'),
+            _FinancialField('العملة', account['currencyCode'], key: 'currency'),
+            _FinancialField(
+              'الرصيد الافتتاحي',
+              _money(account['openingBalance'], account['currencyCode']),
+              key: 'opening',
+            ),
+            _FinancialField(
+              'مدين',
+              _money(account['debit'], account['currencyCode']),
+              key: 'debit',
+            ),
+            _FinancialField(
+              'دائن',
+              _money(account['credit'], account['currencyCode']),
+              key: 'credit',
+            ),
+            _FinancialField(
+              'الرصيد الحالي',
+              _money(account['currentBalance'], account['currencyCode']),
+              key: 'current',
+            ),
+          ],
+        ),
+    ],
+  );
+}
+
+class _PartnerLedgerSection extends StatelessWidget {
+  const _PartnerLedgerSection({required this.movements});
+  final List<Map<String, Object?>> movements;
+
+  @override
+  Widget build(BuildContext context) => _FinancialSection(
+    title: 'حركات الأستاذ',
+    icon: Icons.menu_book_outlined,
+    emptyText: 'لا توجد حركات أستاذ مرتبطة.',
+    children: [
+      for (final movement in movements)
+        _FinancialCard(
+          key: ValueKey(
+            'partner-ledger-${movement['entryId'] ?? movement['id']}',
+          ),
+          title: movement['entryNumber']?.toString() ?? '—',
+          subtitle:
+              '${movement['documentType'] ?? '—'} • ${movement['documentReference'] ?? '—'}',
+          fields: [
+            _FinancialField('التاريخ', movement['date']),
+            _FinancialField(
+              'مرجع القيد',
+              movement['entryNumber'],
+              key: 'journal-reference',
+            ),
+            _FinancialField(
+              'نوع المستند',
+              movement['documentType'],
+              key: 'document-type',
+            ),
+            _FinancialField(
+              'مرجع المستند',
+              movement['documentReference'],
+              key: 'document-reference',
+            ),
+            _FinancialField(
+              'مدين',
+              _money(movement['debit'], movement['currency']),
+            ),
+            _FinancialField(
+              'دائن',
+              _money(movement['credit'], movement['currency']),
+            ),
+            _FinancialField('العملة', movement['currency']),
+            _FinancialField('الوصف', movement['description']),
+          ],
+        ),
+    ],
+  );
+}
+
+class _FinancialSection extends StatelessWidget {
+  const _FinancialSection({
+    required this.title,
+    required this.icon,
+    required this.emptyText,
+    required this.children,
+  });
+  final String title;
+  final IconData icon;
+  final String emptyText;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AppText(
+                  AppTranslation.translate(title),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Chip(label: AppText('${children.length}')),
+            ],
+          ),
+          const Divider(),
+          if (children.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: AppText(AppTranslation.translate(emptyText)),
+            )
+          else
+            LayoutBuilder(
+              builder: (_, constraints) {
+                final columns = constraints.maxWidth >= 760 ? 2 : 1;
+                final width = columns == 2
+                    ? (constraints.maxWidth - 10) / 2
+                    : constraints.maxWidth;
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final child in children)
+                      SizedBox(width: width, child: child),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _FinancialCard extends StatelessWidget {
+  const _FinancialCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.fields,
+  });
+  final String title;
+  final String subtitle;
+  final List<_FinancialField> fields;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppSelectableText(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          AppText(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const Divider(),
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              for (final field in fields)
+                SizedBox(
+                  key: field.key == null
+                      ? null
+                      : ValueKey('$title-${field.key}'),
+                  width: 145,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(
+                        AppTranslation.translate(field.label),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      AppSelectableText(
+                        field.value?.toString() ?? '—',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _FinancialField {
+  const _FinancialField(this.label, this.value, {this.key});
+  final String label;
+  final Object? value;
+  final String? key;
+}
+
+String _money(Object? value, Object? currency) {
+  final amount = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  final code = currency?.toString().trim().toUpperCase() ?? '';
+  return MoneyFormatter.withCurrency(amount, code);
 }
 
 class _Avatar extends StatelessWidget {
@@ -400,9 +804,11 @@ class _InfoCard extends StatelessWidget {
             children: [
               Icon(icon, size: 19),
               const SizedBox(width: 7),
-              AppText(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w900),
+              Expanded(
+                child: AppText(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
               ),
             ],
           ),

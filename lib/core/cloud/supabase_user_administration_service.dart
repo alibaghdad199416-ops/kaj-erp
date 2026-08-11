@@ -3,6 +3,14 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'cloud_tenant_context.dart';
+
+typedef UserAdministrationFunctionInvoker =
+    Future<Map<String, dynamic>> Function(
+      String functionName,
+      Map<String, dynamic> body,
+    );
+
 class CloudCreatedUser {
   const CloudCreatedUser({required this.userId, required this.email});
   final String userId;
@@ -12,8 +20,14 @@ class CloudCreatedUser {
 /// Invokes trusted Edge Functions for the complete cloud user lifecycle. The
 /// service-role key remains inside Supabase and never reaches the Flutter app.
 class SupabaseUserAdministrationService {
-  SupabaseUserAdministrationService._();
+  SupabaseUserAdministrationService._({this._functionInvoker});
   static final instance = SupabaseUserAdministrationService._();
+
+  factory SupabaseUserAdministrationService.forTesting({
+    required UserAdministrationFunctionInvoker functionInvoker,
+  }) => SupabaseUserAdministrationService._(functionInvoker: functionInvoker);
+
+  final UserAdministrationFunctionInvoker? _functionInvoker;
 
   Future<CloudCreatedUser> createUser({
     required String email,
@@ -23,6 +37,7 @@ class SupabaseUserAdministrationService {
     required String roleCode,
     required Map<String, dynamic> erpUserPayload,
   }) async {
+    final companyId = _activeCompanyId();
     final normalizedEmail = _validatedEmail(email);
     if (password.length < 8) {
       throw ArgumentError('كلمة المرور يجب ألا تقل عن 8 أحرف.');
@@ -31,6 +46,7 @@ class SupabaseUserAdministrationService {
     final data = await _invoke(
       functionName: 'admin-create-user',
       body: <String, dynamic>{
+        'company_id': companyId,
         'email': normalizedEmail,
         'password': password,
         'full_name': fullName.trim(),
@@ -55,9 +71,11 @@ class SupabaseUserAdministrationService {
     required bool isActive,
     required Map<String, dynamic> erpUserPayload,
   }) async {
+    final companyId = _activeCompanyId();
     await _invoke(
       functionName: 'admin-manage-user',
       body: <String, dynamic>{
+        'company_id': companyId,
         'action': 'update',
         'target_user_id': cloudUserId,
         'local_user_id': localUserId,
@@ -74,9 +92,11 @@ class SupabaseUserAdministrationService {
     required String cloudUserId,
     required String localUserId,
   }) async {
+    final companyId = _activeCompanyId();
     await _invoke(
       functionName: 'admin-manage-user',
       body: <String, dynamic>{
+        'company_id': companyId,
         'action': 'delete',
         'target_user_id': cloudUserId,
         'local_user_id': localUserId,
@@ -92,11 +112,26 @@ class SupabaseUserAdministrationService {
     return normalized;
   }
 
+  String _activeCompanyId() {
+    final tenant = CloudTenantContext.instance;
+    final companyId = tenant.companyUuid?.trim() ?? '';
+    if (!tenant.isBootstrapReady || companyId.isEmpty) {
+      throw StateError(
+        'لا توجد شركة سحابية نشطة. اختر الشركة أو أعد تسجيل الدخول ثم حاول مجددًا.',
+      );
+    }
+    return companyId;
+  }
+
   Future<Map<String, dynamic>> _invoke({
     required String functionName,
     required Map<String, dynamic> body,
   }) async {
     try {
+      final functionInvoker = _functionInvoker;
+      if (functionInvoker != null) {
+        return await functionInvoker(functionName, body);
+      }
       final response = await Supabase.instance.client.functions
           .invoke(functionName, body: body)
           .timeout(const Duration(seconds: 35));
@@ -128,14 +163,23 @@ class SupabaseUserAdministrationService {
         final decoded = jsonDecode(details);
         if (decoded is Map) return decoded['error']?.toString();
       } on FormatException {
-        return null;
+        // Plain gateway errors (for example a missing deployed function) do
+        // not carry the JSON error envelope used by our Edge Functions.
       }
     }
-    return null;
+    return switch (error.status) {
+      401 => 'unauthenticated',
+      403 => 'permission_denied',
+      404 => 'hosted_function_unavailable',
+      _ when error.status >= 500 => 'request_failed',
+      _ => null,
+    };
   }
 
   String _messageFor(String? code) {
     return switch (code) {
+      'company_context_required' =>
+        'لا توجد شركة سحابية نشطة. اختر الشركة أو أعد تسجيل الدخول ثم حاول مجددًا.',
       'unauthenticated' => 'انتهت الجلسة السحابية. سجّل الدخول مجددًا.',
       'permission_denied' => 'ليست لديك صلاحية إدارة هذا المستخدم.',
       'membership_not_found' => 'لا توجد عضوية سحابية فعالة للحساب الحالي.',
@@ -153,6 +197,8 @@ class SupabaseUserAdministrationService {
       'method_not_allowed' => 'طريقة طلب خدمة المستخدمين غير مسموحة.',
       'server_configuration_missing' =>
         'إعداد خدمة المستخدمين السحابية غير مكتمل.',
+      'hosted_function_unavailable' =>
+        'خدمة إدارة المستخدمين غير منشورة أو غير متاحة في بيئة Supabase الحالية. يلزم نشر Edge Function المعتمدة ثم إعادة المحاولة.',
       'company_slug_missing' => 'إعداد الشركة السحابية غير مكتمل.',
       'request_failed' =>
         'تعذر إكمال إدارة المستخدم السحابي بسبب خطأ في الخدمة.',

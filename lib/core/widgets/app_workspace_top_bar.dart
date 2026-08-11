@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:quality_line_erp/app/route_names.dart';
+import 'package:quality_line_erp/core/auth/app_logout_coordinator.dart';
 import 'package:quality_line_erp/core/cloud/erp_runtime_capabilities_controller.dart';
 import 'package:quality_line_erp/core/events/app_data_refresh_coordinator.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
@@ -115,15 +116,20 @@ class AppWorkspaceTopBar extends StatelessWidget {
                 icon: Icons.logout_rounded,
                 onPressed: () async {
                   final access = context.read<AccessController>();
-                  await context
-                      .read<AppPreferencesController>()
-                      .useGuestPreferences();
-                  if (!context.mounted) return;
-                  await Navigator.of(
-                    context,
-                    rootNavigator: true,
-                  ).pushNamedAndRemoveUntil(AppRouteNames.login, (_) => false);
-                  unawaited(access.logout());
+                  final preferences = context.read<AppPreferencesController>();
+                  await AppLogoutCoordinator.run(
+                    clearAuthenticatedSession: access.logout,
+                    activateGuestPreferences: preferences.useGuestPreferences,
+                    isMounted: () => context.mounted,
+                    navigateToLogin: () =>
+                        Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        ).pushNamedAndRemoveUntil(
+                          AppRouteNames.login,
+                          (_) => false,
+                        ),
+                  );
                 },
               ),
               if (!compact) const SizedBox(width: 8),

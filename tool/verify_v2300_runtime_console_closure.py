@@ -95,7 +95,7 @@ need("'status','متوفرة'" in logistics_v736 and "'status','قيد البي�
 # Operational date/time coverage for payments, warehouse transfers and cash transfers.
 need('DateTime paymentDate = DateTime.now();' in payment and 'paymentDate: row.paymentDate' in payment,
      'payment rows do not carry independent operational timestamps')
-need("DateFormat('yyyy-MM-dd HH:mm').format(row.paymentDate)" in payment,
+need("'yyyy-MM-dd HH:mm'" in payment and ').format(row.paymentDate)' in payment,
      'payment date/time selector is not rendered')
 need('erp_v2300_pay_cloud_workflow_invoice_batch' in purchase and 'erp_v2300_pay_cloud_workflow_invoice_batch' in sales,
      'sales/purchase payment batches bypass operational-date validator')

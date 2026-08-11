@@ -18,7 +18,9 @@ import 'package:quality_line_erp/features/business_partners/suppliers/controller
 import 'package:quality_line_erp/features/business_partners/suppliers/models/supplier_model.dart';
 import 'package:quality_line_erp/features/business_partners/suppliers/widgets/supplier_card.dart';
 import 'package:quality_line_erp/features/business_partners/shared/data/business_partner_card_service.dart';
+import 'package:quality_line_erp/features/business_partners/shared/data/partner_record_route.dart';
 import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
+import 'package:quality_line_erp/features/sales/workflow/pages/order_details_dialog.dart';
 import 'add_supplier_page.dart';
 
 enum _SupplierFilter { all, active, inactive }
@@ -243,7 +245,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
         padding: const EdgeInsets.all(10),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 320,
-          mainAxisExtent: 126,
+          mainAxisExtent: 172,
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
         ),
@@ -280,6 +282,10 @@ class _SuppliersPageState extends State<SuppliersPage> {
       icon: Icons.local_shipping_outlined,
       photoBase64: supplier.photoBase64,
       summary: summary,
+      onOpenRecord: _openPartnerRecord,
+      canOpenRecord: (record) =>
+          PartnerRecordRoute.resolve(record)?.destination ==
+          PartnerRecordDestination.purchaseOrder,
       identityFields: [
         if (context.read<AccessController>().canViewField(
           'suppliers',
@@ -364,6 +370,18 @@ class _SuppliersPageState extends State<SuppliersPage> {
           )
           ? supplier.notes
           : null,
+    );
+  }
+
+  Future<void> _openPartnerRecord(Map<String, Object?> record) async {
+    final route = PartnerRecordRoute.resolve(record);
+    if (route?.destination != PartnerRecordDestination.purchaseOrder ||
+        !mounted) {
+      return;
+    }
+    await showAppWorkspaceDialogBuilder<void>(
+      context: context,
+      builder: (_) => OrderDetailsDialog(orderId: route!.id, purchase: true),
     );
   }
 

@@ -1,6 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 class PdfFontPack {
   const PdfFontPack({required this.regular, required this.bold});
@@ -12,43 +11,21 @@ class PdfFontPack {
 abstract final class PdfTextSupport {
   static Future<PdfFontPack>? _fontFuture;
 
-  /// Browser PDF output is canonical English. The built-in browser-safe PDF
-  /// fonts cover Latin reliably and avoid AssetManifest/font-CDN failures.
-  /// Arabic PDF output remains available on non-Web platforms where Noto can
-  /// be loaded without the Flutter Web asset-manifest path.
   static String canonicalPdfLanguage(String requested) =>
-      kIsWeb ? 'en' : (requested.toLowerCase().startsWith('ar') ? 'ar' : 'en');
+      requested.toLowerCase().startsWith('ar') ? 'ar' : 'en';
 
-  static bool canonicalPdfArabic(bool requested) => !kIsWeb && requested;
+  static bool canonicalPdfArabic(bool requested) => requested;
 
   static Future<PdfFontPack> loadFonts() => _fontFuture ??= _loadFonts();
 
   static Future<PdfFontPack> _loadFonts() async {
-    // PdfGoogleFonts consults AssetManifest.json on Flutter Web. Modern Flutter
-    // debug servers expose AssetManifest.bin instead, which produced a noisy
-    // 404 and could abort exports. Browser exports are English-first and use
-    // built-in PDF fonts; Arabic/native exports keep Noto support.
-    if (kIsWeb) {
-      return PdfFontPack(
-        regular: pw.Font.helvetica(),
-        bold: pw.Font.helveticaBold(),
-      );
-    }
-    try {
-      // Noto Naskh contains Arabic and Latin glyphs. Using one font family for
-      // both languages avoids mixed baselines and missing-glyph squares inside
-      // the same table cell.
-      return PdfFontPack(
-        regular: await PdfGoogleFonts.notoNaskhArabicRegular(),
-        bold: await PdfGoogleFonts.notoNaskhArabicBold(),
-      );
-    } catch (_) {
-      // Native Arabic output must never silently fall back to a Latin-only
-      // font because that produces corrupted Arabic glyphs. Let the caller
-      // surface a localized error instead. Browser output never reaches this
-      // branch because canonicalPdfLanguage/canonicalPdfArabic force English.
-      rethrow;
-    }
+    // Bundle the fonts so Edge exports do not depend on popup/CDN policy or
+    // the deprecated JSON AssetManifest endpoint.
+    final regular = await rootBundle.load(
+      'assets/fonts/NotoNaskhArabic-Regular.ttf',
+    );
+    final bold = await rootBundle.load('assets/fonts/NotoNaskhArabic-Bold.ttf');
+    return PdfFontPack(regular: pw.Font.ttf(regular), bold: pw.Font.ttf(bold));
   }
 
   static String sanitize(Object? value, {bool singleLine = false}) {
