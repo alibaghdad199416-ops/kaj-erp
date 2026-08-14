@@ -39,6 +39,12 @@ String userFacingError(
         : 'The opportunity cannot be deleted while an active sales order is linked to it. Cancel or resolve the linked sales order first.';
   }
 
+  if (normalized.contains('opportunity_has_maintenance_history')) {
+    return isArabic
+        ? 'لا يمكن حذف الفرصة ما دام أمر صيانة غير محذوف مرتبطًا بها. ألغِ أمر الصيانة عند الحاجة ثم احذفه وفق دورة الحذف المعتمدة أولًا.'
+        : 'The opportunity cannot be deleted while a non-deleted maintenance order is linked to it. Cancel it if required, then complete the governed maintenance deletion lifecycle first.';
+  }
+
   if (normalized.contains('opportunity_customer_required')) {
     return isArabic
         ? 'يجب تحديد عميل صالح للفرصة قبل الحفظ.'
@@ -50,6 +56,18 @@ String userFacingError(
     return isArabic
         ? 'عميل الفرصة لا يطابق العميل في أمر البيع المرتبط. بعد إنشاء أمر البيع لا يمكن تغيير هوية العميل من الفرصة.'
         : 'The opportunity customer does not match the linked sales order. Customer identity cannot be changed from CRM after a sales order exists.';
+  }
+
+  if (normalized.contains('opportunity_maintenance_customer_locked')) {
+    return isArabic
+        ? 'عميل الفرصة لا يطابق العميل في أمر الصيانة المرتبط. عالج دورة الصيانة المرتبطة أولًا بدل تغيير هوية العميل من الفرصة.'
+        : 'The opportunity customer does not match the linked maintenance order. Resolve the linked maintenance lifecycle before changing customer identity in CRM.';
+  }
+
+  if (normalized.contains('opportunity_maintenance_vehicle_locked')) {
+    return isArabic
+        ? 'المركبة المرتبطة بالفرصة لا تطابق مركبة أمر الصيانة. لا يمكن تغيير المركبة من الفرصة ما دام أمر الصيانة مرتبطًا بها.'
+        : 'The opportunity vehicle does not match the linked maintenance order. The CRM vehicle cannot be changed while that maintenance lifecycle remains linked.';
   }
 
   if (normalized.contains('opportunity_currency_invalid')) {
