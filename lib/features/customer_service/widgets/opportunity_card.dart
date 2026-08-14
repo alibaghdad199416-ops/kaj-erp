@@ -125,6 +125,8 @@ class OpportunityCard extends StatelessWidget {
   ) async {
     if (!await PermissionAction.require(context, 'maintenance.cancel')) return;
     if (!context.mounted) return;
+    final maintenance = context.read<MaintenanceController>();
+    final opportunities = context.read<OpportunitiesController>();
     final reason = await _reason(
       context,
       titleAr: 'إلغاء أمر الصيانة وعكس آثاره',
@@ -135,13 +137,9 @@ class OpportunityCard extends StatelessWidget {
       confirmEn: 'Confirm cancellation',
     );
     if (reason == null || !context.mounted) return;
-    await context.read<MaintenanceController>().cancelOrder(
-      order.id,
-      reason: reason,
-    );
-    if (context.mounted) {
-      await context.read<OpportunitiesController>().load(force: true);
-    }
+    await maintenance.cancelOrder(order.id, reason: reason);
+    if (!context.mounted) return;
+    await opportunities.loadOpportunities();
   }
 
   Future<void> _deleteMaintenance(
@@ -150,6 +148,8 @@ class OpportunityCard extends StatelessWidget {
   ) async {
     if (!await PermissionAction.require(context, 'maintenance.delete')) return;
     if (!context.mounted) return;
+    final maintenance = context.read<MaintenanceController>();
+    final opportunities = context.read<OpportunitiesController>();
     final reason = await _reason(
       context,
       titleAr: _isMaintenanceDraft(order)
@@ -164,13 +164,9 @@ class OpportunityCard extends StatelessWidget {
       confirmEn: 'Delete',
     );
     if (reason == null || !context.mounted) return;
-    await context.read<MaintenanceController>().deleteOrder(
-      order.id,
-      reason: reason,
-    );
-    if (context.mounted) {
-      await context.read<OpportunitiesController>().load(force: true);
-    }
+    await maintenance.deleteOrder(order.id, reason: reason);
+    if (!context.mounted) return;
+    await opportunities.loadOpportunities();
   }
 
   Future<void> _openMaintenance(BuildContext context) async {
@@ -178,9 +174,11 @@ class OpportunityCard extends StatelessWidget {
     if (!await PermissionAction.require(context, 'maintenance.view')) return;
     if (!context.mounted) return;
 
+    final maintenance = context.read<MaintenanceController>();
+    final opportunities = context.read<OpportunitiesController>();
     try {
-      final maintenance = context.read<MaintenanceController>();
       var order = await maintenance.findByOpportunity(opportunity.id);
+      if (!context.mounted) return;
 
       if (order == null) {
         if (opportunity.status == OpportunityStatus.lost) {
@@ -201,7 +199,8 @@ class OpportunityCard extends StatelessWidget {
         if (changed != true || !context.mounted) return;
 
         order = await maintenance.findByOpportunity(opportunity.id);
-        await context.read<OpportunitiesController>().load(force: true);
+        if (!context.mounted) return;
+        await opportunities.loadOpportunities();
         if (!context.mounted) return;
         if (order == null) {
           throw StateError('maintenance_opportunity_link_missing_after_save');
@@ -210,7 +209,7 @@ class OpportunityCard extends StatelessWidget {
 
       final linkedOrder = order;
       final isDraft = _isMaintenanceDraft(linkedOrder);
-      final changed = await showAppWorkspaceDialog<bool>(
+      await showAppWorkspaceDialog<bool>(
         context: context,
         child: MaintenanceOrderDetailsDialog(
           order: linkedOrder,
@@ -225,11 +224,10 @@ class OpportunityCard extends StatelessWidget {
               : null,
         ),
       );
-      if (context.mounted && changed == true) {
-        await context.read<OpportunitiesController>().load(force: true);
-      } else if (context.mounted) {
-        await context.read<OpportunitiesController>().load(force: true);
-      }
+      if (!context.mounted) return;
+      // A mutation inside the details window reloads its own authoritative R64
+      // snapshot. Refresh the CRM projection as the window closes as well.
+      await opportunities.loadOpportunities();
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -377,18 +375,30 @@ class OpportunityCard extends StatelessWidget {
                   runSpacing: 5,
                   children: [
                     if ((opportunity.carName ?? '').trim().isNotEmpty)
-                      _field('car', _info(Icons.directions_car_outlined, opportunity.carName!)),
+                      _field(
+                        'car',
+                        _info(
+                          Icons.directions_car_outlined,
+                          opportunity.carName!,
+                        ),
+                      ),
                     if (opportunity.assignedUserName.trim().isNotEmpty)
                       _field(
                         'assignedUserName',
-                        _info(Icons.person_outline, opportunity.assignedUserName),
+                        _info(
+                          Icons.person_outline,
+                          opportunity.assignedUserName,
+                        ),
                       ),
                     if (opportunity.expectedValue > 0)
                       _field(
                         'value',
                         _info(
                           Icons.payments_outlined,
-                          const <String>{'USD', 'IQD'}.contains(opportunity.currency)
+                          const <String>{
+                                'USD',
+                                'IQD',
+                              }.contains(opportunity.currency)
                               ? MoneyFormatter.withCurrency(
                                   opportunity.expectedValue,
                                   opportunity.currency,
@@ -404,7 +414,9 @@ class OpportunityCard extends StatelessWidget {
                         'followUpDate',
                         _info(
                           Icons.event_outlined,
-                          DateFormat('yyyy-MM-dd').format(opportunity.followUpDate!),
+                          DateFormat(
+                            'yyyy-MM-dd',
+                          ).format(opportunity.followUpDate!),
                         ),
                       ),
                     if (opportunity.source.trim().isNotEmpty)
@@ -418,13 +430,18 @@ class OpportunityCard extends StatelessWidget {
                     if (opportunity.createdByUserName.trim().isNotEmpty)
                       _field(
                         'createdBy',
-                        _info(Icons.badge_outlined, opportunity.createdByUserName),
+                        _info(
+                          Icons.badge_outlined,
+                          opportunity.createdByUserName,
+                        ),
                       ),
                     _field(
                       'createdAt',
                       _info(
                         Icons.schedule_outlined,
-                        DateFormat('yyyy-MM-dd HH:mm').format(opportunity.createdAt.toLocal()),
+                        DateFormat(
+                          'yyyy-MM-dd HH:mm',
+                        ).format(opportunity.createdAt.toLocal()),
                       ),
                     ),
                     if (opportunity.closedAt != null)
@@ -432,7 +449,9 @@ class OpportunityCard extends StatelessWidget {
                         'closedAt',
                         _info(
                           Icons.event_available_outlined,
-                          DateFormat('yyyy-MM-dd HH:mm').format(opportunity.closedAt!.toLocal()),
+                          DateFormat(
+                            'yyyy-MM-dd HH:mm',
+                          ).format(opportunity.closedAt!.toLocal()),
                         ),
                       ),
                     if (opportunity.updatedAt != null)
@@ -440,7 +459,9 @@ class OpportunityCard extends StatelessWidget {
                         'updatedAt',
                         _info(
                           Icons.update_outlined,
-                          DateFormat('yyyy-MM-dd HH:mm').format(opportunity.updatedAt!.toLocal()),
+                          DateFormat(
+                            'yyyy-MM-dd HH:mm',
+                          ).format(opportunity.updatedAt!.toLocal()),
                         ),
                       ),
                     if ((opportunity.salesOrderNumber ?? '').trim().isNotEmpty ||
@@ -450,9 +471,13 @@ class OpportunityCard extends StatelessWidget {
                         _info(
                           Icons.shopping_cart_outlined,
                           [
-                            if ((opportunity.salesOrderNumber ?? '').trim().isNotEmpty)
+                            if ((opportunity.salesOrderNumber ?? '')
+                                .trim()
+                                .isNotEmpty)
                               opportunity.salesOrderNumber!,
-                            if ((opportunity.salesOrderStatus ?? '').trim().isNotEmpty)
+                            if ((opportunity.salesOrderStatus ?? '')
+                                .trim()
+                                .isNotEmpty)
                               opportunity.salesOrderStatus!,
                           ].join(' • '),
                         ),
@@ -481,16 +506,24 @@ class OpportunityCard extends StatelessWidget {
                           '${t('الدفع', 'Payment')}: ${opportunity.paymentStatus}',
                         ),
                       ),
-                    if ((opportunity.maintenanceOrderNumber ?? '').trim().isNotEmpty ||
-                        (opportunity.maintenanceOrderStatus ?? '').trim().isNotEmpty)
+                    if ((opportunity.maintenanceOrderNumber ?? '')
+                            .trim()
+                            .isNotEmpty ||
+                        (opportunity.maintenanceOrderStatus ?? '')
+                            .trim()
+                            .isNotEmpty)
                       _field(
                         'linkedMaintenance',
                         _info(
                           Icons.build_circle_outlined,
                           [
-                            if ((opportunity.maintenanceOrderNumber ?? '').trim().isNotEmpty)
+                            if ((opportunity.maintenanceOrderNumber ?? '')
+                                .trim()
+                                .isNotEmpty)
                               opportunity.maintenanceOrderNumber!,
-                            if ((opportunity.maintenanceOrderStatus ?? '').trim().isNotEmpty)
+                            if ((opportunity.maintenanceOrderStatus ?? '')
+                                .trim()
+                                .isNotEmpty)
                               opportunity.maintenanceOrderStatus!,
                           ].join(' • '),
                         ),
@@ -504,18 +537,27 @@ class OpportunityCard extends StatelessWidget {
                 runSpacing: 4,
                 alignment: WrapAlignment.end,
                 children: [
-                  if (canUpdateStatus && opportunity.status == OpportunityStatus.pending)
+                  if (canUpdateStatus &&
+                      opportunity.status == OpportunityStatus.pending)
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 7,
+                        ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            KajDesignTokens.radiusSm,
+                          ),
                         ),
                       ),
                       onPressed: onLost,
                       icon: const Icon(Icons.close_rounded, size: 16),
-                      label: AppText(t('خاسرة', 'Lost'), style: const TextStyle(fontSize: 10)),
+                      label: AppText(
+                        t('خاسرة', 'Lost'),
+                        style: const TextStyle(fontSize: 10),
+                      ),
                     ),
                   if ((opportunity.saleId != null && canViewSale) ||
                       (opportunity.saleId == null &&
@@ -525,13 +567,21 @@ class OpportunityCard extends StatelessWidget {
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            KajDesignTokens.radiusSm,
+                          ),
                         ),
                       ),
                       onPressed: onWon,
-                      icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
+                      icon: const Icon(
+                        Icons.shopping_cart_checkout_rounded,
+                        size: 16,
+                      ),
                       label: AppText(
                         opportunity.saleId == null
                             ? t('أمر بيع', 'Sales order')
@@ -544,9 +594,14 @@ class OpportunityCard extends StatelessWidget {
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 7,
+                        ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            KajDesignTokens.radiusSm,
+                          ),
                         ),
                       ),
                       onPressed: () => _openMaintenance(context),
