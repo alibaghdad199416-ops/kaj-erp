@@ -162,9 +162,21 @@ for token in ("opportunity_id=", "opportunity_number="):
 # Opportunity-created Sales drafts must carry the Opportunity currency into the
 # UI instead of silently defaulting an IQD Opportunity to USD. Backend identity
 # validation remains the final authority.
-for token in ("this.initialCurrency", "final String? initialCurrency", "widget.initialCurrency?.trim().toUpperCase()"):
-    require(sales_draft, token, "Opportunity Sales currency seed")
+for token in (
+    "this.initialCurrency",
+    "final String? initialCurrency",
+    "widget.initialCurrency?.trim().toUpperCase()",
+    "this.initialOpportunityNumber",
+    "final String? initialOpportunityNumber",
+):
+    require(sales_draft, token, "Opportunity Sales seed")
 require(customer_service, "initialCurrency: opportunity.currency", "Opportunity center Sales currency seed")
+require(
+    customer_service,
+    "initialOpportunityNumber: opportunity.opportunityNumber",
+    "Opportunity center Sales business-reference seed",
+)
+forbid(sales_draft, "${widget.opportunityId}", "Sales draft user-visible Opportunity identity")
 require(add_opportunity, "initialCurrency: item.currency", "Opportunity editor Sales currency seed")
 
 # Daily CRM search/export must use human business references, not internal UUIDs.
@@ -207,4 +219,5 @@ print("  - Maintenance Cancel and Delete remain distinct governed operations")
 print("  - Opportunity <-> Maintenance readback is canonical and reopenable")
 print("  - Maintenance linked edits preserve the exact Opportunity relation")
 print("  - IQD/USD Opportunity currency seeds the linked Sales draft")
+print("  - Sales draft shows the human Opportunity business reference")
 print("  - CRM search/export uses human Sales and Maintenance references")
