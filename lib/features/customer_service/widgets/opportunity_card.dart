@@ -273,12 +273,18 @@ class OpportunityCard extends StatelessWidget {
                           ).format(opportunity.updatedAt!.toLocal()),
                         ),
                       ),
-                    if ((opportunity.salesOrderStatus ?? '').trim().isNotEmpty)
+                    if ((opportunity.salesOrderNumber ?? '').trim().isNotEmpty ||
+                        (opportunity.salesOrderStatus ?? '').trim().isNotEmpty)
                       _field(
                         'linkedSale',
                         _info(
                           Icons.shopping_cart_outlined,
-                          '${t('البيع', 'Sales')}: ${opportunity.salesOrderStatus}',
+                          [
+                            if ((opportunity.salesOrderNumber ?? '').trim().isNotEmpty)
+                              opportunity.salesOrderNumber!,
+                            if ((opportunity.salesOrderStatus ?? '').trim().isNotEmpty)
+                              opportunity.salesOrderStatus!,
+                          ].join(' • '),
                         ),
                       ),
                     if ((opportunity.deliveryNumber ?? '').trim().isNotEmpty)
