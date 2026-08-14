@@ -1,7 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_cost_reconciliation.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_snapshot.dart';
 import '../../../core/cloud/workflow_operation_exception.dart';
 
 /// Supabase-only vehicle maintenance repository.
@@ -47,6 +50,14 @@ class MaintenanceRepository {
           ),
         )
         .toList(growable: false);
+  }
+
+  Future<MaintenanceOrderSnapshot> getOrderSnapshot(String orderId) async {
+    final result = await _client.rpc(
+      'erp_r64_get_maintenance_order_snapshot',
+      params: {'p_company_id': _companyId, 'p_order_id': orderId},
+    );
+    return MaintenanceOrderSnapshot.fromRpc(result);
   }
 
   Future<MaintenanceOrderModel?> findByOpportunity(String opportunityId) async {
@@ -170,9 +181,75 @@ class MaintenanceRepository {
         .toList(growable: false);
   }
 
+  Future<MaintenanceCostReconciliation> getCostReconciliation(
+    String orderId,
+  ) async {
+    final results = await Future.wait<Object?>(<Future<Object?>>[
+      _client.rpc(
+        'erp_r57_maintenance_cost_reconciliation',
+        params: {'p_company_id': _companyId, 'p_order_id': orderId},
+      ),
+      _client.rpc(
+        'erp_r57_maintenance_material_issue_state',
+        params: {'p_company_id': _companyId, 'p_order_id': orderId},
+      ),
+    ]);
+    if (results[0] is! Map || results[1] is! Map) {
+      throw StateError('maintenance_cost_reconciliation_invalid');
+    }
+    return mergeMaintenanceReconciliationPayloads(
+      reconciliation: Map<String, Object?>.from(results[0] as Map),
+      issueState: Map<String, Object?>.from(results[1] as Map),
+    );
+  }
+
+  Future<List<Map<String, Object?>>> getIssueWarehouseOptions(
+    String partId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_r57_maintenance_issue_warehouse_options',
+      params: {'p_company_id': _companyId, 'p_part_id': partId},
+    );
+    return (result as List)
+        .map((row) => Map<String, Object?>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  Future<void> issueMaterial({
+    required String orderId,
+    required String partId,
+    required String warehouseId,
+    required double quantity,
+    String? issueId,
+  }) async {
+    await _client.rpc(
+      'erp_r57_execute_maintenance_material_issue',
+      params: {
+        'p_company_id': _companyId,
+        'p_order_id': orderId,
+        'p_issue_id': issueId ?? const Uuid().v4(),
+        'p_part_id': partId,
+        'p_warehouse_id': warehouseId,
+        'p_quantity': quantity,
+        'p_effective_at': DateTime.now().toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  Future<void> reverseMaterialIssue(String issueId, {String? reason}) async {
+    await _client.rpc(
+      'erp_r57_reverse_maintenance_material_issue',
+      params: {
+        'p_company_id': _companyId,
+        'p_issue_id': issueId,
+        'p_reason': reason,
+      },
+    );
+  }
+
   Future<void> deleteOrder(String orderId, {String? reason}) async {
     await _client.rpc(
-      'erp_delete_cloud_maintenance_order_v3',
+      'erp_r67_delete_maintenance_order',
       params: {
         'p_company_id': _companyId,
         'p_order_id': orderId,
@@ -252,7 +329,7 @@ class MaintenanceRepository {
 
   Future<void> cancelOrder(String orderId, {String? reason}) async {
     await _client.rpc(
-      'erp_cancel_cloud_maintenance_order',
+      'erp_r67_cancel_maintenance_order',
       params: {
         'p_company_id': _companyId,
         'p_order_id': orderId,

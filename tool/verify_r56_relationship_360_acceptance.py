@@ -21,7 +21,10 @@ def need(label, condition):
     print(('PASS ' if condition else 'FAIL ') + label)
     if not condition: failures.append(label)
 
-need('R56.1 is forward-only migration 261', len(migrations) == 261 and migrations[-1] == r561_path)
+need('R56.1 remains immutable after R56', r561_path in migrations
+     and migrations.index(r561_path) > 0
+     and migrations[migrations.index(r561_path) - 1].name
+         == '20260811123333_r56_opportunity_maintenance_vehicle_partner_360.sql')
 need('Opportunity maintenance is canonical and idempotent', all(x in migration for x in (
     'uq_r56_maintenance_active_opportunity', 'maintenance_vehicle_immutable',
     'maintenance_opportunity_vehicle_mismatch', 'return v_existing')))

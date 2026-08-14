@@ -118,6 +118,11 @@ class ModuleTranslationCatalog {
     'تجهيز': 'Fulfillment',
     'كمية فقط': 'Quantity only',
     'المتبقي': 'Remaining',
+    'المطلوب': 'Ordered',
+    'المسلّم': 'Delivered',
+    'المستلم': 'Received',
+    'يجب أن تكون كمية الدفعة أكبر من صفر ولا تتجاوز المتبقي':
+        'The batch quantity must be greater than zero and not exceed the remaining quantity',
     'مركز المبيعات': 'Sales Center',
     'مركز المشتريات': 'Purchase Center',
     'المحاسبة والتقارير المالية': 'Accounting and financial reporting',

@@ -31,9 +31,11 @@ class WarehouseTransferPdfService {
   }) async {
     language = PdfTextSupport.canonicalPdfLanguage(language);
     final arabic = language == 'ar';
-    final fontPack = arabic ? await PdfTextSupport.loadFonts() : null;
-    final regular = fontPack?.regular ?? pw.Font.helvetica();
-    final bold = fontPack?.bold ?? pw.Font.helveticaBold();
+    // The bundled family covers Arabic and Latin plus operational punctuation,
+    // keeping English transfer details free of missing-glyph substitutions.
+    final fontPack = await PdfTextSupport.loadFonts();
+    final regular = fontPack.regular;
+    final bold = fontPack.bold;
     final branding = await _loadBranding(language);
     final direction = arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
     final border = PdfColor.fromHex('#D3D5D7');
@@ -87,7 +89,7 @@ class WarehouseTransferPdfService {
                       bottom: pw.BorderSide(color: accent, width: 2),
                     ),
                   ),
-                  child: pw.Text(
+                  child: PdfTextSupport.text(
                     _t(title, language),
                     textAlign: pw.TextAlign.center,
                     style: pw.TextStyle(
@@ -122,8 +124,8 @@ class WarehouseTransferPdfService {
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.fromLTRB(28, 24, 28, 26),
           theme: pw.ThemeData.withFont(base: regular, bold: bold),
+          textDirection: direction,
         ),
-        textDirection: direction,
         header: (_) => pw.Column(
           children: [
             pw.Row(
@@ -138,7 +140,7 @@ class WarehouseTransferPdfService {
                           decoration: pw.BoxDecoration(
                             border: pw.Border.all(color: border),
                           ),
-                          child: pw.Text(
+                          child: PdfTextSupport.text(
                             'QL',
                             style: pw.TextStyle(font: bold, fontSize: 18),
                           ),
@@ -150,17 +152,17 @@ class WarehouseTransferPdfService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
+                      PdfTextSupport.text(
                         branding.companyName,
                         style: pw.TextStyle(font: bold, fontSize: 16),
                       ),
                       if (branding.address.isNotEmpty)
-                        pw.Text(
+                        PdfTextSupport.text(
                           branding.address,
                           style: pw.TextStyle(fontSize: 8, color: secondary),
                         ),
                       if (branding.phone.isNotEmpty)
-                        pw.Text(
+                        PdfTextSupport.text(
                           '${_t('Phone', language)}: ${branding.phone}',
                           style: pw.TextStyle(fontSize: 8, color: secondary),
                         ),
@@ -178,7 +180,7 @@ class WarehouseTransferPdfService {
                   ),
                   child: pw.Column(
                     children: [
-                      pw.Text(
+                      PdfTextSupport.text(
                         _t('Warehouse transfer order', language),
                         style: pw.TextStyle(
                           font: bold,
@@ -187,7 +189,7 @@ class WarehouseTransferPdfService {
                         ),
                       ),
                       pw.SizedBox(height: 4),
-                      pw.Text(
+                      PdfTextSupport.text(
                         number,
                         style: pw.TextStyle(
                           font: bold,
@@ -207,11 +209,11 @@ class WarehouseTransferPdfService {
         footer: (context) => pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
+            PdfTextSupport.text(
               '${_t('Printed from Quality Line ERP', language)} • ${DateTime.now().toLocal().toIso8601String()}',
               style: pw.TextStyle(fontSize: 6.5, color: secondary),
             ),
-            pw.Text(
+            PdfTextSupport.text(
               '${_t('Page', language)} ${context.pageNumber}/${context.pagesCount}',
               style: pw.TextStyle(fontSize: 6.5, color: secondary),
             ),
@@ -259,7 +261,7 @@ class WarehouseTransferPdfService {
               color: primary,
               border: pw.Border(bottom: pw.BorderSide(color: accent, width: 2)),
             ),
-            child: pw.Text(
+            child: PdfTextSupport.text(
               _t('Transfer items', language),
               style: pw.TextStyle(
                 font: bold,
@@ -314,7 +316,7 @@ class WarehouseTransferPdfService {
                 border: pw.Border.all(color: border),
                 color: surface,
               ),
-              child: pw.Text(
+              child: PdfTextSupport.text(
                 '${_t('Notes', language)}: ${notes!.trim()}',
                 style: const pw.TextStyle(fontSize: 8),
               ),
@@ -329,7 +331,7 @@ class WarehouseTransferPdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(
+                    PdfTextSupport.text(
                       _t('Document verification', language),
                       style: pw.TextStyle(font: bold, fontSize: 8),
                     ),
@@ -339,8 +341,8 @@ class WarehouseTransferPdfService {
                       data: number,
                       width: 190,
                       height: 38,
-                      drawText: true,
-                      textStyle: const pw.TextStyle(fontSize: 7),
+                      drawText: false,
+                      textStyle: pw.TextStyle(font: regular, fontSize: 7),
                     ),
                   ],
                 ),
@@ -349,6 +351,7 @@ class WarehouseTransferPdfService {
                   data: machinePayload,
                   width: 70,
                   height: 70,
+                  textStyle: pw.TextStyle(font: regular, fontSize: 7),
                 ),
               ],
             ),
@@ -411,17 +414,9 @@ class WarehouseTransferPdfService {
     if (value.isEmpty || value.toLowerCase() == 'null') return pw.SizedBox();
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 4),
-      child: pw.RichText(
-        text: pw.TextSpan(
-          children: [
-            pw.TextSpan(
-              text: '$label: ',
-              style: pw.TextStyle(font: bold),
-            ),
-            pw.TextSpan(text: value),
-          ],
-          style: const pw.TextStyle(fontSize: 8),
-        ),
+      child: PdfTextSupport.text(
+        '$label: $value',
+        style: pw.TextStyle(font: bold, fontSize: 8),
       ),
     );
   }
@@ -440,9 +435,12 @@ class WarehouseTransferPdfService {
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(label, style: pw.TextStyle(font: bold, fontSize: 7)),
+        PdfTextSupport.text(
+          label,
+          style: pw.TextStyle(font: bold, fontSize: 7),
+        ),
         pw.SizedBox(height: 3),
-        pw.Text(value, style: const pw.TextStyle(fontSize: 8.5)),
+        PdfTextSupport.text(value, style: const pw.TextStyle(fontSize: 8.5)),
       ],
     ),
   );
@@ -458,7 +456,7 @@ class WarehouseTransferPdfService {
           child: pw.Column(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
+              PdfTextSupport.text(
                 title,
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(font: bold, fontSize: 7),

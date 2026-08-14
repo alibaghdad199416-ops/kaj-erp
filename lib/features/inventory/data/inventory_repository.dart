@@ -210,6 +210,21 @@ class InventoryRepository {
         .toList(growable: false);
   }
 
+  Future<Map<String, Object?>> getProductMaintenanceCard(
+    String productId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_r57_product_maintenance_card',
+      params: <String, Object?>{
+        'p_company_id': _companyId,
+        'p_product_id': productId,
+      },
+    );
+    return result is Map
+        ? Map<String, Object?>.from(result)
+        : const <String, Object?>{};
+  }
+
   Future<List<WarehouseModel>> getWarehouses({
     bool includeInactive = false,
   }) async {

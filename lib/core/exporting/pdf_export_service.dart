@@ -82,7 +82,7 @@ class PdfExportService {
                   borderRadius: pw.BorderRadius.circular(7),
                 ),
                 alignment: pw.Alignment.center,
-                child: pw.Text(
+                child: PdfTextSupport.text(
                   'QL',
                   style: pw.TextStyle(font: bold, fontSize: 10, color: accent),
                 ),
@@ -91,11 +91,11 @@ class PdfExportService {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
+                  PdfTextSupport.text(
                     document.isArabic ? 'نظام خط الجودة' : 'QUALITY LINE ERP',
                     style: pw.TextStyle(font: bold, fontSize: 10, color: ink),
                   ),
-                  pw.Text(
+                  PdfTextSupport.text(
                     document.isArabic
                         ? 'وثيقة إلكترونية معتمدة'
                         : 'Official electronic document',
@@ -107,7 +107,7 @@ class PdfExportService {
                 ],
               ),
               pw.Spacer(),
-              pw.Text(
+              PdfTextSupport.text(
                 document.title,
                 style: pw.TextStyle(font: bold, fontSize: 12, color: ink),
                 maxLines: 2,
@@ -122,7 +122,7 @@ class PdfExportService {
           ),
           child: pw.Row(
             children: [
-              pw.Text(
+              PdfTextSupport.text(
                 _template.formatValue(
                   generatedAt,
                   const ExportColumn(
@@ -135,7 +135,7 @@ class PdfExportService {
                 style: const pw.TextStyle(fontSize: 6.5),
               ),
               pw.Spacer(),
-              pw.Text(
+              PdfTextSupport.text(
                 '${context.pageNumber}/${context.pagesCount}',
                 style: pw.TextStyle(font: bold, fontSize: 7, color: ink),
               ),
@@ -157,7 +157,7 @@ class PdfExportService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
+                      PdfTextSupport.text(
                         document.title,
                         style: pw.TextStyle(
                           font: bold,
@@ -167,7 +167,7 @@ class PdfExportService {
                       ),
                       if (document.subtitle?.trim().isNotEmpty == true) ...[
                         pw.SizedBox(height: 4),
-                        pw.Text(
+                        PdfTextSupport.text(
                           document.subtitle!.trim(),
                           style: pw.TextStyle(fontSize: 8.5, color: accentSoft),
                         ),
@@ -185,7 +185,7 @@ class PdfExportService {
                       color: accent,
                       borderRadius: pw.BorderRadius.circular(7),
                     ),
-                    child: pw.Text(
+                    child: PdfTextSupport.text(
                       document.currency!,
                       style: pw.TextStyle(font: bold, fontSize: 10, color: ink),
                     ),
@@ -213,7 +213,7 @@ class PdfExportService {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text(
+                          PdfTextSupport.text(
                             entry.key,
                             style: pw.TextStyle(
                               font: bold,
@@ -222,7 +222,7 @@ class PdfExportService {
                             ),
                           ),
                           pw.SizedBox(height: 2),
-                          pw.Text(
+                          PdfTextSupport.text(
                             '${entry.value ?? ''}',
                             style: pw.TextStyle(
                               font: bold,

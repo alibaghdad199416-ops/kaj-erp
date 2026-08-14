@@ -34,8 +34,10 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   List<RecycleBinItem> _items = const [];
   bool _loading = true;
   bool _exporting = false;
+  bool _emptying = false;
   String _entityType = '';
   String? _error;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     if (mounted) {
       setState(() {
         _loading = true;
@@ -62,13 +65,15 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         query: _search.text,
         entityType: _entityType,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() => _items = items);
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -194,6 +199,53 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     );
   }
 
+  Future<void> _emptyRecycleBin() async {
+    if (_emptying || _items.isEmpty) return;
+    final access = context.read<AccessController>();
+    if (!access.canEditField(
+      'settings',
+      'recycleBin',
+      viewPermission: PermissionCodes.recycleBinView,
+    )) {
+      return;
+    }
+    if (!await PermissionAction.require(
+      context,
+      PermissionCodes.recycleBinPurge,
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    final arabic = context.l10n.isArabic;
+    final ok = await _confirm(
+      arabic ? 'تفريغ سلة المهملات' : 'Empty Recycle Bin',
+      arabic
+          ? 'سيتم حذف جميع السجلات المؤهلة نهائياً ضمن الشركة الحالية، ولا يمكن التراجع عن ذلك بسهولة. لن تُحذف السجلات المحمية أو غير المؤهلة بصورة غير قانونية، وتبقى سياسات الاحتفاظ المالي وحماية الدفعات نافذة.'
+          : 'All eligible records in the current company will be permanently processed. This cannot be casually undone. Protected or ineligible records will not be illegally purged, and financial/payment retention rules remain enforced.',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    setState(() => _emptying = true);
+    try {
+      final result = await _repository.emptyRecycleBin();
+      await _load();
+      if (!mounted) return;
+      final removed = (result['archiveRowsRemoved'] as num?)?.toInt() ?? 0;
+      final skipped = (result['skippedCount'] as num?)?.toInt() ?? 0;
+      final retained =
+          (result['integrityTombstonesRetained'] as num?)?.toInt() ?? 0;
+      _message(
+        arabic
+            ? 'تم حذف $removed سجلًا من السلة. تم تخطي $skipped دفعة محمية، والاحتفاظ بـ $retained سجل تكامل مالي/مرجعي.'
+            : '$removed recycle records removed. $skipped protected batches were skipped; $retained integrity tombstones were retained.',
+      );
+    } catch (error) {
+      _message(error.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _emptying = false);
+    }
+  }
+
   String _typeLabel(String value, {bool? isArabic}) {
     const ar = <String, String>{
       'cars': 'السيارات',
@@ -261,37 +313,62 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   }
 
   ExportDocument _report() {
-    const exportArabic = false;
+    final exportArabic = context.l10n.isArabic;
     return ExportDocument(
-      title: 'Recycle Bin Report',
-      subtitle: 'Audit report of deleted records and related batches',
-      language: 'en',
+      title: exportArabic ? 'تقرير سلة المحذوفات' : 'Recycle Bin Report',
+      subtitle: exportArabic
+          ? 'تقرير تدقيقي للسجلات المحذوفة ودفعاتها المرتبطة'
+          : 'Audit report of deleted records and related batches',
+      language: exportArabic ? 'ar' : 'en',
       generatedAt: DateTime.now(),
       metadata: {
-        'Result count': _items.length,
-        'Type filter': _entityType.isEmpty
-            ? 'All'
+        exportArabic ? 'عدد النتائج' : 'Result count': _items.length,
+        exportArabic ? 'تصفية النوع' : 'Type filter': _entityType.isEmpty
+            ? (exportArabic ? 'الكل' : 'All')
             : _typeLabel(_entityType, isArabic: exportArabic),
-        'Search': _search.text.trim(),
+        exportArabic ? 'البحث' : 'Search': _search.text.trim(),
       },
-      columns: const [
-        ExportColumn(key: 'title', label: 'Title', width: 1.5),
-        ExportColumn(key: 'type', label: 'Type', width: 1.2),
-        ExportColumn(key: 'source', label: 'Source table', width: 1.3),
-        ExportColumn(key: 'mode', label: 'Delete mode'),
+      columns: [
+        ExportColumn(
+          key: 'title',
+          label: exportArabic ? 'العنوان' : 'Title',
+          width: 1.5,
+        ),
+        ExportColumn(
+          key: 'type',
+          label: exportArabic ? 'النوع' : 'Type',
+          width: 1.2,
+        ),
+        ExportColumn(
+          key: 'source',
+          label: exportArabic ? 'جدول المصدر' : 'Source table',
+          width: 1.3,
+        ),
+        ExportColumn(
+          key: 'mode',
+          label: exportArabic ? 'نمط الحذف' : 'Delete mode',
+        ),
         ExportColumn(
           key: 'deletedAt',
-          label: 'Deleted at',
+          label: exportArabic ? 'وقت الحذف' : 'Deleted at',
           type: ExportValueType.dateTime,
           width: 1.2,
         ),
-        ExportColumn(key: 'deletedBy', label: 'Deleted by', width: 1.2),
+        ExportColumn(
+          key: 'deletedBy',
+          label: exportArabic ? 'حُذف بواسطة' : 'Deleted by',
+          width: 1.2,
+        ),
         ExportColumn(
           key: 'related',
-          label: 'Related',
+          label: exportArabic ? 'الارتباطات' : 'Related',
           type: ExportValueType.integer,
         ),
-        ExportColumn(key: 'reason', label: 'Reason', width: 1.5),
+        ExportColumn(
+          key: 'reason',
+          label: exportArabic ? 'السبب' : 'Reason',
+          width: 1.5,
+        ),
       ],
       rows: _items
           .map(
@@ -330,11 +407,12 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     final successMessage = context.l10n.isArabic
         ? 'تم إنشاء تقرير Excel.'
         : 'Excel report created.';
+    final filePrefix = context.l10n.isArabic ? 'سلة_المحذوفات' : 'recycle_bin';
     setState(() => _exporting = true);
     try {
       final bytes = await ExcelExportService().build(_report());
       await BinaryDownloadService.save(
-        fileName: 'recycle_bin_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        fileName: '${filePrefix}_${DateTime.now().millisecondsSinceEpoch}.xlsx',
         bytes: bytes,
         mimeType:
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -411,19 +489,36 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
               ],
               const SizedBox(height: 12),
               Expanded(
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: AppSelectableText(
-                      pretty,
-                      textDirection: ui.TextDirection.ltr,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        height: 1.35,
+                child: ListView(
+                  children: [
+                    ...item.meaningfulFields.map(
+                      (field) => Card(
+                        child: ListTile(
+                          dense: true,
+                          title: AppText(_fieldLabel(field.key, arabic)),
+                          subtitle: AppSelectableText(field.value.toString()),
+                        ),
                       ),
                     ),
-                  ),
+                    Card(
+                      child: ExpansionTile(
+                        title: AppText(arabic ? 'البيانات الخام' : 'Raw data'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: AppSelectableText(
+                              pretty,
+                              textDirection: ui.TextDirection.ltr,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -435,6 +530,36 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
           ),
         ),
       ),
+    );
+  }
+
+  String _fieldLabel(String key, bool arabic) {
+    const ar = <String, String>{
+      'orderNumber': 'رقم الطلب',
+      'invoiceNumber': 'رقم الفاتورة',
+      'documentNumber': 'رقم المستند',
+      'voucherNumber': 'رقم السند',
+      'nameAr': 'الاسم العربي',
+      'nameEn': 'الاسم الإنجليزي',
+      'name': 'الاسم',
+      'title': 'العنوان',
+      'code': 'الرمز',
+      'sku': 'رمز المادة',
+      'status': 'الحالة',
+      'customerName': 'العميل',
+      'supplierName': 'المورد',
+      'currency': 'العملة',
+      'quantity': 'الكمية',
+      'amount': 'المبلغ',
+      'total': 'الإجمالي',
+      'notes': 'الملاحظات',
+      'createdAt': 'تاريخ الإنشاء',
+      'updatedAt': 'آخر تحديث',
+    };
+    if (arabic) return ar[key] ?? key;
+    return key.replaceAllMapped(
+      RegExp(r'([a-z])([A-Z])'),
+      (m) => '${m[1]} ${m[2]}',
     );
   }
 
@@ -461,30 +586,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          KajAdminWorkspace(
-            title: context.l10n.isArabic
-                ? 'سلة المحذوفات والاستعادة'
-                : 'Recycle Bin & Recovery',
-            subtitle: context.l10n.isArabic
-                ? 'مراجعة السجلات المحذوفة واستعادتها أو حذفها نهائياً مع تتبع الارتباطات.'
-                : 'Review deleted records, restore them, or permanently purge complete deletion batches.',
-            icon: Icons.delete_sweep_outlined,
-            metrics: <KajAdminMetricData>[
-              KajAdminMetricData(
-                label: context.l10n.isArabic ? 'السجلات' : 'Records',
-                value: _items.length.toString(),
-                icon: Icons.inventory_2_outlined,
-              ),
-              KajAdminMetricData(
-                label: context.l10n.isArabic ? 'التصفية' : 'Filter',
-                value: _entityType.isEmpty
-                    ? (context.l10n.isArabic ? 'الكل' : 'All')
-                    : _typeLabel(_entityType),
-                icon: Icons.filter_alt_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -557,6 +658,25 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
                     context.l10n.isArabic ? 'تقرير Excel' : 'Excel report',
                   ),
                 ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+                onPressed: _items.isEmpty || _emptying
+                    ? null
+                    : _emptyRecycleBin,
+                icon: _emptying
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_sweep_outlined),
+                label: AppText(
+                  context.l10n.isArabic
+                      ? 'تفريغ سلة المهملات'
+                      : 'Empty Recycle Bin',
+                ),
+              ),
               Chip(
                 avatar: const Icon(Icons.inventory_2_outlined, size: 18),
                 label: AppText(

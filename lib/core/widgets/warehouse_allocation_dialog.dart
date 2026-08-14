@@ -106,8 +106,8 @@ class _WarehouseAllocationDialogState
                   children: [
                     AppText(
                       widget.sales
-                          ? 'وزّع بنود التجهيز على المخازن. يجب أن يساوي مجموع كل بند كمية أمر البيع.'
-                          : 'وزّع بنود الاستلام على المخازن. يمكن تقسيم المنتج الواحد على أكثر من مخزن.',
+                          ? 'وزّع كمية دفعة التجهيز الحالية على المخازن ضمن الكمية المتبقية.'
+                          : 'وزّع كمية دفعة الاستلام الحالية على المخازن ضمن الكمية المتبقية.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     if (_error != null) ...[
@@ -187,7 +187,9 @@ class _WarehouseAllocationDialogState
                   ),
                 ),
                 AppText(
-                  '${AppTranslation.translate('الكمية')}: $requiredQuantity',
+                  '${AppTranslation.translate('المطلوب')}: ${_integer(item['orderedQuantity'], fallback: requiredQuantity)}  •  '
+                  '${AppTranslation.translate(widget.sales ? 'المسلّم' : 'المستلم')}: ${_integer(item['fulfilledQuantity'])}  •  '
+                  '${AppTranslation.translate('المتبقي')}: $requiredQuantity',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 if (!isCar && requiredQuantity > 1) ...[
@@ -358,12 +360,12 @@ class _WarehouseAllocationDialogState
           (warehouseSums[warehouseKey] ?? 0) + quantity;
     }
     for (final entry in required.entries) {
-      if (sums[entry.key] != entry.value) {
+      final batchQuantity = sums[entry.key] ?? 0;
+      if (batchQuantity <= 0 || batchQuantity > entry.value) {
         setState(
           () => _error =
-              '${AppTranslation.translate('مجموع توزيع البند يجب أن يساوي')} '
-              '${entry.value}، ${AppTranslation.translate('والقيمة الحالية')} '
-              '${sums[entry.key] ?? 0}.',
+              '${AppTranslation.translate('يجب أن تكون كمية الدفعة أكبر من صفر ولا تتجاوز المتبقي')} '
+              '${entry.value}، ${AppTranslation.translate('والقيمة الحالية')} $batchQuantity.',
         );
         return;
       }

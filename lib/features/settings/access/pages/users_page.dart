@@ -739,57 +739,21 @@ class _UsersPageState extends State<UsersPage>
       ),
       body: Consumer<AccessController>(
         builder: (context, controller, child) {
-          final isArabic = context.l10n.isArabic;
-          return Column(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-                child: KajAdminWorkspace(
-                  title: isArabic
-                      ? 'المستخدمون والوظائف والصلاحيات'
-                      : 'Users, Roles & Permissions',
-                  subtitle: isArabic
-                      ? 'إدارة هويات المستخدمين والأدوار ونطاقات الوصول وسجل التدقيق.'
-                      : 'Manage user identities, roles, access scopes and the audit trail.',
-                  icon: Icons.admin_panel_settings_outlined,
-                  metrics: <KajAdminMetricData>[
-                    KajAdminMetricData(
-                      label: isArabic ? 'المستخدمون' : 'Users',
-                      value: controller.users.length.toString(),
-                      icon: Icons.people_outline,
-                    ),
-                    KajAdminMetricData(
-                      label: isArabic ? 'الأدوار' : 'Roles',
-                      value: controller.roles.length.toString(),
-                      icon: Icons.badge_outlined,
-                    ),
-                    KajAdminMetricData(
-                      label: isArabic ? 'الصلاحيات' : 'Permissions',
-                      value: controller.permissions.length.toString(),
-                      icon: Icons.security_outlined,
-                    ),
-                  ],
-                ),
+          return TabBarView(
+            controller: _tabs,
+            children: [
+              _usersTab(controller),
+              FieldPermissionVisibility(
+                resource: 'users',
+                field: 'customPermissions',
+                viewPermission: 'users.view',
+                child: _PermissionsEditor(controller: controller),
               ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabs,
-                  children: [
-                    _usersTab(controller),
-                    FieldPermissionVisibility(
-                      resource: 'users',
-                      field: 'customPermissions',
-                      viewPermission: 'users.view',
-                      child: _PermissionsEditor(controller: controller),
-                    ),
-                    FieldPermissionVisibility(
-                      resource: 'users',
-                      field: 'auditMetadata',
-                      viewPermission: 'audit.view',
-                      child: _logsTab(controller),
-                    ),
-                  ],
-                ),
+              FieldPermissionVisibility(
+                resource: 'users',
+                field: 'auditMetadata',
+                viewPermission: 'audit.view',
+                child: _logsTab(controller),
               ),
             ],
           );

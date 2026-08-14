@@ -34,6 +34,8 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
   bool _loading = true;
   String? _error;
   int _loadGeneration = 0;
+  bool _clearingAll = false;
+  final Set<String> _deletingNotificationIds = <String>{};
 
   @override
   void initState() {
@@ -154,6 +156,63 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     }
   }
 
+  Future<void> _deleteNotification(Map<String, Object?> notification) async {
+    final id = '${notification['id'] ?? ''}'.trim();
+    if (id.isEmpty || _deletingNotificationIds.contains(id)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: AppText(
+          context.l10n.isArabic ? 'حذف الإشعار' : 'Delete notification',
+        ),
+        content: AppText(
+          context.l10n.isArabic
+              ? 'سيُحذف هذا الإشعار من مركز إشعاراتك فقط. لن يتأثر المستند أو الحدث المرتبط.'
+              : 'This removes the notification only from your notification center. The linked document or business event is not affected.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: AppText(context.l10n.isArabic ? 'رجوع' : 'Back'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: AppText(
+              context.l10n.isArabic ? 'حذف الإشعار' : 'Delete notification',
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deletingNotificationIds.add(id));
+    try {
+      final wasUnread = await _repository.deleteNotification(id);
+      if (!mounted) return;
+      setState(() {
+        _persistentNotifications = _persistentNotifications
+            .where((row) => '${row['id'] ?? ''}' != id)
+            .toList(growable: false);
+        if (wasUnread && _unreadCount > 0) _unreadCount--;
+      });
+    } catch (error, stackTrace) {
+      AppLogger.debug('Delete notification failed: $error\n$stackTrace');
+      if (mounted) {
+        _showError(
+          userFacingError(
+            error,
+            isArabic: context.l10n.isArabic,
+            arabicFallback: 'تعذر حذف الإشعار. أعد المحاولة.',
+            englishFallback: 'Unable to delete the notification. Try again.',
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingNotificationIds.remove(id));
+    }
+  }
+
   Future<void> _openPersistentNotification(
     Map<String, Object?> notification,
   ) async {
@@ -171,6 +230,60 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       context,
       _routeForReference('${notification['referenceType'] ?? ''}'),
     );
+  }
+
+  Future<void> _clearAllNotifications() async {
+    if (_clearingAll || _persistentNotifications.isEmpty) return;
+    final ar = context.l10n.isArabic;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: AppText(ar ? 'مسح جميع الإشعارات' : 'Clear All Notifications'),
+        content: AppText(
+          ar
+              ? 'سيتم مسح جميع الإشعارات المحفوظة من مركز إشعاراتك فقط. لن تُحذف المستندات أو الأحداث التشغيلية المرتبطة.'
+              : 'This clears every saved notification only from your notification center. Linked documents and business events are preserved.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: AppText(ar ? 'رجوع' : 'Back'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_sweep_outlined),
+            label: AppText(
+              ar ? 'مسح جميع الإشعارات' : 'Clear All Notifications',
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _clearingAll = true);
+    try {
+      await _repository.clearAllNotifications();
+      if (!mounted) return;
+      setState(() {
+        _persistentNotifications = const [];
+        _unreadCount = 0;
+      });
+      await _load();
+    } catch (error, stackTrace) {
+      AppLogger.debug('Clear notifications failed: $error\n$stackTrace');
+      if (mounted) {
+        _showError(
+          userFacingError(
+            error,
+            isArabic: ar,
+            arabicFallback: 'تعذر مسح جميع الإشعارات. أعد المحاولة.',
+            englishFallback: 'Unable to clear all notifications. Try again.',
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _clearingAll = false);
+    }
   }
 
   void _showError(String message) {
@@ -247,6 +360,18 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
                   subtitle: ar
                       ? 'غير المقروء: $_unreadCount'
                       : 'Unread: $_unreadCount',
+                  action: FilledButton.icon(
+                    onPressed: _clearingAll ? null : _clearAllNotifications,
+                    icon: _clearingAll
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_sweep_outlined),
+                    label: AppText(
+                      ar ? 'مسح جميع الإشعارات' : 'Clear All Notifications',
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ..._persistentNotifications.map(
@@ -258,6 +383,11 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
                         unawaited(_markAsRead('${notification['id'] ?? ''}')),
                     onArchive: () =>
                         unawaited(_archive('${notification['id'] ?? ''}')),
+                    deleting: _deletingNotificationIds.contains(
+                      '${notification['id'] ?? ''}',
+                    ),
+                    onDelete: () =>
+                        unawaited(_deleteNotification(notification)),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -326,25 +456,41 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.subtitle});
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
 
   final String title;
   final String subtitle;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppText(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              AppText(
+                subtitle,
+                style: TextStyle(color: Theme.of(context).colorScheme.outline),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 3),
-        AppText(
-          subtitle,
-          style: TextStyle(color: Theme.of(context).colorScheme.outline),
-        ),
+        if (action != null) ...[const SizedBox(width: 12), action!],
       ],
     );
   }
@@ -356,12 +502,16 @@ class _PersistentNotificationCard extends StatelessWidget {
     required this.onOpen,
     required this.onMarkRead,
     required this.onArchive,
+    required this.onDelete,
+    required this.deleting,
   });
 
   final Map<String, Object?> notification;
   final VoidCallback onOpen;
   final VoidCallback onMarkRead;
   final VoidCallback onArchive;
+  final VoidCallback onDelete;
+  final bool deleting;
 
   @override
   Widget build(BuildContext context) {
@@ -489,8 +639,20 @@ class _PersistentNotificationCard extends StatelessWidget {
                     ),
                   IconButton(
                     tooltip: AppTranslation.translate('أرشفة الإشعار'),
-                    onPressed: onArchive,
+                    onPressed: deleting ? null : onArchive,
                     icon: const Icon(Icons.archive_outlined),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.isArabic
+                        ? 'حذف الإشعار'
+                        : 'Delete notification',
+                    onPressed: deleting ? null : onDelete,
+                    icon: deleting
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_outline_rounded),
                   ),
                   IconButton(
                     tooltip: AppTranslation.translate('فتح السجل المرتبط'),

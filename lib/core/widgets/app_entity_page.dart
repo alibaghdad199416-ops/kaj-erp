@@ -82,75 +82,102 @@ class AppEntityPage extends StatelessWidget {
                           : AppSizes.screenPadding,
                     );
 
+                final chrome = <Widget>[
+                  if (!hideHeader)
+                    KajSectionHeader(
+                      title: title,
+                      subtitle: subtitle,
+                      compact: compact,
+                      icon: leading == null && !effectiveShowBackButton
+                          ? Icons.grid_view_rounded
+                          : null,
+                      actions: <Widget>[
+                        if (leading != null || effectiveShowBackButton)
+                          leading ?? const AppBackButton(),
+                        ...effectiveActions,
+                      ],
+                    )
+                  else if (mergeHiddenHeaderActionsAndStatistics &&
+                      (effectiveActions.isNotEmpty || statistics != null))
+                    _InlineCommandMetricsRow(
+                      actions: effectiveActions,
+                      statistics: statistics,
+                    )
+                  else if (effectiveActions.isNotEmpty)
+                    AppHorizontalStrip(children: effectiveActions),
+                  if (statistics != null &&
+                      (!hideHeader ||
+                          !mergeHiddenHeaderActionsAndStatistics)) ...<Widget>[
+                    SizedBox(
+                      height: hideHeader
+                          ? KajDesignTokens.space8
+                          : KajDesignTokens.space16,
+                    ),
+                    statistics!,
+                  ],
+                  if (effectiveToolbar != null) ...<Widget>[
+                    SizedBox(
+                      height: hideHeader
+                          ? KajDesignTokens.space8
+                          : KajDesignTokens.space12,
+                    ),
+                    if (toolbarFramed)
+                      AppCard(
+                        padding: const EdgeInsets.all(12),
+                        showShadow: false,
+                        accent: KajDesignTokens.electricBlue,
+                        child: effectiveToolbar,
+                      )
+                    else
+                      effectiveToolbar,
+                  ],
+                ];
+                final bodyPanel = KajV4Panel(
+                  padding: EdgeInsets.zero,
+                  showTopGlow: true,
+                  child: ClipRect(child: body),
+                );
+                final bodySpacing = SizedBox(
+                  height: hideHeader
+                      ? KajDesignTokens.space8
+                      : KajDesignTokens.space16,
+                );
+                final shortHeight = constraints.maxHeight < 720;
+
                 return Padding(
                   padding: padding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      if (!hideHeader)
-                        KajSectionHeader(
-                          title: title,
-                          subtitle: subtitle,
-                          compact: compact,
-                          icon: leading == null && !effectiveShowBackButton
-                              ? Icons.grid_view_rounded
-                              : null,
-                          actions: <Widget>[
-                            if (leading != null || effectiveShowBackButton)
-                              leading ?? const AppBackButton(),
-                            ...effectiveActions,
+                  child: shortHeight
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            if (chrome.isNotEmpty)
+                              Flexible(
+                                flex: 2,
+                                fit: FlexFit.loose,
+                                child: SingleChildScrollView(
+                                  key: const ValueKey(
+                                    'app-entity-page-short-height-scroll',
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: chrome,
+                                  ),
+                                ),
+                              ),
+                            if (chrome.isNotEmpty) bodySpacing,
+                            Expanded(flex: 3, child: bodyPanel),
                           ],
                         )
-                      else if (mergeHiddenHeaderActionsAndStatistics &&
-                          (effectiveActions.isNotEmpty || statistics != null))
-                        _InlineCommandMetricsRow(
-                          actions: effectiveActions,
-                          statistics: statistics,
-                        )
-                      else if (effectiveActions.isNotEmpty)
-                        AppHorizontalStrip(children: effectiveActions),
-                      if (statistics != null &&
-                          (!hideHeader ||
-                              !mergeHiddenHeaderActionsAndStatistics)) ...<
-                        Widget
-                      >[
-                        SizedBox(
-                          height: hideHeader
-                              ? KajDesignTokens.space8
-                              : KajDesignTokens.space16,
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            ...chrome,
+                            bodySpacing,
+                            Expanded(child: bodyPanel),
+                          ],
                         ),
-                        statistics!,
-                      ],
-                      if (effectiveToolbar != null) ...<Widget>[
-                        SizedBox(
-                          height: hideHeader
-                              ? KajDesignTokens.space8
-                              : KajDesignTokens.space12,
-                        ),
-                        if (toolbarFramed)
-                          AppCard(
-                            padding: const EdgeInsets.all(12),
-                            showShadow: false,
-                            accent: KajDesignTokens.electricBlue,
-                            child: effectiveToolbar,
-                          )
-                        else
-                          effectiveToolbar,
-                      ],
-                      SizedBox(
-                        height: hideHeader
-                            ? KajDesignTokens.space8
-                            : KajDesignTokens.space16,
-                      ),
-                      Expanded(
-                        child: KajV4Panel(
-                          padding: EdgeInsets.zero,
-                          showTopGlow: true,
-                          child: ClipRect(child: body),
-                        ),
-                      ),
-                    ],
-                  ),
                 );
               },
             ),

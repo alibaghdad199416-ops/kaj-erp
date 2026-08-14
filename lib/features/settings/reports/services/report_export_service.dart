@@ -1,8 +1,11 @@
 import 'package:quality_line_erp/core/exporting/adaptive_pdf_table.dart';
 import 'package:quality_line_erp/core/exporting/binary_download_service.dart';
 import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
+import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
+import 'package:quality_line_erp/core/exporting/export_document.dart';
 import 'package:quality_line_erp/core/exporting/excel_download_service.dart';
 import 'package:quality_line_erp/core/exporting/excel_workbook_presentation.dart';
+import 'package:quality_line_erp/core/exporting/xlsx_integrity.dart';
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 import 'package:quality_line_erp/core/printing/premium_document_theme.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
@@ -57,8 +60,7 @@ class ReportExportService {
     sections = const ContextualReportCustomizer().apply(sections, options);
     final book = Excel.createExcel();
     final defaultSheet = book.getDefaultSheet();
-    if (defaultSheet != null) book.delete(defaultSheet);
-    final language = PdfTextSupport.canonicalPdfLanguage(options.language);
+    const language = 'en';
     final arabic = _isArabicExportLanguage(language);
     final generatedAt = DateTime.now();
     final usedSheetNames = <String>{};
@@ -70,12 +72,20 @@ class ReportExportService {
     );
     usedSheetNames.add(metadataName);
     final metadata = book[metadataName];
+    // excel refuses to delete the only worksheet. Delete the auto-created
+    // Sheet1 only after the first real worksheet exists.
+    if (defaultSheet != null && defaultSheet != metadataName) {
+      book.delete(defaultSheet);
+      if (book.tables.containsKey(defaultSheet)) {
+        throw StateError(_tr('excelError', language));
+      }
+    }
     ExcelWorkbookPresentation.prepareSheet(metadata, arabic: arabic);
     metadata.appendRow([_excelText(_localize(options.title, language))]);
     ExcelWorkbookPresentation.styleTitle(metadata, row: 0, columnCount: 2);
     final metadataRows = <(String, Object?)>[
       (_tr('module', language), _moduleName(module, language)),
-      (_tr('period', language), period),
+      (_tr('period', language), _localize(period, language)),
       (
         arabic ? 'لغة الملف' : 'Workbook language',
         arabic ? 'العربية' : 'English',
@@ -160,7 +170,7 @@ class ReportExportService {
         rows: report.monthlyPoints
             .map<List<Object?>>(
               (point) => <Object?>[
-                point.label,
+                _localize(point.label, language),
                 point.sales,
                 point.purchases,
                 point.expenses,
@@ -191,8 +201,8 @@ class ReportExportService {
             .map<List<Object?>>(
               (row) => <Object?>[
                 row.userName,
-                row.action,
-                row.entityType,
+                _localize(row.action, language),
+                _localize(row.entityType, language),
                 row.createdAt,
               ],
             )
@@ -218,7 +228,8 @@ class ReportExportService {
             .map<List<Object?>>(
               (row) => List<Object?>.generate(
                 section.columns.length,
-                (index) => index < row.length ? row[index] : '',
+                (index) =>
+                    _localize(index < row.length ? row[index] : '', language),
               ),
             )
             .toList(growable: false),
@@ -257,12 +268,14 @@ class ReportExportService {
       language: language,
     );
 
-    book.setDefaultSheet(metadataName);
+    if (!book.setDefaultSheet(metadataName)) {
+      throw StateError(_tr('excelError', language));
+    }
     final bytes = book.encode();
     if (bytes == null) throw StateError(_tr('excelError', language));
     await ExcelDownloadService.save(
       fileName: '${_fileName(module, language)}.xlsx',
-      bytes: Uint8List.fromList(bytes),
+      bytes: XlsxIntegrity.finalize(bytes),
     );
   }
 
@@ -390,7 +403,211 @@ class ReportExportService {
     );
   }
 
+  // R57_REPORTS_SHARED_PDF_FALLBACK
+  // Prefer the rich Reports renderer, but fail over to the shared ERP PDF
+  // pipeline if optional branding, Web assets, layout, or serialization fails.
   Future<Uint8List> buildPdf(
+    ReportModel report, {
+    String module = 'overview',
+    List<ExecutionAuditRow> executionRows = const [],
+    ReportExportOptions options = const ReportExportOptions(),
+    String period = 'جميع الفترات',
+    List<ContextualReportSection> sections = const [],
+  }) async {
+    try {
+      final bytes = await _buildRichPdf(
+        report,
+        module: module,
+        executionRows: executionRows,
+        options: options,
+        period: period,
+        sections: sections,
+      );
+      if (bytes.isEmpty) {
+        throw StateError('Generated rich report PDF is empty.');
+      }
+      return bytes;
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Reports rich PDF generation failed; switching to shared PDF pipeline',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      try {
+        final bytes = await _buildSharedFallbackPdf(
+          report,
+          module: module,
+          executionRows: executionRows,
+          options: options,
+          period: period,
+          sections: sections,
+        );
+        if (bytes.isEmpty) {
+          throw StateError('Generated shared fallback report PDF is empty.');
+        }
+        return bytes;
+      } catch (fallbackError, fallbackStackTrace) {
+        AppLogger.error(
+          'Reports shared PDF fallback failed',
+          error: fallbackError,
+          stackTrace: fallbackStackTrace,
+        );
+        rethrow;
+      }
+    }
+  }
+
+  Future<Uint8List> _buildSharedFallbackPdf(
+    ReportModel report, {
+    required String module,
+    required List<ExecutionAuditRow> executionRows,
+    required ReportExportOptions options,
+    required String period,
+    required List<ContextualReportSection> sections,
+  }) async {
+    final customized = const ContextualReportCustomizer().apply(
+      sections,
+      options,
+    );
+    final language = PdfTextSupport.canonicalPdfLanguage(options.language);
+    final arabic = language == 'ar';
+    final rows = <List<Object?>>[];
+
+    void addRow(String section, Object? field, Object? value, Object? details) {
+      rows.add(<Object?>[
+        PdfTextSupport.sanitize(section, singleLine: true),
+        PdfTextSupport.sanitize(field, singleLine: true),
+        PdfTextSupport.sanitize(value, singleLine: true),
+        PdfTextSupport.sanitize(details, singleLine: true),
+      ]);
+    }
+
+    if (options.includeModuleDetails || options.includeSummary) {
+      for (final row in _moduleRows(report, module, language)) {
+        addRow(
+          _tr('moduleSummary', language),
+          row.$1,
+          _exportValue(row.$2),
+          '',
+        );
+      }
+    }
+
+    if (options.includeOperational) {
+      for (final row in _operationalRows(report, language)) {
+        addRow(
+          _tr('operationalIndicators', language),
+          row.$1,
+          _exportValue(row.$2),
+          '',
+        );
+      }
+    }
+
+    if (options.includeMonthly) {
+      for (final point in report.monthlyPoints) {
+        addRow(
+          _tr('monthlyPerformance', language),
+          _localize(point.label, language),
+          '${_tr('sales', language)}: ${_number(point.sales)}',
+          '${_tr('purchases', language)}: ${_number(point.purchases)}'
+              ' | ${_tr('expenses', language)}: ${_number(point.expenses)}',
+        );
+      }
+    }
+
+    if (options.includeExecutors) {
+      if (executionRows.isEmpty) {
+        addRow(
+          _tr('dataExecutors', language),
+          _tr('noExecutors', language),
+          '',
+          '',
+        );
+      } else {
+        for (final execution in executionRows) {
+          addRow(
+            _tr('dataExecutors', language),
+            execution.userName,
+            _localize(execution.action, language),
+            '${_tr('entity', language)}: '
+            '${_localize(execution.entityType, language)} | '
+            '${_tr('date', language)}: '
+            '${_dateTime(execution.createdAt, language)}',
+          );
+        }
+      }
+    }
+
+    for (final rawSection in customized) {
+      final section = _localizedSection(rawSection, language);
+      if (section.rows.isEmpty) {
+        addRow(section.title, _tr('noData', language), '', '');
+        continue;
+      }
+
+      for (final rawRow in section.rows) {
+        final cells = List<String>.generate(
+          section.columns.length,
+          (index) => PdfTextSupport.sanitize(
+            index < rawRow.length ? rawRow[index] : '',
+            singleLine: true,
+          ),
+          growable: false,
+        );
+
+        final field = cells.isEmpty ? '' : '${section.columns[0]}: ${cells[0]}';
+        final value = cells.length < 2
+            ? ''
+            : '${section.columns[1]}: ${cells[1]}';
+        final details = <String>[
+          for (var index = 2; index < cells.length; index++)
+            '${section.columns[index]}: ${cells[index]}',
+        ].where((entry) => !entry.endsWith(': ')).join(' | ');
+
+        addRow(section.title, field, value, details);
+      }
+    }
+
+    if (rows.isEmpty) {
+      addRow(arabic ? 'التقرير' : 'Report', _tr('noData', language), '', '');
+    }
+
+    final generatedAt = DateTime.now();
+    final document = ExportDocument(
+      title: _localize(options.title, language),
+      subtitle:
+          '${_moduleName(module, language)}'
+          ' - ${_localize(period, language)}',
+      language: language,
+      currency: 'USD / IQD',
+      generatedAt: generatedAt,
+      metadata: <String, Object?>{
+        _tr('module', language): _moduleName(module, language),
+        _tr('period', language): _localize(period, language),
+        if (options.includeGeneratedAt)
+          _tr('generatedAt', language): _dateTime(generatedAt, language),
+      },
+      columns: <ExportColumn>[
+        ExportColumn(key: 'section', label: arabic ? 'القسم' : 'Section'),
+        ExportColumn(key: 'field', label: arabic ? 'الحقل' : 'Field'),
+        ExportColumn(key: 'value', label: arabic ? 'القيمة' : 'Value'),
+        ExportColumn(key: 'details', label: arabic ? 'التفاصيل' : 'Details'),
+      ],
+      rows: rows,
+    );
+
+    return PdfExportService().build(
+      document,
+      pageFormat:
+          options.landscape ||
+              customized.any((section) => section.columns.length > 5)
+          ? ExportPageFormat.a4Landscape
+          : ExportPageFormat.a4Portrait,
+    );
+  }
+
+  Future<Uint8List> _buildRichPdf(
     ReportModel report, {
     String module = 'overview',
     List<ExecutionAuditRow> executionRows = const [],
@@ -405,7 +622,12 @@ class ReportExportService {
     late final PdfFontPack fonts;
     try {
       fonts = await PdfTextSupport.loadFonts();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Report PDF font loading failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw StateError(
         'Unable to load the PDF font pack required for report export: $error',
       );
@@ -640,7 +862,20 @@ class ReportExportService {
         ],
       ),
     );
-    return document.save();
+    try {
+      final bytes = await document.save();
+      if (bytes.isEmpty) {
+        throw StateError('Generated report PDF is empty.');
+      }
+      return bytes;
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Report PDF serialization failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
   ContextualReportSection _localizedSection(
@@ -1016,7 +1251,12 @@ class ReportExportService {
   Future<_ReportBranding> _loadBranding(String language) async {
     final companyId = CloudTenantContext.instance.companyUuid;
     if (companyId == null || companyId.isEmpty) {
-      throw StateError('لم يتم تحديد شركة سحابية.');
+      // Branding is optional. Report generation must continue with the
+      // bundled Quality Line identity even if tenant context is temporarily
+      // unavailable during local-development/session bootstrap.
+      AppLogger.debug(
+        'Report branding fallback activated: active company is unavailable.',
+      );
     }
     Map<String, String> values = const <String, String>{};
     try {

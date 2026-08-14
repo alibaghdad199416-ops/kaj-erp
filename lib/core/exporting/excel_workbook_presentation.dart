@@ -170,6 +170,16 @@ abstract final class ExcelWorkbookPresentation {
   }) {
     if (value == null) return TextCellValue('');
 
+    String safeText(Object raw) {
+      final text = raw.toString();
+      final trimmedLeft = text.trimLeft();
+      if (trimmedLeft.isNotEmpty &&
+          const <String>{'=', '+', '-', '@'}.contains(trimmedLeft[0])) {
+        return "'$text";
+      }
+      return text;
+    }
+
     DateTime? asDateTime(Object raw) {
       if (raw is DateTime) return raw;
       return DateTime.tryParse(raw.toString());
@@ -184,19 +194,19 @@ abstract final class ExcelWorkbookPresentation {
       case ExportValueType.integer:
         final number = asNumber(value);
         return number == null
-            ? TextCellValue(value.toString())
+            ? TextCellValue(safeText(value))
             : IntCellValue(number.toInt());
       case ExportValueType.decimal:
       case ExportValueType.money:
         final number = asNumber(value);
         return number == null
-            ? TextCellValue(value.toString())
+            ? TextCellValue(safeText(value))
             : DoubleCellValue(number.toDouble());
       case ExportValueType.date:
       case ExportValueType.dateTime:
         final date = asDateTime(value);
         return date == null
-            ? TextCellValue(value.toString())
+            ? TextCellValue(safeText(value))
             : DateTimeCellValue.fromDateTime(date);
       case ExportValueType.boolean:
         if (value is bool) return BoolCellValue(value);
@@ -207,9 +217,9 @@ abstract final class ExcelWorkbookPresentation {
         if (normalized == '0' || normalized == 'false' || normalized == 'no') {
           return BoolCellValue(false);
         }
-        return TextCellValue(value.toString());
+        return TextCellValue(safeText(value));
       case ExportValueType.text:
-        return TextCellValue(value.toString());
+        return TextCellValue(safeText(value));
       case null:
         break;
     }
@@ -260,6 +270,6 @@ abstract final class ExcelWorkbookPresentation {
         }
       }
     }
-    return TextCellValue(value.toString());
+    return TextCellValue(safeText(value));
   }
 }

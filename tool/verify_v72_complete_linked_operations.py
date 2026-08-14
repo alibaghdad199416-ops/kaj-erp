@@ -10,6 +10,8 @@ def read(path: str) -> str:
 migration = read("supabase/migrations/20260804032000_v72_complete_linked_operations.sql")
 v73_migration = read("supabase/migrations/20260804180000_v73_reversible_workflows_shell.sql")
 v750_migration = read("supabase/migrations/20260806143000_v750_rpc_runtime_recovery.sql")
+r66_delete_governance = read("supabase/migrations/20260814125959_r66_1_draft_delete_governance.sql")
+r67_delete_governance = read("supabase/migrations/20260814143000_r67_cancelled_order_atomic_purge.sql")
 package = read("package.json")
 inventory_page = read("lib/features/inventory/pages/inventory_page.dart")
 transfer_page = read("lib/features/inventory/pages/product_warehouse_transfers_page.dart")
@@ -37,9 +39,9 @@ checks = {
     "product transfer form has no recursive document dependency": "initialAssetType" in transfer_form and "product_warehouse_transfers_page.dart" not in transfer_form,
     "transfer deletion uses verified v2 RPC": "erp_delete_inventory_warehouse_transfer_v2" in inventory_repo and "result['deleted'] != true" in inventory_repo,
     "transfer v2 validates header items and movement cleanup": all(marker in migration for marker in ("erp_delete_inventory_warehouse_transfer_v2", "warehouse_transfer_link_cleanup_incomplete", "activeMovements", "stockReversed")),
-    "sales deletion uses latest reversible wrapper": (("erp_delete_cloud_sales_order_v4" in sales_repo and "erp_delete_cloud_sales_order_v4" in v750_migration) or ("erp_delete_cloud_sales_order_v3" in sales_repo and "erp_delete_cloud_sales_order_v3" in v73_migration)),
-    "purchase deletion uses v3 reversible wrapper": "erp_delete_cloud_purchase_order_v3" in purchase_repo and "erp_delete_cloud_purchase_order_v3" in v73_migration,
-    "maintenance deletion uses v3 reversible wrapper": "erp_delete_cloud_maintenance_order_v3" in maintenance_repo and "erp_delete_cloud_maintenance_order_v3" in v73_migration,
+    "sales deletion uses latest reversible wrapper": (("erp_delete_cloud_sales_order_v4" in sales_repo and "erp_delete_cloud_sales_order_v4" in v750_migration) or ("erp_r66_delete_commercial_draft" in sales_repo and "erp_delete_cloud_sales_order_v4" in r66_delete_governance) or ("erp_r67_delete_commercial_order" in sales_repo and "erp_delete_cloud_sales_order_v3" in r67_delete_governance)),
+    "purchase deletion uses v3 reversible wrapper": (("erp_delete_cloud_purchase_order_v3" in purchase_repo and "erp_delete_cloud_purchase_order_v3" in v73_migration) or ("erp_r66_delete_commercial_draft" in purchase_repo and "erp_delete_cloud_purchase_order_v3" in r66_delete_governance) or ("erp_r67_delete_commercial_order" in purchase_repo and "erp_delete_cloud_purchase_order_v3" in r67_delete_governance)),
+    "maintenance deletion uses v3 reversible wrapper": (("erp_delete_cloud_maintenance_order_v3" in maintenance_repo and "erp_delete_cloud_maintenance_order_v3" in v73_migration) or ("erp_r66_delete_maintenance_draft" in maintenance_repo and "erp_delete_cloud_maintenance_order_v3" in r66_delete_governance) or ("erp_r67_delete_maintenance_order" in maintenance_repo and "erp_delete_cloud_maintenance_order_v3" in r67_delete_governance)),
     "commercial deletion preserves partner advances": all(marker in migration for marker in ("paymentsPreserved", "customer_unapplied_credit", "supplier_unapplied_debit", "partner_advance")),
     "preserved payments appear in partner totals and documents": all(marker in migration for marker in ("unappliedPartnerPaymentsIncluded", "erp_cloud_partner_subledger_details_v2", "erp_cloud_partner_subledger_documents", "unapplied_credit", "unapplied_debit")),
     "preserved payments are listed and editable": "erp_r49_list_partner_unapplied_payments" in accounting_repo and "erp_update_partner_unapplied_payment" in accounting_repo and "loadPartnerUnappliedPayments" in accounting_controller,

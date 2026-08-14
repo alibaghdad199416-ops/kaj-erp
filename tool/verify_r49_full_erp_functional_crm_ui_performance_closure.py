@@ -28,6 +28,7 @@ r49delivery=read('supabase/migrations/20260810080000_r49_independent_delivery_se
 r49focused=read('supabase/migrations/20260810090000_r49_focused_final_permission_runtime_closure.sql')
 r49finance=read('supabase/migrations/20260810100000_r49_financial_subledger_currency_integrity.sql')
 r49profit=read('supabase/migrations/20260810110000_r49_accounting_profit_installment_surface_closure.sql')
+r65dashboard=read('supabase/migrations/20260814053406_r65_authoritative_dashboard_snapshot.sql')
 supported_currency=read('lib/core/finance/supported_currency.dart')
 permission_catalog=read('lib/features/settings/access/models/permission_catalog.dart')
 opportunity_repo=read('lib/features/customer_service/repositories/opportunity_repository.dart')
@@ -137,15 +138,17 @@ for dart in (ROOT/'lib').rglob('*.dart'):
             large_fixed.append(f'{dart.relative_to(ROOT)}:{match.group(1)}={match.group(2)}')
 gate('No direct >=500px fixed UI dimensions remain outside the launch-shell breakpoint', not large_fixed)
 deploy_r49=read('tool/deploy_r49_production.ps1')
-gate('R49 production orchestrator validates workspace and permits only the eleven R49 migrations',
+guarded_push=read('tool/guarded_supabase_db_push.py')
+gate('R49 production orchestrator validates workspace and uses the bounded migration-history guard',
      'validate_r49_workspace.ps1' in deploy_r49
-     and all(name in deploy_r49 for name in ('20260810021000_r49_crm_business_reference_closure.sql','20260810030000_r49_end_to_end_opportunity_lifecycle_readback.sql','20260810031000_r49_master_business_references.sql','20260810040000_r49_invoice_idempotency_quality_closure.sql','20260810050000_r49_installment_currency_fixed_asset_boundary.sql','20260810060000_r49_product_identity_accounting_integrity.sql','20260810070000_r49_permission_scope_integrity.sql','20260810080000_r49_independent_delivery_search_traceability.sql','20260810090000_r49_focused_final_permission_runtime_closure.sql','20260810100000_r49_financial_subledger_currency_integrity.sql','20260810110000_r49_accounting_profit_installment_surface_closure.sql'))
-     and 'Unexpected pending migrations. Refusing production push' in deploy_r49
+     and 'guarded_supabase_db_push.py --linked --yes' in deploy_r49
+     and 'historical != (COMPAT_VERSION,)' in guarded_push
+     and 'validate_exceptional_dry_run' in guarded_push
      and 'deploy_r49_production.ps1' in package.get('scripts',{}).get('deploy:production',''))
 gate('Responsive module windows reflow instead of scaling a fixed canvas', 'FittedBox(' not in route and 'preferred.width.clamp(minimum.width, available.width)' in route and 'current.height + details.delta.dy' in route)
 gate('Workspace AlertDialogs receive bounded responsive content instead of unconditional scroll constraints', 'dialog.scrollable' in route and 'width: double.infinity' in route and 'alignment: AlignmentDirectional.topStart' in route)
 gate('Account codes remain text identifiers without numeric parsing', 'double.tryParse' not in erp_display.split('static String accountCode',1)[1].split('static String number',1)[0] and 'BigInt.parse' in erp_display and 'ErpDisplayFormatter.accountCode(raw)' in account_model)
-gate('Workflow cards visibly separate logistics, accounting, invoice and payment', all(x in workflow_card for x in ('كمية فقط','القيد المحاسبي','Accounting entry','accountingOwner','invoiceRemaining','paymentStatus')))
+gate('Workflow cards visibly separate logistics, accounting, invoice and payment', all(x in workflow_card for x in ('Delivery','Receipt','Not posted','القيد المحاسبي','Accounting entry','accountingOwner','invoiceRemaining','paymentStatus')))
 gate('Sales invoice creation is backend-idempotent under concurrent retry',
      'erp_r49_guard_single_active_invoice' in r49idempotency
      and 'pg_advisory_xact_lock' in r49idempotency
@@ -182,7 +185,8 @@ gate('Dashboard monetary source of truth is per-currency including live cost-lay
      and 'erp_inventory_cost_layers' in r49idempotency
      and 'group by 1' in r49idempotency
      and all(x in dashboard_model for x in ('totalSalesByCurrency','inventoryValueByCurrency','totalReceivablesByCurrency'))
-     and has_call(dashboard_repo, '_moneyMap', "row['inventoryValueByCurrency']")
+     and (has_call(dashboard_repo, '_moneyMap', "row['inventoryValueByCurrency']")
+          or "_requiredMoneyMap(row, 'inventoryValueByCurrency')" in dashboard_repo)
      and has_call(dashboard_page, 'CurrencyTotalsFormatter.format', 'dashboard.inventoryValueByCurrency')
      and '_money(dashboard.inventoryValue)' not in dashboard_page)
 gate('Report monetary summaries honor requested period and never export one mixed-currency scalar',
@@ -542,10 +546,12 @@ gate('Accounting profit KPI comes from posted GL revenue/expense lines instead o
      and "je.data->>'status'='posted'" in r49profit
      and 'erp_r49_accounting_net_profit_by_currency' in r49profit
      and "-coalesce((v_purchases" not in r49profit)
-gate('Dashboard and reports use the R49 accounting-profit wrappers while retaining R9 field permissions',
-     "'erp_r49_cloud_dashboard_snapshot'" in dashboard_repo
+gate('Dashboard uses the R65 accounting/invoice/FIFO snapshot and reports retain the R49 wrapper',
+     "'erp_r65_get_authoritative_dashboard_snapshot'" in dashboard_repo
      and "'erp_r49_cloud_reports_summary'" in report_repo
-     and 'erp_r9_cloud_dashboard_snapshot' in r49profit
+     and "a.account_type in ('revenue','expense')" in r65dashboard
+     and "d.document_type='invoice'" in r65dashboard
+     and 'erp_inventory_cost_layers' in r65dashboard
      and 'erp_r9_cloud_reports_summary' in r49profit
      and "if v ? 'netProfitByCurrency'" in r49profit)
 gate('Standalone installment schedule mutators are internal and browser repository is read-only',

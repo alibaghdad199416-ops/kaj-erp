@@ -24,6 +24,16 @@ class DashboardModel {
     required this.inventoryValueByCurrency,
     required this.totalReceivablesByCurrency,
     required this.totalPayablesByCurrency,
+    required this.salesCollectionsByCurrency,
+    required this.purchasePaymentsByCurrency,
+    required this.maintenanceRevenueByCurrency,
+    required this.maintenancePaidByCurrency,
+    required this.maintenanceOutstandingByCurrency,
+    required this.maintenanceActualCostByCurrency,
+    required this.customerAdvancesByCurrency,
+    required this.supplierAdvancesByCurrency,
+    required this.recognizedRevenueByCurrency,
+    required this.cashBalanceByCurrency,
     required this.pendingPurchaseCars,
     required this.lowStockItems,
     required this.carsWithoutWarehouse,
@@ -34,8 +44,11 @@ class DashboardModel {
     required this.pendingSyncOperations,
     required this.salesTrend,
     required this.recentActivities,
+    required this.recentDocuments,
     required this.upcomingInstallments,
     required this.generatedAt,
+    required this.filter,
+    required this.statusCounts,
   });
 
   final int totalCars;
@@ -62,6 +75,16 @@ class DashboardModel {
   final Map<String, double> inventoryValueByCurrency;
   final Map<String, double> totalReceivablesByCurrency;
   final Map<String, double> totalPayablesByCurrency;
+  final Map<String, double> salesCollectionsByCurrency;
+  final Map<String, double> purchasePaymentsByCurrency;
+  final Map<String, double> maintenanceRevenueByCurrency;
+  final Map<String, double> maintenancePaidByCurrency;
+  final Map<String, double> maintenanceOutstandingByCurrency;
+  final Map<String, double> maintenanceActualCostByCurrency;
+  final Map<String, double> customerAdvancesByCurrency;
+  final Map<String, double> supplierAdvancesByCurrency;
+  final Map<String, double> recognizedRevenueByCurrency;
+  final Map<String, double> cashBalanceByCurrency;
   final int pendingPurchaseCars;
   final int lowStockItems;
   final int carsWithoutWarehouse;
@@ -72,10 +95,13 @@ class DashboardModel {
   final int pendingSyncOperations;
   final List<DashboardSalesPoint> salesTrend;
   final List<DashboardActivity> recentActivities;
+  final List<DashboardDocument> recentDocuments;
   final List<DashboardInstallment> upcomingInstallments;
   final DateTime generatedAt;
+  final DashboardFilter filter;
+  final Map<String, Map<String, int>> statusCounts;
 
-  factory DashboardModel.empty() => DashboardModel(
+  factory DashboardModel.empty({DateTime? generatedAt}) => DashboardModel(
     totalCars: 0,
     availableCars: 0,
     reservedCars: 0,
@@ -100,6 +126,16 @@ class DashboardModel {
     inventoryValueByCurrency: const {},
     totalReceivablesByCurrency: const {},
     totalPayablesByCurrency: const {},
+    salesCollectionsByCurrency: const {},
+    purchasePaymentsByCurrency: const {},
+    maintenanceRevenueByCurrency: const {},
+    maintenancePaidByCurrency: const {},
+    maintenanceOutstandingByCurrency: const {},
+    maintenanceActualCostByCurrency: const {},
+    customerAdvancesByCurrency: const {},
+    supplierAdvancesByCurrency: const {},
+    recognizedRevenueByCurrency: const {},
+    cashBalanceByCurrency: const {},
     pendingPurchaseCars: 0,
     lowStockItems: 0,
     carsWithoutWarehouse: 0,
@@ -110,15 +146,47 @@ class DashboardModel {
     pendingSyncOperations: 0,
     salesTrend: const [],
     recentActivities: const [],
+    recentDocuments: const [],
     upcomingInstallments: const [],
-    generatedAt: DateTime.now(),
+    generatedAt: generatedAt ?? DateTime.now(),
+    filter: DashboardFilter(toDate: generatedAt ?? DateTime.now()),
+    statusCounts: const {},
   );
 }
 
 class DashboardSalesPoint {
-  const DashboardSalesPoint({required this.date, required this.amount});
+  const DashboardSalesPoint({required this.date, required this.amounts});
   final DateTime date;
+  final Map<String, double> amounts;
+
+  double get amount => amounts.values.fold(0, (sum, value) => sum + value);
+}
+
+class DashboardFilter {
+  const DashboardFilter({this.fromDate, required this.toDate});
+  final DateTime? fromDate;
+  final DateTime toDate;
+}
+
+class DashboardDocument {
+  const DashboardDocument({
+    required this.module,
+    required this.documentType,
+    required this.reference,
+    required this.status,
+    required this.partner,
+    required this.currencyCode,
+    required this.amount,
+    required this.occurredAt,
+  });
+  final String module;
+  final String documentType;
+  final String reference;
+  final String status;
+  final String partner;
+  final String currencyCode;
   final double amount;
+  final DateTime occurredAt;
 }
 
 class DashboardActivity {

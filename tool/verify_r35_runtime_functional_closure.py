@@ -13,9 +13,11 @@ inventory_stage4 = txt('lib/design_system/kaj_inventory_stage4_components.dart')
 checks['inventory loading responsive']='constraints.maxHeight' in inventory_stage4 and re.search(r'\.clamp\(\s*24\.0,\s*natural,?\s*\)', inventory_stage4) is not None
 checks['no automatic detached scrollbar']='return Scrollbar(' not in txt('lib/core/widgets/app_scroll_behavior.dart')
 pdf_web=txt('lib/core/exporting/pdf_print_service_web.dart')
+binary_web=txt('lib/core/exporting/binary_download_service_web.dart')
 checks['web pdf direct download']=(
-    'html.AnchorElement' in pdf_web and
-    '..download = safeFileName' in pdf_web and
+    'browser_download.saveBinary' in pdf_web and
+    'html.AnchorElement' in binary_web and
+    '..download = fileName' in binary_web and
     'html.window.open(' not in pdf_web
 )
 pdf_support=txt('lib/core/printing/pdf_text_support.dart')

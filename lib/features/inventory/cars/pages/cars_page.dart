@@ -379,40 +379,48 @@ class _CarsPageState extends State<CarsPage> {
                     : constraints.maxWidth >= 760
                     ? 2
                     : 1;
-                return GridView.builder(
+                final rowCount = (filteredCars.length + columns - 1) ~/ columns;
+                return ListView.separated(
                   padding: const EdgeInsets.all(10),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    mainAxisExtent: columns == 3
-                        ? 168
-                        : columns == 2
-                        ? 176
-                        : 188,
-                  ),
-                  itemCount: filteredCars.length,
-                  itemBuilder: (context, index) {
-                    final car = filteredCars[index];
-                    return CarCard(
-                      car: car,
-                      onEdit: () => _editCar(car),
-                      onHistory: () => _showCarHistory(car),
-                      onDelete: () => _deleteCar(car),
-                      warehouseName: (() {
-                        final warehouseId = canonicalWarehouseId(car);
-                        if (warehouseId == null) return warehouseLabel(car);
-                        return _warehouses
-                                .where(
-                                  (warehouse) =>
-                                      warehouse.id.trim() == warehouseId.trim(),
-                                )
-                                .map((warehouse) => warehouse.name)
-                                .firstOrNull ??
-                            warehouseLabel(car);
-                      })(),
-                      carNumber: car.carNumber,
-                      plateNumber: car.plateNumber,
+                  itemCount: rowCount,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, rowIndex) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List<Widget>.generate(columns * 2 - 1, (slot) {
+                        if (slot.isOdd) return const SizedBox(width: 8);
+                        final column = slot ~/ 2;
+                        final index = rowIndex * columns + column;
+                        if (index >= filteredCars.length) {
+                          return const Expanded(child: SizedBox.shrink());
+                        }
+                        final car = filteredCars[index];
+                        return Expanded(
+                          child: CarCard(
+                            car: car,
+                            onEdit: () => _editCar(car),
+                            onHistory: () => _showCarHistory(car),
+                            onDelete: () => _deleteCar(car),
+                            warehouseName: (() {
+                              final warehouseId = canonicalWarehouseId(car);
+                              if (warehouseId == null) {
+                                return warehouseLabel(car);
+                              }
+                              return _warehouses
+                                      .where(
+                                        (warehouse) =>
+                                            warehouse.id.trim() ==
+                                            warehouseId.trim(),
+                                      )
+                                      .map((warehouse) => warehouse.name)
+                                      .firstOrNull ??
+                                  warehouseLabel(car);
+                            })(),
+                            carNumber: car.carNumber,
+                            plateNumber: car.plateNumber,
+                          ),
+                        );
+                      }),
                     );
                   },
                 );
@@ -430,7 +438,7 @@ class _CarsPageState extends State<CarsPage> {
       maxHeight: 780,
       builder: (_) => const CarWarehouseTransfersPage(),
     );
-    if (mounted) await context.read<CarsController>().loadCars();
+    if (mounted) await context.read<CarsController>().loadCars(force: true);
   }
 
   Future<void> _openAddCar() async {

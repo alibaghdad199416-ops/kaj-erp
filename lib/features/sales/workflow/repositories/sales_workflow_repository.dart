@@ -121,15 +121,12 @@ class SalesWorkflowRepository {
     required String warehouseId,
     String? notes,
   }) async {
-    final id = (await _client.rpc(
-      'erp_r49_create_sales_delivery',
-      params: {
-        'p_company_id': _companyId,
-        'p_order_id': orderId,
-        'p_warehouse_id': warehouseId,
-        'p_notes': notes,
-      },
-    )).toString();
+    final id = (await _rpcValue('erp_r49_create_sales_delivery', {
+      'p_company_id': _companyId,
+      'p_order_id': orderId,
+      'p_warehouse_id': warehouseId,
+      'p_notes': notes,
+    })).toString();
     _publishCommittedChange('erp_r49_create_sales_delivery');
     await _reconcileOpportunityLinks();
     return id;
@@ -140,10 +137,10 @@ class SalesWorkflowRepository {
   Future<void> cancelDelivery(String deliveryId) =>
       _void('erp_cancel_cloud_sales_delivery', {'p_delivery_id': deliveryId});
   Future<String> createInvoiceDraft(String orderId) async {
-    final id = (await _client.rpc(
-      'erp_create_cloud_sales_workflow_invoice',
-      params: {'p_company_id': _companyId, 'p_order_id': orderId},
-    )).toString();
+    final id = (await _rpcValue('erp_create_cloud_sales_workflow_invoice', {
+      'p_company_id': _companyId,
+      'p_order_id': orderId,
+    })).toString();
     _publishCommittedChange('erp_create_cloud_sales_workflow_invoice');
     await _reconcileOpportunityLinks();
     return id;
@@ -226,8 +223,15 @@ class SalesWorkflowRepository {
         'p_effective_at': value.toUtc().toIso8601String(),
       });
 
-  Future<void> deleteOrderCascade(String orderId) =>
-      _void('erp_delete_cloud_sales_order_v4', {'p_order_id': orderId});
+  Future<void> deleteOrderCascade(String orderId) => _void(
+    'erp_r67_delete_commercial_order',
+    {'p_order_id': orderId, 'p_module': 'sales'},
+  );
+
+  Future<void> cancelOrder(String orderId, {String? reason}) => _void(
+    'erp_r62_cancel_commercial_order',
+    {'p_order_id': orderId, 'p_module': 'sales', 'p_reason': reason},
+  );
 
   Future<void> manageOrderComponent({
     required String orderId,
@@ -281,15 +285,12 @@ class SalesWorkflowRepository {
     if (allocations.isEmpty) {
       throw ArgumentError('يجب توزيع بند واحد على الأقل على المخازن');
     }
-    final id = (await _client.rpc(
-      'erp_r49_create_sales_delivery_multi',
-      params: {
-        'p_company_id': _companyId,
-        'p_order_id': orderId,
-        'p_allocations': allocations,
-        'p_notes': notes,
-      },
-    )).toString();
+    final id = (await _rpcValue('erp_r49_create_sales_delivery_multi', {
+      'p_company_id': _companyId,
+      'p_order_id': orderId,
+      'p_allocations': allocations,
+      'p_notes': notes,
+    })).toString();
     _publishCommittedChange('erp_r49_create_sales_delivery_multi');
     await _reconcileOpportunityLinks();
     return id;

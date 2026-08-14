@@ -32,7 +32,10 @@ need('deployment does not replay production migrations', 'supabase db push' not 
 need('deployment uses fresh validated web build', 'validate_r30_workspace.ps1' in deploy, checks)
 # Critical user-requested paths remain present after hardening.
 need('canonical EBL cashbox endpoints retained', (all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r28_list_cash_accounts','erp_r28_save_cash_account']) or all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r42_list_cash_accounts','erp_r42_save_cash_account'])), checks)
-need('commercial drilldown retained', 'erp_r28_get_commercial_order_complete_details' in text('lib/features/sales/workflow/repositories/commercial_order_details_repository.dart'), checks)
+need('commercial drilldown retained',
+     any(endpoint in text('lib/features/sales/workflow/repositories/commercial_order_details_repository.dart')
+         for endpoint in ['erp_r28_get_commercial_order_complete_details',
+                          'erp_r62_get_commercial_order_snapshot']), checks)
 need('movement server rpc retained', 'erp_r28_inventory_movement_log' in text('lib/features/inventory/data/inventory_repository.dart'), checks)
 need('product movement pdf excel retained', all(x in text('lib/features/inventory/pages/inventory_movements_page.dart') for x in ['PdfExportService','ExcelExportService']), checks)
 need('recycle bin excel retained', 'ExcelExportService().build(_report())' in text('lib/features/settings/recycle_bin/pages/recycle_bin_page.dart') and 'BinaryDownloadService.save' in text('lib/features/settings/recycle_bin/pages/recycle_bin_page.dart'), checks)

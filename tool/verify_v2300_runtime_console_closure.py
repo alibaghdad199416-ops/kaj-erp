@@ -156,6 +156,11 @@ need("'movementDate',v_effective_at,'effectiveAt',v_effective_at" in migration a
 
 # Detail dialogs must expose live operational data, not only technical creation timestamps.
 commercial_details_live = (
+    ('erp_r62_get_commercial_order_snapshot' in details_repo and
+     (ROOT/'supabase/migrations/20260814035608_r62_cancel_delete_permission_separation.sql').is_file() and
+     'erp_r28_get_commercial_order_complete_details' in read('supabase/migrations/20260814035608_r62_cancel_delete_permission_separation.sql') and
+     'erp_r57_commercial_reconciliation' in read('supabase/migrations/20260814035608_r62_cancel_delete_permission_separation.sql'))
+    or
     ('erp_v2300_get_commercial_order_complete_details' in details_repo and
      'erp_v2300_get_commercial_order_complete_details' in migration)
     or
@@ -167,8 +172,8 @@ need(commercial_details_live,
      'commercial details dialog does not use a canonical live details contract')
 need("order['effectiveAt']" in order_details and 'Operational date and time' in order_details,
      'commercial details dialog omits the entered operational date/time')
-need('_repository.getOrders()' in maintenance_details and '_repository.getOrderLines(_order.id)' in maintenance_details and
-     'MaintenanceOrderModel? liveOrder' in maintenance_details,
+need('_repository.getOrderSnapshot(_order.id)' in maintenance_details and
+     'erp_r64_get_maintenance_order_snapshot' in read('lib/features/maintenance/data/maintenance_repository.dart'),
      'maintenance details dialog does not refresh live order/line data')
 need('Operational date and time' in maintenance_details and 'order.maintenanceDate' in maintenance_details,
      'maintenance details dialog omits the operational date/time')

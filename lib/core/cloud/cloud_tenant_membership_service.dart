@@ -47,6 +47,18 @@ class CloudMembership {
   final bool isSystemAdmin;
 }
 
+CloudMembership cloudMembershipFromRow(Map<String, dynamic> row) {
+  final company = Map<String, dynamic>.from(row['companies'] as Map);
+  return CloudMembership(
+    companyId: row['company_id'].toString(),
+    companySlug: company['slug'].toString(),
+    companyName: (company['name_ar'] ?? company['name_en'] ?? '').toString(),
+    branchId: row['default_branch_id']?.toString(),
+    roleCode: (row['role_code'] ?? 'user').toString(),
+    isSystemAdmin: row['is_system_admin'] == true,
+  );
+}
+
 /// Resolves the active Supabase Auth user to a company membership.
 class CloudTenantMembershipService {
   CloudTenantMembershipService._();
@@ -88,15 +100,7 @@ class CloudTenantMembershipService {
       memberships: memberships,
       persistedCompanyId: CloudTenantContext.instance.companyUuid,
     );
-    final company = Map<String, dynamic>.from(row['companies'] as Map);
-    final membership = CloudMembership(
-      companyId: row['company_id'].toString(),
-      companySlug: company['slug'].toString(),
-      companyName: (company['name_ar'] ?? company['name_en'] ?? '').toString(),
-      branchId: row['default_branch_id']?.toString(),
-      roleCode: (row['role_code'] ?? 'user').toString(),
-      isSystemAdmin: row['is_system_admin'] == true,
-    );
+    final membership = cloudMembershipFromRow(row);
 
     await CloudTenantContext.instance.selectTenant(
       companyId: membership.companySlug,

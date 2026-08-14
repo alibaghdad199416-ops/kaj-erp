@@ -448,7 +448,12 @@ class _ReportsPageState extends State<ReportsPage> {
     setState(() => _isExporting = true);
     try {
       await action();
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Report export failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

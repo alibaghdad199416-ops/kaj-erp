@@ -25,9 +25,10 @@ filterbar=read('lib/core/widgets/commercial_workflow_filter_bar.dart')
 details=read('lib/features/sales/workflow/pages/order_details_dialog.dart')
 migration=read('supabase/migrations/20260809124736_r37_full_functional_presentation_closure.sql')
 pdfweb=read('lib/core/exporting/pdf_print_service_web.dart')
+binaryweb=read('lib/core/exporting/binary_download_service_web.dart')
 inv_compact=re.sub(r'\s+',' ',inv)
 checks['product cards compact']=(('? 184 : ' in inv_compact and '? 192 : ' in inv_compact and ': 204' in inv_compact) or ('? 172 : ' in inv_compact and '? 180 : ' in inv_compact and ': 192' in inv_compact) or ('? 158 : ' in inv_compact and '? 166 : ' in inv_compact and ': 178' in inv_compact)) and 'width: 60' in inv_card
-checks['car cards compact']=((('? 198' in cars and '? 206' in cars and ': 218' in cars) or ('? 186' in cars and '? 194' in cars and ': 206' in cars) or ('? 168' in cars and '? 176' in cars and ': 188' in cars)) and 'width: 64' in car_card)
+checks['car cards compact']=('mainAxisExtent:' not in cars and 'ListView.separated(' in cars and 'final rowCount = (filteredCars.length + columns - 1) ~/ columns;' in cars and 'width: 64' in car_card)
 checks['warehouse cards compact']=any(token in wh for token in ('mainAxisExtent: 150','mainAxisExtent: 142','mainAxisExtent: 138','mainAxisExtent: 124')) and 'const Spacer()' not in wh[wh.find('class _WarehouseCard'):wh.find('class WarehouseEditor') if 'class WarehouseEditor' in wh else len(wh)]
 checks['partner cards compact']=(('mainAxisExtent: 164' in cust and 'mainAxisExtent: 172' in supp) or ('mainAxisExtent: 150' in cust and 'mainAxisExtent: 150' in supp) or ('mainAxisExtent: 142' in cust and 'mainAxisExtent: 142' in supp) or ('mainAxisExtent: 126' in cust and 'mainAxisExtent: 126' in supp))
 checks['partner cards localized']="t('عميل تجاري', 'Customer')" in cust_card and "t('مورد نشط', 'Active supplier')" in supp_card
@@ -43,7 +44,7 @@ checks['cloud command R37']='erp_r37_cloud_command' in cloud and 'erp_r28_cloud_
 checks['sales/purchase localized actions']=re.search(r"_bi\(\s*'تصديق أمر البيع',\s*'Approve sales order',?\s*\)", sales) is not None and re.search(r"_bi\(\s*'تصديق أمر الشراء',\s*'Approve purchase order',?\s*\)", purchases) is not None
 checks['filter chips localized']="context.l10n.isArabic ? 'مفوتر' : 'Invoiced'" in filterbar and "context.l10n.isArabic ? 'مسدد' : 'Paid'" in filterbar
 checks['technical payload suppressed']='invoiceRawData' in details and 'recordMeta' in details and 'raw_data' in details
-checks['web pdf direct browser download']='html.Blob' in pdfweb and 'AnchorElement' in pdfweb and '..download = safeFileName' in pdfweb and 'html.window.open(' not in pdfweb
+checks['web pdf direct browser download']='browser_download.saveBinary' in pdfweb and 'html.Blob' in binaryweb and 'AnchorElement' in binaryweb and '..download = fileName' in binaryweb and 'html.window.open(' not in pdfweb
 checks['R37 migration schema reload']="notify pgrst,'reload schema'" in migration
 pkg=json.loads(read('package.json'))
 checks['default deploy R37']=('deploy_r37_production.ps1' in pkg['scripts'].get('deploy:production','') or re.search(r'deploy_r(?:3[89]|[4-9][0-9])_production\.ps1',pkg['scripts'].get('deploy:production',''))) and 'verify:r37' in pkg['scripts'].get('verify:workspace','')

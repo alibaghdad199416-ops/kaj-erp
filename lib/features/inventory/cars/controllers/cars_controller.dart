@@ -15,24 +15,45 @@ class CarsController extends ChangeNotifier {
   List<CarModel> _cars = [];
   bool _isLoading = false;
   bool _reloadRequested = false;
+  Future<void>? _loadInFlight;
+  DateTime? _loadedAt;
   bool _disposed = false;
   bool _hasLoaded = false;
 
   List<CarModel> get cars => List.unmodifiable(_cars);
+  bool get isLoading => _isLoading;
   bool get hasLoaded => _hasLoaded;
 
-  Future<void> loadCars() async {
-    if (_isLoading) {
-      _reloadRequested = true;
-      return;
+  static const Duration _loadTtl = Duration(seconds: 20);
+
+  Future<void> loadCars({bool force = false}) {
+    final loadedAt = _loadedAt;
+    if (!force &&
+        loadedAt != null &&
+        DateTime.now().difference(loadedAt) < _loadTtl) {
+      return Future<void>.value();
+    }
+    final active = _loadInFlight;
+    if (active != null) {
+      if (force) _reloadRequested = true;
+      return active;
     }
 
+    final request = _loadCarsNow();
+    _loadInFlight = request;
+    return request.whenComplete(() {
+      if (identical(_loadInFlight, request)) _loadInFlight = null;
+    });
+  }
+
+  Future<void> _loadCarsNow() async {
     _isLoading = true;
     try {
       do {
         _reloadRequested = false;
         _cars = await _repository.getCars();
         _hasLoaded = true;
+        _loadedAt = DateTime.now();
 
         if (!_disposed) {
           notifyListeners();
@@ -65,7 +86,7 @@ class CarsController extends ChangeNotifier {
         entityId: car.id,
       );
     } finally {
-      await loadCars();
+      await loadCars(force: true);
     }
   }
 
@@ -78,14 +99,14 @@ class CarsController extends ChangeNotifier {
         entityId: car.id,
       );
     } finally {
-      await loadCars();
+      await loadCars(force: true);
     }
   }
 
   Future<void> removeCar(String id) async {
     await _repository.deleteCar(id);
     AppDataChangeBus.instance.publish('cars', operation: 'delete');
-    await loadCars();
+    await loadCars(force: true);
   }
 
   CarModel? getCarById(String id) {
@@ -99,7 +120,7 @@ class CarsController extends ChangeNotifier {
   Future<void> changeCarStatus(String id, String status) async {
     await _repository.updateCarStatus(id, status);
     AppDataChangeBus.instance.publish('cars', operation: 'status');
-    await loadCars();
+    await loadCars(force: true);
   }
 
   int get totalCars => _cars.length;

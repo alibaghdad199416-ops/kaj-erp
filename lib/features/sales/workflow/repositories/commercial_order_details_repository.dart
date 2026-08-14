@@ -22,14 +22,14 @@ class CommercialOrderDetailsRepository {
       throw ArgumentError.value(orderId, 'orderId', 'معرف الأمر مطلوب.');
     }
 
-    final value = await _client.rpc(
-      'erp_r28_get_commercial_order_complete_details',
+    final result = await _client.rpc(
+      'erp_r62_get_commercial_order_snapshot',
       params: <String, Object?>{
         'p_company_id': _companyId,
         'p_order_id': normalizedOrderId,
         'p_purchase': purchase,
       },
     );
-    return CommercialOrderDetails.fromRpc(value);
+    return CommercialOrderDetails.fromRpc(result);
   }
 }

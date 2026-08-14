@@ -17,6 +17,7 @@ import 'package:quality_line_erp/design_system/kaj_surface.dart';
 import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';
 import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_cost_reconciliation.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'add_maintenance_order_page.dart';
 import 'maintenance_order_details_dialog.dart';
@@ -70,7 +71,15 @@ class _MaintenancePageState extends State<MaintenancePage> {
         order: order,
         onPrint: () => _print(order),
         onEdit: order.canEdit ? () => _open(order) : null,
-        onDelete: () => _delete(order),
+        onDelete:
+            const <String>{
+              'order_draft',
+              'draft',
+              'cancelled',
+            }.contains(order.workflowStage)
+            ? () => _delete(order)
+            : null,
+        onCancel: !order.isCancelled ? () => _cancel(order) : null,
         onPayment: order.workflowStage == 'invoice_approved'
             ? () => _pay(order)
             : null,
@@ -115,7 +124,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: AppText(t('حذف أمر الصيانة', 'Delete maintenance order')),
+        title: AppText(t('حذف مسودة الصيانة', 'Delete maintenance draft')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,7 +132,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
             AppText(
               t(
                 'سيتم عكس التجهيز والفاتورة والقيود والارتباطات. تبقى الدفعات المالية كرصيد غير مخصص للعميل وتُحتسب تلقائيًا في أمر لاحق للعميل نفسه وبالعملة نفسها.',
-                'Stock issue, invoice, journals, and links will be reversed. Financial payments remain as unapplied customer credit and are automatically considered for a later order of the same customer and currency.',
+                'This draft and its unexecuted lines will be deleted.',
               ),
             ),
             const SizedBox(height: 12),
@@ -131,7 +140,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
               controller: reason,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: t('سبب الحذف', 'Deletion reason'),
+                labelText: t('سبب حذف المسودة', 'Draft deletion reason'),
               ),
             ),
           ],
@@ -143,7 +152,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: AppText(t('حذف الأمر وارتباطاته', 'Delete order and links')),
+            child: AppText(t('حذف المسودة', 'Delete draft')),
           ),
         ],
       ),
@@ -274,12 +283,24 @@ class _MaintenancePageState extends State<MaintenancePage> {
   }
 
   Future<void> _print(MaintenanceOrderModel order) async {
-    final lines = await context.read<MaintenanceController>().getOrderLines(
-      order.id,
-    );
+    final controller = context.read<MaintenanceController>();
+    final results = await Future.wait<Object>(<Future<Object>>[
+      controller.getOrderLines(order.id),
+      controller.getCostReconciliation(order.id),
+    ]);
+    final lines = results[0] as List<MaintenanceLineModel>;
+    final reconciliation = results[1] as MaintenanceCostReconciliation;
     await const MaintenanceDocumentPdfService().print(
       order: order,
       lines: lines,
+      issueEvents: reconciliation.issueEvents,
+      authoritativeIssuedQuantity: reconciliation.lines
+          .where((line) => line['lineType']?.toString() != 'service')
+          .fold<double>(
+            0,
+            (total, line) =>
+                total + ((line['issuedQuantity'] as num?)?.toDouble() ?? 0),
+          ),
       arabic: ar,
     );
   }
@@ -743,20 +764,30 @@ class _MaintenancePageState extends State<MaintenancePage> {
                                 'maintenance.cancel',
                               ) &&
                               !<String>{
-                                'paid',
-                                'completed',
+                                'draft',
+                                'order_draft',
                               }.contains(order.workflowStage))
                             AppModuleActionIcon(
                               tooltip: t('إلغاء وعكس', 'Cancel & reverse'),
                               icon: Icons.undo_rounded,
                               onPressed: () => _cancel(order),
                             ),
-                          if (PermissionAction.allowed(
-                            context,
-                            'maintenance.delete',
-                          ))
+                          if (<String>{
+                                'draft',
+                                'order_draft',
+                                'cancelled',
+                              }.contains(order.workflowStage) &&
+                              PermissionAction.allowed(
+                                context,
+                                'maintenance.delete',
+                              ))
                             AppModuleActionIcon(
-                              tooltip: t('حذف', 'Delete'),
+                              tooltip: order.isCancelled
+                                  ? t(
+                                      'حذف أمر الصيانة الملغى',
+                                      'Delete cancelled maintenance order',
+                                    )
+                                  : t('حذف المسودة', 'Delete draft'),
                               icon: Icons.delete_outline_rounded,
                               destructive: true,
                               busy: _busyOrderIds.contains(order.id),

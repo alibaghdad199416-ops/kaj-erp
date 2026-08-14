@@ -403,11 +403,15 @@ for token in [
 ]:
     need(token in latest_security,f'R9 late security boundary missing {token}')
 r49_profit = read('supabase/migrations/20260810110000_r49_accounting_profit_installment_surface_closure.sql')
+r65_dashboard = read('supabase/migrations/20260814053406_r65_authoritative_dashboard_snapshot.sql')
 uses_permission_filtered_dashboard = (
     "'erp_r9_cloud_dashboard_snapshot'" in dashboard_repo
     or ("'erp_r49_cloud_dashboard_snapshot'" in dashboard_repo
         and 'v:=public.erp_r9_cloud_dashboard_snapshot(p_company_id,p_reference_day);' in r49_profit
         and "if v ? 'netProfitByCurrency'" in r49_profit)
+    or ("'erp_r65_get_authoritative_dashboard_snapshot'" in dashboard_repo
+        and "erp_cloud_user_has_permission(p_company_id,'dashboard.view')" in r65_dashboard
+        and "erp_cloud_user_can_view_field(p_company_id,'dashboard'" in r65_dashboard)
 )
 need(uses_permission_filtered_dashboard and
      "pendingSyncOperations: _i(row['pendingSyncOperations'])" in dashboard_repo,

@@ -11,6 +11,7 @@ backups/
 __pycache__/
 *.py[cod]
 supabase/.temp/
+supabase/.branches/
 
 # Local tooling, debug, crash, and packaged snapshot artifacts
 .idea/

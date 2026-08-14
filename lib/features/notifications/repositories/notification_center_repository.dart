@@ -118,6 +118,36 @@ class NotificationCenterRepository {
     );
   }
 
+  Future<bool> deleteNotification(String id) async {
+    final result = await _client.rpc(
+      'erp_r66_delete_cloud_notification',
+      params: {'p_company_id': _companyId, 'p_notification_id': id},
+    );
+    final payload = result is Map
+        ? Map<String, Object?>.from(result)
+        : const {};
+    final wasUnread = payload['wasUnread'] == true;
+    if (wasUnread) {
+      NotificationUnreadState.update(NotificationUnreadState.count.value - 1);
+    }
+    return wasUnread;
+  }
+
+  Future<Map<String, Object?>> clearAllNotifications() async {
+    final result = await _client.rpc(
+      'erp_r68_clear_cloud_notifications',
+      params: {'p_company_id': _companyId},
+    );
+    final payload = result is Map
+        ? Map<String, Object?>.from(result)
+        : <String, Object?>{};
+    if (payload['ok'] != true) {
+      throw StateError('Notification bulk clear did not complete.');
+    }
+    NotificationUnreadState.update(0);
+    return payload;
+  }
+
   static NotificationSeverity _severity(String? value) => switch (value) {
     'critical' => NotificationSeverity.critical,
     'warning' => NotificationSeverity.warning,

@@ -6,6 +6,7 @@ import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
 import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
+import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,8 +17,6 @@ import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
-import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_phase6_components.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/pages/cashbox_page.dart';
 import 'package:quality_line_erp/features/accounting/expenses/pages/expenses_page.dart';
 import 'package:quality_line_erp/features/accounting/installments/pages/installments_page.dart';
@@ -42,6 +41,7 @@ class AccountingCenterPage extends StatefulWidget {
 
 class _AccountingCenterPageState extends State<AccountingCenterPage> {
   late int _selected;
+  StreamSubscription<AppDataChangeEvent>? _changes;
 
   static const _sections = <_AccountingSection>[
     _AccountingSection(
@@ -114,6 +114,29 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<AccountingController>().loadAccounting();
     });
+    _changes = AppDataChangeBus.instance.events
+        .where(
+          (event) => const {
+            'accounting',
+            'cashbox',
+            'expenses',
+            'sales',
+            'purchases',
+          }.contains(event.source),
+        )
+        .listen((_) {
+          if (mounted) {
+            unawaited(
+              context.read<AccountingController>().refreshHeaderSnapshot(),
+            );
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_changes?.cancel());
+    super.dispose();
   }
 
   @override
@@ -145,29 +168,29 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
           CompactMetricPill(
             icon: Icons.account_tree_outlined,
             label: isArabic ? 'الحسابات' : 'Accounts',
-            value: controller.accounts.length.toString(),
+            value: controller.headerAccountCount.toString(),
           ),
           const SizedBox(width: 7),
           CompactMetricPill(
             icon: Icons.menu_book_outlined,
             label: isArabic ? 'القيود' : 'Entries',
-            value: controller.entries.length.toString(),
+            value: controller.headerEntryCount.toString(),
           ),
           const SizedBox(width: 7),
           CompactMetricPill(
             icon: Icons.balance_outlined,
-            label: 'ميزان USD',
+            label: isArabic ? 'النقد المتاح USD' : 'Available cash USD',
             value: MoneyFormatter.format(
-              controller.usdTrial['debit'] ?? 0,
+              controller.cashByCurrency['USD'] ?? 0,
               currency: 'USD',
             ),
           ),
           const SizedBox(width: 7),
           CompactMetricPill(
             icon: Icons.balance_outlined,
-            label: 'ميزان IQD',
+            label: isArabic ? 'النقد المتاح IQD' : 'Available cash IQD',
             value: MoneyFormatter.format(
-              controller.iqdTrial['debit'] ?? 0,
+              controller.cashByCurrency['IQD'] ?? 0,
               currency: 'IQD',
             ),
           ),
@@ -207,55 +230,7 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
               : chip;
         }, growable: false),
       ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: KajExecutiveHero(
-              eyebrow: AppTranslation.translate('الإدارة المالية التنفيذية'),
-              title: AppTranslation.translate('المركز المالي والمحاسبي'),
-              subtitle: AppTranslation.translate(
-                'عرض موحد للحسابات والقيود والسيولة والأصول والتقارير المالية.',
-              ),
-              icon: Icons.account_balance_outlined,
-              metrics: <KajExecutiveMetricData>[
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('الحسابات'),
-                  value: controller.accounts.length.toString(),
-                  icon: Icons.account_tree_outlined,
-                  accent: KajDesignTokens.electricBlue,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('القيود'),
-                  value: controller.entries.length.toString(),
-                  icon: Icons.menu_book_outlined,
-                  accent: KajDesignTokens.staticGreen,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('ميزان USD'),
-                  value: MoneyFormatter.format(
-                    controller.usdTrial['debit'] ?? 0,
-                    currency: 'USD',
-                  ),
-                  icon: Icons.balance_outlined,
-                  accent: KajDesignTokens.champagneGold,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('ميزان IQD'),
-                  value: MoneyFormatter.format(
-                    controller.iqdTrial['debit'] ?? 0,
-                    currency: 'IQD',
-                  ),
-                  icon: Icons.currency_exchange_outlined,
-                  accent: KajDesignTokens.electricBlue,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(child: _sectionBody()),
-        ],
-      ),
+      body: _sectionBody(),
     );
   }
 

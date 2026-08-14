@@ -23,6 +23,8 @@ def require(source: str, tokens: tuple[str, ...], label: str) -> None:
 
 
 migration = read("supabase/migrations/20260804180000_v73_reversible_workflows_shell.sql")
+r66_delete_governance = read("supabase/migrations/20260814125959_r66_1_draft_delete_governance.sql")
+r67_delete_governance = read("supabase/migrations/20260814143000_r67_cancelled_order_atomic_purge.sql")
 sales_repo = read("lib/features/sales/workflow/repositories/sales_workflow_repository.dart")
 purchase_repo = read("lib/features/purchases/repositories/purchase_workflow_repository.dart")
 maintenance_repo = read("lib/features/maintenance/data/maintenance_repository.dart")
@@ -123,11 +125,15 @@ require(
     "complete recycle bin purge and deleting-user metadata",
 )
 
-if not (("erp_delete_cloud_sales_order_v4" in sales_repo) or ("erp_delete_cloud_sales_order_v3" in sales_repo)):
+if not (("erp_delete_cloud_sales_order_v4" in sales_repo) or ("erp_delete_cloud_sales_order_v3" in sales_repo) or ("erp_r66_delete_commercial_draft" in sales_repo and "erp_delete_cloud_sales_order_v4" in r66_delete_governance) or ("erp_r67_delete_commercial_order" in sales_repo and "erp_delete_cloud_sales_order_v3" in r67_delete_governance)):
     errors.append("sales repository: missing latest reversible sales deletion wrapper")
 require(sales_repo, ("erp_manage_commercial_order_component",), "sales repository")
-require(purchase_repo, ("erp_delete_cloud_purchase_order_v3", "erp_manage_commercial_order_component"), "purchase repository")
-require(maintenance_repo, ("erp_delete_cloud_maintenance_order_v3", "erp_manage_maintenance_order_component"), "maintenance repository")
+if not ("erp_delete_cloud_purchase_order_v3" in purchase_repo or ("erp_r66_delete_commercial_draft" in purchase_repo and "erp_delete_cloud_purchase_order_v3" in r66_delete_governance) or ("erp_r67_delete_commercial_order" in purchase_repo and "erp_delete_cloud_purchase_order_v3" in r67_delete_governance)):
+    errors.append("purchase repository: missing governed reversible purchase deletion wrapper")
+require(purchase_repo, ("erp_manage_commercial_order_component",), "purchase repository")
+if not ("erp_delete_cloud_maintenance_order_v3" in maintenance_repo or ("erp_r66_delete_maintenance_draft" in maintenance_repo and "erp_delete_cloud_maintenance_order_v3" in r66_delete_governance) or ("erp_r67_delete_maintenance_order" in maintenance_repo and "erp_delete_cloud_maintenance_order_v3" in r67_delete_governance)):
+    errors.append("maintenance repository: missing governed reversible maintenance deletion wrapper")
+require(maintenance_repo, ("erp_manage_maintenance_order_component",), "maintenance repository")
 
 require(
     sales_details,

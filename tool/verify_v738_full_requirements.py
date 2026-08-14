@@ -202,7 +202,9 @@ require(
 require(
     workflow_card,
     (
-        "كمية فقط",
+        "Delivery",
+        "Receipt",
+        "Not posted",
         "القيد المحاسبي",
         "Accounting entry",
         "accountingOwner",

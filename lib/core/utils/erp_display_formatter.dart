@@ -21,21 +21,19 @@ abstract final class ErpDisplayFormatter {
     if (separator < 0) return ungrouped;
     final whole = ungrouped.substring(0, separator);
     final fraction = ungrouped.substring(separator + 1);
-    if (fraction.length < 6) return ungrouped;
+    if (RegExp(r'^0+$').hasMatch(fraction)) return whole;
+    if (fraction.length <= 2) return '$whole${fraction.padRight(2, '0')}';
 
-    // Legacy account generators once used floating-point arithmetic and could
-    // persist identifiers such as 1000.009999999. Account codes remain text:
-    // repair only the recognizable long numeric artifact with decimal-string
-    // arithmetic, never by parsing the identifier as double/currency.
+    // Legacy generators used floating-point arithmetic. Round the fractional
+    // artifact as decimal text and concatenate it into the identifier; never
+    // expose punctuation that can make an account code look like money.
     final cents = fraction.padRight(3, '0');
     var rounded = BigInt.parse('$whole${cents.substring(0, 2)}');
     if (int.parse(cents[2]) >= 5) rounded += BigInt.one;
     final digits = rounded.toString().padLeft(3, '0');
     final normalizedWhole = digits.substring(0, digits.length - 2);
     final normalizedFraction = digits.substring(digits.length - 2);
-    return normalizedFraction == '00'
-        ? normalizedWhole
-        : '$normalizedWhole.$normalizedFraction';
+    return '$normalizedWhole$normalizedFraction';
   }
 
   static String number(

@@ -112,6 +112,29 @@ void main() {
     expect(String.fromCharCodes(pdfBytes.take(5)), '%PDF-');
   });
 
+  test(
+    'Excel exports neutralize spreadsheet formulas in text fields',
+    () async {
+      const document = ExportDocument(
+        title: 'Recycle bin',
+        language: 'en',
+        columns: [ExportColumn(key: 'title', label: 'Record title')],
+        rows: [
+          ['=HYPERLINK("https://invalid.example")'],
+        ],
+      );
+      final workbook = Excel.decodeBytes(
+        await ExcelExportService().build(document),
+      );
+      final values = workbook.tables.values
+          .expand((sheet) => sheet.rows)
+          .expand((row) => row)
+          .map((cell) => cell?.value.toString())
+          .whereType<String>();
+      expect(values, contains("'=HYPERLINK(\"https://invalid.example\")"));
+    },
+  );
+
   test('report PDF filename preserves the selected export language', () {
     final service = ReportExportService();
     expect(service.fileNameFor('opportunities', 'ar'), endsWith('_ar'));

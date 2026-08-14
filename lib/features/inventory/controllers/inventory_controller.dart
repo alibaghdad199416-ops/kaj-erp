@@ -22,6 +22,7 @@ class InventoryController extends ChangeNotifier {
   Future<void>? _maintenanceCatalogLoad;
   Future<void>? _inventoryLoad;
   String? _inventoryLoadWarehouseId;
+  bool _inventoryReloadRequested = false;
   final Map<String, DateTime> _inventoryLoadedAt = <String, DateTime>{};
   List<WarehouseModel> _warehouses = [];
   List<WarehouseModel> _allWarehouses = [];
@@ -81,11 +82,12 @@ class InventoryController extends ChangeNotifier {
       return Future<void>.value();
     }
     final active = _inventoryLoad;
-    if (!force && active != null && _inventoryLoadWarehouseId == warehouseId) {
+    if (active != null && _inventoryLoadWarehouseId == warehouseId) {
+      if (force) _inventoryReloadRequested = true;
       return active;
     }
 
-    final future = _loadInventoryNow(warehouseId, cacheKey);
+    final future = _loadInventoryLoop(warehouseId, cacheKey);
     _inventoryLoad = future;
     _inventoryLoadWarehouseId = warehouseId;
     return future.whenComplete(() {
@@ -94,6 +96,13 @@ class InventoryController extends ChangeNotifier {
         _inventoryLoadWarehouseId = null;
       }
     });
+  }
+
+  Future<void> _loadInventoryLoop(String? warehouseId, String cacheKey) async {
+    do {
+      _inventoryReloadRequested = false;
+      await _loadInventoryNow(warehouseId, cacheKey);
+    } while (_inventoryReloadRequested && _selectedWarehouseId == warehouseId);
   }
 
   Future<void> _loadInventoryNow(String? warehouseId, String cacheKey) async {
@@ -241,6 +250,10 @@ class InventoryController extends ChangeNotifier {
 
   Future<List<String>> getProductImages(String productId) {
     return _repository.getProductImages(productId);
+  }
+
+  Future<Map<String, Object?>> getProductMaintenanceCard(String productId) {
+    return _repository.getProductMaintenanceCard(productId);
   }
 
   Future<List<WarehouseStockModel>> getProductStocks(String productId) {

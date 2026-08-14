@@ -7,7 +7,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 migration = (root / 'supabase/migrations/20260810153311_r52_fresh_database_lint_runtime_closure.sql').read_text(encoding='utf-8')
-bootstrap = (root / 'supabase/fresh_install/r35_cloud_command_compatibility.sql').read_text(encoding='utf-8')
+bootstrap = (root / 'supabase/migrations/20260809124735_r57_pre_r37_cloud_command_dependency.sql').read_text(encoding='utf-8')
 orchestrator = (root / 'tool/verify_fresh_database.ps1').read_text(encoding='utf-8')
 final_state = (root / 'supabase/tests/verify_fresh_install_final_state.sql').read_text(encoding='utf-8')
 runtime = (root / 'supabase/tests/verify_r50_r52_runtime.sql').read_text(encoding='utf-8')
@@ -36,9 +36,10 @@ need(
     == 'BF11954F37BBC2091A5ECC7921D11E102C25054E97EB5BD41A3CB63F19B19538',
 )
 need(
-    'fresh-install prerequisite has exact fail-closed invoker signature',
-    'create or replace function public.erp_r35_cloud_command( p_area text, p_action text, p_payload jsonb ) returns jsonb'
+    'authoritative pre-R37 migration has conditional fail-closed invoker signature',
+    "to_regprocedure('public.erp_r35_cloud_command(text,text,jsonb)') is null"
     in compact_bootstrap
+    and 'create function public.erp_r35_cloud_command(' in compact_bootstrap
     and 'security invoker' in compact_bootstrap
     and 'fresh_install_r35_compatibility_must_not_execute' in compact_bootstrap
     and 'from public,anon,authenticated,service_role' in compact_bootstrap,
@@ -53,6 +54,11 @@ need(
     and "'migration', 'up', '--db-url'" not in orchestrator
     and 'havlqebmnjdcwmpaaqew' in orchestrator
     and 'com.supabase.cli.project' in orchestrator,
+)
+need(
+    'orchestrator injects no hidden pre-migration SQL',
+    'r35_cloud_command_compatibility.sql' not in orchestrator
+    and 'apply fail-closed prerequisite' not in orchestrator.lower(),
 )
 need(
     'orchestrator destroys only its validated disposable stack',

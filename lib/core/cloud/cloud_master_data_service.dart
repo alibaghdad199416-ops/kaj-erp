@@ -14,6 +14,8 @@ class CloudMasterDataService {
   SupabaseClient get _client => Supabase.instance.client;
 
   final Map<String, int> _knownVersions = <String, int>{};
+  final Map<String, Future<List<Map<String, dynamic>>>> _listInFlight =
+      <String, Future<List<Map<String, dynamic>>>>{};
 
   String _versionKey(String table, String id) => '$_companyId::$table::$id';
 
@@ -33,11 +35,28 @@ class CloudMasterDataService {
     return value;
   }
 
-  Future<List<Map<String, dynamic>>> list(String table) async {
+  Future<List<Map<String, dynamic>>> list(String table) {
+    final companyId = _companyId;
+    final key = '$companyId::$table';
+    final active = _listInFlight[key];
+    if (active != null) return active;
+    final request = _listNow(table, companyId);
+    _listInFlight[key] = request;
+    return request.whenComplete(() {
+      if (identical(_listInFlight[key], request)) {
+        final _ = _listInFlight.remove(key);
+      }
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> _listNow(
+    String table,
+    String companyId,
+  ) async {
     try {
       final rows = await _client.rpc(
         'erp_r15_list_cloud_master_records',
-        params: {'p_company_id': _companyId, 'p_table': table},
+        params: {'p_company_id': companyId, 'p_table': table},
       );
       if (rows is! List) {
         throw StateError(

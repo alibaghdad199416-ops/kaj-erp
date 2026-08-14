@@ -4,13 +4,15 @@ Set-StrictMode -Version Latest
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $productionRef = 'havlqebmnjdcwmpaaqew'
 $cli = Join-Path $repoRoot 'node_modules\.bin\supabase.cmd'
-$bootstrap = Join-Path $repoRoot 'supabase\fresh_install\r35_cloud_command_compatibility.sql'
 $finalStateTest = Join-Path $repoRoot 'supabase\tests\verify_fresh_install_final_state.sql'
 $runtimeTest = Join-Path $repoRoot 'supabase\tests\verify_r50_r52_runtime.sql'
 $r49TransactionTest = Join-Path $repoRoot 'supabase\tests\verify_r49_erp_transactions_runtime.sql'
 $r55NotificationTest = Join-Path $repoRoot 'supabase\tests\verify_r55_opportunity_notifications.sql'
 $r551TerminalTest = Join-Path $repoRoot 'supabase\tests\verify_r55_1_opportunity_terminal_semantics.sql'
 $r56RelationshipTest = Join-Path $repoRoot 'supabase\tests\verify_r56_opportunity_maintenance_vehicle_partner_360.sql'
+$r57ReconciliationTest = Join-Path $repoRoot 'supabase\tests\verify_r57_accounting_workflow_reconciliation.sql'
+$r57RealtimeTest = Join-Path $repoRoot 'supabase\tests\verify_r57_realtime_binding_contract.sql'
+$r57MaintenanceCostTest = Join-Path $repoRoot 'supabase\tests\verify_r57_maintenance_requested_cost_semantics.sql'
 $migrationSource = Join-Path $repoRoot 'supabase\migrations'
 $configSource = Join-Path $repoRoot 'supabase\config.toml'
 
@@ -66,12 +68,14 @@ function Assert-NoNonLocalEnvironment {
 }
 
 Assert-File $cli
-Assert-File $bootstrap
 Assert-File $finalStateTest
 Assert-File $runtimeTest
 Assert-File $r49TransactionTest
 Assert-File $r55NotificationTest
 Assert-File $r56RelationshipTest
+Assert-File $r57ReconciliationTest
+Assert-File $r57RealtimeTest
+Assert-File $r57MaintenanceCostTest
 Assert-File $r551TerminalTest
 Assert-File $configSource
 Assert-NoNonLocalEnvironment
@@ -125,14 +129,6 @@ try {
         throw "Docker project identity mismatch for $container (label=$label)"
     }
 
-    Invoke-Checked 'Copy fresh-install compatibility prerequisite' 'docker' @(
-        'cp', $bootstrap, "${container}:/tmp/r35_cloud_command_compatibility.sql"
-    )
-    Invoke-Checked 'Apply fail-closed prerequisite to empty LOCAL database' 'docker' @(
-        'exec', $container, 'psql', '-U', 'postgres', '-d', 'postgres', '-X',
-        '-v', 'ON_ERROR_STOP=1', '-f', '/tmp/r35_cloud_command_compatibility.sql'
-    )
-
     Copy-Item -Path (Join-Path $migrationSource '*.sql') -Destination $tempMigrations
     $expectedMigrationCount = @(Get-ChildItem -LiteralPath $migrationSource -Filter '*.sql' -File).Count
     $copiedMigrationCount = @(Get-ChildItem -LiteralPath $tempMigrations -Filter '*.sql' -File).Count
@@ -154,7 +150,7 @@ try {
         throw "Applied migration count mismatch: expected=$expectedMigrationCount applied=$appliedMigrationCount"
     }
 
-    foreach ($test in @($finalStateTest, $r49TransactionTest, $runtimeTest, $r55NotificationTest, $r551TerminalTest, $r56RelationshipTest)) {
+    foreach ($test in @($finalStateTest, $r49TransactionTest, $runtimeTest, $r55NotificationTest, $r551TerminalTest, $r56RelationshipTest, $r57ReconciliationTest, $r57RealtimeTest, $r57MaintenanceCostTest)) {
         $remotePath = "/tmp/$([IO.Path]::GetFileName($test))"
         Invoke-Checked "Copy $([IO.Path]::GetFileName($test))" 'docker' @('cp', $test, "${container}:$remotePath")
         Invoke-Checked "Run $([IO.Path]::GetFileName($test))" 'docker' @(

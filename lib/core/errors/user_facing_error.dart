@@ -10,15 +10,123 @@ String userFacingError(
   String? arabicFallback,
   String? englishFallback,
 }) {
-  if (error is WorkflowOperationException) {
-    return error.localizedMessage(isArabic: isArabic);
-  }
-  final raw = error.toString().trim();
+  final raw = error is WorkflowOperationException
+      ? <String?>[
+          error.message,
+          error.code,
+          error.details,
+          error.hint,
+        ].whereType<String>().join(' ').trim()
+      : error.toString().trim();
   final cleaned = raw
       .replaceFirst(RegExp(r'^(Exception|StateError|ArgumentError):\s*'), '')
       .replaceFirst(RegExp(r'^Bad state:\s*'), '')
       .trim();
   final normalized = cleaned.toLowerCase();
+
+  if (normalized.contains('financial_family_incomplete_or_ambiguous') ||
+      normalized.contains('financial_family_postcondition_failed')) {
+    return isArabic
+        ? 'تعذر تحديد جميع السجلات المرتبطة بهذه العملية المالية بشكل آمن. لم يتم حذف أي سجل.'
+        : 'Unable to safely identify all linked records for this financial transaction. No records were deleted.';
+  }
+
+  if (normalized.contains('payment_linked_to_active_invoice') ||
+      normalized.contains('payment_linked_to_active_maintenance_invoice') ||
+      normalized.contains('payment_has_active_allocations')) {
+    return isArabic
+        ? 'هذه الدفعة مرتبطة بفاتورة أو تخصيص نشط. يجب فك أو عكس ارتباط الفاتورة قبل حذف الدفعة.'
+        : 'This payment is linked to an invoice or active allocation. Remove or reverse the invoice allocation before deleting the payment.';
+  }
+
+  if (normalized.contains('over_receipt') ||
+      normalized.contains('purchase_receipt_over_quantity')) {
+    return isArabic
+        ? 'كمية الاستلام تتجاوز الكمية المتبقية في أمر الشراء. حدّث الأمر وراجع توزيع الاستلام.'
+        : 'The receipt quantity exceeds the remaining purchase-order quantity. Refresh the order and review the receipt allocation.';
+  }
+  if (normalized.contains('receipt_missing') ||
+      normalized.contains('receipt_not_approved')) {
+    return isArabic
+        ? 'يلزم وجود استلام مخزني منفّذ ومعتمد قبل إنشاء فاتورة الشراء.'
+        : 'An executed and approved receipt is required before creating the purchase invoice.';
+  }
+  if (normalized.contains('invoice_already_posted')) {
+    return isArabic
+        ? 'تم ترحيل هذه الفاتورة مسبقًا. حدّث تفاصيل الأمر لعرض القيد الحالي.'
+        : 'This invoice is already posted. Refresh the order details to view the existing journal.';
+  }
+  if (normalized.contains('account_binding_missing')) {
+    return isArabic
+        ? 'ربط الحساب المحاسبي المطلوب غير مكتمل. راجع إعدادات الحسابات قبل إعادة المحاولة.'
+        : 'A required accounting binding is missing. Review account settings before trying again.';
+  }
+  if (normalized.contains('payment_allocation_invalid')) {
+    return isArabic
+        ? 'تخصيص الدفعة غير صالح للمبلغ أو العملة أو الفاتورة المحددة. حدّث التفاصيل وراجع التخصيص.'
+        : 'The payment allocation does not match the selected amount, currency, or invoice. Refresh and review the allocation.';
+  }
+  if (normalized.contains('invalid_transition')) {
+    return isArabic
+        ? 'لا يمكن نقل المستند من حالته الحالية إلى المرحلة المطلوبة. حدّث التفاصيل وراجع تسلسل العمل.'
+        : 'The document cannot move from its current state to the requested stage. Refresh and review the workflow sequence.';
+  }
+
+  if (normalized.contains('car_warehouse_mismatch')) {
+    return isArabic
+        ? 'السيارة المحددة موجودة في مخزن مختلف. نفّذ تحويلًا مخزنيًا معتمدًا أو اختر مخزنها الفعلي ثم أعد المحاولة.'
+        : 'The selected vehicle is in a different warehouse. Complete an approved warehouse transfer or select its actual warehouse, then try again.';
+  }
+
+  if (normalized.contains('approved_sales_delivery_required') ||
+      normalized.contains('approved_inventory_document_required') ||
+      normalized.contains('delivery_missing') ||
+      normalized.contains('delivery_not_approved')) {
+    return isArabic
+        ? 'يلزم وجود تسليم مخزني منفّذ ومعتمد قبل إنشاء فاتورة البيع.'
+        : 'An executed and approved delivery is required before creating the sales invoice.';
+  }
+
+  if (normalized.contains('car_not_available')) {
+    return isArabic
+        ? 'السيارة المحددة غير متاحة للتسليم من المخزن. حدّث حالة السيارة وموقعها ثم أعد المحاولة.'
+        : 'The selected vehicle is not available for warehouse delivery. Refresh its status and warehouse, then try again.';
+  }
+
+  if (normalized.contains('commercial_over_fulfillment') ||
+      normalized.contains('sales_delivery_over_quantity') ||
+      normalized.contains('over_delivery')) {
+    return isArabic
+        ? 'كمية التسليم تتجاوز الكمية المتبقية في أمر البيع. حدّث الأمر وراجع التوزيع.'
+        : 'The delivery quantity exceeds the remaining sales-order quantity. Refresh the order and review the allocation.';
+  }
+
+  if (normalized.contains('insufficient_warehouse_stock') ||
+      normalized.contains('insufficient_stock')) {
+    return isArabic
+        ? 'الرصيد المتاح في المخزن غير كافٍ لإتمام التسليم. راجع المخزن والكميات الموزعة.'
+        : 'Available warehouse stock is insufficient for this delivery. Review the warehouse and allocated quantities.';
+  }
+
+  if (normalized.contains('warehouse_not_found_or_inactive') ||
+      normalized.contains('warehouse_not_selected')) {
+    return isArabic
+        ? 'اختر مخزنًا نشطًا لكل بند قبل إنشاء المستند المخزني.'
+        : 'Select an active warehouse for every line before creating the warehouse document.';
+  }
+
+  if (normalized.contains('active_delivery_draft_exists') ||
+      normalized.contains('delivery_already_executed')) {
+    return isArabic
+        ? 'يوجد مستند تسليم نشط لهذا الأمر بالفعل. افتحه أو حدّث تفاصيل الأمر.'
+        : 'An active delivery document already exists for this order. Open it or refresh the order details.';
+  }
+
+  if (normalized.contains('product_inventory_account_missing')) {
+    return isArabic
+        ? 'حساب مخزون أحد المنتجات غير مهيأ. راجع ربط حسابات المنتج قبل التصديق.'
+        : 'An inventory account is missing for one of the products. Review product account mapping before approval.';
+  }
 
   if (normalized.contains('maintenance_insufficient_stock')) {
     final item = cleaned.contains(':') ? cleaned.split(':').last.trim() : '';

@@ -3,3 +3,4 @@
 lib/core/performance/cursor_page.dart
 lib/core/performance/ttl_memory_cache.dart
 lib/core/testing/quality_gate.dart
+lib/design_system/kaj_phase6_components.dart

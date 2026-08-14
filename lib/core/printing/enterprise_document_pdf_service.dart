@@ -16,6 +16,7 @@ import 'package:quality_line_erp/core/utils/money_formatter.dart';
 import 'package:quality_line_erp/core/release/app_release_info.dart';
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 import 'package:quality_line_erp/core/printing/premium_document_theme.dart';
+import 'package:quality_line_erp/core/printing/enterprise_document_presentation.dart';
 
 /// Generates the official light-theme PDF package for sales and purchase
 /// documents. The document is deliberately self-contained so the same bytes
@@ -37,6 +38,7 @@ class EnterpriseDocumentPdfService {
     required List<Map<String, Object?>> movements,
     required List<Map<String, Object?>> journalEntries,
     required List<Map<String, Object?>> auditTrail,
+    List<Map<String, Object?>> reconciliation = const [],
   }) async {
     language = PdfTextSupport.canonicalPdfLanguage(language);
     final arabic = language == 'ar';
@@ -70,6 +72,7 @@ class EnterpriseDocumentPdfService {
     final printableMovements = _flattenRows(movements);
     final printableJournalEntries = _flattenRows(journalEntries);
     final printableAuditTrail = _flattenRows(auditTrail);
+    final printableReconciliation = _flattenRows(reconciliation);
     final document = pw.Document(
       title: '${purchase ? 'Purchase' : 'Sales'} $documentNumber',
       author: _brandToken,
@@ -81,7 +84,7 @@ class EnterpriseDocumentPdfService {
     );
 
     pw.Widget labelValue(String label, Object? value) => pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      padding: EnterpriseDocumentPresentation.fieldPadding,
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: border, width: .5),
         color: PdfColors.white,
@@ -90,17 +93,23 @@ class EnterpriseDocumentPdfService {
         children: [
           pw.Expanded(
             flex: 2,
-            child: pw.Text(
+            child: PdfTextSupport.text(
               _t(label, language),
-              style: pw.TextStyle(font: bold, fontSize: 8, color: secondary),
+              style: pw.TextStyle(
+                font: bold,
+                fontSize: EnterpriseDocumentPresentation.bodySize,
+                color: secondary,
+              ),
             ),
           ),
           pw.SizedBox(width: 5),
           pw.Expanded(
             flex: 3,
-            child: pw.Text(
+            child: PdfTextSupport.text(
               _value(value, language),
-              style: const pw.TextStyle(fontSize: 8),
+              style: const pw.TextStyle(
+                fontSize: EnterpriseDocumentPresentation.bodySize,
+              ),
             ),
           ),
         ],
@@ -159,14 +168,15 @@ class EnterpriseDocumentPdfService {
                       vertical: 6,
                     ),
                     alignment: pw.Alignment.center,
-                    child: pw.Text(
+                    child: PdfTextSupport.text(
                       _field(key, language),
                       textAlign: pw.TextAlign.center,
                       maxLines: 2,
                       style: pw.TextStyle(
                         font: bold,
                         color: PdfColors.white,
-                        fontSize: 6.9,
+                        fontSize:
+                            EnterpriseDocumentPresentation.tableHeaderSize,
                       ),
                     ),
                   ),
@@ -190,7 +200,7 @@ class EnterpriseDocumentPdfService {
                           : (arabic
                                 ? pw.Alignment.centerRight
                                 : pw.Alignment.centerLeft),
-                      child: pw.Text(
+                      child: PdfTextSupport.text(
                         _tableValue(
                           key,
                           chunk[rowIndex][key],
@@ -241,7 +251,7 @@ class EnterpriseDocumentPdfService {
                   pw.Container(width: 4, height: 14, color: accent),
                   pw.SizedBox(width: 7),
                   pw.Expanded(
-                    child: pw.Text(
+                    child: PdfTextSupport.text(
                       title,
                       style: pw.TextStyle(
                         font: bold,
@@ -250,7 +260,7 @@ class EnterpriseDocumentPdfService {
                       ),
                     ),
                   ),
-                  pw.Text(
+                  PdfTextSupport.text(
                     '${normalizedRows.length} ${_t('records', language)}',
                     style: const pw.TextStyle(
                       fontSize: 7,
@@ -267,7 +277,7 @@ class EnterpriseDocumentPdfService {
                 alignment: arabic
                     ? pw.Alignment.centerRight
                     : pw.Alignment.centerLeft,
-                child: pw.Text(
+                child: PdfTextSupport.text(
                   '${_t('Columns', language)} ${groupIndex + 1}/${columnGroups.length} - '
                   '${arabic ? 'صفحة البيانات' : 'Data page'} ${chunkIndex + 1}/${rowChunks.length}',
                   style: pw.TextStyle(
@@ -314,7 +324,7 @@ class EnterpriseDocumentPdfService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                     children: [
-                      pw.Text(
+                      PdfTextSupport.text(
                         title,
                         style: pw.TextStyle(font: bold, fontSize: 8),
                       ),
@@ -388,7 +398,7 @@ class EnterpriseDocumentPdfService {
             height: 46,
             alignment: pw.Alignment.center,
             child: branding.logo == null
-                ? pw.Text(
+                ? PdfTextSupport.text(
                     'KAJ',
                     style: pw.TextStyle(
                       font: bold,
@@ -409,7 +419,7 @@ class EnterpriseDocumentPdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               mainAxisAlignment: pw.MainAxisAlignment.center,
               children: [
-                pw.Text(
+                PdfTextSupport.text(
                   branding.companyName,
                   style: pw.TextStyle(
                     font: bold,
@@ -418,7 +428,7 @@ class EnterpriseDocumentPdfService {
                   ),
                 ),
                 pw.SizedBox(height: 3),
-                pw.Text(
+                PdfTextSupport.text(
                   [
                     branding.address,
                     branding.phone,
@@ -438,12 +448,12 @@ class EnterpriseDocumentPdfService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text(
+                PdfTextSupport.text(
                   sectionTitle,
                   style: pw.TextStyle(font: bold, fontSize: 9, color: primary),
                 ),
                 pw.SizedBox(height: 2),
-                pw.Text(
+                PdfTextSupport.text(
                   documentNumber,
                   style: pw.TextStyle(
                     font: bold,
@@ -451,7 +461,7 @@ class EnterpriseDocumentPdfService {
                     color: secondary,
                   ),
                 ),
-                pw.Text(
+                PdfTextSupport.text(
                   '${_t('Page', language)} ${context.pageNumber}',
                   style: pw.TextStyle(fontSize: 6.5, color: secondary),
                 ),
@@ -469,11 +479,11 @@ class EnterpriseDocumentPdfService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
+            PdfTextSupport.text(
               _t('Generated electronically by Khat Al-Jawda ERP', language),
               style: pw.TextStyle(fontSize: 6.8, color: secondary),
             ),
-            pw.Text(
+            PdfTextSupport.text(
               '${context.pageNumber} / ${context.pagesCount}',
               style: pw.TextStyle(font: bold, fontSize: 7, color: primary),
             ),
@@ -498,12 +508,16 @@ class EnterpriseDocumentPdfService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(
+                PdfTextSupport.text(
                   title,
-                  style: pw.TextStyle(font: bold, fontSize: 18, color: primary),
+                  style: pw.TextStyle(
+                    font: bold,
+                    fontSize: EnterpriseDocumentPresentation.titleSize,
+                    color: primary,
+                  ),
                 ),
                 pw.SizedBox(height: 3),
-                pw.Text(
+                PdfTextSupport.text(
                   subtitle,
                   style: pw.TextStyle(fontSize: 8.5, color: secondary),
                 ),
@@ -517,7 +531,7 @@ class EnterpriseDocumentPdfService {
               border: pw.Border.all(color: accent, width: .8),
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
             ),
-            child: pw.Text(
+            child: PdfTextSupport.text(
               _value(order['status'], language),
               style: pw.TextStyle(font: bold, fontSize: 8.5, color: primary),
             ),
@@ -560,7 +574,7 @@ class EnterpriseDocumentPdfService {
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text(
+                      PdfTextSupport.text(
                         _t(rows[index].$1, language),
                         style: pw.TextStyle(
                           font: bold,
@@ -570,7 +584,7 @@ class EnterpriseDocumentPdfService {
                               : secondary,
                         ),
                       ),
-                      pw.Text(
+                      PdfTextSupport.text(
                         _moneyWithCurrency(
                           rows[index].$2,
                           order['currency'],
@@ -597,11 +611,11 @@ class EnterpriseDocumentPdfService {
       required List<pw.Widget> content,
     }) => pw.MultiPage(
       pageTheme: pw.PageTheme(
-        pageFormat: PdfPageFormat.a4.landscape,
-        margin: const pw.EdgeInsets.fromLTRB(24, 20, 24, 22),
+        pageFormat: EnterpriseDocumentPresentation.landscapePageFormat,
+        margin: EnterpriseDocumentPresentation.pageMargin,
+        textDirection: direction,
         buildBackground: (_) => _brandBackground(accentSoft, border),
       ),
-      textDirection: direction,
       header: (context) => pageHeader(context, title),
       footer: pageFooter,
       build: (_) => [pageTitle(title, subtitle), ...content],
@@ -635,6 +649,11 @@ class EnterpriseDocumentPdfService {
             _t('Unified products and vehicles table', language),
             printableItems,
             kind: 'items',
+          ),
+          ...section(
+            _t('Workflow quantity reconciliation', language),
+            printableReconciliation,
+            kind: 'reconciliation',
           ),
           totalsPanel(),
           signatures(),
@@ -716,6 +735,7 @@ class EnterpriseDocumentPdfService {
     required List<Map<String, Object?>> movements,
     required List<Map<String, Object?>> journalEntries,
     required List<Map<String, Object?>> auditTrail,
+    List<Map<String, Object?>> reconciliation = const [],
   }) async {
     final bytes = await build(
       purchase: purchase,
@@ -728,6 +748,7 @@ class EnterpriseDocumentPdfService {
       movements: movements,
       journalEntries: journalEntries,
       auditTrail: auditTrail,
+      reconciliation: reconciliation,
     );
     await PdfPrintService.print(
       fileName:
@@ -908,6 +929,15 @@ class EnterpriseDocumentPdfService {
           'description',
           'status',
         ],
+        'reconciliation' => [
+          'description',
+          'orderedQuantity',
+          'operationalQuantity',
+          'invoicedQuantity',
+          'remainingOperational',
+          'remainingInvoice',
+          'status',
+        ],
         _ => _preferredSectionFields.take(7).toList(),
       };
 
@@ -1076,6 +1106,11 @@ class EnterpriseDocumentPdfService {
     'cashAmount',
     'totalDebit',
     'totalCredit',
+    'orderedQuantity',
+    'operationalQuantity',
+    'invoicedQuantity',
+    'remainingOperational',
+    'remainingInvoice',
   };
 
   static const _monetaryTableFields = <String>{
@@ -1296,6 +1331,11 @@ class EnterpriseDocumentPdfService {
     'referenceType': 'Reference type',
     'createdBy': 'Created by',
     'updatedAt': 'Last updated',
+    'orderedQuantity': 'Ordered quantity',
+    'operationalQuantity': 'Prepared / received quantity',
+    'invoicedQuantity': 'Invoiced quantity',
+    'remainingOperational': 'Remaining operational quantity',
+    'remainingInvoice': 'Remaining invoice quantity',
   };
 
   String _t(String english, String language) {
@@ -1328,6 +1368,7 @@ class EnterpriseDocumentPdfService {
           'Invoice page': 'صفحة الفوترة',
           'Financial payments page': 'صفحة الدفعات المالية',
           'Unified products and vehicles table': 'جدول موحد للمنتجات والسيارات',
+          'Workflow quantity reconciliation': 'مطابقة كميات سير العمل',
           'Purchase receipts and inventory movements':
               'استلامات الشراء والحركات المخزنية',
           'Sales deliveries and inventory movements':
@@ -1354,6 +1395,11 @@ class EnterpriseDocumentPdfService {
           'Business partner': 'شريك الأعمال',
           'Description': 'الوصف',
           'Quantity': 'الكمية',
+          'Ordered quantity': 'الكمية المطلوبة',
+          'Prepared / received quantity': 'الكمية المجهزة / المستلمة',
+          'Invoiced quantity': 'الكمية المفوترة',
+          'Remaining operational quantity': 'الكمية التشغيلية المتبقية',
+          'Remaining invoice quantity': 'الكمية المتبقية للفوترة',
           'Unit price': 'سعر الوحدة',
           'Unit cost': 'كلفة الوحدة',
           'Line total': 'إجمالي البند',

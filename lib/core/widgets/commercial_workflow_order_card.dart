@@ -96,6 +96,7 @@ class CommercialWorkflowOrderCard extends StatelessWidget {
         'journalNumber',
       ]),
     );
+    final hasInvoice = invoiceNumber != '—';
     final paidAmount = _value(
       _first(const [
         'invoicePaid',
@@ -249,19 +250,25 @@ class CommercialWorkflowOrderCard extends StatelessWidget {
                 _Metric(
                   icon: Icons.inventory_2_outlined,
                   label: purchase
-                      ? '${t('الاستلام', 'Receipt')} $logistics • ${t('كمية فقط', 'Quantity only')}'
-                      : '${t('التجهيز', 'Delivery')} $logistics • ${t('كمية فقط', 'Quantity only')}',
+                      ? '${t('إشعار الاستلام', 'Receipt')} • $logistics'
+                      : '${t('إذن التجهيز', 'Delivery')} • $logistics',
                   value: logisticsNumber,
                 ),
                 _Metric(
                   icon: Icons.account_balance_outlined,
                   label:
                       '${t('القيد المحاسبي', 'Accounting entry')} • ${t('من', 'from')} $accountingOwner',
-                  value: journalNumber,
+                  value: journalNumber == '—'
+                      ? (hasInvoice
+                            ? t('غير مرحّل', 'Not posted')
+                            : t('لا توجد فاتورة', 'No invoice'))
+                      : journalNumber,
                 ),
                 _Metric(
                   icon: Icons.payments_outlined,
-                  label: '${t('الدفع', 'Payment')} $paymentStatus',
+                  label: hasInvoice
+                      ? '${t('حالة الدفع', 'Payment status')} • $paymentStatus'
+                      : t('الدفع بعد الفاتورة', 'Payment after invoicing'),
                   value:
                       '$paidAmount / ${t('متبقي', 'Remaining')} $remainingAmount $currency',
                 ),

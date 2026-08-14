@@ -30,16 +30,28 @@ need('account codes are text identifiers',
 need('dedicated movement rpc', 'erp_r28_inventory_movement_log' in main_sql and 'erp_r28_inventory_movement_log' in movement_repo)
 need('movement table export pdf excel', 'ExcelExportService' in movement_page and 'PdfExportService' in movement_page and 'sourceName' in movement_page and 'destinationName' in movement_page)
 need('commercial details enriched rpc', 'erp_r28_get_commercial_order_complete_details' in main_sql and 'approvedBy' in main_sql and 'sourceName' in main_sql and 'destinationName' in main_sql)
-need('frontend commercial details r28', 'erp_r28_get_commercial_order_complete_details' in details_repo)
+need('frontend commercial details r28',
+     'erp_r28_get_commercial_order_complete_details' in details_repo or
+     'erp_r62_get_commercial_order_snapshot' in details_repo)
 pdf_web=text('lib/core/exporting/pdf_print_service_web.dart')
+binary_web=text('lib/core/exporting/binary_download_service_web.dart')
+download_lifecycle=text('lib/core/exporting/browser_download_lifecycle.dart')
 need('web pdf native blob download',
      'PdfPrintService' in text('lib/core/printing/enterprise_document_pdf_service.dart') and
-     'html.Blob' in pdf_web and
-     'html.AnchorElement' in pdf_web and
-     '..download = safeFileName' in pdf_web and
+     'browser_download.saveBinary' in pdf_web and
+     'html.Blob' in binary_web and
+     'html.AnchorElement' in binary_web and
+     '..download = fileName' in binary_web and
      'html.window.open(' not in pdf_web)
-need('web blob revoke delayed', 'Future<void>.delayed' in text('lib/core/exporting/binary_download_service_web.dart') and 'Future<void>.delayed' in text('lib/core/exporting/excel_download_service_web.dart'))
-need('car grid overflow headroom', 'mainAxisExtent:' in text('lib/features/inventory/cars/pages/cars_page.dart') and 'CarCard(' in text('lib/features/inventory/cars/pages/cars_page.dart'))
+need('web blob revoke delayed', 'Future<void>.delayed' in download_lifecycle and 'triggerBrowserDownload' in binary_web and 'Future<void>.delayed' in text('lib/core/exporting/excel_download_service_web.dart'))
+cars_page = text('lib/features/inventory/cars/pages/cars_page.dart')
+need(
+    'car grid overflow headroom',
+    'mainAxisExtent:' not in cars_page
+    and 'ListView.separated(' in cars_page
+    and 'final rowCount = (filteredCars.length + columns - 1) ~/ columns;' in cars_page
+    and 'CarCard(' in cars_page,
+)
 need('product grid overflow headroom', 'mainAxisExtent:' in text('lib/features/inventory/pages/inventory_page.dart') and 'InventoryCard(' in text('lib/features/inventory/pages/inventory_page.dart'))
 need('product action buttons wrap', 'Wrap(' in text('lib/features/inventory/widgets/inventory_card.dart'))
 need('car action buttons wrap', 'Wrap(' in text('lib/features/inventory/cars/widgets/car_card.dart'))

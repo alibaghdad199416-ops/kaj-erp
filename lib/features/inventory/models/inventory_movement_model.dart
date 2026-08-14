@@ -50,11 +50,25 @@ class InventoryMovementModel {
       case 'opening':
         return 'رصيد افتتاحي';
       case 'purchase_in':
+      case 'purchase':
+      case 'purchase_receipt':
         return 'شراء / إدخال';
+      case 'purchase_cancel':
+      case 'purchase_return':
+      case 'purchase_reversal':
+        return 'عكس / مرتجع شراء';
       case 'sale_out':
+      case 'sale':
+      case 'sales_out':
         return 'بيع منتج';
+      case 'sale_cancel':
+      case 'sale_return':
+      case 'sale_reversal':
+        return 'عكس / مرتجع بيع';
       case 'maintenance_out':
         return 'سحب للصيانة';
+      case 'maintenance_return':
+        return 'عكس / مرتجع صيانة';
       case 'transfer_in':
         return 'نقل وارد';
       case 'transfer_out':

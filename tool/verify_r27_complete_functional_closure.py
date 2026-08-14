@@ -13,7 +13,13 @@ checks['movement source destination']='sourceName' in text('lib/features/invento
 checks['cash dates no epoch']='DateTime.fromMillisecondsSinceEpoch(0' not in text('lib/features/accounting/cashbox/models/cash_transaction_model.dart')
 checks['journal dates no epoch']='DateTime.fromMillisecondsSinceEpoch(0' not in text('lib/features/accounting/models/journal_entry_model.dart')
 cars_page=text('lib/features/inventory/cars/pages/cars_page.dart')
-checks['car overflow fixed']='mainAxisExtent:' in cars_page and 'columns == 3' in cars_page and 'columns == 2' in cars_page
+checks['car overflow fixed']=(
+    'mainAxisExtent:' not in cars_page
+    and 'ListView.separated(' in cars_page
+    and 'final rowCount = (filteredCars.length + columns - 1) ~/ columns;' in cars_page
+    and '? 3' in cars_page
+    and '? 2' in cars_page
+)
 inventory_page=text('lib/features/inventory/pages/inventory_page.dart')
 checks['product card overflow fixed']='mainAxisExtent:' in inventory_page and 'columns == 3' in inventory_page and 'columns == 2' in inventory_page
 pdf_support=text('lib/core/printing/pdf_text_support.dart')

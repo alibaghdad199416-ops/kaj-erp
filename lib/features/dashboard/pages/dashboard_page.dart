@@ -104,6 +104,8 @@ class DashboardPage extends StatelessWidget {
                       const SizedBox(height: 12),
                       _ErrorCard(message: controller.errorMessage ?? ''),
                     ],
+                    const SizedBox(height: 12),
+                    _DashboardPeriodBar(controller: controller),
                     const SizedBox(height: 18),
                     _KpiGrid(dashboard: dashboard),
                     const SizedBox(height: 16),
@@ -156,8 +158,8 @@ class DashboardPage extends StatelessWidget {
                       builder: (context, constraints) {
                         final stacked = constraints.maxWidth < 960;
                         final fleet = _FleetPanel(dashboard: dashboard);
-                        final activity = can('recentActivities')
-                            ? _ActivityPanel(items: dashboard.recentActivities)
+                        final activity = can('recentDocuments')
+                            ? _DocumentPanel(items: dashboard.recentDocuments)
                             : const SizedBox.shrink();
                         if (stacked) {
                           return Column(
@@ -344,6 +346,62 @@ class _BannerChip extends StatelessWidget {
   }
 }
 
+class _DashboardPeriodBar extends StatelessWidget {
+  const _DashboardPeriodBar({required this.controller});
+  final DashboardController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final arabic = context.l10n.isArabic;
+    final labels = <DashboardPeriod, String>{
+      DashboardPeriod.allTime: arabic ? 'كل الفترات' : 'All time',
+      DashboardPeriod.today: arabic ? 'اليوم' : 'Today',
+      DashboardPeriod.currentMonth: arabic ? 'الشهر الحالي' : 'Current month',
+      DashboardPeriod.custom: arabic ? 'فترة مخصصة' : 'Custom range',
+    };
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final period in DashboardPeriod.values)
+          ChoiceChip(
+            label: Text(labels[period]!),
+            selected: controller.period == period,
+            onSelected: controller.isLoading
+                ? null
+                : (_) async {
+                    if (period != DashboardPeriod.custom) {
+                      await controller.setPeriod(period);
+                      return;
+                    }
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                      initialDateRange: controller.fromDate == null
+                          ? null
+                          : DateTimeRange(
+                              start: controller.fromDate!,
+                              end: controller.toDate,
+                            ),
+                    );
+                    if (range != null) {
+                      await controller.setCustomRange(range.start, range.end);
+                    }
+                  },
+          ),
+        AppText(
+          controller.fromDate == null
+              ? '${arabic ? 'حتى' : 'Through'} ${DateFormat('yyyy/MM/dd').format(controller.toDate)}'
+              : '${DateFormat('yyyy/MM/dd').format(controller.fromDate!)} – ${DateFormat('yyyy/MM/dd').format(controller.toDate)}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
 class _KpiGrid extends StatelessWidget {
   const _KpiGrid({required this.dashboard});
   final DashboardModel dashboard;
@@ -407,6 +465,23 @@ class _KpiGrid extends StatelessWidget {
                     : 'تحتاج إلى مراجعة',
                 onTap: () =>
                     _openDashboardReport(context, 'overview', 'تفاصيل الأرباح'),
+              ),
+            if (can('maintenanceRevenueByCurrency'))
+              _KpiCard(
+                width: width,
+                icon: Icons.build_circle_outlined,
+                color: const Color(0xFF0E8F9B),
+                title: 'إيراد فواتير الصيانة',
+                value: CurrencyTotalsFormatter.format(
+                  dashboard.maintenanceRevenueByCurrency,
+                ),
+                detail:
+                    'تكلفة FIFO ${CurrencyTotalsFormatter.format(dashboard.maintenanceActualCostByCurrency)} • متبقي ${CurrencyTotalsFormatter.format(dashboard.maintenanceOutstandingByCurrency)}',
+                onTap: () => _openDashboardReport(
+                  context,
+                  'maintenance',
+                  'تفاصيل إيراد وتكلفة الصيانة',
+                ),
               ),
             if (can('totalCars') && can('availableCars') && can('soldCars'))
               _KpiCard(
@@ -936,6 +1011,71 @@ class _FleetPanel extends StatelessWidget {
   }
 }
 
+class _DocumentPanel extends StatelessWidget {
+  const _DocumentPanel({required this.items});
+  final List<DashboardDocument> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelHeader(
+            icon: Icons.receipt_long_outlined,
+            title: 'أحدث المستندات',
+            trailing: 'فواتير فعلية',
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            const SizedBox(
+              height: 190,
+              child: _EmptyState(
+                icon: Icons.receipt_long_outlined,
+                label: 'لا توجد مستندات حديثة',
+              ),
+            )
+          else
+            ...items
+                .take(7)
+                .map(
+                  (item) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      item.status.toLowerCase() == 'cancelled'
+                          ? Icons.cancel_outlined
+                          : Icons.check_circle_outline,
+                      color: item.status.toLowerCase() == 'cancelled'
+                          ? Colors.red
+                          : const Color(0xFF16A66A),
+                    ),
+                    title: AppText(
+                      '${item.reference} • ${item.partner}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: AppText(
+                      '${item.module} • ${item.status} • ${DateFormat('yyyy/MM/dd').format(item.occurredAt.toLocal())}',
+                    ),
+                    trailing: AppText(
+                      MoneyFormatter.withCurrency(
+                        item.amount,
+                        item.currencyCode,
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+}
+
+// Kept for backward-compatible audit activity payloads returned by older RPCs.
+// ignore: unused_element
 class _ActivityPanel extends StatelessWidget {
   const _ActivityPanel({required this.items});
   final List<DashboardActivity> items;

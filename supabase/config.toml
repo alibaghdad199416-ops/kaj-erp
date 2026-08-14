@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "QualityLine_Commercial_Workflow_Final_20"
+project_id = "quality_line_erp_local_dev"
 
 [api]
 enabled = true
@@ -386,7 +386,10 @@ deno_version = 2
 # secret_key = "env(SECRET_VALUE)"
 
 [analytics]
-enabled = true
+# Local Analytics requires the Docker daemon to be exposed over unauthenticated
+# TCP on Windows. The ERP does not depend on Logflare, so keep the supported
+# cross-platform local stack limited to application services.
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

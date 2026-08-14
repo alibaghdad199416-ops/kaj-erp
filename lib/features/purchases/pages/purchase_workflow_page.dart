@@ -359,6 +359,38 @@ class _PurchaseWorkflowPageState extends State<PurchaseWorkflowPage> {
       );
   }
 
+  Future<void> _cancelOrder(String orderId) async {
+    if (!await PermissionAction.require(context, 'purchases.cancel')) return;
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: AppText(_bi('إلغاء أمر الشراء', 'Cancel purchase order')),
+        content: AppText(
+          _bi(
+            'سيتم إلغاء الأمر وعكس آثار الاستلام والفاتورة والمخزون. تبقى الدفعات الحقيقية رصيدًا غير مخصص للمورد.',
+            'The order and its receipt, invoice, and inventory effects will be reversed. Real payments remain as unapplied supplier credit.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: AppText(_bi('رجوع', 'Back')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: AppText(
+              _bi('إلغاء الأمر وعكس الآثار', 'Cancel and reverse effects'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _run(() => _repository.cancelOrder(orderId), orderId: orderId);
+    }
+  }
+
   Future<void> _openDetails(String orderId) async {
     await showAppModuleDialog<bool>(
       context: context,
@@ -447,7 +479,7 @@ class _PurchaseWorkflowPageState extends State<PurchaseWorkflowPage> {
                         final order = _filteredOrders[index];
                         final status = order['status']?.toString() ?? 'draft';
                         final actions = <CommercialWorkflowAction>[
-                          if (status == 'draft')
+                          if (status == 'draft' || status == 'cancelled')
                             CommercialWorkflowAction(
                               label: _bi(
                                 'تصديق أمر الشراء',
@@ -612,13 +644,27 @@ class _PurchaseWorkflowPageState extends State<PurchaseWorkflowPage> {
                             icon: Icons.edit_outlined,
                             onPressed: () => _editOrder(order['id'].toString()),
                           ),
-                          CommercialWorkflowAction(
-                            label: _bi('حذف كامل', 'Delete order'),
-                            icon: Icons.delete_forever_outlined,
-                            destructive: true,
-                            onPressed: () =>
-                                _deleteOrder(order['id'].toString()),
-                          ),
+                          if (status == 'draft' || status == 'cancelled')
+                            CommercialWorkflowAction(
+                              label: status == 'cancelled'
+                                  ? _bi(
+                                      'حذف الأمر الملغى',
+                                      'Delete cancelled order',
+                                    )
+                                  : _bi('حذف المسودة', 'Delete draft'),
+                              icon: Icons.delete_forever_outlined,
+                              destructive: true,
+                              onPressed: () =>
+                                  _deleteOrder(order['id'].toString()),
+                            ),
+                          if (status != 'draft' && status != 'cancelled')
+                            CommercialWorkflowAction(
+                              label: _bi('إلغاء الأمر', 'Cancel order'),
+                              icon: Icons.undo_rounded,
+                              destructive: true,
+                              onPressed: () =>
+                                  _cancelOrder(order['id'].toString()),
+                            ),
                         ];
                         return CommercialWorkflowOrderCard(
                           order: order,

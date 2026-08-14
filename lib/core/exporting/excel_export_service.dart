@@ -7,6 +7,7 @@ import 'excel_relation_index.dart';
 import 'excel_workbook_presentation.dart';
 import 'export_document.dart';
 import 'report_template_engine.dart';
+import 'xlsx_integrity.dart';
 
 class ExcelExportService {
   ExcelExportService({ReportTemplateEngine? templateEngine})
@@ -29,10 +30,17 @@ class ExcelExportService {
     document = exportDocument;
     final workbook = Excel.createExcel();
     final defaultSheet = workbook.getDefaultSheet();
-    if (defaultSheet != null) workbook.delete(defaultSheet);
 
     final profileName = document.isArabic ? 'تعريف الملف' : 'Workbook profile';
     final profile = workbook[profileName];
+    // excel refuses to delete the only worksheet. Delete the auto-created
+    // Sheet1 only after the first real worksheet exists.
+    if (defaultSheet != null && defaultSheet != profileName) {
+      workbook.delete(defaultSheet);
+      if (workbook.tables.containsKey(defaultSheet)) {
+        throw StateError('Unable to remove the auto-created Excel worksheet.');
+      }
+    }
     ExcelWorkbookPresentation.prepareSheet(profile, arabic: document.isArabic);
     profile.appendRow([TextCellValue(document.title)]);
     ExcelWorkbookPresentation.styleTitle(profile, row: 0, columnCount: 2);
@@ -224,10 +232,12 @@ class ExcelExportService {
     for (final sheet in workbook.tables.values) {
       sheet.isRTL = document.isArabic;
     }
-    workbook.setDefaultSheet(profileName);
+    if (!workbook.setDefaultSheet(profileName)) {
+      throw StateError('Unable to set the default Excel worksheet.');
+    }
     final encoded = workbook.encode();
     if (encoded == null) throw StateError('Unable to encode Excel workbook.');
-    return Uint8List.fromList(encoded);
+    return XlsxIntegrity.finalize(encoded, rightToLeft: document.isArabic);
   }
 
   Future<void> save(ExportDocument document) async {

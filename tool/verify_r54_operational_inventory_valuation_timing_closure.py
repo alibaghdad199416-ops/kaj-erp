@@ -47,7 +47,7 @@ need('new helpers are internal and browser wrappers retain permissions',
      and "array['sales.approve','sales.update','sales.create']" in compact)
 need('runtime captures all three pre-invoice valuation boundaries',
      all(marker in runtime for marker in (
-         'purchase_receipt_operational_valuation_expected_qty_10_value_100_layer_1_no_gl',
+         'purchase_receipt_operational_valuation_expected_qty_10_value_100_layers_2_no_gl',
          'sales_delivery_operational_valuation_expected_qty_15_cost_175_value_75_no_gl',
          'maintenance_issue_operational_valuation_expected_qty_2_cost_30_value_45_no_gl',
      )))

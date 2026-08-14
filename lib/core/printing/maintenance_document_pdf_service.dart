@@ -5,10 +5,75 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
+import 'package:quality_line_erp/core/logging/app_logger.dart';
 
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 import 'package:quality_line_erp/core/printing/premium_document_theme.dart';
+import 'package:quality_line_erp/core/printing/enterprise_document_presentation.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
+
+class MaintenanceWarehouseIssueRow {
+  const MaintenanceWarehouseIssueRow({
+    required this.productId,
+    required this.productName,
+    required this.warehouseId,
+    required this.warehouseName,
+    required this.quantity,
+    required this.issueReferences,
+  });
+
+  final String productId;
+  final String productName;
+  final String warehouseId;
+  final String warehouseName;
+  final double quantity;
+  final List<String> issueReferences;
+}
+
+List<MaintenanceWarehouseIssueRow> maintenanceWarehouseIssueRows({
+  required List<MaintenanceLineModel> lines,
+  required List<Map<String, Object?>> issueEvents,
+  String? fallbackIssueReference,
+}) {
+  final linesById = <String, MaintenanceLineModel>{
+    for (final line in lines) line.id: line,
+  };
+  final grouped = <String, MaintenanceWarehouseIssueRow>{};
+  for (final event in issueEvents) {
+    if (event['status']?.toString() != 'executed') continue;
+    final quantity = (event['quantity'] as num?)?.toDouble() ?? 0;
+    if (quantity <= 0) continue;
+    final lineId = event['lineId']?.toString() ?? '';
+    final line = linesById[lineId];
+    final productId = event['productId']?.toString() ?? line?.productId ?? '';
+    final warehouseId = event['warehouseId']?.toString() ?? '';
+    final warehouseName = event['warehouseName']?.toString().trim() ?? '';
+    final key = '$productId\u0000$warehouseId';
+    final reference = fallbackIssueReference?.trim().isNotEmpty == true
+        ? fallbackIssueReference!.trim()
+        : event['issueNumber']?.toString().trim().isNotEmpty == true
+        ? event['issueNumber']!.toString()
+        : event['issueId']?.toString() ?? '';
+    final previous = grouped[key];
+    grouped[key] = MaintenanceWarehouseIssueRow(
+      productId: productId,
+      productName: line?.productName ?? event['description']?.toString() ?? '-',
+      warehouseId: warehouseId,
+      warehouseName: warehouseName.isEmpty ? warehouseId : warehouseName,
+      quantity: (previous?.quantity ?? 0) + quantity,
+      issueReferences: <String>{
+        ...?previous?.issueReferences,
+        if (reference.isNotEmpty) reference,
+      }.toList(growable: false),
+    );
+  }
+  final rows = grouped.values.toList(growable: false);
+  rows.sort((a, b) {
+    final product = a.productName.compareTo(b.productName);
+    return product != 0 ? product : a.warehouseName.compareTo(b.warehouseName);
+  });
+  return rows;
+}
 
 class MaintenanceDocumentPdfService {
   const MaintenanceDocumentPdfService();
@@ -16,9 +81,17 @@ class MaintenanceDocumentPdfService {
   Future<void> print({
     required MaintenanceOrderModel order,
     required List<MaintenanceLineModel> lines,
+    List<Map<String, Object?>> issueEvents = const <Map<String, Object?>>[],
+    double authoritativeIssuedQuantity = 0,
     required bool arabic,
   }) async {
-    final bytes = await build(order: order, lines: lines, arabic: arabic);
+    final bytes = await build(
+      order: order,
+      lines: lines,
+      issueEvents: issueEvents,
+      authoritativeIssuedQuantity: authoritativeIssuedQuantity,
+      arabic: arabic,
+    );
     await PdfPrintService.print(
       fileName: 'maintenance-${order.orderNumber}.pdf',
       bytes: bytes,
@@ -28,9 +101,43 @@ class MaintenanceDocumentPdfService {
   Future<Uint8List> build({
     required MaintenanceOrderModel order,
     required List<MaintenanceLineModel> lines,
+    List<Map<String, Object?>> issueEvents = const <Map<String, Object?>>[],
+    double authoritativeIssuedQuantity = 0,
     required bool arabic,
   }) async {
     arabic = PdfTextSupport.canonicalPdfArabic(arabic);
+    final stockLines = lines.where((line) => !line.isService).toList();
+    final issuedRows = maintenanceWarehouseIssueRows(
+      lines: stockLines,
+      issueEvents: issueEvents,
+      fallbackIssueReference: order.stockIssueNumber,
+    );
+    AppLogger.debug(
+      'Maintenance PDF export: order=${order.orderNumber} orderId=${order.id} '
+      'stockIssue=${order.stockIssueNumber ?? ''} issueEvents=${issueEvents.length} '
+      'authoritativeIssuedQuantity=$authoritativeIssuedQuantity '
+      'printableRows=${issuedRows.length}',
+    );
+    for (final event in issueEvents) {
+      AppLogger.debug(
+        'Maintenance PDF issue event: productId=${event['productId'] ?? ''} '
+        'product=${event['description'] ?? ''} warehouseId=${event['warehouseId'] ?? ''} '
+        'warehouse=${event['warehouseName'] ?? ''} quantity=${event['quantity'] ?? 0} '
+        'reference=${event['issueNumber'] ?? event['issueId'] ?? ''} '
+        'status=${event['status'] ?? ''} reversedAt=${event['reversedAt'] ?? ''}',
+      );
+    }
+    for (final row in issuedRows) {
+      AppLogger.debug(
+        'Maintenance PDF row: product=${row.productName} warehouse=${row.warehouseName} '
+        'quantity=${row.quantity} reference=${row.issueReferences.join(',')}',
+      );
+    }
+    if ((order.stockIssueNumber?.trim().isNotEmpty ?? false) &&
+        authoritativeIssuedQuantity > 0 &&
+        issuedRows.isEmpty) {
+      throw StateError('maintenance_issue_document_rows_missing');
+    }
     final fonts = await PdfTextSupport.loadFonts();
     final regular = fonts.regular;
     final bold = fonts.bold;
@@ -60,22 +167,28 @@ class MaintenanceDocumentPdfService {
     final border = PdfColor.fromHex('#D1D5DB');
     final surface = PdfColor.fromHex('#F5F6F6');
 
-    pw.Widget heading(String title) => pw.Container(
+    pw.Widget heading(String title, {bool main = false}) => pw.Container(
       margin: const pw.EdgeInsets.only(top: 8, bottom: 7),
       padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: pw.BoxDecoration(
         color: primary,
         border: pw.Border(bottom: pw.BorderSide(color: accent, width: 2)),
       ),
-      child: pw.Text(
+      child: PdfTextSupport.text(
         clean(title),
-        style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 11),
+        style: pw.TextStyle(
+          font: bold,
+          color: PdfColors.white,
+          fontSize: main
+              ? EnterpriseDocumentPresentation.titleSize
+              : EnterpriseDocumentPresentation.sectionHeadingSize,
+        ),
       ),
     );
 
     pw.Widget field(String label, Object? value) => pw.Container(
       constraints: const pw.BoxConstraints(minHeight: 34),
-      padding: const pw.EdgeInsets.all(7),
+      padding: EnterpriseDocumentPresentation.fieldPadding,
       decoration: pw.BoxDecoration(
         color: PdfColors.white,
         border: pw.Border.all(color: border, width: .5),
@@ -84,18 +197,24 @@ class MaintenanceDocumentPdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Expanded(
-            child: pw.Text(
+            child: PdfTextSupport.text(
               clean(label),
-              style: pw.TextStyle(font: bold, fontSize: 8),
+              style: pw.TextStyle(
+                font: bold,
+                fontSize: EnterpriseDocumentPresentation.bodySize,
+              ),
               textAlign: arabic ? pw.TextAlign.right : pw.TextAlign.left,
             ),
           ),
           pw.SizedBox(width: 6),
           pw.Expanded(
             flex: 2,
-            child: pw.Text(
+            child: PdfTextSupport.text(
               clean(value ?? '-'),
-              style: pw.TextStyle(font: regular, fontSize: 8),
+              style: pw.TextStyle(
+                font: regular,
+                fontSize: EnterpriseDocumentPresentation.bodySize,
+              ),
               textAlign: arabic ? pw.TextAlign.right : pw.TextAlign.left,
               maxLines: 4,
             ),
@@ -125,11 +244,11 @@ class MaintenanceDocumentPdfService {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
+                  PdfTextSupport.text(
                     clean(arabic ? 'شركة خط الجودة' : 'Quality Line'),
                     style: pw.TextStyle(font: bold, fontSize: 15),
                   ),
-                  pw.Text(
+                  PdfTextSupport.text(
                     clean(
                       arabic
                           ? 'حزمة أمر صيانة رسمية'
@@ -144,11 +263,11 @@ class MaintenanceDocumentPdfService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text(
+              PdfTextSupport.text(
                 clean(order.orderNumber),
                 style: pw.TextStyle(font: bold, fontSize: 12),
               ),
-              pw.Text(
+              PdfTextSupport.text(
                 '${context.pageNumber} / ${context.pagesCount}',
                 style: pw.TextStyle(font: regular, fontSize: 8),
               ),
@@ -161,17 +280,23 @@ class MaintenanceDocumentPdfService {
     pw.Widget footer(pw.Context context) => pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(
+        PdfTextSupport.text(
           clean(
             arabic
                 ? 'مستند إلكتروني صادر من نظام خط الجودة'
                 : 'Electronic document generated by Quality Line ERP',
           ),
-          style: pw.TextStyle(font: regular, fontSize: 7),
+          style: pw.TextStyle(
+            font: regular,
+            fontSize: EnterpriseDocumentPresentation.footerSize,
+          ),
         ),
-        pw.Text(
+        PdfTextSupport.text(
           clean(order.orderNumber),
-          style: pw.TextStyle(font: regular, fontSize: 7),
+          style: pw.TextStyle(
+            font: regular,
+            fontSize: EnterpriseDocumentPresentation.footerSize,
+          ),
         ),
       ],
     );
@@ -196,26 +321,24 @@ class MaintenanceDocumentPdfService {
       ],
     );
 
+    pw.Widget tableHeaderCell(String value) => pw.Container(
+      padding: EnterpriseDocumentPresentation.tableHeaderPadding,
+      alignment: pw.Alignment.center,
+      child: PdfTextSupport.text(
+        clean(value),
+        textAlign: pw.TextAlign.center,
+        style: pw.TextStyle(
+          font: bold,
+          color: PdfColors.white,
+          fontSize: EnterpriseDocumentPresentation.tableHeaderSize,
+        ),
+      ),
+    );
+
     pw.Widget linesTable(List<MaintenanceLineModel> chunk) {
       final headers = arabic
-          ? const [
-              'البند',
-              'النوع',
-              'المخزن',
-              'الكمية',
-              'الكلفة',
-              'السعر',
-              'الإجمالي',
-            ]
-          : const [
-              'Item',
-              'Type',
-              'Warehouse',
-              'Qty',
-              'Cost',
-              'Price',
-              'Total',
-            ];
+          ? const ['البند', 'النوع', 'المخزن', 'الكمية', 'السعر', 'الإجمالي']
+          : const ['Item', 'Type', 'Warehouse', 'Qty', 'Price', 'Total'];
       return pw.Table(
         columnWidths: const <int, pw.TableColumnWidth>{
           0: pw.FlexColumnWidth(2.5),
@@ -223,32 +346,13 @@ class MaintenanceDocumentPdfService {
           2: pw.FlexColumnWidth(1.5),
           3: pw.FlexColumnWidth(.7),
           4: pw.FlexColumnWidth(1.0),
-          5: pw.FlexColumnWidth(1.0),
-          6: pw.FlexColumnWidth(1.1),
+          5: pw.FlexColumnWidth(1.1),
         },
         border: pw.TableBorder.all(color: border, width: .4),
         children: [
           pw.TableRow(
             decoration: pw.BoxDecoration(color: primary),
-            children: [
-              for (final value in headers)
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 6,
-                  ),
-                  alignment: pw.Alignment.center,
-                  child: pw.Text(
-                    clean(value),
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      font: bold,
-                      color: PdfColors.white,
-                      fontSize: 7.2,
-                    ),
-                  ),
-                ),
-            ],
+            children: [for (final value in headers) tableHeaderCell(value)],
           ),
           for (var index = 0; index < chunk.length; index++)
             pw.TableRow(
@@ -287,11 +391,6 @@ class MaintenanceDocumentPdfService {
                   arabic: arabic,
                 ),
                 _lineCell(
-                  chunk[index].unitCost.toStringAsFixed(2),
-                  regular: regular,
-                  arabic: arabic,
-                ),
-                _lineCell(
                   chunk[index].unitPrice.toStringAsFixed(2),
                   regular: regular,
                   arabic: arabic,
@@ -308,10 +407,64 @@ class MaintenanceDocumentPdfService {
       );
     }
 
-    const rowsPerPage = 13;
-    final serviceLines = lines.where((line) => line.isService).toList();
-    final stockLines = lines.where((line) => !line.isService).toList();
+    pw.Widget issueTable(List<MaintenanceWarehouseIssueRow> chunk) {
+      final headers = arabic
+          ? const [
+              'Ø§Ù„Ø¨Ù†Ø¯',
+              'Ø§Ù„Ù…Ø®Ø²Ù†',
+              'Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„ÙØ¹Ù„ÙŠØ©',
+              'Ù…Ø±Ø¬Ø¹ Ø§Ù„ØµØ±Ù',
+            ]
+          : const ['Item', 'Actual warehouse', 'Actual qty', 'Issue reference'];
+      return pw.Table(
+        columnWidths: const <int, pw.TableColumnWidth>{
+          0: pw.FlexColumnWidth(2.5),
+          1: pw.FlexColumnWidth(1.8),
+          2: pw.FlexColumnWidth(1),
+          3: pw.FlexColumnWidth(2),
+        },
+        border: pw.TableBorder.all(color: border, width: .4),
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: primary),
+            children: [for (final value in headers) tableHeaderCell(value)],
+          ),
+          for (var index = 0; index < chunk.length; index++)
+            pw.TableRow(
+              decoration: pw.BoxDecoration(
+                color: index.isOdd ? surface : PdfColors.white,
+              ),
+              children: [
+                _lineCell(
+                  clean(chunk[index].productName),
+                  regular: regular,
+                  arabic: arabic,
+                  alignCenter: false,
+                ),
+                _lineCell(
+                  clean(chunk[index].warehouseName),
+                  regular: regular,
+                  arabic: arabic,
+                  alignCenter: false,
+                ),
+                _lineCell(
+                  clean(chunk[index].quantity),
+                  regular: regular,
+                  arabic: arabic,
+                ),
+                _lineCell(
+                  clean(chunk[index].issueReferences.join(', ')),
+                  regular: regular,
+                  arabic: arabic,
+                  alignCenter: false,
+                ),
+              ],
+            ),
+        ],
+      );
+    }
 
+    const rowsPerPage = 13;
     List<List<MaintenanceLineModel>> chunksOf(
       List<MaintenanceLineModel> source,
     ) {
@@ -324,12 +477,22 @@ class MaintenanceDocumentPdfService {
       return result;
     }
 
-    final serviceChunks = chunksOf(serviceLines);
-    final stockChunks = chunksOf(stockLines);
+    final requestedLineChunks = chunksOf(lines);
     final invoiceChunks = chunksOf(lines);
-    final lineChunks = stockChunks;
+    final lineChunks = <List<MaintenanceWarehouseIssueRow>>[];
+    if (issuedRows.isEmpty) {
+      lineChunks.add(const <MaintenanceWarehouseIssueRow>[]);
+    } else {
+      for (var offset = 0; offset < issuedRows.length; offset += rowsPerPage) {
+        final end = (offset + rowsPerPage).clamp(0, issuedRows.length).toInt();
+        lineChunks.add(issuedRows.sublist(offset, end));
+      }
+    }
     final content = <pw.Widget>[
-      heading(arabic ? 'صفحة أمر الصيانة' : 'Maintenance order page'),
+      heading(
+        arabic ? 'صفحة أمر الصيانة' : 'Maintenance order page',
+        main: true,
+      ),
       twoFields(
         arabic ? 'رقم أمر الصيانة' : 'Maintenance order number',
         order.orderNumber,
@@ -356,16 +519,16 @@ class MaintenanceDocumentPdfService {
       ),
     ];
 
-    for (var index = 0; index < serviceChunks.length; index++) {
+    for (var index = 0; index < requestedLineChunks.length; index++) {
       if (index > 0) content.add(pw.NewPage());
       content.add(
         heading(
           arabic
-              ? 'الخدمات والأعمال المطلوبة — صفحة ${index + 1} من ${serviceChunks.length}'
-              : 'Requested services and work — page ${index + 1} of ${serviceChunks.length}',
+              ? 'الخدمات والمواد والأعمال المطلوبة — صفحة ${index + 1} من ${requestedLineChunks.length}'
+              : 'Requested services, materials, and work — page ${index + 1} of ${requestedLineChunks.length}',
         ),
       );
-      content.add(linesTable(serviceChunks[index]));
+      content.add(linesTable(requestedLineChunks[index]));
     }
 
     content.addAll([
@@ -405,7 +568,7 @@ class MaintenanceDocumentPdfService {
           alignment: arabic
               ? pw.Alignment.centerRight
               : pw.Alignment.centerLeft,
-          child: pw.Text(
+          child: PdfTextSupport.text(
             clean(
               arabic
                   ? 'مواد المخزن — صفحة ${index + 1} من ${lineChunks.length}'
@@ -416,7 +579,7 @@ class MaintenanceDocumentPdfService {
         ),
       );
       content.add(pw.SizedBox(height: 6));
-      content.add(linesTable(lineChunks[index]));
+      content.add(issueTable(lineChunks[index]));
       if (index < lineChunks.length - 1) content.add(pw.NewPage());
     }
 
@@ -440,20 +603,8 @@ class MaintenanceDocumentPdfService {
             order.orderNumber,
           ),
           twoFields(
-            arabic ? 'كلفة العمل' : 'Labor cost',
-            order.laborCost.toStringAsFixed(2),
-            arabic ? 'كلفة المواد' : 'Parts cost',
-            order.partsCost.toStringAsFixed(2),
-          ),
-          twoFields(
-            arabic ? 'إجمالي الكلفة' : 'Total cost',
-            order.totalCost.toStringAsFixed(2),
             arabic ? 'قيمة الفاتورة' : 'Invoice amount',
             order.salePrice.toStringAsFixed(2),
-          ),
-          twoFields(
-            arabic ? 'الربح' : 'Profit',
-            order.profit.toStringAsFixed(2),
             arabic ? 'العملة' : 'Currency',
             order.currencyCode,
           ),
@@ -482,11 +633,9 @@ class MaintenanceDocumentPdfService {
         arabic ? 'المبلغ المدفوع' : 'Paid amount',
         order.paidAmount.toStringAsFixed(2),
       ),
-      twoFields(
+      field(
         arabic ? 'الرصيد المتبقي' : 'Remaining balance',
         (order.salePrice - order.paidAmount).toStringAsFixed(2),
-        arabic ? 'حساب مصروف الصيانة' : 'Maintenance expense account',
-        order.maintenanceExpenseAccountId,
       ),
       twoFields(
         arabic ? 'مرجع الفاتورة' : 'Invoice reference',
@@ -519,8 +668,8 @@ class MaintenanceDocumentPdfService {
 
     document.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.landscape,
-        margin: const pw.EdgeInsets.fromLTRB(28, 24, 28, 26),
+        pageFormat: EnterpriseDocumentPresentation.landscapePageFormat,
+        margin: EnterpriseDocumentPresentation.pageMargin,
         textDirection: direction,
         header: header,
         footer: footer,
@@ -537,17 +686,20 @@ class MaintenanceDocumentPdfService {
     bool alignCenter = true,
   }) => pw.Container(
     constraints: const pw.BoxConstraints(minHeight: 24),
-    padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+    padding: EnterpriseDocumentPresentation.tableCellPadding,
     alignment: alignCenter
         ? pw.Alignment.center
         : (arabic ? pw.Alignment.centerRight : pw.Alignment.centerLeft),
-    child: pw.Text(
+    child: PdfTextSupport.text(
       value,
       textAlign: alignCenter
           ? pw.TextAlign.center
           : (arabic ? pw.TextAlign.right : pw.TextAlign.left),
       maxLines: 4,
-      style: pw.TextStyle(font: regular, fontSize: 7),
+      style: pw.TextStyle(
+        font: regular,
+        fontSize: EnterpriseDocumentPresentation.tableBodySize,
+      ),
     ),
   );
 }

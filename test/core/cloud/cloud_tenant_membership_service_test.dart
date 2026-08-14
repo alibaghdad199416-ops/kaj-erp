@@ -38,4 +38,24 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
+
+  test('post-auth membership preserves system administrator context', () {
+    final membership = cloudMembershipFromRow(<String, dynamic>{
+      'company_id': companyA,
+      'default_branch_id': 'branch-main',
+      'role_code': 'owner',
+      'is_system_admin': true,
+      'companies': <String, dynamic>{
+        'slug': 'quality-line',
+        'name_en': 'Quality Line',
+        'name_ar': 'Quality Line',
+      },
+    });
+
+    expect(membership.companyId, companyA);
+    expect(membership.companySlug, 'quality-line');
+    expect(membership.branchId, 'branch-main');
+    expect(membership.roleCode, 'owner');
+    expect(membership.isSystemAdmin, isTrue);
+  });
 }

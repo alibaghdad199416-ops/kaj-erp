@@ -228,7 +228,7 @@ if ($RunSupabase) {
 
   if (-not $SkipDatabaseDryRun) {
     Invoke-WithRetry 'Preview pending database migrations' {
-      & $Npx --no-install supabase db push --linked --dry-run --yes
+      python -B tool\guarded_supabase_db_push.py --linked --dry-run-only --yes
     }
   }
 
@@ -240,7 +240,7 @@ if ($RunSupabase) {
   }
 
   Invoke-WithRetry 'Apply Supabase database migrations' {
-    & $Npx --no-install supabase db push --linked --yes
+    python -B tool\guarded_supabase_db_push.py --linked --yes
   }
 
   if (-not $SkipAuthConfig) {
@@ -263,7 +263,7 @@ if ($RunSupabase) {
   }
 
   Invoke-WithRetry 'Confirm no migrations remain' {
-    & $Npx --no-install supabase db push --linked --dry-run --yes
+    python -B tool\guarded_supabase_db_push.py --linked --dry-run-only --yes
   }
 }
 

@@ -21,7 +21,6 @@ import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:quality_line_erp/core/printing/enterprise_document_pdf_service.dart';
 import 'package:quality_line_erp/core/widgets/app_module_action_icon.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
-import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/core/widgets/app_top_navigation.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
@@ -87,6 +86,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   List<Map<String, Object?>> _items = const [];
   List<Map<String, Object?>> _logistics = const [];
   List<Map<String, Object?>> _invoices = const [];
+  List<Map<String, Object?>> _reconciliation = const [];
   List<Map<String, Object?>> _payments = const [];
   List<Map<String, Object?>> _movements = const [];
   List<Map<String, Object?>> _journalEntries = const [];
@@ -109,6 +109,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     _items = initial.items;
     _logistics = initial.logistics;
     _invoices = initial.invoices;
+    _reconciliation = initial.reconciliation;
     _payments = initial.payments;
     _movements = initial.movements;
     _journalEntries = initial.journalEntries;
@@ -163,6 +164,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         _movements = details.movements;
         _journalEntries = details.journalEntries;
         _auditTrail = _sortAuditTrail(details.auditTrail);
+        _reconciliation = details.reconciliation;
         _documents = documents;
         _documentsLoaded = true;
         _loading = false;
@@ -224,9 +226,9 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     }
   }
 
-  Future<void> _deleteOrder() async {
+  Future<void> _cancelOrder() async {
     if (_mutatingOrder) return;
-    final permission = widget.purchase ? 'purchases.delete' : 'sales.delete';
+    final permission = widget.purchase ? 'purchases.cancel' : 'sales.cancel';
     if (!await PermissionAction.require(context, permission)) return;
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
@@ -234,14 +236,14 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       builder: (dialogContext) => AlertDialog(
         title: AppText(
           _bi(
-            widget.purchase ? 'حذف أمر الشراء' : 'حذف أمر البيع',
-            widget.purchase ? 'Delete purchase order' : 'Delete sales order',
+            widget.purchase ? 'إلغاء أمر الشراء' : 'إلغاء أمر البيع',
+            widget.purchase ? 'Cancel purchase order' : 'Cancel sales order',
           ),
         ),
         content: AppText(
           _bi(
-            'سيتم عكس الفاتورة والحركة المخزنية ثم حذف الأمر وبنوده، دون إنشاء قيود تشغيلية إضافية تلقائيًا. تبقى الدفعات المالية في حساب العميل أو المورد كرصيد غير مخصص، وتُحتسب تلقائيًا عند تصديق فاتورة لاحقة للطرف نفسه وبالعملة نفسها، ولا تُحذف إلا من الصندوق.',
-            'Invoice and inventory links will be reversed before deleting the order and lines; no additional operational journals are created automatically. Financial payments remain as an unapplied partner balance, are automatically considered for a later approved invoice of the same party and currency, and are deleted only from the cashbox.',
+            'سيبقى الأمر ومرجعه التجاري محفوظين بحالة ملغي. ستُعكس آثار الفاتورة والمحاسبة والمخزون ذريًا. تبقى الدفعات المالية في حساب العميل أو المورد كرصيد غير مخصص.',
+            'The order and its business reference will remain as Cancelled. Invoice, accounting, and inventory effects will be reversed atomically. Real payments remain as unapplied partner credit and are automatically considered for a later approved invoice of the same partner and currency.',
           ),
         ),
         actions: [
@@ -251,10 +253,72 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.delete_forever_outlined),
+            icon: const Icon(Icons.cancel_outlined),
             label: AppText(
-              _bi('حذف الأمر وارتباطاته', 'Delete order and links'),
+              _bi(
+                'إلغاء الأمر وعكس الآثار',
+                'Cancel order and reverse effects',
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _mutatingOrder = true);
+    try {
+      if (widget.purchase) {
+        await PurchaseWorkflowRepository().cancelOrder(widget.orderId);
+      } else {
+        await SalesWorkflowRepository().cancelOrder(widget.orderId);
+      }
+      if (!mounted) return;
+      await _load();
+    } catch (error) {
+      AppLogger.debug('Commercial workflow operation failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: context.l10n.isArabic,
+              arabicFallback: 'تعذر إلغاء الأمر وعكس آثاره المرتبطة.',
+              englishFallback: 'Unable to cancel and reverse the order.',
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _mutatingOrder = false);
+    }
+  }
+
+  Future<void> _deleteDraftOrder() async {
+    if (_mutatingOrder) return;
+    final permission = widget.purchase ? 'purchases.delete' : 'sales.delete';
+    if (!await PermissionAction.require(context, permission) || !mounted)
+      return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: AppText(_bi('حذف المسودة', 'Delete draft')),
+        content: AppText(
+          _bi(
+            'سيُحذف أمر المسودة الذي لم يُنفذ. الإلغاء والعكس عملية مستقلة للمستندات المنفذة.',
+            'This removes the unexecuted draft order. Cancel and reverse remains a separate operation for executed documents.',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: AppText(_bi('رجوع', 'Back')),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: AppText(_bi('حذف المسودة', 'Delete draft')),
           ),
         ],
       ),
@@ -267,24 +331,22 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       } else {
         await SalesWorkflowRepository().deleteOrderCascade(widget.orderId);
       }
-      if (!mounted) return;
-      AppWorkspaceWindowScope.closeCurrent(context, true);
+      if (mounted) Navigator.pop(context, true);
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            userFacingError(
-              error,
-              isArabic: context.l10n.isArabic,
-              arabicFallback: 'تعذر حذف الأمر لوجود بيانات مرتبطة به.',
-              englishFallback:
-                  'Unable to delete the order because linked records exist.',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: AppText(
+              userFacingError(
+                error,
+                isArabic: context.l10n.isArabic,
+                arabicFallback: 'تعذر حذف مسودة الأمر.',
+                englishFallback: 'Unable to delete the draft order.',
+              ),
             ),
           ),
-          backgroundColor: Colors.red,
-        ),
-      );
+        );
+      }
     } finally {
       if (mounted) setState(() => _mutatingOrder = false);
     }
@@ -879,14 +941,34 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
               icon: Icons.edit_outlined,
               onPressed: _mutatingOrder ? null : _editOrder,
             ),
+            if (const <String>{
+              'draft',
+              'cancelled',
+            }.contains(order['status']?.toString().toLowerCase()))
+              AppModuleActionIcon(
+                tooltip:
+                    order['status']?.toString().toLowerCase() == 'cancelled'
+                    ? _bi('حذف الأمر الملغى', 'Delete cancelled order')
+                    : _bi('حذف المسودة', 'Delete draft'),
+                icon: Icons.delete_outline_rounded,
+                destructive: true,
+                onPressed: _mutatingOrder ? null : _deleteDraftOrder,
+              ),
             AppModuleActionIcon(
               tooltip: _bi(
-                'حذف الأمر مع عكس الارتباطات',
-                'Delete order and reverse links',
+                'إلغاء الأمر وعكس الارتباطات',
+                'Cancel order and reverse links',
               ),
-              icon: Icons.delete_outline_rounded,
+              icon: Icons.cancel_outlined,
               destructive: true,
-              onPressed: _mutatingOrder ? null : _deleteOrder,
+              onPressed:
+                  _mutatingOrder ||
+                      const <String>{
+                        'draft',
+                        'cancelled',
+                      }.contains(order['status']?.toString().toLowerCase())
+                  ? null
+                  : _cancelOrder,
             ),
             AppModuleActionIcon(
               tooltip: _bi('تنزيل PDF', 'Download PDF'),
@@ -938,6 +1020,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                 _workflow(order),
                 const SizedBox(height: 12),
                 _summary(order),
+                const SizedBox(height: 12),
+                _reconciliationPanel(),
                 const SizedBox(height: 12),
                 AppText(
                   _bi('البنود', 'Items'),
@@ -1125,6 +1209,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         movements: _movements,
         journalEntries: _journalEntries,
         auditTrail: _auditTrail,
+        reconciliation: _reconciliation,
       );
       final rawNumber = (order['orderNumber'] ?? 'document').toString();
       final safeNumber = rawNumber.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
@@ -1178,6 +1263,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         movements: _movements,
         journalEntries: _journalEntries,
         auditTrail: _auditTrail,
+        reconciliation: _reconciliation,
       );
     } catch (error) {
       if (!mounted) return;
@@ -1627,6 +1713,41 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     );
   }
 
+  Widget _reconciliationPanel() {
+    if (_reconciliation.isEmpty) return const SizedBox.shrink();
+    return Card(
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: const Icon(Icons.rule_folder_outlined),
+        title: AppText(
+          _bi('مطابقة كميات سير العمل', 'Workflow quantity reconciliation'),
+        ),
+        children: _reconciliation
+            .map((row) {
+              final status = row['status']?.toString() ?? 'pending';
+              return ListTile(
+                dense: true,
+                title: AppText(row['description']?.toString() ?? '-'),
+                subtitle: AppText(
+                  _bi(
+                    'المطلوب: ${row['orderedQuantity']} • التشغيلي: ${row['operationalQuantity']} • المفوتر: ${row['invoicedQuantity']} • المتبقي تشغيليًا: ${row['remainingOperational']} • المتبقي للفوترة: ${row['remainingInvoice']}',
+                    'Ordered: ${row['orderedQuantity']} • Operational: ${row['operationalQuantity']} • Invoiced: ${row['invoicedQuantity']} • To process: ${row['remainingOperational']} • To invoice: ${row['remainingInvoice']}',
+                  ),
+                ),
+                trailing: Chip(
+                  label: AppText(switch (status) {
+                    'reconciled' => _bi('مطابق', 'Reconciled'),
+                    'partial' => _bi('جزئي', 'Partial'),
+                    _ => _bi('بانتظار التنفيذ', 'Pending'),
+                  }),
+                ),
+              );
+            })
+            .toList(growable: false),
+      ),
+    );
+  }
+
   String _detailLabel(String key) => switch (key) {
     'id' => _bi('المعرف', 'ID'),
     'status' => _bi('الحالة', 'Status'),
@@ -1717,11 +1838,36 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       'inventorySnapshot',
       'sourceSnapshot',
     };
+    const hiddenIdentityKeys = <String>{
+      'id',
+      'itemId',
+      'item_id',
+      'productId',
+      'product_id',
+      'carId',
+      'car_id',
+      'warehouseId',
+      'warehouse_id',
+      'createdBy',
+      'created_by',
+      'approvedBy',
+      'approved_by',
+      'invoiceId',
+      'invoice_id',
+      'valuedByInvoiceId',
+      'valued_by_invoice_id',
+      'referenceId',
+      'reference_id',
+    };
+    final allocationRows = <Map<String, Object?>>[];
 
     void addMap(Map source, {String prefix = ''}) {
       for (final entry in source.entries) {
         final key = entry.key.toString();
-        if (hiddenTechnicalKeys.contains(key)) continue;
+        if (hiddenTechnicalKeys.contains(key) ||
+            hiddenIdentityKeys.contains(key)) {
+          continue;
+        }
         final value = entry.value;
         if (value == null || value.toString().trim().isEmpty) continue;
         final current = _detailLabel(key);
@@ -1738,13 +1884,20 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         }
         if (value is List) {
           if (value.isEmpty) continue;
+          if (key == 'allocations' || key == 'items' || key == 'lines') {
+            allocationRows.addAll(
+              value.whereType<Map>().map(Map<String, Object?>.from),
+            );
+            continue;
+          }
           final text = value
               .map((element) {
                 if (element is! Map) return element.toString();
                 return element.entries
                     .where(
                       (entry) =>
-                          !hiddenTechnicalKeys.contains(entry.key.toString()),
+                          !hiddenTechnicalKeys.contains(entry.key.toString()) &&
+                          !hiddenIdentityKeys.contains(entry.key.toString()),
                     )
                     .map(
                       (entry) =>
@@ -1762,10 +1915,10 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     }
 
     addMap(row);
-    if (flattened.isEmpty) {
+    if (flattened.isEmpty && allocationRows.isEmpty) {
       return AppText(_bi('لا توجد تفاصيل إضافية.', 'No additional details.'));
     }
-    return Wrap(
+    final fields = Wrap(
       spacing: 10,
       runSpacing: 8,
       children: flattened
@@ -1804,6 +1957,86 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
             ),
           )
           .toList(growable: false),
+    );
+    if (allocationRows.isEmpty) return fields;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (flattened.isNotEmpty) fields,
+        if (flattened.isNotEmpty) const SizedBox(height: 14),
+        AppText(
+          _bi(
+            'بنود المستند والتوزيع الفعلي',
+            'Document lines and actual allocation',
+          ),
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: <DataColumn>[
+              DataColumn(label: AppText(_bi('البند', 'Item'))),
+              DataColumn(label: AppText(_bi('النوع', 'Type'))),
+              DataColumn(label: AppText(_bi('المخزن', 'Warehouse'))),
+              DataColumn(label: AppText(_bi('الكمية', 'Quantity'))),
+            ],
+            rows: allocationRows
+                .map((allocation) {
+                  final itemId =
+                      (allocation['itemId'] ?? allocation['productId'])
+                          ?.toString();
+                  final item = _items.cast<Map<String, Object?>?>().firstWhere(
+                    (candidate) =>
+                        candidate?['id']?.toString() == itemId ||
+                        candidate?['itemId']?.toString() == itemId,
+                    orElse: () => null,
+                  );
+                  final itemName =
+                      item?['itemCode'] ??
+                      item?['code'] ??
+                      item?['carNumber'] ??
+                      item?['name'] ??
+                      item?['description'] ??
+                      allocation['description'] ??
+                      _bi('بند مخزني', 'Inventory item');
+                  final warehouseId = allocation['warehouseId']?.toString();
+                  final movement = _movements
+                      .cast<Map<String, Object?>?>()
+                      .firstWhere(
+                        (candidate) =>
+                            candidate?['warehouseId']?.toString() ==
+                            warehouseId,
+                        orElse: () => null,
+                      );
+                  final warehouse =
+                      movement?['warehouseName'] ??
+                      row['warehouseName'] ??
+                      _bi('مخزن محدد', 'Selected warehouse');
+                  return DataRow(
+                    cells: <DataCell>[
+                      DataCell(AppText(itemName.toString())),
+                      DataCell(
+                        AppText(
+                          _humanize(
+                            (allocation['itemType'] ?? item?['itemType'] ?? '-')
+                                .toString(),
+                          ),
+                        ),
+                      ),
+                      DataCell(AppText(warehouse.toString())),
+                      DataCell(
+                        AppText(
+                          _number(allocation['quantity']).toStringAsFixed(2),
+                        ),
+                      ),
+                    ],
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ),
+      ],
     );
   }
 

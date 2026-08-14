@@ -70,7 +70,7 @@ class VehicleServiceCardPdfService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
+                      PdfTextSupport.text(
                         clean(t('شركة خط الجودة', 'Quality Line Company')),
                         style: pw.TextStyle(
                           font: fonts.bold,
@@ -78,7 +78,7 @@ class VehicleServiceCardPdfService {
                           fontSize: 15,
                         ),
                       ),
-                      pw.Text(
+                      PdfTextSupport.text(
                         clean('${t('وقت الإنشاء', 'Generated')}: $generatedAt'),
                         style: const pw.TextStyle(fontSize: 7),
                       ),
@@ -86,7 +86,7 @@ class VehicleServiceCardPdfService {
                   ),
                 ],
               ),
-              pw.Text(
+              PdfTextSupport.text(
                 clean(t('بطاقة خدمة المركبة', 'Vehicle Service Card')),
                 style: pw.TextStyle(font: fonts.bold, fontSize: 13),
               ),
@@ -96,7 +96,7 @@ class VehicleServiceCardPdfService {
         footer: (context) => pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
+            PdfTextSupport.text(
               clean(
                 t(
                   'سجل خدمة صادر من نظام خط الجودة',
@@ -105,7 +105,7 @@ class VehicleServiceCardPdfService {
               ),
               style: const pw.TextStyle(fontSize: 7),
             ),
-            pw.Text(
+            PdfTextSupport.text(
               '${context.pageNumber} / ${context.pagesCount}',
               style: const pw.TextStyle(fontSize: 7),
             ),
@@ -132,7 +132,7 @@ class VehicleServiceCardPdfService {
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.grey300),
                   ),
-                  child: pw.Text(
+                  child: PdfTextSupport.text(
                     '${clean(entry.key)}: ${clean(entry.value ?? '—')}',
                     style: const pw.TextStyle(fontSize: 9),
                   ),
@@ -140,7 +140,7 @@ class VehicleServiceCardPdfService {
             ],
           ),
           pw.SizedBox(height: 16),
-          pw.Text(
+          PdfTextSupport.text(
             clean(
               t('السجل الزمني للصيانة', 'Chronological Maintenance History'),
             ),
@@ -158,40 +158,40 @@ class VehicleServiceCardPdfService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
+                  PdfTextSupport.text(
                     clean(
                       '${order['orderNumber'] ?? '—'} • ${order['maintenanceDate'] ?? ''}',
                     ),
                     style: pw.TextStyle(font: fonts.bold, fontSize: 10),
                   ),
                   if ((order['opportunityNumber']?.toString() ?? '').isNotEmpty)
-                    pw.Text(
+                    PdfTextSupport.text(
                       clean(
                         '${t('الفرصة', 'Opportunity')}: ${order['opportunityNumber']}',
                       ),
                       style: const pw.TextStyle(fontSize: 8),
                     ),
                   if ((order['invoiceNumber']?.toString() ?? '').isNotEmpty)
-                    pw.Text(
+                    PdfTextSupport.text(
                       clean(
                         '${t('الفاتورة', 'Invoice')}: ${order['invoiceNumber']}',
                       ),
                       style: const pw.TextStyle(fontSize: 8),
                     ),
-                  pw.Text(
+                  PdfTextSupport.text(
                     clean(
                       '${t('الحالة', 'Status')}: ${order['workflowStage'] ?? order['status'] ?? '—'}',
                     ),
                     style: const pw.TextStyle(fontSize: 8),
                   ),
-                  pw.Text(
+                  PdfTextSupport.text(
                     clean(
                       '${t('الخدمة للعميل', 'Customer service amount')}: ${order['salePrice'] ?? 0} ${order['currencyCode'] ?? ''}',
                     ),
                     style: const pw.TextStyle(fontSize: 8),
                   ),
                   for (final item in _list(order['items']))
-                    pw.Text(
+                    PdfTextSupport.text(
                       clean(
                         '• ${item['name'] ?? '—'} × ${item['quantity'] ?? 0}',
                       ),

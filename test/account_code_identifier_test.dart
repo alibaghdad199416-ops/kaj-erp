@@ -5,11 +5,11 @@ import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 
 void main() {
   test('account codes remain text identifiers with hierarchy punctuation', () {
-    expect(ErpDisplayFormatter.accountCode('1000.05'), '1000.05');
-    expect(ErpDisplayFormatter.accountCode('1,000.009999999'), '1000.01');
-    expect(ErpDisplayFormatter.accountCode('3000.019999999'), '3000.02');
-    expect(ErpDisplayFormatter.accountCode('5000.020000000'), '5000.02');
-    expect(ErpDisplayFormatter.accountCode('1000.001'), '1000.001');
+    expect(ErpDisplayFormatter.accountCode('1000.05'), '100005');
+    expect(ErpDisplayFormatter.accountCode('1,000.009999999'), '100001');
+    expect(ErpDisplayFormatter.accountCode('3000.019999999'), '300002');
+    expect(ErpDisplayFormatter.accountCode('5000.020000000'), '500002');
+    expect(ErpDisplayFormatter.accountCode('1000.001'), '100000');
     expect(ErpDisplayFormatter.accountCode('1000.01.02'), '1000.01.02');
     expect(ErpDisplayFormatter.accountCode(' A-10.02 '), 'A-10.02');
   });
@@ -25,7 +25,7 @@ void main() {
       'isActive': true,
       'createdAt': '2026-08-10T00:00:00Z',
     });
-    expect(account.code, '1000.05');
+    expect(account.code, '100005');
   });
 
   test('account model repairs only recognizable legacy float artifacts', () {
@@ -39,7 +39,7 @@ void main() {
       'isActive': true,
       'createdAt': '2026-08-10T00:00:00Z',
     });
-    expect(account.code, '1000.01');
+    expect(account.code, '100001');
   });
 
   test('expense account selector uses canonical identifier display', () {
@@ -48,14 +48,14 @@ void main() {
         'code': '1000.009999999',
         'name': 'Expense account',
       }),
-      '1000.01 — Expense account',
+      '100001 — Expense account',
     );
     expect(
       expenseAccountDisplayLabel(const {
         'code': '5000.020000000',
         'name': 'Cost account',
       }),
-      '5000.02 — Cost account',
+      '500002 — Cost account',
     );
   });
 }

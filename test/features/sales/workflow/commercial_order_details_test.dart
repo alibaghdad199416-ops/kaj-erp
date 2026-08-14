@@ -12,12 +12,16 @@ void main() {
       'journalEntries': <Object?>[
         <String, Object?>{'id': 'journal-1'},
       ],
+      'reconciliation': <Object?>[
+        <String, Object?>{'orderedQuantity': 7, 'executedQuantity': 3},
+      ],
     });
 
     expect(details.order?['id'], 'order-1');
     expect(details.items, hasLength(1));
     expect(details.items.single['id'], 'item-1');
     expect(details.journalEntries.single['id'], 'journal-1');
+    expect(details.reconciliation.single['executedQuantity'], 3);
     expect(details.payments, isEmpty);
     expect(details.auditTrail, isEmpty);
   });

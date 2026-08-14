@@ -24,6 +24,14 @@ class AccountingRepository {
     return value;
   }
 
+  Future<Map<String, dynamic>> getHeaderSnapshot() async {
+    final value = await _client.rpc(
+      'erp_r57_accounting_header_snapshot',
+      params: {'p_company_id': _companyId},
+    );
+    return Map<String, dynamic>.from(value as Map);
+  }
+
   Future<List<AccountModel>> getAccounts() async {
     final rows = await _client.rpc(
       'erp_r22_list_cloud_ledger_accounts',

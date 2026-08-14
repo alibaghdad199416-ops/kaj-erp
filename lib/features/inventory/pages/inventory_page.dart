@@ -3,6 +3,7 @@ import 'package:quality_line_erp/core/exporting/binary_download_service.dart';
 import 'package:quality_line_erp/core/exporting/excel_export_service.dart';
 import 'package:quality_line_erp/core/exporting/export_document.dart';
 import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
+import 'package:quality_line_erp/core/printing/product_maintenance_card_pdf_service.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
@@ -533,8 +534,10 @@ class _InventoryPageState extends State<InventoryPage> {
   ) async {
     List<String> images = const <String>[];
     List<WarehouseStockModel> stocks = const <WarehouseStockModel>[];
+    Map<String, Object?> maintenanceCard = const <String, Object?>{};
     var imagesLoadFailed = false;
     var stocksLoadFailed = false;
+    var maintenanceLoadFailed = false;
     try {
       images = await controller.getProductImages(item.id);
     } catch (_) {
@@ -544,6 +547,11 @@ class _InventoryPageState extends State<InventoryPage> {
       stocks = await controller.getProductStocks(item.id);
     } catch (_) {
       stocksLoadFailed = true;
+    }
+    try {
+      maintenanceCard = await controller.getProductMaintenanceCard(item.id);
+    } catch (_) {
+      maintenanceLoadFailed = true;
     }
     if (!mounted) return;
     await showAppFloatingWindow<void>(
@@ -557,7 +565,9 @@ class _InventoryPageState extends State<InventoryPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (imagesLoadFailed || stocksLoadFailed) ...[
+                if (imagesLoadFailed ||
+                    stocksLoadFailed ||
+                    maintenanceLoadFailed) ...[
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -715,6 +725,10 @@ class _InventoryPageState extends State<InventoryPage> {
                     ),
                   ),
                 ],
+                if (maintenanceCard.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _productMaintenanceHistory(maintenanceCard),
+                ],
                 if (images.isNotEmpty) ...[
                   const SizedBox(height: 18),
                   AppText(
@@ -792,6 +806,20 @@ class _InventoryPageState extends State<InventoryPage> {
             label: const AppText('PDF'),
           ),
           OutlinedButton.icon(
+            onPressed: maintenanceCard.isEmpty
+                ? null
+                : () => const ProductMaintenanceCardPdfService().printCard(
+                    card: maintenanceCard,
+                    arabic: context.l10n.isArabic,
+                  ),
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+            label: AppText(
+              context.l10n.isArabic
+                  ? 'طباعة بطاقة المادة'
+                  : 'Print product card',
+            ),
+          ),
+          OutlinedButton.icon(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
               await _editProduct(controller, item);
@@ -807,6 +835,186 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
     );
   }
+
+  Widget _productMaintenanceHistory(Map<String, Object?> card) {
+    final arabic = context.l10n.isArabic;
+    final history = _maintenanceMapRows(card['maintenanceHistory']);
+    String t(String ar, String en) => arabic ? ar : en;
+    String value(Object? raw) {
+      final text = raw?.toString().trim() ?? '';
+      return text.isEmpty || text.toLowerCase() == 'null' ? '—' : text;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.car_repair_outlined, size: 19),
+            const SizedBox(width: 7),
+            AppText(
+              t('سجل الصيانة حسب السيارة', 'Maintenance history by vehicle'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (history.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: AppText(
+              t(
+                'لا توجد سجلات صيانة مرتبطة بهذه المادة.',
+                'No maintenance records are linked to this product.',
+              ),
+            ),
+          )
+        else
+          ...history.map((order) {
+            final warehouses = _maintenanceMapRows(
+              order['warehouseContributions'],
+            );
+            final services = _maintenanceMapRows(order['relatedServices']);
+            final carTitle = <String>[
+              value(order['carNumber']),
+              value(order['carName']),
+            ].where((item) => item != '—').join(' • ');
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ExpansionTile(
+                leading: const Icon(Icons.directions_car_outlined),
+                title: AppText(
+                  '${value(order['orderNumber'])} • ${carTitle.isEmpty ? '—' : carTitle}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: AppText(
+                  '${value(order['maintenanceDate'])} • ${value(order['customerName'])} • ${value(order['workflowStage'])}',
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _detailChip(
+                        t('الشاصي', 'Chassis'),
+                        value(order['chassis']),
+                      ),
+                      _detailChip(
+                        t('اللوحة', 'Plate'),
+                        value(order['plateNumber']),
+                      ),
+                      _detailChip(
+                        t('المطلوب', 'Requested'),
+                        value(order['requestedQuantity']),
+                      ),
+                      _detailChip(
+                        t('المصروف', 'Issued'),
+                        value(order['issuedQuantity']),
+                      ),
+                      _detailChip(
+                        t('المرتجع', 'Reversed'),
+                        value(order['reversedQuantity']),
+                      ),
+                      _detailChip(
+                        t('المتبقي', 'Remaining'),
+                        value(order['remainingQuantity']),
+                      ),
+                      _detailChip(
+                        t('إذن الصرف', 'Stock issue'),
+                        '${value(order['stockIssueNumber'])} / ${value(order['stockIssueStatus'])}',
+                      ),
+                      _detailChip(
+                        t('الفاتورة', 'Invoice'),
+                        '${value(order['invoiceNumber'])} / ${value(order['invoiceStatus'])}',
+                      ),
+                      _detailChip(
+                        t('الدفع', 'Payment'),
+                        value(order['paymentStatus']),
+                      ),
+                    ],
+                  ),
+                  if (warehouses.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AppText(
+                        t('مساهمة المخازن', 'Warehouse contributions'),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: warehouses
+                          .map(
+                            (warehouse) => _detailChip(
+                              value(warehouse['warehouseName']),
+                              '${t('مصروف', 'Issued')}: ${value(warehouse['issuedQuantity'])} • ${t('مرتجع', 'Reversed')}: ${value(warehouse['reversedQuantity'])}',
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ],
+                  if (services.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AppText(
+                        t('الخدمات المرتبطة', 'Related services'),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    ...services.map(
+                      (service) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.miscellaneous_services_outlined,
+                          size: 18,
+                        ),
+                        title: AppText(value(service['name'])),
+                        subtitle: AppText(
+                          '${t('الكمية', 'Quantity')}: ${value(service['quantity'])}',
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (value(order['notes']) != '—')
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AppText(
+                        '${t('ملاحظات', 'Notes')}: ${value(order['notes'])}',
+                      ),
+                    ),
+                  if (value(order['cancelReason']) != '—')
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AppText(
+                        '${t('سبب الإلغاء', 'Cancellation reason')}: ${value(order['cancelReason'])}',
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  static List<Map<String, Object?>> _maintenanceMapRows(Object? raw) =>
+      raw is List
+      ? raw
+            .whereType<Map>()
+            .map((row) => Map<String, Object?>.from(row))
+            .toList(growable: false)
+      : const <Map<String, Object?>>[];
 
   Widget _detailChip(String label, String value) {
     return Container(
