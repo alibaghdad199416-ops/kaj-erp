@@ -1,10 +1,11 @@
--- R70.4/R70.5 rollback-safe structural/runtime-contract proof.
+-- R70.4-R70.6 rollback-safe structural/runtime-contract proof.
 -- It intentionally does not modify business data.
 begin;
 
 do $$
 declare
   v_sales_guard text;
+  v_sales_trigger text;
   v_crm_read text;
   v_maintenance_find text;
   v_maintenance_cancel text;
@@ -13,9 +14,24 @@ begin
     into v_sales_guard;
   if position('v_same_historical_link' in v_sales_guard)=0
      or position('v_cancel_restore' in v_sales_guard)=0
+     or position('v_reactivates_cancelled' in v_sales_guard)=0
      or position('v_creates_or_relinks' in v_sales_guard)=0
      or position('opportunity_is_lost' in v_sales_guard)=0 then
-    raise exception 'R70.4 Sales Opportunity guard is not operation-scoped';
+    raise exception 'R70.6 Sales Opportunity guard is not operation-scoped';
+  end if;
+
+  select pg_get_triggerdef(t.oid)
+    into v_sales_trigger
+  from pg_trigger t
+  join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public'
+    and c.relname='erp_sales_orders_cloud'
+    and t.tgname='erp_validate_sales_order_opportunity_link_trg'
+    and not t.tgisinternal;
+  if v_sales_trigger is null
+     or position('status' in lower(v_sales_trigger))=0 then
+    raise exception 'R70.6 Sales Opportunity trigger does not observe status reactivation';
   end if;
 
   select pg_get_functiondef('public.erp_r70_list_opportunities(uuid)'::regprocedure)
