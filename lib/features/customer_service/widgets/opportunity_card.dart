@@ -208,27 +208,26 @@ class OpportunityCard extends StatelessWidget {
         }
       }
 
-      final isDraft = _isMaintenanceDraft(order);
+      final linkedOrder = order;
+      final isDraft = _isMaintenanceDraft(linkedOrder);
       final changed = await showAppWorkspaceDialog<bool>(
         context: context,
         child: MaintenanceOrderDetailsDialog(
-          order: order,
-          onDelete: isDraft || order.isCancelled
-              ? () => _deleteMaintenance(context, order!)
+          order: linkedOrder,
+          onDelete: isDraft || linkedOrder.isCancelled
+              ? () => _deleteMaintenance(context, linkedOrder)
               : null,
-          // Draft lifecycle uses Delete, not Cancel. Executed maintenance uses
-          // the authoritative R67 cancellation path and the dialog reloads its
-          // R64 snapshot after this callback without closing.
-          onCancel: !isDraft && !order.isCancelled
-              ? () => _cancelMaintenance(context, order!)
+          // Cancel and Delete are independent. R70.5 preserves a Draft as a
+          // cancelled historical document without invoking downstream reversal;
+          // executed stages continue through the verified R67 reversal path.
+          onCancel: !linkedOrder.isCancelled
+              ? () => _cancelMaintenance(context, linkedOrder)
               : null,
         ),
       );
       if (context.mounted && changed == true) {
         await context.read<OpportunitiesController>().load(force: true);
       } else if (context.mounted) {
-        // Cancellation keeps the details dialog open, so refresh the CRM card
-        // after the user eventually closes it as well.
         await context.read<OpportunitiesController>().load(force: true);
       }
     } catch (error) {
@@ -378,30 +377,18 @@ class OpportunityCard extends StatelessWidget {
                   runSpacing: 5,
                   children: [
                     if ((opportunity.carName ?? '').trim().isNotEmpty)
-                      _field(
-                        'car',
-                        _info(
-                          Icons.directions_car_outlined,
-                          opportunity.carName!,
-                        ),
-                      ),
+                      _field('car', _info(Icons.directions_car_outlined, opportunity.carName!)),
                     if (opportunity.assignedUserName.trim().isNotEmpty)
                       _field(
                         'assignedUserName',
-                        _info(
-                          Icons.person_outline,
-                          opportunity.assignedUserName,
-                        ),
+                        _info(Icons.person_outline, opportunity.assignedUserName),
                       ),
                     if (opportunity.expectedValue > 0)
                       _field(
                         'value',
                         _info(
                           Icons.payments_outlined,
-                          const <String>{
-                                'USD',
-                                'IQD',
-                              }.contains(opportunity.currency)
+                          const <String>{'USD', 'IQD'}.contains(opportunity.currency)
                               ? MoneyFormatter.withCurrency(
                                   opportunity.expectedValue,
                                   opportunity.currency,
@@ -417,9 +404,7 @@ class OpportunityCard extends StatelessWidget {
                         'followUpDate',
                         _info(
                           Icons.event_outlined,
-                          DateFormat(
-                            'yyyy-MM-dd',
-                          ).format(opportunity.followUpDate!),
+                          DateFormat('yyyy-MM-dd').format(opportunity.followUpDate!),
                         ),
                       ),
                     if (opportunity.source.trim().isNotEmpty)
@@ -433,18 +418,13 @@ class OpportunityCard extends StatelessWidget {
                     if (opportunity.createdByUserName.trim().isNotEmpty)
                       _field(
                         'createdBy',
-                        _info(
-                          Icons.badge_outlined,
-                          opportunity.createdByUserName,
-                        ),
+                        _info(Icons.badge_outlined, opportunity.createdByUserName),
                       ),
                     _field(
                       'createdAt',
                       _info(
                         Icons.schedule_outlined,
-                        DateFormat(
-                          'yyyy-MM-dd HH:mm',
-                        ).format(opportunity.createdAt.toLocal()),
+                        DateFormat('yyyy-MM-dd HH:mm').format(opportunity.createdAt.toLocal()),
                       ),
                     ),
                     if (opportunity.closedAt != null)
@@ -452,9 +432,7 @@ class OpportunityCard extends StatelessWidget {
                         'closedAt',
                         _info(
                           Icons.event_available_outlined,
-                          DateFormat(
-                            'yyyy-MM-dd HH:mm',
-                          ).format(opportunity.closedAt!.toLocal()),
+                          DateFormat('yyyy-MM-dd HH:mm').format(opportunity.closedAt!.toLocal()),
                         ),
                       ),
                     if (opportunity.updatedAt != null)
@@ -462,9 +440,7 @@ class OpportunityCard extends StatelessWidget {
                         'updatedAt',
                         _info(
                           Icons.update_outlined,
-                          DateFormat(
-                            'yyyy-MM-dd HH:mm',
-                          ).format(opportunity.updatedAt!.toLocal()),
+                          DateFormat('yyyy-MM-dd HH:mm').format(opportunity.updatedAt!.toLocal()),
                         ),
                       ),
                     if ((opportunity.salesOrderNumber ?? '').trim().isNotEmpty ||
@@ -512,13 +488,9 @@ class OpportunityCard extends StatelessWidget {
                         _info(
                           Icons.build_circle_outlined,
                           [
-                            if ((opportunity.maintenanceOrderNumber ?? '')
-                                .trim()
-                                .isNotEmpty)
+                            if ((opportunity.maintenanceOrderNumber ?? '').trim().isNotEmpty)
                               opportunity.maintenanceOrderNumber!,
-                            if ((opportunity.maintenanceOrderStatus ?? '')
-                                .trim()
-                                .isNotEmpty)
+                            if ((opportunity.maintenanceOrderStatus ?? '').trim().isNotEmpty)
                               opportunity.maintenanceOrderStatus!,
                           ].join(' • '),
                         ),
@@ -532,50 +504,34 @@ class OpportunityCard extends StatelessWidget {
                 runSpacing: 4,
                 alignment: WrapAlignment.end,
                 children: [
-                  if (canUpdateStatus &&
-                      opportunity.status == OpportunityStatus.pending)
+                  if (canUpdateStatus && opportunity.status == OpportunityStatus.pending)
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 7,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            KajDesignTokens.radiusSm,
-                          ),
+                          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
                         ),
                       ),
                       onPressed: onLost,
                       icon: const Icon(Icons.close_rounded, size: 16),
-                      label: AppText(
-                        t('خاسرة', 'Lost'),
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                      label: AppText(t('خاسرة', 'Lost'), style: const TextStyle(fontSize: 10)),
                     ),
-                  if (opportunity.status != OpportunityStatus.lost &&
-                      (opportunity.saleId == null
-                          ? canUpdateStatus && canCreateSale
-                          : canViewSale))
+                  if ((opportunity.saleId != null && canViewSale) ||
+                      (opportunity.saleId == null &&
+                          opportunity.status != OpportunityStatus.lost &&
+                          canUpdateStatus &&
+                          canCreateSale))
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            KajDesignTokens.radiusSm,
-                          ),
+                          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
                         ),
                       ),
                       onPressed: onWon,
-                      icon: const Icon(
-                        Icons.shopping_cart_checkout_rounded,
-                        size: 16,
-                      ),
+                      icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
                       label: AppText(
                         opportunity.saleId == null
                             ? t('أمر بيع', 'Sales order')
@@ -588,14 +544,9 @@ class OpportunityCard extends StatelessWidget {
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 7,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            KajDesignTokens.radiusSm,
-                          ),
+                          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
                         ),
                       ),
                       onPressed: () => _openMaintenance(context),
