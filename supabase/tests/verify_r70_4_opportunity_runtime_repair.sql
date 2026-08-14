@@ -1,4 +1,4 @@
--- R70.4-R70.7 rollback-safe structural/runtime-contract proof.
+-- R70.4-R70.8 rollback-safe structural/runtime-contract proof.
 -- It intentionally does not modify business data.
 begin;
 
@@ -6,6 +6,8 @@ do $$
 declare
   v_sales_guard text;
   v_sales_trigger text;
+  v_opportunity_guard text;
+  v_opportunity_trigger text;
   v_crm_read text;
   v_maintenance_find text;
   v_maintenance_cancel text;
@@ -38,6 +40,35 @@ begin
      or position('customer_id' in lower(v_sales_trigger))=0
      or position('currency' in lower(v_sales_trigger))=0 then
     raise exception 'R70.7 Sales Opportunity trigger does not observe lifecycle identity changes';
+  end if;
+
+  select pg_get_functiondef('public.erp_r70_guard_opportunity_linked_identity()'::regprocedure)
+    into v_opportunity_guard;
+  if position('opportunity_has_sales_history' in v_opportunity_guard)=0
+     or position('opportunity_has_maintenance_history' in v_opportunity_guard)=0
+     or position('opportunity_sales_customer_locked' in v_opportunity_guard)=0
+     or position('opportunity_sales_currency_locked' in v_opportunity_guard)=0
+     or position('opportunity_maintenance_customer_locked' in v_opportunity_guard)=0
+     or position('opportunity_maintenance_vehicle_locked' in v_opportunity_guard)=0
+     or position('erp_sales_orders_cloud' in v_opportunity_guard)=0
+     or position('erp_maintenance_orders' in v_opportunity_guard)=0 then
+    raise exception 'R70.8 bidirectional Opportunity relationship guard is incomplete';
+  end if;
+
+  select pg_get_triggerdef(t.oid)
+    into v_opportunity_trigger
+  from pg_trigger t
+  join pg_class c on c.oid=t.tgrelid
+  join pg_namespace n on n.oid=c.relnamespace
+  where n.nspname='public'
+    and c.relname='erp_records'
+    and t.tgname='erp_r70_opportunity_linked_identity_trg'
+    and not t.tgisinternal;
+  if v_opportunity_trigger is null
+     or position('payload' in lower(v_opportunity_trigger))=0
+     or position('is_deleted' in lower(v_opportunity_trigger))=0
+     or position('deleted_at' in lower(v_opportunity_trigger))=0 then
+    raise exception 'R70.8 Opportunity relationship trigger is missing identity/delete coverage';
   end if;
 
   select pg_get_functiondef('public.erp_r70_list_opportunities(uuid)'::regprocedure)
