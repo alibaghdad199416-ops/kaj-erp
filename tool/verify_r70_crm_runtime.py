@@ -28,6 +28,17 @@ def forbid(text: str, token: str, label: str) -> None:
         raise SystemExit(f"R70 verifier failed: {label} still contains {token!r}")
 
 
+def function_slice(text: str, signature: str) -> str:
+    start = text.find(signature)
+    if start < 0:
+        raise SystemExit(f"R70 verifier failed: function missing {signature!r}")
+    next_create = text.find("\ncreate or replace function ", start + len(signature))
+    next_revoke = text.find("\nrevoke all on function ", start + len(signature))
+    endings = [value for value in (next_create, next_revoke) if value >= 0]
+    end = min(endings) if endings else len(text)
+    return text[start:end]
+
+
 base = read("supabase/migrations/20260814170000_r70_crm_opportunity_sales_authority.sql")
 readback = read("supabase/migrations/20260814171000_r70_1_sales_opportunity_readback.sql")
 reference = read("supabase/migrations/20260814172000_r70_2_opportunity_business_reference.sql")
@@ -35,6 +46,8 @@ legacy_acl = read("supabase/migrations/20260814173000_r70_3_legacy_crm_execution
 runtime = read("supabase/migrations/20260814222000_r70_4_opportunity_sales_maintenance_runtime_repair.sql")
 maintenance_cancel = read("supabase/migrations/20260814223000_r70_5_maintenance_draft_cancel_contract.sql")
 lost_reactivation = read("supabase/migrations/20260814224500_r70_6_lost_sales_reactivation_guard.sql")
+r39_maintenance = read("supabase/migrations/20260809161514_r39_canonical_maintenance_compile_closure.sql")
+v67_linked_edit = read("supabase/migrations/20260804011000_v67_commercial_maintenance_linked_edit.sql")
 repository = read("lib/features/customer_service/repositories/opportunity_repository.dart")
 controller = read("lib/features/customer_service/controllers/opportunities_controller.dart")
 customer_service = read("lib/features/customer_service/pages/customer_service_page.dart")
@@ -127,6 +140,23 @@ for token in ("findByOpportunity(opportunity.id)", "AddMaintenanceOrderPage(", "
     require(card, token, "Opportunity Maintenance UI")
 require(maintenance_repository, "erp_r56_find_maintenance_by_opportunity", "Maintenance repository readback RPC")
 
+# Updating/rebuilding an existing Maintenance order must keep the canonical
+# Opportunity relation. Both routines update the same order row and intentionally
+# leave opportunity_id/opportunity_number untouched.
+r39_update = function_slice(
+    r39_maintenance,
+    "create or replace function public.erp_r39_update_cloud_maintenance_draft(",
+)
+v67_prepare = function_slice(
+    v67_linked_edit,
+    "create or replace function public.erp_v67_prepare_maintenance_linked_edit(",
+)
+require(r39_update, "update public.erp_maintenance_orders set", "R39 Maintenance edit")
+require(v67_prepare, "update public.erp_maintenance_orders", "V67 Maintenance linked-edit preparation")
+for token in ("opportunity_id=", "opportunity_number="):
+    forbid(r39_update.lower().replace(" ", ""), token, "R39 Maintenance edit relation preservation")
+    forbid(v67_prepare.lower().replace(" ", ""), token, "V67 Maintenance linked-edit relation preservation")
+
 # Conversion must not collapse physical/accounting stages.
 create_start = base.find("create or replace function public.erp_r49_create_sales_order")
 if create_start < 0:
@@ -146,3 +176,4 @@ print("  - linked Sales cancellation remains possible after CRM Lost projection"
 print("  - new/re-linked/reactivated Sales from Lost remain blocked")
 print("  - Maintenance Cancel and Delete remain distinct governed operations")
 print("  - Opportunity <-> Maintenance readback is canonical and reopenable")
+print("  - Maintenance linked edits preserve the exact Opportunity relation")
