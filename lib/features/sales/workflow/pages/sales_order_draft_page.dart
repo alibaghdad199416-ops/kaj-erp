@@ -25,11 +25,13 @@ class SalesOrderDraftPage extends StatefulWidget {
   const SalesOrderDraftPage({
     super.key,
     this.initialCustomerId,
+    this.initialCurrency,
     this.opportunityId,
     this.orderId,
   });
 
   final String? initialCustomerId;
+  final String? initialCurrency;
   final String? opportunityId;
   final String? orderId;
 
@@ -69,6 +71,10 @@ class _SalesOrderDraftPageState extends State<SalesOrderDraftPage> {
   @override
   void initState() {
     super.initState();
+    final initialCurrency = widget.initialCurrency?.trim().toUpperCase();
+    if (initialCurrency == 'USD' || initialCurrency == 'IQD') {
+      _currency = initialCurrency!;
+    }
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => unawaited(_bootstrap()),
     );
