@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
+import 'package:quality_line_erp/features/sales/workflow/models/commercial_order_details.dart';
 
 void main() {
   test('OpportunityModel preserves CRM forecast and canonical Sales projection', () {
@@ -19,6 +20,7 @@ void main() {
       'probability': 80,
       'status': 'pending',
       'salesOrderId': 'sales-order-1',
+      'salesOrderNumber': 'SO-000001',
       'salesOrderStatus': 'approved',
       'deliveryNumber': 'SD-000001',
       'deliveryStatus': 'approved',
@@ -39,6 +41,7 @@ void main() {
     expect(opportunity.expectedValue, 25000);
     expect(opportunity.probability, 80);
     expect(opportunity.saleId, 'sales-order-1');
+    expect(opportunity.salesOrderNumber, 'SO-000001');
     expect(opportunity.invoiceNumber, 'SI-000001');
     expect(opportunity.paymentStatus, 'partial');
     expect(opportunity.paidAmount, 10000);
@@ -68,6 +71,36 @@ void main() {
 
     expect(build(-5).probability, 0);
     expect(build(125).probability, 100);
+  });
+
+  test('Commercial snapshot carries Sales -> Opportunity context coherently', () {
+    final details = CommercialOrderDetails.fromRpc(<String, Object?>{
+      'order': <String, Object?>{
+        'id': 'sales-order-1',
+        'orderNumber': 'SO-000001',
+        'opportunityId': 'opp-1',
+        'opportunityNumber': 'OPP-000001',
+      },
+      'items': const <Object?>[],
+      'logistics': const <Object?>[],
+      'invoices': const <Object?>[],
+      'payments': const <Object?>[],
+      'movements': const <Object?>[],
+      'journalEntries': const <Object?>[],
+      'auditTrail': const <Object?>[],
+      'reconciliation': const <Object?>[],
+      'opportunity': <String, Object?>{
+        'opportunityId': 'opp-1',
+        'opportunityNumber': 'OPP-000001',
+        'stage': 'proposal',
+        'status': 'pending',
+      },
+    });
+
+    expect(details.order?['opportunityId'], 'opp-1');
+    expect(details.order?['opportunityNumber'], 'OPP-000001');
+    expect(details.opportunity?['opportunityNumber'], 'OPP-000001');
+    expect(details.opportunity?['stage'], 'proposal');
   });
 
   test('R70 removes the legacy direct CRM invoice shortcut', () {
@@ -112,6 +145,48 @@ void main() {
     expect(salesRepository, contains('erp_r49_create_sales_order'));
     expect(salesRepository, contains("'opportunityId': opportunityId"));
     expect(salesRepository, contains('erp_r9_find_sales_order_by_opportunity'));
+  });
+
+  test('R70 Sales readback exposes the human Opportunity identity', () {
+    final migration = File(
+      'supabase/migrations/20260814171000_r70_1_sales_opportunity_readback.sql',
+    ).readAsStringSync();
+    final model = File(
+      'lib/features/customer_service/models/opportunity_model.dart',
+    ).readAsStringSync();
+    final card = File(
+      'lib/features/customer_service/widgets/opportunity_card.dart',
+    ).readAsStringSync();
+
+    expect(migration, contains('erp_r70_get_sales_opportunity_context'));
+    expect(migration, contains("'opportunityNumber'"));
+    expect(migration, contains('erp_r62_get_commercial_order_snapshot'));
+    expect(model, contains('salesOrderNumber'));
+    expect(card, contains('opportunity.salesOrderNumber'));
+  });
+
+  test('R70 assigns short server-owned Opportunity business references', () {
+    final migration = File(
+      'supabase/migrations/20260814172000_r70_2_opportunity_business_reference.sql',
+    ).readAsStringSync();
+    expect(migration, contains('erp_opportunity_business_reference_seq'));
+    expect(migration, contains("'OPP-'||lpad"));
+    expect(migration, contains('erp_records_opportunity_reference_uq'));
+  });
+
+  test('R70 browser cannot invoke the historical direct Won authorities', () {
+    final migration = File(
+      'supabase/migrations/20260814173000_r70_3_legacy_crm_execution_closure.sql',
+    ).readAsStringSync();
+    expect(
+      migration,
+      contains('erp_r49_opportunity_command(text,jsonb)'),
+    );
+    expect(
+      migration,
+      contains('erp_r9_phase26_cloud_command(text,text,jsonb)'),
+    );
+    expect(migration, contains('from public,anon,authenticated'));
   });
 
   test('R70 conversion does not collapse physical or accounting stages', () {
