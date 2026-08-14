@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
 import 'package:quality_line_erp/design_system/kaj_phase4_components.dart';
+import 'package:quality_line_erp/features/customer_service/controllers/opportunities_controller.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
+import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
+import 'package:quality_line_erp/features/maintenance/pages/add_maintenance_order_page.dart';
+import 'package:quality_line_erp/features/maintenance/pages/maintenance_order_details_dialog.dart';
+import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 
 class OpportunityCard extends StatelessWidget {
   const OpportunityCard({
@@ -56,6 +64,192 @@ class OpportunityCard extends StatelessWidget {
     viewPermission: 'customer_service.view',
     child: child,
   );
+
+  bool _isMaintenanceDraft(MaintenanceOrderModel order) =>
+      const <String>{'draft', 'order_draft'}.contains(order.workflowStage);
+
+  Future<String?> _reason(
+    BuildContext context, {
+    required String titleAr,
+    required String titleEn,
+    required String labelAr,
+    required String labelEn,
+    required String confirmAr,
+    required String confirmEn,
+  }) async {
+    final ar = context.l10n.isArabic;
+    final controller = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: AppText(ar ? titleAr : titleEn),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          autofocus: true,
+          decoration: InputDecoration(labelText: ar ? labelAr : labelEn),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: AppText(ar ? 'رجوع' : 'Back'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: AppText(ar ? confirmAr : confirmEn),
+          ),
+        ],
+      ),
+    );
+    final value = controller.text.trim();
+    controller.dispose();
+    if (accepted != true) return null;
+    if (value.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: AppText(
+              ar ? 'سبب العملية مطلوب.' : 'A reason is required.',
+            ),
+          ),
+        );
+      }
+      return null;
+    }
+    return value;
+  }
+
+  Future<void> _cancelMaintenance(
+    BuildContext context,
+    MaintenanceOrderModel order,
+  ) async {
+    if (!await PermissionAction.require(context, 'maintenance.cancel')) return;
+    if (!context.mounted) return;
+    final reason = await _reason(
+      context,
+      titleAr: 'إلغاء أمر الصيانة وعكس آثاره',
+      titleEn: 'Cancel and reverse maintenance order',
+      labelAr: 'سبب الإلغاء',
+      labelEn: 'Cancellation reason',
+      confirmAr: 'تأكيد الإلغاء',
+      confirmEn: 'Confirm cancellation',
+    );
+    if (reason == null || !context.mounted) return;
+    await context.read<MaintenanceController>().cancelOrder(
+      order.id,
+      reason: reason,
+    );
+    if (context.mounted) {
+      await context.read<OpportunitiesController>().load(force: true);
+    }
+  }
+
+  Future<void> _deleteMaintenance(
+    BuildContext context,
+    MaintenanceOrderModel order,
+  ) async {
+    if (!await PermissionAction.require(context, 'maintenance.delete')) return;
+    if (!context.mounted) return;
+    final reason = await _reason(
+      context,
+      titleAr: _isMaintenanceDraft(order)
+          ? 'حذف مسودة أمر الصيانة'
+          : 'حذف أمر الصيانة الملغى',
+      titleEn: _isMaintenanceDraft(order)
+          ? 'Delete maintenance draft'
+          : 'Delete cancelled maintenance order',
+      labelAr: 'سبب الحذف',
+      labelEn: 'Deletion reason',
+      confirmAr: 'حذف',
+      confirmEn: 'Delete',
+    );
+    if (reason == null || !context.mounted) return;
+    await context.read<MaintenanceController>().deleteOrder(
+      order.id,
+      reason: reason,
+    );
+    if (context.mounted) {
+      await context.read<OpportunitiesController>().load(force: true);
+    }
+  }
+
+  Future<void> _openMaintenance(BuildContext context) async {
+    final ar = context.l10n.isArabic;
+    if (!await PermissionAction.require(context, 'maintenance.view')) return;
+    if (!context.mounted) return;
+
+    try {
+      final maintenance = context.read<MaintenanceController>();
+      var order = await maintenance.findByOpportunity(opportunity.id);
+
+      if (order == null) {
+        if (opportunity.status == OpportunityStatus.lost) {
+          throw StateError('lost_opportunity_cannot_create_maintenance_order');
+        }
+        if (!await PermissionAction.require(context, 'maintenance.create')) {
+          return;
+        }
+        if (!context.mounted) return;
+
+        final changed = await showAppWorkspaceDialog<bool>(
+          context: context,
+          child: AddMaintenanceOrderPage(
+            initialCarId: opportunity.carId,
+            opportunityId: opportunity.id,
+          ),
+        );
+        if (changed != true || !context.mounted) return;
+
+        order = await maintenance.findByOpportunity(opportunity.id);
+        await context.read<OpportunitiesController>().load(force: true);
+        if (!context.mounted) return;
+        if (order == null) {
+          throw StateError('maintenance_opportunity_link_missing_after_save');
+        }
+      }
+
+      final isDraft = _isMaintenanceDraft(order);
+      final changed = await showAppWorkspaceDialog<bool>(
+        context: context,
+        child: MaintenanceOrderDetailsDialog(
+          order: order,
+          onDelete: isDraft || order.isCancelled
+              ? () => _deleteMaintenance(context, order!)
+              : null,
+          // Draft lifecycle uses Delete, not Cancel. Executed maintenance uses
+          // the authoritative R67 cancellation path and the dialog reloads its
+          // R64 snapshot after this callback without closing.
+          onCancel: !isDraft && !order.isCancelled
+              ? () => _cancelMaintenance(context, order!)
+              : null,
+        ),
+      );
+      if (context.mounted && changed == true) {
+        await context.read<OpportunitiesController>().load(force: true);
+      } else if (context.mounted) {
+        // Cancellation keeps the details dialog open, so refresh the CRM card
+        // after the user eventually closes it as well.
+        await context.read<OpportunitiesController>().load(force: true);
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Theme.of(context).colorScheme.error,
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: ar,
+              arabicFallback:
+                  'تعذر فتح أو إنشاء أمر الصيانة المرتبط بهذه الفرصة.',
+              englishFallback:
+                  'Unable to open or create the maintenance order linked to this opportunity.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +505,24 @@ class OpportunityCard extends StatelessWidget {
                           '${t('الدفع', 'Payment')}: ${opportunity.paymentStatus}',
                         ),
                       ),
+                    if ((opportunity.maintenanceOrderNumber ?? '').trim().isNotEmpty ||
+                        (opportunity.maintenanceOrderStatus ?? '').trim().isNotEmpty)
+                      _field(
+                        'linkedMaintenance',
+                        _info(
+                          Icons.build_circle_outlined,
+                          [
+                            if ((opportunity.maintenanceOrderNumber ?? '')
+                                .trim()
+                                .isNotEmpty)
+                              opportunity.maintenanceOrderNumber!,
+                            if ((opportunity.maintenanceOrderStatus ?? '')
+                                .trim()
+                                .isNotEmpty)
+                              opportunity.maintenanceOrderStatus!,
+                          ].join(' • '),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -368,6 +580,30 @@ class OpportunityCard extends StatelessWidget {
                         opportunity.saleId == null
                             ? t('أمر بيع', 'Sales order')
                             : t('فتح أمر البيع', 'Open sales order'),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  if (opportunity.hasMaintenanceOrder ||
+                      opportunity.status != OpportunityStatus.lost)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 7,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            KajDesignTokens.radiusSm,
+                          ),
+                        ),
+                      ),
+                      onPressed: () => _openMaintenance(context),
+                      icon: const Icon(Icons.build_circle_outlined, size: 16),
+                      label: AppText(
+                        opportunity.hasMaintenanceOrder
+                            ? t('فتح أمر الصيانة', 'Open maintenance')
+                            : t('أمر صيانة', 'Maintenance order'),
                         style: const TextStyle(fontSize: 10),
                       ),
                     ),
