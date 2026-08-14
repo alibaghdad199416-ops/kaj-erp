@@ -22,6 +22,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm run verify:delivery
+      - run: python -B tool/verify_r70_crm_runtime.py
       - run: npm ci
       - run: flutter pub get
       - run: npm run format
