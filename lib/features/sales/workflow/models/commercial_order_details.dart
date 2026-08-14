@@ -9,6 +9,7 @@ class CommercialOrderDetails {
     required this.journalEntries,
     required this.auditTrail,
     this.reconciliation = const [],
+    this.opportunity,
   });
 
   factory CommercialOrderDetails.fromRpc(Object? value) {
@@ -113,6 +114,11 @@ class CommercialOrderDetails {
       reconciliation: List<Map<String, Object?>>.unmodifiable(
         rows('reconciliation'),
       ),
+      opportunity: payload['opportunity'] is Map
+          ? Map<String, Object?>.unmodifiable(
+              Map<String, Object?>.from(payload['opportunity'] as Map),
+            )
+          : null,
     );
   }
 
@@ -125,6 +131,7 @@ class CommercialOrderDetails {
   final List<Map<String, Object?>> journalEntries;
   final List<Map<String, Object?>> auditTrail;
   final List<Map<String, Object?>> reconciliation;
+  final Map<String, Object?>? opportunity;
 
   CommercialOrderDetails withReconciliation(List<Map<String, Object?>> value) =>
       CommercialOrderDetails(
@@ -137,5 +144,6 @@ class CommercialOrderDetails {
         journalEntries: journalEntries,
         auditTrail: auditTrail,
         reconciliation: List<Map<String, Object?>>.unmodifiable(value),
+        opportunity: opportunity,
       );
 }
