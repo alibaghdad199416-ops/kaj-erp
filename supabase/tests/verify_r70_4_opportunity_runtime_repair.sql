@@ -1,4 +1,4 @@
--- R70.4-R70.6 rollback-safe structural/runtime-contract proof.
+-- R70.4-R70.7 rollback-safe structural/runtime-contract proof.
 -- It intentionally does not modify business data.
 begin;
 
@@ -16,8 +16,12 @@ begin
      or position('v_cancel_restore' in v_sales_guard)=0
      or position('v_reactivates_cancelled' in v_sales_guard)=0
      or position('v_creates_or_relinks' in v_sales_guard)=0
-     or position('opportunity_is_lost' in v_sales_guard)=0 then
-    raise exception 'R70.6 Sales Opportunity guard is not operation-scoped';
+     or position('v_customer_changed' in v_sales_guard)=0
+     or position('v_currency_changed' in v_sales_guard)=0
+     or position('opportunity_is_lost' in v_sales_guard)=0
+     or position('opportunity_customer_mismatch' in v_sales_guard)=0
+     or position('opportunity_currency_mismatch' in v_sales_guard)=0 then
+    raise exception 'R70.7 Sales Opportunity guard is incomplete';
   end if;
 
   select pg_get_triggerdef(t.oid)
@@ -30,8 +34,10 @@ begin
     and t.tgname='erp_validate_sales_order_opportunity_link_trg'
     and not t.tgisinternal;
   if v_sales_trigger is null
-     or position('status' in lower(v_sales_trigger))=0 then
-    raise exception 'R70.6 Sales Opportunity trigger does not observe status reactivation';
+     or position('status' in lower(v_sales_trigger))=0
+     or position('customer_id' in lower(v_sales_trigger))=0
+     or position('currency' in lower(v_sales_trigger))=0 then
+    raise exception 'R70.7 Sales Opportunity trigger does not observe lifecycle identity changes';
   end if;
 
   select pg_get_functiondef('public.erp_r70_list_opportunities(uuid)'::regprocedure)
