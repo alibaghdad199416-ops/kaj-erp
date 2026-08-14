@@ -522,6 +522,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
           child: SalesOrderDraftPage(
             initialCustomerId: opportunity.customerId,
             initialCurrency: opportunity.currency,
+            initialOpportunityNumber: opportunity.opportunityNumber,
             opportunityId: opportunity.id,
           ),
         );
