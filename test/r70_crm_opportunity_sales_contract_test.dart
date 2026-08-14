@@ -122,6 +122,18 @@ void main() {
       StateError('lost_opportunity_cannot_create_maintenance_order'),
       isArabic: true,
     );
+    final englishMaintenanceHistory = userFacingError(
+      StateError('opportunity_has_maintenance_history'),
+      isArabic: false,
+    );
+    final arabicMaintenanceCustomer = userFacingError(
+      StateError('opportunity_maintenance_customer_locked'),
+      isArabic: true,
+    );
+    final englishMaintenanceVehicle = userFacingError(
+      StateError('opportunity_maintenance_vehicle_locked'),
+      isArabic: false,
+    );
 
     expect(arabicCurrency, contains('عملة الفرصة'));
     expect(arabicCurrency, isNot(contains('opportunity_currency_mismatch')));
@@ -131,6 +143,21 @@ void main() {
     expect(
       arabicMaintenance,
       isNot(contains('lost_opportunity_cannot_create_maintenance_order')),
+    );
+    expect(englishMaintenanceHistory, contains('maintenance order'));
+    expect(
+      englishMaintenanceHistory,
+      isNot(contains('opportunity_has_maintenance_history')),
+    );
+    expect(arabicMaintenanceCustomer, contains('عميل الفرصة'));
+    expect(
+      arabicMaintenanceCustomer,
+      isNot(contains('opportunity_maintenance_customer_locked')),
+    );
+    expect(englishMaintenanceVehicle, contains('opportunity vehicle'));
+    expect(
+      englishMaintenanceVehicle,
+      isNot(contains('opportunity_maintenance_vehicle_locked')),
     );
   });
 }
