@@ -207,6 +207,23 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     await PdfExportService().save(_opportunityExport(rows));
   }
 
+  void _showOpportunityError(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.error,
+        content: AppText(
+          userFacingError(
+            error,
+            isArabic: context.l10n.isArabic,
+            arabicFallback: 'تعذر تنفيذ عملية الفرصة التجارية.',
+            englishFallback: 'Unable to complete the opportunity action.',
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<OpportunitiesController>();
@@ -478,7 +495,11 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     if (!await PermissionAction.require(context, 'customer_service.update'))
       return;
     if (!mounted) return;
-    await context.read<OpportunitiesController>().markLost(opportunity);
+    try {
+      await context.read<OpportunitiesController>().markLost(opportunity);
+    } catch (error) {
+      _showOpportunityError(error);
+    }
   }
 
   Future<void> _delete(OpportunityModel opportunity) async {
@@ -494,7 +515,11 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     );
 
     if (confirmed == true && mounted) {
-      await context.read<OpportunitiesController>().delete(opportunity);
+      try {
+        await context.read<OpportunitiesController>().delete(opportunity);
+      } catch (error) {
+        _showOpportunityError(error);
+      }
     }
   }
 
@@ -551,14 +576,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
       if (!mounted) return;
       await context.read<OpportunitiesController>().loadOpportunities();
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            userFacingError(error, isArabic: context.l10n.isArabic),
-          ),
-        ),
-      );
+      _showOpportunityError(error);
     }
   }
 }
