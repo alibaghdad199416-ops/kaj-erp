@@ -22,6 +22,7 @@ class OpportunityModel {
     this.carId,
     this.carName,
     this.saleId,
+    this.salesOrderNumber,
     this.invoiceNumber,
     this.salesOrderStatus,
     this.deliveryNumber,
@@ -58,7 +59,10 @@ class OpportunityModel {
   final OpportunityStatus status;
   final String? carId;
   final String? carName;
+  /// Internal canonical Sales Order UUID. Never use as the primary daily label.
   final String? saleId;
+  /// Human Sales Order business reference, e.g. SO-... .
+  final String? salesOrderNumber;
   final String? invoiceNumber;
   final String? salesOrderStatus;
   final String? deliveryNumber;
@@ -96,6 +100,7 @@ class OpportunityModel {
     String? carId,
     String? carName,
     String? saleId,
+    String? salesOrderNumber,
     String? invoiceNumber,
     String? salesOrderStatus,
     String? deliveryNumber,
@@ -129,6 +134,7 @@ class OpportunityModel {
     carId: carId ?? this.carId,
     carName: carName ?? this.carName,
     saleId: saleId ?? this.saleId,
+    salesOrderNumber: salesOrderNumber ?? this.salesOrderNumber,
     invoiceNumber: invoiceNumber ?? this.invoiceNumber,
     salesOrderStatus: salesOrderStatus ?? this.salesOrderStatus,
     deliveryNumber: deliveryNumber ?? this.deliveryNumber,
@@ -167,6 +173,7 @@ class OpportunityModel {
     'carId': carId,
     'carName': carName,
     'saleId': saleId,
+    'salesOrderNumber': salesOrderNumber,
     'invoiceNumber': invoiceNumber,
     'salesOrderStatus': salesOrderStatus,
     'deliveryNumber': deliveryNumber,
@@ -240,6 +247,7 @@ class OpportunityModel {
       carId: nullableText(value('carId')),
       carName: nullableText(value('carName')),
       saleId: nullableText(value('salesOrderId', aliases: const ['saleId'])),
+      salesOrderNumber: nullableText(value('salesOrderNumber')),
       invoiceNumber: nullableText(value('invoiceNumber')),
       salesOrderStatus: nullableText(value('salesOrderStatus')),
       deliveryNumber: nullableText(value('deliveryNumber')),
