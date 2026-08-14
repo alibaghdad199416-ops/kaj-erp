@@ -34,6 +34,7 @@ reference = read("supabase/migrations/20260814172000_r70_2_opportunity_business_
 legacy_acl = read("supabase/migrations/20260814173000_r70_3_legacy_crm_execution_closure.sql")
 runtime = read("supabase/migrations/20260814222000_r70_4_opportunity_sales_maintenance_runtime_repair.sql")
 maintenance_cancel = read("supabase/migrations/20260814223000_r70_5_maintenance_draft_cancel_contract.sql")
+lost_reactivation = read("supabase/migrations/20260814224500_r70_6_lost_sales_reactivation_guard.sql")
 repository = read("lib/features/customer_service/repositories/opportunity_repository.dart")
 controller = read("lib/features/customer_service/controllers/opportunities_controller.dart")
 customer_service = read("lib/features/customer_service/pages/customer_service_page.dart")
@@ -75,7 +76,7 @@ for token in ("erp_r49_opportunity_command(text,jsonb)", "erp_r9_phase26_cloud_c
     require(legacy_acl, token, "R70 legacy CRM execution closure")
 
 # Fix 1: cancelling an already-linked Sales order after CRM becomes Lost must be
-# allowed, while NEW/re-linked Sales creation from Lost remains blocked.
+# allowed, while NEW/re-linked/reactivated Sales from Lost remains blocked.
 for token in (
     "v_same_historical_link",
     "v_cancel_restore",
@@ -83,6 +84,14 @@ for token in (
     "raise exception 'opportunity_is_lost'",
 ):
     require(runtime, token, "R70.4 Lost/Sales cancellation repair")
+for token in (
+    "v_cancel_restore",
+    "v_reactivates_cancelled",
+    "v_creates_or_relinks",
+    "update of company_id,customer_id,opportunity_id,is_deleted,status",
+    "raise exception 'opportunity_is_lost'",
+):
+    require(lost_reactivation, token, "R70.6 Lost Sales reactivation guard")
 require(card, "opportunity.saleId != null && canViewSale", "Lost Opportunity historical Sales open path")
 
 # Fix 2: Maintenance Cancel is a real independent operation from the Opportunity
@@ -134,6 +143,6 @@ for forbidden in (
 
 print("PASS R70 CRM Opportunity runtime/source contracts")
 print("  - linked Sales cancellation remains possible after CRM Lost projection")
-print("  - new Sales creation from Lost remains blocked")
+print("  - new/re-linked/reactivated Sales from Lost remain blocked")
 print("  - Maintenance Cancel and Delete remain distinct governed operations")
 print("  - Opportunity <-> Maintenance readback is canonical and reopenable")
