@@ -1,5 +1,4 @@
 import 'package:quality_line_erp/core/cloud/cloud_feature_command.dart';
-import 'package:quality_line_erp/features/sales/models/sale_model.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 
 class OpportunityRepository {
@@ -34,30 +33,6 @@ class OpportunityRepository {
       'expected_updated_at': opportunity.updatedAt?.toUtc().toIso8601String(),
     },
   );
-
-  Future<SaleModel> markWonAndCreateInvoice({
-    required OpportunityModel opportunity,
-    required String carId,
-    required String carName,
-    required double salePrice,
-    required double paidAmount,
-    required String paymentMethod,
-  }) async {
-    final row = await _cloud.map(
-      'opportunity',
-      'mark_won',
-      payload: {
-        'opportunity_id': opportunity.id,
-        'expected_updated_at': opportunity.updatedAt?.toUtc().toIso8601String(),
-        'car_id': carId,
-        'car_name': carName,
-        'sale_price': salePrice,
-        'paid_amount': paidAmount,
-        'payment_method': paymentMethod,
-      },
-    );
-    return SaleModel.fromMap(row);
-  }
 
   Future<void> markLost(OpportunityModel opportunity) => _cloud.call(
     'opportunity',
