@@ -31,6 +31,9 @@ class OpportunityModel {
     this.paymentStatus,
     this.paidAmount = 0,
     this.remainingAmount = 0,
+    this.maintenanceOrderId,
+    this.maintenanceOrderNumber,
+    this.maintenanceOrderStatus,
     required this.assignedUserId,
     required this.assignedUserName,
     required this.createdByUserId,
@@ -59,8 +62,10 @@ class OpportunityModel {
   final OpportunityStatus status;
   final String? carId;
   final String? carName;
+
   /// Internal canonical Sales Order UUID. Never use as the primary daily label.
   final String? saleId;
+
   /// Human Sales Order business reference, e.g. SO-... .
   final String? salesOrderNumber;
   final String? invoiceNumber;
@@ -71,6 +76,13 @@ class OpportunityModel {
   final String? paymentStatus;
   final double paidAmount;
   final double remainingAmount;
+
+  /// Canonical persisted Maintenance Order relation from
+  /// erp_maintenance_orders.opportunity_id.
+  final String? maintenanceOrderId;
+  final String? maintenanceOrderNumber;
+  final String? maintenanceOrderStatus;
+
   final String assignedUserId;
   final String assignedUserName;
   final String createdByUserId;
@@ -82,6 +94,9 @@ class OpportunityModel {
   final DateTime? updatedAt;
 
   String get statusValue => status.name;
+
+  bool get hasMaintenanceOrder =>
+      (maintenanceOrderId?.trim().isNotEmpty ?? false);
 
   OpportunityModel copyWith({
     String? customerId,
@@ -109,6 +124,9 @@ class OpportunityModel {
     String? paymentStatus,
     double? paidAmount,
     double? remainingAmount,
+    String? maintenanceOrderId,
+    String? maintenanceOrderNumber,
+    String? maintenanceOrderStatus,
     String? assignedUserId,
     String? assignedUserName,
     DateTime? followUpDate,
@@ -143,6 +161,11 @@ class OpportunityModel {
     paymentStatus: paymentStatus ?? this.paymentStatus,
     paidAmount: paidAmount ?? this.paidAmount,
     remainingAmount: remainingAmount ?? this.remainingAmount,
+    maintenanceOrderId: maintenanceOrderId ?? this.maintenanceOrderId,
+    maintenanceOrderNumber:
+        maintenanceOrderNumber ?? this.maintenanceOrderNumber,
+    maintenanceOrderStatus:
+        maintenanceOrderStatus ?? this.maintenanceOrderStatus,
     assignedUserId: assignedUserId ?? this.assignedUserId,
     assignedUserName: assignedUserName ?? this.assignedUserName,
     createdByUserId: createdByUserId,
@@ -182,6 +205,9 @@ class OpportunityModel {
     'paymentStatus': paymentStatus,
     'paidAmount': paidAmount,
     'remainingAmount': remainingAmount,
+    'maintenanceOrderId': maintenanceOrderId,
+    'maintenanceOrderNumber': maintenanceOrderNumber,
+    'maintenanceOrderStatus': maintenanceOrderStatus,
     'assignedUserId': assignedUserId,
     'assignedUserName': assignedUserName,
     'createdByUserId': createdByUserId,
@@ -256,6 +282,9 @@ class OpportunityModel {
       paymentStatus: nullableText(value('paymentStatus')),
       paidAmount: number(value('paidAmount')),
       remainingAmount: number(value('remainingAmount')),
+      maintenanceOrderId: nullableText(value('maintenanceOrderId')),
+      maintenanceOrderNumber: nullableText(value('maintenanceOrderNumber')),
+      maintenanceOrderStatus: nullableText(value('maintenanceOrderStatus')),
       assignedUserId: text(value('assignedUserId')),
       assignedUserName: text(value('assignedUserName')),
       createdByUserId: text(value('createdByUserId')),
