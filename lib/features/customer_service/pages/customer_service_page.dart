@@ -65,7 +65,17 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
             item.customerPhone,
             item.assignedUserName,
             item.source,
+            item.stage,
+            item.currency,
+            item.salesOrderNumber ?? '',
+            item.salesOrderStatus ?? '',
+            item.deliveryNumber ?? '',
+            item.deliveryStatus ?? '',
             item.invoiceNumber ?? '',
+            item.invoiceStatus ?? '',
+            item.paymentStatus ?? '',
+            item.maintenanceOrderNumber ?? '',
+            item.maintenanceOrderStatus ?? '',
             item.carName ?? '',
           ].join(' ').toLowerCase();
           return matchesStatus && (query.isEmpty || haystack.contains(query));
@@ -86,8 +96,8 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     return ExportDocument(
       title: t('الفرص التجارية', 'Commercial Opportunities'),
       subtitle: t(
-        'تقرير دورة الفرصة وربطها بسير المبيعات',
-        'Canonical sales-workflow opportunity report',
+        'تقرير دورة الفرصة وربطها بسير المبيعات والصيانة',
+        'Canonical sales and maintenance opportunity report',
       ),
       language: language,
       generatedAt: DateTime.now(),
@@ -101,6 +111,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         ),
         ExportColumn(key: 'phone', label: t('الهاتف', 'Phone')),
         ExportColumn(key: 'status', label: t('الحالة', 'Status')),
+        ExportColumn(key: 'stage', label: t('المرحلة', 'Stage')),
         ExportColumn(key: 'owner', label: t('المسؤول', 'Owner')),
         ExportColumn(
           key: 'value',
@@ -112,6 +123,14 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
         ExportColumn(
           key: 'salesStatus',
           label: t('حالة البيع', 'Sales status'),
+        ),
+        ExportColumn(
+          key: 'maintenanceOrder',
+          label: t('أمر الصيانة', 'Maintenance order'),
+        ),
+        ExportColumn(
+          key: 'maintenanceStatus',
+          label: t('حالة الصيانة', 'Maintenance status'),
         ),
         ExportColumn(key: 'delivery', label: t('التسليم', 'Delivery')),
         ExportColumn(key: 'invoice', label: t('الفاتورة', 'Invoice')),
@@ -152,11 +171,14 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
               o.customerName,
               o.customerPhone,
               o.status.name,
+              o.stage,
               o.assignedUserName,
               o.expectedValue,
               o.currency,
-              o.saleId ?? '',
+              o.salesOrderNumber ?? '',
               o.salesOrderStatus ?? '',
+              o.maintenanceOrderNumber ?? '',
+              o.maintenanceOrderStatus ?? '',
               o.deliveryNumber ?? '',
               o.invoiceNumber ?? '',
               o.invoiceStatus ?? '',
@@ -313,8 +335,8 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
                                 icon: const Icon(Icons.close_rounded, size: 18),
                               ),
                         hintText: t(
-                          'البحث برقم الفرصة أو العميل أو الهاتف أو المسؤول',
-                          'Search by opportunity, customer, phone, or owner',
+                          'البحث برقم الفرصة أو العميل أو أمر البيع أو أمر الصيانة',
+                          'Search by opportunity, customer, sales order, or maintenance order',
                         ),
                         border: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(14)),
@@ -499,6 +521,7 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
           windowKey: 'opportunities:sales-order:${opportunity.id}:draft',
           child: SalesOrderDraftPage(
             initialCustomerId: opportunity.customerId,
+            initialCurrency: opportunity.currency,
             opportunityId: opportunity.id,
           ),
         );
