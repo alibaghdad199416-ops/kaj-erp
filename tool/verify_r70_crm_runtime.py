@@ -46,6 +46,7 @@ legacy_acl = read("supabase/migrations/20260814173000_r70_3_legacy_crm_execution
 runtime = read("supabase/migrations/20260814222000_r70_4_opportunity_sales_maintenance_runtime_repair.sql")
 maintenance_cancel = read("supabase/migrations/20260814223000_r70_5_maintenance_draft_cancel_contract.sql")
 lost_reactivation = read("supabase/migrations/20260814224500_r70_6_lost_sales_reactivation_guard.sql")
+identity_guard = read("supabase/migrations/20260814225500_r70_7_sales_opportunity_identity_guard.sql")
 r39_maintenance = read("supabase/migrations/20260809161514_r39_canonical_maintenance_compile_closure.sql")
 v67_linked_edit = read("supabase/migrations/20260804011000_v67_commercial_maintenance_linked_edit.sql")
 repository = read("lib/features/customer_service/repositories/opportunity_repository.dart")
@@ -108,6 +109,22 @@ for token in (
 ):
     require(lost_reactivation, token, "R70.6 Lost Sales reactivation guard")
 require(card, "opportunity.saleId != null && canViewSale", "Lost Opportunity historical Sales open path")
+
+# R70.7 closes the remaining identity gap on Sales updates. Customer and currency
+# are checked at the table trigger boundary while an unchanged legacy mismatch
+# can still reach governed cancellation/reversal rather than becoming undeletable.
+for token in (
+    "v_customer_changed",
+    "v_currency_changed",
+    "v_opportunity_customer",
+    "v_opportunity_currency",
+    "opportunity_customer_mismatch",
+    "opportunity_currency_mismatch",
+    "company_id,customer_id,opportunity_id,is_deleted,status,currency",
+):
+    require(identity_guard, token, "R70.7 Sales Opportunity identity guard")
+require(identity_guard, "v_cancel_restore", "R70.7 historical cancellation compatibility")
+require(identity_guard, "v_reactivates_cancelled", "R70.7 reactivation guard")
 
 # Fix 2: Maintenance Cancel is a real independent operation from the Opportunity
 # modal, including Draft cancellation, and Delete remains separately governed.
@@ -215,6 +232,7 @@ for forbidden in (
 print("PASS R70 CRM Opportunity runtime/source contracts")
 print("  - linked Sales cancellation remains possible after CRM Lost projection")
 print("  - new/re-linked/reactivated Sales from Lost remain blocked")
+print("  - linked Sales customer/currency identity cannot diverge from Opportunity")
 print("  - Maintenance Cancel and Delete remain distinct governed operations")
 print("  - Opportunity <-> Maintenance readback is canonical and reopenable")
 print("  - Maintenance linked edits preserve the exact Opportunity relation")
