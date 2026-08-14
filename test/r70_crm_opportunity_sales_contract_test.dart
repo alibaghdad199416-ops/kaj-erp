@@ -29,6 +29,9 @@ void main() {
       'paymentStatus': 'partial',
       'paidAmount': 10000,
       'remainingAmount': 15000,
+      'maintenanceOrderId': 'maintenance-order-1',
+      'maintenanceOrderNumber': 'MO-000001',
+      'maintenanceOrderStatus': 'order_draft',
       'assignedUserId': 'user-1',
       'assignedUserName': 'Owner',
       'createdByUserId': 'user-1',
@@ -46,6 +49,10 @@ void main() {
     expect(opportunity.paymentStatus, 'partial');
     expect(opportunity.paidAmount, 10000);
     expect(opportunity.remainingAmount, 15000);
+    expect(opportunity.maintenanceOrderId, 'maintenance-order-1');
+    expect(opportunity.maintenanceOrderNumber, 'MO-000001');
+    expect(opportunity.maintenanceOrderStatus, 'order_draft');
+    expect(opportunity.hasMaintenanceOrder, isTrue);
   });
 
   test('OpportunityModel protects probability display boundary', () {
@@ -178,10 +185,7 @@ void main() {
     final migration = File(
       'supabase/migrations/20260814173000_r70_3_legacy_crm_execution_closure.sql',
     ).readAsStringSync();
-    expect(
-      migration,
-      contains('erp_r49_opportunity_command(text,jsonb)'),
-    );
+    expect(migration, contains('erp_r49_opportunity_command(text,jsonb)'));
     expect(
       migration,
       contains('erp_r9_phase26_cloud_command(text,text,jsonb)'),
@@ -206,5 +210,28 @@ void main() {
     expect(createBody, isNot(contains('pay_cloud_sales')));
     expect(createBody, isNot(contains('journal')));
     expect(createBody, isNot(contains('inventory_movement')));
+  });
+
+  test('R70.4 scopes Lost guard to new Sales links and exposes Maintenance', () {
+    final migration = File(
+      'supabase/migrations/20260814222000_r70_4_opportunity_sales_maintenance_runtime_repair.sql',
+    ).readAsStringSync();
+    final card = File(
+      'lib/features/customer_service/widgets/opportunity_card.dart',
+    ).readAsStringSync();
+
+    expect(migration, contains('v_same_historical_link'));
+    expect(migration, contains('v_cancel_restore'));
+    expect(migration, contains('v_creates_or_relinks'));
+    expect(migration, contains("raise exception 'opportunity_is_lost'"));
+    expect(migration, contains("'maintenanceOrderId'"));
+    expect(migration, contains("'maintenanceOrderNumber'"));
+    expect(migration, contains("'maintenanceOrderStatus'"));
+    expect(migration, contains('erp_r56_find_maintenance_by_opportunity'));
+    expect(card, contains('AddMaintenanceOrderPage('));
+    expect(card, contains('MaintenanceOrderDetailsDialog('));
+    expect(card, contains("'maintenance.cancel'"));
+    expect(card, contains("'maintenance.delete'"));
+    expect(card, contains('opportunity.hasMaintenanceOrder'));
   });
 }
