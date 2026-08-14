@@ -47,6 +47,7 @@ runtime = read("supabase/migrations/20260814222000_r70_4_opportunity_sales_maint
 maintenance_cancel = read("supabase/migrations/20260814223000_r70_5_maintenance_draft_cancel_contract.sql")
 lost_reactivation = read("supabase/migrations/20260814224500_r70_6_lost_sales_reactivation_guard.sql")
 identity_guard = read("supabase/migrations/20260814225500_r70_7_sales_opportunity_identity_guard.sql")
+linked_identity = read("supabase/migrations/20260814230500_r70_8_opportunity_linked_identity_integrity.sql")
 r39_maintenance = read("supabase/migrations/20260809161514_r39_canonical_maintenance_compile_closure.sql")
 v67_linked_edit = read("supabase/migrations/20260804011000_v67_commercial_maintenance_linked_edit.sql")
 repository = read("lib/features/customer_service/repositories/opportunity_repository.dart")
@@ -125,6 +126,26 @@ for token in (
     require(identity_guard, token, "R70.7 Sales Opportunity identity guard")
 require(identity_guard, "v_cancel_restore", "R70.7 historical cancellation compatibility")
 require(identity_guard, "v_reactivates_cancelled", "R70.7 reactivation guard")
+
+# R70.8 enforces the same identity in the reverse direction: CRM cannot mutate
+# itself away from linked Sales/Maintenance, nor be deleted while a non-deleted
+# linked lifecycle remains. Only changed identity fields are checked so legacy
+# history can still synchronize/cancel and can be corrected toward canonical data.
+for token in (
+    "erp_r70_guard_opportunity_linked_identity",
+    "opportunity_has_sales_history",
+    "opportunity_has_maintenance_history",
+    "opportunity_sales_customer_locked",
+    "opportunity_sales_currency_locked",
+    "opportunity_maintenance_customer_locked",
+    "opportunity_maintenance_vehicle_locked",
+    "erp_sales_orders_cloud",
+    "erp_maintenance_orders",
+    "v_old_customer is distinct from v_new_customer",
+    "v_old_currency is distinct from v_new_currency",
+    "v_old_car is distinct from v_new_car",
+):
+    require(linked_identity, token, "R70.8 bidirectional Opportunity relationship guard")
 
 # Fix 2: Maintenance Cancel is a real independent operation from the Opportunity
 # modal, including Draft cancellation, and Delete remains separately governed.
@@ -233,6 +254,8 @@ print("PASS R70 CRM Opportunity runtime/source contracts")
 print("  - linked Sales cancellation remains possible after CRM Lost projection")
 print("  - new/re-linked/reactivated Sales from Lost remain blocked")
 print("  - linked Sales customer/currency identity cannot diverge from Opportunity")
+print("  - CRM customer/currency/vehicle cannot diverge from linked lifecycles")
+print("  - Opportunity deletion is blocked while Sales/Maintenance history is linked")
 print("  - Maintenance Cancel and Delete remain distinct governed operations")
 print("  - Opportunity <-> Maintenance readback is canonical and reopenable")
 print("  - Maintenance linked edits preserve the exact Opportunity relation")
