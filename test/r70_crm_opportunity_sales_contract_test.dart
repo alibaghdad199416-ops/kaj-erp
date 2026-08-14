@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 import 'package:quality_line_erp/features/sales/workflow/models/commercial_order_details.dart';
 
@@ -106,5 +107,30 @@ void main() {
     expect(details.order?['opportunityNumber'], 'OPP-000001');
     expect(details.opportunity?['opportunityNumber'], 'OPP-000001');
     expect(details.opportunity?['stage'], 'proposal');
+  });
+
+  test('R70 Opportunity domain errors are localized instead of exposed raw', () {
+    final arabicCurrency = userFacingError(
+      StateError('opportunity_currency_mismatch'),
+      isArabic: true,
+    );
+    final englishLost = userFacingError(
+      StateError('opportunity_is_lost'),
+      isArabic: false,
+    );
+    final arabicMaintenance = userFacingError(
+      StateError('lost_opportunity_cannot_create_maintenance_order'),
+      isArabic: true,
+    );
+
+    expect(arabicCurrency, contains('عملة الفرصة'));
+    expect(arabicCurrency, isNot(contains('opportunity_currency_mismatch')));
+    expect(englishLost, contains('currently Lost'));
+    expect(englishLost, isNot(contains('opportunity_is_lost')));
+    expect(arabicMaintenance, contains('أمر صيانة'));
+    expect(
+      arabicMaintenance,
+      isNot(contains('lost_opportunity_cannot_create_maintenance_order')),
+    );
   });
 }
