@@ -51,8 +51,10 @@ v67_linked_edit = read("supabase/migrations/20260804011000_v67_commercial_mainte
 repository = read("lib/features/customer_service/repositories/opportunity_repository.dart")
 controller = read("lib/features/customer_service/controllers/opportunities_controller.dart")
 customer_service = read("lib/features/customer_service/pages/customer_service_page.dart")
+add_opportunity = read("lib/features/customer_service/pages/add_opportunity_page.dart")
 card = read("lib/features/customer_service/widgets/opportunity_card.dart")
 model = read("lib/features/customer_service/models/opportunity_model.dart")
+sales_draft = read("lib/features/sales/workflow/pages/sales_order_draft_page.dart")
 sales_repository = read("lib/features/sales/workflow/repositories/sales_workflow_repository.dart")
 maintenance_repository = read("lib/features/maintenance/data/maintenance_repository.dart")
 maintenance_dialog = read("lib/features/maintenance/pages/maintenance_order_details_dialog.dart")
@@ -157,6 +159,33 @@ for token in ("opportunity_id=", "opportunity_number="):
     forbid(r39_update.lower().replace(" ", ""), token, "R39 Maintenance edit relation preservation")
     forbid(v67_prepare.lower().replace(" ", ""), token, "V67 Maintenance linked-edit relation preservation")
 
+# Opportunity-created Sales drafts must carry the Opportunity currency into the
+# UI instead of silently defaulting an IQD Opportunity to USD. Backend identity
+# validation remains the final authority.
+for token in ("this.initialCurrency", "final String? initialCurrency", "widget.initialCurrency?.trim().toUpperCase()"):
+    require(sales_draft, token, "Opportunity Sales currency seed")
+require(customer_service, "initialCurrency: opportunity.currency", "Opportunity center Sales currency seed")
+require(add_opportunity, "initialCurrency: item.currency", "Opportunity editor Sales currency seed")
+
+# Daily CRM search/export must use human business references, not internal UUIDs.
+for token in (
+    "item.salesOrderNumber ?? ''",
+    "item.maintenanceOrderNumber ?? ''",
+    "o.salesOrderNumber ?? ''",
+    "o.maintenanceOrderNumber ?? ''",
+):
+    require(customer_service, token, "Opportunity business-reference search/export")
+forbid(customer_service, "o.saleId ?? ''", "Opportunity export")
+
+# A cancelled Maintenance order is historical evidence. Explicitly creating a
+# new Maintenance draft from the Opportunity must not try to edit that cancelled
+# document.
+require(
+    add_opportunity,
+    "order: existing?.isCancelled == true ? null : existing",
+    "Opportunity cancelled-Maintenance history handling",
+)
+
 # Conversion must not collapse physical/accounting stages.
 create_start = base.find("create or replace function public.erp_r49_create_sales_order")
 if create_start < 0:
@@ -177,3 +206,5 @@ print("  - new/re-linked/reactivated Sales from Lost remain blocked")
 print("  - Maintenance Cancel and Delete remain distinct governed operations")
 print("  - Opportunity <-> Maintenance readback is canonical and reopenable")
 print("  - Maintenance linked edits preserve the exact Opportunity relation")
+print("  - IQD/USD Opportunity currency seeds the linked Sales draft")
+print("  - CRM search/export uses human Sales and Maintenance references")
