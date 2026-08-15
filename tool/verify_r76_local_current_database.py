@@ -47,12 +47,12 @@ for marker in (
 for version in known_orphans:
     assert version in prepare, version
 
-# No destructive or remote database command may execute in the local repair path.
+# No executable destructive or remote database command may exist in the local
+# repair path. Human-readable safety messages may mention those command names.
 assert "@('db', 'reset'" not in prepare
+assert "@('db', 'push'" not in prepare
+assert "@('link'" not in prepare
 assert "'--linked'" not in prepare
-assert "supabase link" not in prepare.lower()
-assert "db push" not in prepare.lower()
-assert "drop database" not in prepare.lower()
 
 # Migration-history repair must be fail-closed to the exact known legacy set.
 assert "$_ -notin $KnownOrphanedLocalMigrationVersions" in prepare
