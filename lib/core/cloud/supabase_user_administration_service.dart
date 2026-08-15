@@ -73,12 +73,13 @@ class SupabaseUserAdministrationService {
   }) async {
     final companyId = _activeCompanyId();
 
-    // Keep heavy avatar bytes out of the identity/membership transaction. This
-    // prevents a valid user edit from being coupled to a large Base64 payload
-    // and lets media persistence use its own retry/error boundary.
+    // Identity, membership, ERP profile and avatar now cross one trusted Edge
+    // boundary. The function performs permission checks, read-back validation
+    // and compensating rollback as one governed update instead of allowing the
+    // profile to succeed while a second media request fails afterward.
     final identityPayload = Map<String, dynamic>.from(erpUserPayload);
     final hasAvatarField = identityPayload.containsKey('avatarBase64');
-    final avatarBase64 = identityPayload.remove('avatarBase64')?.toString();
+    final avatarBase64 = identityPayload.remove('avatarBase64');
 
     await _invoke(
       functionName: 'admin-manage-user',
@@ -92,20 +93,9 @@ class SupabaseUserAdministrationService {
         'role_code': roleCode,
         'is_active': isActive,
         'erp_user': identityPayload,
+        if (hasAvatarField) 'avatar_base64': avatarBase64,
       },
     );
-
-    if (hasAvatarField) {
-      await _invoke(
-        functionName: 'admin-update-user-media',
-        body: <String, dynamic>{
-          'company_id': companyId,
-          'target_user_id': cloudUserId,
-          'local_user_id': localUserId,
-          'avatar_base64': avatarBase64,
-        },
-      );
-    }
   }
 
   Future<void> deleteUser({
@@ -191,6 +181,7 @@ class SupabaseUserAdministrationService {
       401 => 'unauthenticated',
       403 => 'permission_denied',
       404 => 'hosted_function_unavailable',
+      413 => 'media_payload_too_large',
       _ when error.status >= 500 => 'request_failed',
       _ => null,
     };
@@ -214,6 +205,9 @@ class SupabaseUserAdministrationService {
         'تعذر حذف حساب Supabase بسبب مراجع قديمة مرتبطة به. طُبّق إصلاح قاعدة البيانات؛ أعد المحاولة.',
       'role_mapping_mismatch' => 'الدور المحلي لا يطابق الدور السحابي.',
       'invalid_input' => 'بيانات المستخدم المرسلة إلى الخدمة غير صالحة.',
+      'invalid_media_payload' => 'صيغة صورة المستخدم غير صالحة.',
+      'media_readback_mismatch' =>
+        'لم يتم تثبيت صورة المستخدم بعد الحفظ. لم تُعتمد العملية.',
       'method_not_allowed' => 'طريقة طلب خدمة المستخدمين غير مسموحة.',
       'server_configuration_missing' =>
         'إعداد خدمة المستخدمين السحابية غير مكتمل.',
