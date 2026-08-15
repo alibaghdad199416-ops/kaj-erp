@@ -18,5 +18,5 @@ if (Test-Path $Source) {
 } else {
   throw 'Neither dart_defines.production.json nor dart_defines.json exists.'
 }
-Write-Host 'Supabase project: fjiaxdorunedmltgqtty' -ForegroundColor Cyan
+Write-Host 'Supabase project: havlqebmnjdcwmpaaqew' -ForegroundColor Cyan
 Write-Host 'Firebase project: kaj-erp' -ForegroundColor Cyan
