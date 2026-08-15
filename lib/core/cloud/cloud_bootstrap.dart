@@ -70,8 +70,9 @@ class CloudBootstrap {
   static Future<CloudBootstrapResult> _initializeOnce() async {
     var supabaseReady = false;
     final messages = <String>[];
+    final configurationError = SupabaseConfig.validateRuntime();
 
-    if (SupabaseConfig.validate() == null) {
+    if (configurationError == null) {
       try {
         AppLogger.debug(
           'Supabase bootstrap target: ${SupabaseConfig.projectRef}; '
@@ -92,7 +93,11 @@ class CloudBootstrap {
         );
       }
     } else {
-      messages.add('Supabase غير مضبوط في هذه النسخة.');
+      messages.add(configurationError);
+      AppLogger.debug(
+        'Supabase runtime configuration rejected: $configurationError; '
+        'project=${SupabaseConfig.projectRef}',
+      );
     }
 
     final result = CloudBootstrapResult(
