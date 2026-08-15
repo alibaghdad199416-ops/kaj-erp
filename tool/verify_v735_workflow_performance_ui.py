@@ -87,18 +87,26 @@ if re.search(r"class _StageAction[\s\S]{0,900}FilledButton", maintenance_details
 if re.search(r"class _InlineComponentButton[\s\S]{0,900}FilledButton", order_details):
     errors.append("commercial component actions are still wide filled buttons")
 
+# R77 superseded the earlier headless-dialog experiment with one consistent,
+# bounded premium module window. Legacy Dialog/Scaffold bodies are still
+# normalized, but the shared window now owns its header/footer, clipping,
+# movable/resizable behavior and unsaved-change close flow.
 require(
     window,
     (
-        "The window has no title header, footer",
+        "one consistent premium, movable and resizable window",
+        "class _PremiumWindowTheme",
+        "class _WindowHeader",
+        "class _WindowFooter",
         "class _ScaffoldAsWindow",
         "...?appBar?.actions",
         "scaffold.floatingActionButton",
         "class _AlertDialogAsWindow",
         "SingleChildScrollView(",
         "closeDock",
+        "Clip.hardEdge",
     ),
-    "headless integrated window command row",
+    "premium integrated module window",
 )
 if "module-window-control-strip" in window:
     errors.append("legacy separate window control strip is still active")
@@ -228,4 +236,4 @@ print("  - sales, purchase and maintenance approval chains share robust fallback
 print("  - refresh requests are coalesced and aggregate screens remain lazy")
 print("  - login routes after the first successful authentication click")
 print("  - command actions use one icon-only system accent")
-print("  - module windows use one headless content surface and integrated close action")
+print("  - module work uses one clipped premium movable/resizable window")
