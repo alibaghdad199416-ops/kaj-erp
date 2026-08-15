@@ -20,8 +20,8 @@ import 'contextual_report_customizer.dart';
 import 'report_field_localizer.dart';
 
 /// Authoritative bilingual export pipeline for the Reports module.
-/// PDF, Excel and CSV all use the selected report language and the same
-/// customized PostgreSQL-backed sections.
+/// PDF, Excel and CSV use the selected report language, the same filtered rows,
+/// and the shared Quality Line document identity.
 class ReportExportService {
   const ReportExportService();
 
@@ -49,17 +49,16 @@ class ReportExportService {
     );
     usedNames.add(profileName);
     final profile = book[profileName];
-    if (initialSheet != null && initialSheet != profileName) {
-      book.delete(initialSheet);
-    }
+    if (initialSheet != null && initialSheet != profileName) book.delete(initialSheet);
     ExcelWorkbookPresentation.prepareSheet(profile, arabic: arabic);
     profile.appendRow([TextCellValue(_localized(options.title, language))]);
     ExcelWorkbookPresentation.styleTitle(profile, row: 0, columnCount: 2);
     final metadata = <(String, Object?)>[
       (_t('module', language), _moduleName(module, language)),
       (_t('period', language), _localized(period, language)),
-      (_t('language', language), arabic ? 'العربية' : 'English'),
-      (_t('currencyContext', language), 'USD / IQD'),
+      (arabic ? 'لغة الملف' : 'Workbook language', arabic ? 'العربية' : 'English'),
+      (arabic ? 'سياق العملة' : 'Currency context', 'USD / IQD'),
+      (arabic ? 'إصدار بنية الملف' : 'Workbook schema version', '18.9.12'),
       if (options.includeGeneratedAt)
         (_t('generatedAt', language), DateTime.now()),
     ];
@@ -166,16 +165,27 @@ class ReportExportService {
         headers: section.columns
             .map((column) => ReportFieldLocalizer.localize(column, language))
             .toList(growable: false),
-        rows: section.rows
-            .map((row) => <Object?>[...row])
-            .toList(growable: false),
+        rows: section.rows.map((row) => <Object?>[...row]).toList(growable: false),
         arabic: arabic,
       );
     }
 
-    if (!book.setDefaultSheet(profileName)) {
-      throw StateError(_t('excelError', language));
-    }
+    final relationRows = _relationIndexRows(customized, language);
+    _appendSheet(
+      book,
+      usedNames: usedNames,
+      preferredName: arabic ? 'دليل الربط' : 'Relation index',
+      title: arabic
+          ? 'الربط بين الوحدات والمستندات'
+          : 'Cross-module document relations',
+      headers: arabic
+          ? const ['الوحدة المصدرية', 'السجل المصدر', 'نوع الارتباط', 'رقم السجل المرتبط', 'الوحدة المرتبطة']
+          : const ['Source module', 'Source record', 'Relation type', 'Linked record number', 'Linked module'],
+      rows: relationRows,
+      arabic: arabic,
+    );
+
+    if (!book.setDefaultSheet(profileName)) throw StateError(_t('excelError', language));
     final encoded = book.encode();
     if (encoded == null) throw StateError(_t('excelError', language));
     await ExcelDownloadService.save(
@@ -203,12 +213,7 @@ class ReportExportService {
       language: language,
     );
     final rows = <List<Object?>>[
-      [
-        _t('section', language),
-        _t('field', language),
-        _t('value', language),
-        _t('details', language),
-      ],
+      [_t('section', language), _t('field', language), _t('value', language), _t('details', language)],
       ...dataRows,
     ];
     final csv = rows.map((row) => row.map(_escapeCsv).join(',')).join('\r\n');
@@ -305,9 +310,7 @@ class ReportExportService {
     );
     return PdfExportService().build(
       document,
-      pageFormat: options.landscape
-          ? ExportPageFormat.a4Landscape
-          : ExportPageFormat.a4Portrait,
+      pageFormat: options.landscape ? ExportPageFormat.a4Landscape : ExportPageFormat.a4Portrait,
     );
   }
 
@@ -323,7 +326,6 @@ class ReportExportService {
     void add(String section, Object? field, Object? value, [Object? details = '']) {
       rows.add([section, field, value, details]);
     }
-
     if (options.includeSummary || options.includeModuleDetails) {
       for (final item in _moduleRows(report, module, language)) {
         add(_t('moduleSummary', language), item.$1, item.$2);
@@ -340,8 +342,7 @@ class ReportExportService {
           _t('monthlyPerformance', language),
           _localized(point.label, language),
           '${_t('sales', language)}: ${_number(point.sales)}',
-          '${_t('purchases', language)}: ${_number(point.purchases)} • '
-              '${_t('expenses', language)}: ${_number(point.expenses)}',
+          '${_t('purchases', language)}: ${_number(point.purchases)} • ${_t('expenses', language)}: ${_number(point.expenses)}',
         );
       }
     }
@@ -428,86 +429,157 @@ class ReportExportService {
     }
   }
 
-  List<(String, Object)> _moduleRows(
-    ReportModel report,
-    String module,
+  List<List<Object?>> _relationIndexRows(
+    List<ContextualReportSection> sections,
     String language,
-  ) => switch (module) {
+  ) {
+    final result = <List<Object?>>[];
+    for (final section in sections) {
+      if (section.columns.isEmpty || section.rows.isEmpty) continue;
+      final localizedColumns = section.columns
+          .map((value) => ReportFieldLocalizer.localize(value, language))
+          .toList(growable: false);
+      final relationIndexes = <int>[];
+      for (var index = 0; index < section.columns.length; index++) {
+        final raw = section.columns[index]
+            .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+            .toLowerCase();
+        final localized = localizedColumns[index].toLowerCase();
+        if (raw.contains('number') ||
+            raw.contains('reference') ||
+            raw.contains('code') ||
+            raw.contains('opportunity') ||
+            raw.contains('order') ||
+            raw.contains('invoice') ||
+            raw.contains('movement') ||
+            raw.contains('payment') ||
+            raw.contains('entry') ||
+            raw.contains('vehicle') ||
+            localized.contains('رقم') ||
+            localized.contains('مرجع') ||
+            localized.contains('رمز')) {
+          relationIndexes.add(index);
+        }
+      }
+      if (relationIndexes.length < 2) continue;
+      final sourceIndex = relationIndexes.first;
+      for (final row in section.rows) {
+        if (sourceIndex >= row.length) continue;
+        final sourceValue = row[sourceIndex].trim();
+        if (sourceValue.isEmpty) continue;
+        for (final relationIndex in relationIndexes.skip(1)) {
+          if (relationIndex >= row.length) continue;
+          final linkedValue = row[relationIndex].trim();
+          if (linkedValue.isEmpty || linkedValue == sourceValue) continue;
+          result.add([
+            _localized(section.title, language),
+            sourceValue,
+            localizedColumns[relationIndex],
+            linkedValue,
+            _linkedModuleForColumn(section.columns[relationIndex], language),
+          ]);
+        }
+      }
+    }
+    if (result.isEmpty) {
+      result.add([language == 'ar' ? 'لا توجد روابط في الفترة' : 'No relations in period', '', '', '', '']);
+    }
+    return result;
+  }
+
+  String _linkedModuleForColumn(String column, String language) {
+    final normalized = column.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+    final key = normalized.contains('opportunity')
+        ? 'module_opportunities'
+        : normalized.contains('purchase')
+        ? 'module_purchases'
+        : normalized.contains('sales') || normalized.contains('order')
+        ? 'module_sales'
+        : normalized.contains('invoice')
+        ? 'module_finance'
+        : normalized.contains('movement') || normalized.contains('warehouse') || normalized.contains('transfer')
+        ? 'module_inventory'
+        : normalized.contains('payment') || normalized.contains('entry') || normalized.contains('voucher')
+        ? 'module_accounting'
+        : normalized.contains('vehicle')
+        ? 'module_cars'
+        : 'module_operations';
+    return _t(key, language);
+  }
+
+  List<(String, Object)> _moduleRows(ReportModel r, String module, String language) => switch (module) {
     'cars' => [
-      (_t('totalCars', language), report.totalCars),
-      (_t('availableCars', language), report.availableCars),
-      (_t('reservedCars', language), report.reservedCars),
-      (_t('soldCars', language), report.soldCars),
+      (_t('totalCars', language), r.totalCars),
+      (_t('availableCars', language), r.availableCars),
+      (_t('reservedCars', language), r.reservedCars),
+      (_t('soldCars', language), r.soldCars),
     ],
     'products' || 'warehouses' || 'inventory' => [
-      (_t('inventoryItems', language), report.totalInventoryItems),
-      (_t('inventoryValue', language), _currencyMap(report.inventoryValueByCurrency)),
-      (_t('totalPurchases', language), _currencyMap(report.totalPurchasesByCurrency)),
-      (_t('totalSales', language), _currencyMap(report.totalSalesByCurrency)),
+      (_t('inventoryItems', language), r.totalInventoryItems),
+      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
     ],
     'customers' => [
-      (_t('customers', language), report.totalCustomers),
-      (_t('receivables', language), _currencyMap(report.totalReceivablesByCurrency)),
-      (_t('totalSales', language), _currencyMap(report.totalSalesByCurrency)),
+      (_t('customers', language), r.totalCustomers),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
     ],
     'suppliers' => [
-      (_t('suppliers', language), report.totalSuppliers),
-      (_t('payables', language), _currencyMap(report.totalPurchaseDebtByCurrency)),
-      (_t('totalPurchases', language), _currencyMap(report.totalPurchasesByCurrency)),
+      (_t('suppliers', language), r.totalSuppliers),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
     ],
     'payments' => [
-      (_t('paidSales', language), _currencyMap(report.totalPaidSalesByCurrency)),
-      (_t('receivables', language), _currencyMap(report.totalReceivablesByCurrency)),
-      (_t('payables', language), _currencyMap(report.totalPurchaseDebtByCurrency)),
+      (_t('paidSales', language), _currencyMap(r.totalPaidSalesByCurrency)),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
     ],
     'sales' => [
-      (_t('totalSales', language), _currencyMap(report.totalSalesByCurrency)),
-      (_t('paidSales', language), _currencyMap(report.totalPaidSalesByCurrency)),
-      (_t('receivables', language), _currencyMap(report.totalReceivablesByCurrency)),
-      (_t('netProfit', language), _currencyMap(report.netProfitByCurrency)),
+      (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
+      (_t('paidSales', language), _currencyMap(r.totalPaidSalesByCurrency)),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+      (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
     ],
     'purchases' => [
-      (_t('totalPurchases', language), _currencyMap(report.totalPurchasesByCurrency)),
-      (_t('payables', language), _currencyMap(report.totalPurchaseDebtByCurrency)),
-      (_t('inventoryValue', language), _currencyMap(report.inventoryValueByCurrency)),
-      (_t('expenses', language), _currencyMap(report.totalExpensesByCurrency)),
+      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
+      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (_t('expenses', language), _currencyMap(r.totalExpensesByCurrency)),
     ],
     'finance' || 'accounting' => [
-      (_t('cashUsd', language), report.cashBalanceUsd),
-      (_t('cashIqd', language), report.cashBalanceIqd),
-      (_t('receivables', language), _currencyMap(report.totalReceivablesByCurrency)),
-      (_t('payables', language), _currencyMap(report.totalPurchaseDebtByCurrency)),
-      (_t('netProfit', language), _currencyMap(report.netProfitByCurrency)),
+      (_t('cashUsd', language), r.cashBalanceUsd),
+      (_t('cashIqd', language), r.cashBalanceIqd),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
+      (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
     ],
     'partners' => [
-      (_t('customers', language), report.totalCustomers),
-      (_t('suppliers', language), report.totalSuppliers),
-      (_t('activeReservations', language), report.activeReservations),
-      (_t('overdueInstallments', language), report.overdueInstallments),
+      (_t('customers', language), r.totalCustomers),
+      (_t('suppliers', language), r.totalSuppliers),
+      (_t('activeReservations', language), r.activeReservations),
+      (_t('overdueInstallments', language), r.overdueInstallments),
     ],
-    'operations' => _operationalRows(report, language),
+    'operations' => _operationalRows(r, language),
     _ => [
-      (_t('totalSales', language), _currencyMap(report.totalSalesByCurrency)),
-      (_t('totalPurchases', language), _currencyMap(report.totalPurchasesByCurrency)),
-      (_t('expenses', language), _currencyMap(report.totalExpensesByCurrency)),
-      (_t('inventoryValue', language), _currencyMap(report.inventoryValueByCurrency)),
-      (_t('netProfit', language), _currencyMap(report.netProfitByCurrency)),
+      (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
+      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (_t('expenses', language), _currencyMap(r.totalExpensesByCurrency)),
+      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (_t('cashUsd', language), r.cashBalanceUsd),
+      (_t('cashIqd', language), r.cashBalanceIqd),
+      (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
     ],
   };
 
-  List<(String, Object)> _operationalRows(
-    ReportModel report,
-    String language,
-  ) => [
-    (_t('totalCars', language), report.totalCars),
-    (_t('availableCars', language), report.availableCars),
-    (_t('reservedCars', language), report.reservedCars),
-    (_t('soldCars', language), report.soldCars),
-    (_t('customers', language), report.totalCustomers),
-    (_t('suppliers', language), report.totalSuppliers),
-    (_t('inventoryItems', language), report.totalInventoryItems),
-    (_t('activeReservations', language), report.activeReservations),
-    (_t('overdueInstallments', language), report.overdueInstallments),
+  List<(String, Object)> _operationalRows(ReportModel r, String language) => [
+    (_t('totalCars', language), r.totalCars),
+    (_t('availableCars', language), r.availableCars),
+    (_t('reservedCars', language), r.reservedCars),
+    (_t('soldCars', language), r.soldCars),
+    (_t('customers', language), r.totalCustomers),
+    (_t('suppliers', language), r.totalSuppliers),
+    (_t('inventoryItems', language), r.totalInventoryItems),
+    (_t('activeReservations', language), r.activeReservations),
+    (_t('overdueInstallments', language), r.overdueInstallments),
   ];
 
   String fileNameFor(String module, String language) {
@@ -520,15 +592,9 @@ class ReportExportService {
 
   String _localized(Object? value, String language) {
     final raw = '${value ?? ''}'.trim();
-    if (raw == 'تقرير خط الجودة') {
-      return language == 'ar' ? raw : 'Quality Line Report';
-    }
-    if (raw == 'Quality Line Report') {
-      return language == 'ar' ? 'تقرير خط الجودة' : raw;
-    }
-    if (raw == 'جميع الفترات') {
-      return language == 'ar' ? raw : 'All periods';
-    }
+    if (raw == 'تقرير خط الجودة') return language == 'ar' ? raw : 'Quality Line Report';
+    if (raw == 'Quality Line Report') return language == 'ar' ? 'تقرير خط الجودة' : raw;
+    if (raw == 'جميع الفترات') return language == 'ar' ? raw : 'All periods';
     return ReportFieldLocalizer.localize(raw, language);
   }
 
@@ -544,11 +610,8 @@ class ReportExportService {
 
   String _dateTime(DateTime value) {
     final local = value.toLocal();
-    return '${local.year.toString().padLeft(4, '0')}-'
-        '${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')} '
-        '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
+    return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 
   String _uniqueSheetName(String raw, Set<String> used) {
@@ -578,7 +641,6 @@ class ReportExportService {
     const ar = <String, String>{
       'summary': 'الملخص', 'operations': 'التشغيل', 'monthly': 'الأداء الشهري',
       'executors': 'منفذو الإدخال', 'module': 'الوحدة', 'period': 'الفترة',
-      'language': 'لغة الملف', 'currencyContext': 'سياق العملة',
       'generatedAt': 'تاريخ الإنشاء', 'indicator': 'المؤشر', 'value': 'القيمة',
       'moduleSummary': 'ملخص الوحدة', 'operationalIndicators': 'المؤشرات التشغيلية',
       'monthlyPerformance': 'الأداء الشهري', 'dataExecutors': 'منفذو إدخال البيانات',
@@ -608,7 +670,6 @@ class ReportExportService {
     const en = <String, String>{
       'summary': 'Summary', 'operations': 'Operations', 'monthly': 'Monthly',
       'executors': 'Executors', 'module': 'Module', 'period': 'Period',
-      'language': 'Workbook language', 'currencyContext': 'Currency context',
       'generatedAt': 'Generated at', 'indicator': 'Indicator', 'value': 'Value',
       'moduleSummary': 'Module summary', 'operationalIndicators': 'Operational indicators',
       'monthlyPerformance': 'Monthly performance', 'dataExecutors': 'Data entry users',

@@ -30,7 +30,6 @@ def contains_all(path: str, values) -> None:
 def main() -> None:
     migration_path = "supabase/migrations/20260815230000_r78_complete_requirements_closure.sql"
     permission_codes = "lib/features/settings/access/models/permission_codes.dart"
-    permission_catalog = "lib/features/settings/access/models/permission_catalog.dart"
     media_function = "supabase/functions/admin-update-user-media/index.ts"
     user_function = "supabase/functions/admin-manage-user/index.ts"
     contextual_repo = "lib/features/settings/reports/data/contextual_reports_repository.dart"
@@ -44,8 +43,9 @@ def main() -> None:
     entity_page = "lib/core/widgets/app_entity_page.dart"
     window_route = "lib/core/widgets/app_full_page_route.dart"
 
+    # The runtime permission list is authoritative from Supabase. Dart constants
+    # provide typo-safe references without creating phantom client-only permissions.
     contains_all(permission_codes, PERMISSIONS)
-    contains_all(permission_catalog, PERMISSIONS)
     contains_all(migration_path, PERMISSIONS)
     contains_all(
         migration_path,
@@ -110,14 +110,22 @@ def main() -> None:
 
     report_source = text(report_export)
     assert "const language = 'en';" not in report_source, "Reports Excel still forces English"
-    assert "canonicalPdfLanguage(options.language)" in report_source
-    assert "PdfExportService().build" in report_source
-    assert "ContextualReportCustomizer().apply" in report_source
+    contains_all(
+        report_export,
+        {
+            "canonicalPdfLanguage(options.language)",
+            "PdfExportService().build",
+            "ContextualReportCustomizer().apply",
+            "Workbook schema version",
+            "Currency context",
+            "_relationIndexRows",
+            "Cross-module document relations",
+        },
+    )
 
     accounting_source = text(accounting_export)
     assert "arabic = false" not in accounting_source, "Accounting export still forces English"
-    assert "PdfExportService().build" in accounting_source
-    assert "ExcelWorkbookPresentation" in accounting_source
+    contains_all(accounting_export, {"PdfExportService().build", "ExcelWorkbookPresentation"})
 
     contains_all(
         unified_pdf,
@@ -125,6 +133,7 @@ def main() -> None:
     )
     for path in (generic_pdf, voucher_pdf, transfer_pdf):
         contains_all(path, {"unified_pdf_document.dart", "UnifiedPdfDocument"})
+    contains_all(generic_pdf, {"company_settings", "companyName", "logo"})
 
     contains_all(entity_page, {"module-command-rail", "module-continuous-workspace"})
     contains_all(
@@ -139,10 +148,11 @@ def main() -> None:
     contains_all("dart_defines.json", {EXPECTED_REF})
 
     print("PASS R78 complete requirements closure")
-    print("  - granular user/media/report permissions: catalog + PostgreSQL + Edge")
+    print("  - granular user/media/report permissions: PostgreSQL + Edge + typed client constants")
     print("  - media persistence: read-back verified for users/customers/suppliers/cars")
     print("  - report details: contextual/audit/financial gates enforced")
-    print("  - exports: Arabic/English PDF + Excel share one authoritative pipeline")
+    print("  - exports: Arabic/English PDF + Excel + relation index share one data pipeline")
+    print("  - PDF identity: unified header/table/footer with company branding fallback")
     print("  - UI: continuous module workspace + clipped premium module windows")
     print(f"  - production project isolation: {EXPECTED_REF}")
 

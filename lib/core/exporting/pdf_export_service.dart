@@ -1,7 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+
+import 'package:quality_line_erp/core/cloud/cloud_feature_command.dart';
+import 'package:quality_line_erp/core/logging/app_logger.dart';
 
 import 'adaptive_pdf_table.dart';
 import 'binary_download_service.dart';
@@ -12,9 +17,7 @@ import '../printing/pdf_text_support.dart';
 import '../printing/unified_pdf_document.dart';
 import '../printing/unified_pdf_identity.dart';
 
-/// Canonical PDF renderer used by generic exports and as the shared fallback
-/// for module reports. It intentionally uses the same KAJ / Quality Line header,
-/// title hierarchy, table palette and footer as commercial documents.
+/// Canonical PDF renderer shared by reports and generic exports.
 class PdfExportService {
   PdfExportService({ReportTemplateEngine? templateEngine})
     : _template = templateEngine ?? const ReportTemplateEngine();
@@ -32,6 +35,7 @@ class PdfExportService {
     final arabic = document.isArabic;
     final direction = arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
     final generatedAt = document.generatedAt ?? DateTime.now();
+    final branding = await _loadBranding(arabic);
     final format = switch (pageFormat) {
       ExportPageFormat.a4Portrait => PdfPageFormat.a4,
       ExportPageFormat.a4Landscape => PdfPageFormat.a4.landscape,
@@ -45,7 +49,7 @@ class PdfExportService {
     final receipt = pageFormat == ExportPageFormat.receipt80mm;
     final pdf = pw.Document(
       title: document.title,
-      author: 'Quality Line ERP',
+      author: branding.companyName,
       creator: 'Quality Line ERP',
       subject: document.subtitle,
       theme: pw.ThemeData.withFont(base: regular, bold: bold),
@@ -75,6 +79,8 @@ class PdfExportService {
                       (value) => value.isNotEmpty && value.length <= 28,
                       orElse: () => '',
                     ),
+                companyName: branding.companyName,
+                logo: branding.logo,
               ),
         footer: receipt
             ? null
@@ -193,4 +199,43 @@ class PdfExportService {
       mimeType: 'application/pdf',
     );
   }
+
+  Future<_PdfBranding> _loadBranding(bool arabic) async {
+    Map<String, dynamic> row = <String, dynamic>{};
+    try {
+      row = await CloudFeatureCommand.instance.map('company_settings', 'branding');
+    } catch (error, stackTrace) {
+      AppLogger.debug('PDF branding fallback: $error\n$stackTrace');
+    }
+    final values = <String, String>{
+      for (final entry in row.entries) entry.key: entry.value?.toString() ?? '',
+    };
+    pw.MemoryImage? logo;
+    if (!kIsWeb) {
+      for (final path in const [
+        'assets/images/khat_al_jawda_logo.jpg',
+        'assets/images/logo.png',
+      ]) {
+        try {
+          final data = await rootBundle.load(path);
+          logo = pw.MemoryImage(data.buffer.asUint8List());
+          break;
+        } catch (_) {}
+      }
+    }
+    final companyName = arabic
+        ? (values['company_name']?.trim().isNotEmpty == true
+              ? values['company_name']!
+              : 'شركة خط الجودة')
+        : (values['company_name_en']?.trim().isNotEmpty == true
+              ? values['company_name_en']!
+              : 'Quality Line');
+    return _PdfBranding(companyName: companyName, logo: logo);
+  }
+}
+
+class _PdfBranding {
+  const _PdfBranding({required this.companyName, required this.logo});
+  final String companyName;
+  final pw.MemoryImage? logo;
 }

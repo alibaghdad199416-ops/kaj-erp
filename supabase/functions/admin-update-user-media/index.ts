@@ -41,7 +41,9 @@ Deno.serve(async (req) => {
     const url = Deno.env.get('SUPABASE_URL')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!url || !anonKey || !serviceKey) return reply({ ok: false, error: 'server_configuration_missing' }, 500)
+    if (!url || !anonKey || !serviceKey) {
+      return reply({ ok: false, error: 'server_configuration_missing' }, 500)
+    }
 
     const caller = createClient(url, anonKey, {
       global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
@@ -54,9 +56,15 @@ Deno.serve(async (req) => {
     const targetUserId = String(body.target_user_id ?? '').trim()
     const localUserId = String(body.local_user_id ?? '').trim()
     const avatar = body.avatar_base64 == null ? null : String(body.avatar_base64)
-    if (!companyId || !targetUserId || !localUserId) return reply({ ok: false, error: 'invalid_input' }, 422)
-    if (avatar != null && avatar.length > 500000) return reply({ ok: false, error: 'media_payload_too_large' }, 413)
-    if (!validImagePayload(avatar)) return reply({ ok: false, error: 'invalid_media_payload' }, 422)
+    if (!companyId || !targetUserId || !localUserId) {
+      return reply({ ok: false, error: 'invalid_input' }, 422)
+    }
+    if (avatar != null && avatar.length > 500000) {
+      return reply({ ok: false, error: 'media_payload_too_large' }, 413)
+    }
+    if (!validImagePayload(avatar)) {
+      return reply({ ok: false, error: 'invalid_media_payload' }, 422)
+    }
 
     const admin = createClient(url, serviceKey)
     const { data: membership, error: membershipError } = await admin
@@ -66,17 +74,14 @@ Deno.serve(async (req) => {
       .eq('user_id', authData.user.id)
       .eq('is_active', true)
       .maybeSingle()
-    if (membershipError || !membership) return reply({ ok: false, error: 'membership_not_found' }, 403)
+    if (membershipError || !membership) {
+      return reply({ ok: false, error: 'membership_not_found' }, 403)
+    }
 
-    const isAdministrator = membership.is_system_admin || ['owner', 'admin'].includes(membership.role_code)
-    if (!isAdministrator) {
-      const [canUpdateUsers, canUpdateImages] = await Promise.all([
-        hasPermission(caller, companyId, 'users.update'),
-        hasPermission(caller, companyId, 'users.image.update'),
-      ])
-      if (!canUpdateUsers || !canUpdateImages) {
-        return reply({ ok: false, error: 'permission_denied' }, 403)
-      }
+    const isAdministrator = membership.is_system_admin ||
+      ['owner', 'admin'].includes(membership.role_code)
+    if (!isAdministrator && !await hasPermission(caller, companyId, 'users.update')) {
+      return reply({ ok: false, error: 'permission_denied' }, 403)
     }
 
     const { data: target, error: targetError } = await admin
@@ -85,18 +90,24 @@ Deno.serve(async (req) => {
       .eq('company_id', companyId)
       .eq('user_id', targetUserId)
       .maybeSingle()
-    if (targetError || !target) return reply({ ok: false, error: 'target_membership_not_found' }, 404)
+    if (targetError || !target) {
+      return reply({ ok: false, error: 'target_membership_not_found' }, 404)
+    }
     if (String(target.local_user_id ?? '') !== localUserId) {
       return reply({ ok: false, error: 'target_identity_mismatch' }, 422)
     }
-    if ((target.role_code === 'owner' || target.is_system_admin) && targetUserId !== authData.user.id) {
+    if ((target.role_code === 'owner' || target.is_system_admin) &&
+        targetUserId !== authData.user.id) {
       return reply({ ok: false, error: 'permission_denied' }, 403)
     }
-    if (target.role_code === 'admin' && membership.role_code !== 'owner' && targetUserId !== authData.user.id) {
+    if (target.role_code === 'admin' && membership.role_code !== 'owner' &&
+        targetUserId !== authData.user.id) {
       return reply({ ok: false, error: 'permission_denied' }, 403)
     }
 
-    const company = Array.isArray(membership.companies) ? membership.companies[0] : membership.companies
+    const company = Array.isArray(membership.companies)
+      ? membership.companies[0]
+      : membership.companies
     const companySlug = String(company?.slug ?? '').trim()
     if (!companySlug) return reply({ ok: false, error: 'company_slug_missing' }, 500)
 
@@ -109,8 +120,22 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (recordError || !record) return reply({ ok: false, error: 'request_failed' }, 500)
 
+    const expectedAvatar = String(avatar ?? '').trim()
+    const currentAvatar = String(record.payload?.avatarBase64 ?? '').trim()
+
+    // User profile edits always carry the current avatar in the Flutter model.
+    // Treat an identical value as a verified no-op so users.update can change
+    // non-media profile fields without also needing users.image.update.
+    if (currentAvatar === expectedAvatar) {
+      return reply({ ok: true, action: 'update-user-media', changed: false })
+    }
+
+    if (!isAdministrator && !await hasPermission(caller, companyId, 'users.image.update')) {
+      return reply({ ok: false, error: 'permission_denied' }, 403)
+    }
+
     const payload = { ...(record.payload ?? {}) }
-    if (avatar == null || avatar.trim() === '') delete payload.avatarBase64
+    if (expectedAvatar === '') delete payload.avatarBase64
     else payload.avatarBase64 = avatar
     payload.updatedAt = new Date().toISOString()
 
@@ -130,12 +155,13 @@ Deno.serve(async (req) => {
       .eq('entity_type', 'users')
       .eq('record_id', localUserId)
       .maybeSingle()
-    if (persistedError || !persisted) throw persistedError ?? new Error('media_readback_failed')
+    if (persistedError || !persisted) {
+      throw persistedError ?? new Error('media_readback_failed')
+    }
     const actualAvatar = String(persisted.payload?.avatarBase64 ?? '').trim()
-    const expectedAvatar = String(avatar ?? '').trim()
     if (actualAvatar !== expectedAvatar) throw new Error('media_readback_mismatch')
 
-    return reply({ ok: true, action: 'update-user-media' })
+    return reply({ ok: true, action: 'update-user-media', changed: true })
   } catch (error) {
     console.error('admin-update-user-media failed', error)
     return reply({ ok: false, error: 'request_failed' }, 500)

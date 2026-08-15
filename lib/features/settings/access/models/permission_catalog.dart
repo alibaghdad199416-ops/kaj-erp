@@ -1,364 +1,548 @@
-import 'field_permission_catalog.dart';
 import 'permission_model.dart';
+import 'field_permission_catalog.dart';
 
-class _PermissionActionSpec {
-  const _PermissionActionSpec(this.suffix, this.name, [this.description = '']);
-  final String suffix;
-  final String name;
-  final String description;
-}
-
-class _PermissionModuleSpec {
-  const _PermissionModuleSpec({
-    required this.key,
-    required this.label,
-    required this.actions,
-    this.recordScoped = true,
-  });
-  final String key;
-  final String label;
-  final List<_PermissionActionSpec> actions;
-  final bool recordScoped;
-}
-
-/// Canonical permission catalog used by role and per-user permission editors.
 abstract final class PermissionCatalog {
-  static const _view = _PermissionActionSpec('view', 'عرض');
-  static const _create = _PermissionActionSpec('create', 'إضافة');
-  static const _update = _PermissionActionSpec('update', 'تعديل');
-  static const _delete = _PermissionActionSpec('delete', 'حذف');
-  static const _print = _PermissionActionSpec('print', 'طباعة');
-  static const _export = _PermissionActionSpec('export', 'تصدير');
-
-  static const List<_PermissionModuleSpec> _modules = [
-    _PermissionModuleSpec(
-      key: 'users',
-      label: 'المستخدمون',
-      actions: [_view, _create, _update, _delete, _print, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'customers',
-      label: 'العملاء',
-      actions: [_view, _create, _update, _delete, _print, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'suppliers',
-      label: 'الموردون',
-      actions: [_view, _create, _update, _delete, _print, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'cars',
-      label: 'السيارات',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('transfer.delete', 'حذف نقل سيارة'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'inventory',
-      label: 'المخزون والمنتجات',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('transfer', 'نقل مخزني'),
-        _PermissionActionSpec('transfer.delete', 'حذف نقل مخزني'),
-        _PermissionActionSpec('adjust', 'تسوية وجرد'),
-        _PermissionActionSpec('receive', 'استلام مخزني'),
-        _PermissionActionSpec('issue', 'تجهيز/صرف مخزني'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'warehouses',
-      label: 'المخازن',
-      actions: [_view, _create, _update, _delete, _print, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'customer_service',
-      label: 'خدمة العملاء والفرص',
-      actions: [_view, _create, _update, _delete, _print, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'sales',
-      label: 'المبيعات',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('approve', 'تصديق'),
-        _PermissionActionSpec('cancel', 'إلغاء'),
-        _PermissionActionSpec('delivery', 'إنشاء/إدارة التجهيز'),
-        _PermissionActionSpec('invoice', 'إنشاء/إدارة الفاتورة'),
-        _PermissionActionSpec('payment', 'تسجيل دفعة'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'purchases',
-      label: 'المشتريات',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('approve', 'تصديق'),
-        _PermissionActionSpec('cancel', 'إلغاء'),
-        _PermissionActionSpec('receipt', 'إنشاء/إدارة الاستلام'),
-        _PermissionActionSpec('invoice', 'إنشاء/إدارة الفاتورة'),
-        _PermissionActionSpec('payment', 'تسجيل دفعة'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'maintenance',
-      label: 'الصيانة',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('approve', 'تصديق'),
-        _PermissionActionSpec('cancel', 'إلغاء'),
-        _PermissionActionSpec('issue', 'صرف/إرجاع مواد'),
-        _PermissionActionSpec('invoice', 'إنشاء/إدارة الفاتورة'),
-        _PermissionActionSpec('payment', 'تسجيل دفعة'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'accounting',
-      label: 'المحاسبة',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('post', 'ترحيل/تصديق قيد'),
-        _PermissionActionSpec('reverse', 'عكس قيد'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'cashbox',
-      label: 'الصناديق والحركات النقدية',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('receipt', 'سند قبض'),
-        _PermissionActionSpec('payment', 'سند صرف'),
-        _PermissionActionSpec('transfer', 'تحويل بين الصناديق'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'expenses',
-      label: 'المصروفات',
-      actions: [_view, _create, _update, _delete, _print, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'installments',
-      label: 'الأقساط',
-      actions: [
-        _view,
-        _create,
-        _update,
-        _delete,
-        _PermissionActionSpec('collect', 'تحصيل قسط'),
-        _print,
-        _export,
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'dashboard',
-      label: 'لوحة التحكم',
-      recordScoped: false,
-      actions: [_view],
-    ),
-    _PermissionModuleSpec(
-      key: 'reports',
-      label: 'التقارير',
-      recordScoped: false,
-      actions: [_view, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'approvals',
-      label: 'الموافقات',
-      recordScoped: false,
-      actions: [_view, _PermissionActionSpec('decide', 'الموافقة/الرفض')],
-    ),
-    _PermissionModuleSpec(
-      key: 'periods',
-      label: 'الفترات التشغيلية',
-      recordScoped: false,
-      actions: [
-        _view,
-        _PermissionActionSpec('close', 'إغلاق/إدارة فترة'),
-        _PermissionActionSpec('reopen', 'إعادة فتح فترة'),
-      ],
-    ),
-    _PermissionModuleSpec(
-      key: 'audit',
-      label: 'سجل التدقيق',
-      recordScoped: false,
-      actions: [_view, _export],
-    ),
-    _PermissionModuleSpec(
-      key: 'settings',
-      label: 'الإعدادات',
-      recordScoped: false,
-      actions: [
-        _view,
-        _PermissionActionSpec('backup', 'نسخة احتياطية'),
-        _PermissionActionSpec('restore', 'استعادة نسخة'),
-      ],
-    ),
-  ];
-
-  static PermissionModel _permission(
-    _PermissionModuleSpec module,
-    _PermissionActionSpec action,
-  ) {
-    final code = '${module.key}.${action.suffix}';
-    return PermissionModel(
-      id: 'catalog-${code.replaceAll('.', '-')}',
-      code: code,
-      name: '${action.name} ${module.label}',
-      module: module.label,
-      description: action.description,
-    );
-  }
-
-  static Iterable<PermissionModel> _modulePermissions(
-    _PermissionModuleSpec module,
-  ) sync* {
-    for (final action in module.actions) {
-      yield _permission(module, action);
-    }
-    if (module.recordScoped) {
-      yield PermissionModel(
-        id: 'catalog-${module.key}-records-own',
-        code: '${module.key}.records.own',
-        name: 'عرض إدخالات المستخدم نفسه فقط',
-        module: '${module.label} • نطاق السجلات',
-        description: 'يقيد قوائم هذا المودل بالسجلات التي أنشأها المستخدم الحالي.',
-      );
-      yield PermissionModel(
-        id: 'catalog-${module.key}-records-all',
-        code: '${module.key}.records.all',
-        name: 'عرض إدخالات جميع المستخدمين',
-        module: '${module.label} • نطاق السجلات',
-        description: 'يسمح بعرض سجلات بقية مستخدمي الشركة داخل هذا المودل.',
-      );
-    }
-  }
-
-  static const List<PermissionModel> _granular = [
+  static final List<PermissionModel> all = [
     PermissionModel(
-      id: 'catalog-users-image-update',
-      code: 'users.image.update',
-      name: 'تعديل صورة المستخدم',
-      module: 'المستخدمون • الصور',
-      description: 'رفع أو استبدال أو حذف صورة مستخدم قائم.',
+      id: 'catalog-users-view',
+      code: 'users.view',
+      name: 'عرض المستخدمين',
+      module: 'المستخدمون',
+      description: 'عرض قائمة المستخدمين',
     ),
     PermissionModel(
-      id: 'catalog-users-credentials-update',
-      code: 'users.credentials.update',
-      name: 'تعديل بيانات دخول المستخدم',
-      module: 'المستخدمون • الأمان',
-      description: 'تعديل البريد أو بيانات الهوية السحابية الحساسة.',
+      id: 'catalog-users-create',
+      code: 'users.create',
+      name: 'إضافة مستخدم',
+      module: 'المستخدمون',
+      description: 'إنشاء مستخدم جديد',
     ),
     PermissionModel(
-      id: 'catalog-customers-image-update',
-      code: 'customers.image.update',
-      name: 'تعديل صورة العميل',
-      module: 'العملاء • الصور',
-      description: 'رفع أو استبدال أو حذف صورة العميل.',
+      id: 'catalog-users-update',
+      code: 'users.update',
+      name: 'تعديل المستخدمين',
+      module: 'المستخدمون',
+      description: 'تعديل بيانات المستخدم وحالته ودوره',
     ),
     PermissionModel(
-      id: 'catalog-suppliers-image-update',
-      code: 'suppliers.image.update',
-      name: 'تعديل صورة المورد',
-      module: 'الموردون • الصور',
-      description: 'رفع أو استبدال أو حذف صورة المورد.',
+      id: 'catalog-users-delete',
+      code: 'users.delete',
+      name: 'حذف المستخدمين',
+      module: 'المستخدمون',
+      description: 'حذف مستخدم',
     ),
     PermissionModel(
-      id: 'catalog-cars-images-manage',
-      code: 'cars.images.manage',
-      name: 'إدارة صور السيارات',
-      module: 'السيارات • الصور',
-      description: 'إضافة أو حذف صور السيارة وصورتها الرئيسية.',
-    ),
-    PermissionModel(
-      id: 'catalog-inventory-images-manage',
-      code: 'inventory.images.manage',
-      name: 'إدارة صور المنتجات',
-      module: 'المخزون • الصور',
-      description: 'إضافة أو حذف صور المنتج وصورته الرئيسية.',
-    ),
-    PermissionModel(
-      id: 'catalog-reports-audit-view',
-      code: 'reports.audit.view',
-      name: 'عرض تفاصيل تدقيق التقارير',
-      module: 'التقارير • التدقيق',
-      description: 'عرض منفذي الإدخال وآثار العمليات داخل التقارير.',
-    ),
-    PermissionModel(
-      id: 'catalog-reports-contextual-view',
-      code: 'reports.contextual.view',
-      name: 'عرض التفاصيل السياقية للتقارير',
-      module: 'التقارير • التفاصيل',
-      description: 'عرض الجداول والسجلات المرتبطة بالمودل المحدد.',
-    ),
-    PermissionModel(
-      id: 'catalog-reports-financial-details-view',
-      code: 'reports.financial_details.view',
-      name: 'عرض التفاصيل المالية للتقارير',
-      module: 'التقارير • المالية',
-      description: 'عرض تفاصيل الحسابات والدفعات والذمم داخل مركز التقارير.',
-    ),
-  ];
-
-  static final List<PermissionModel> all = <PermissionModel>[
-    for (final module in _modules) ..._modulePermissions(module),
-    ..._granular,
-    const PermissionModel(
       id: 'catalog-scopes',
       code: 'permissions.scopes.manage',
-      name: 'إدارة الصلاحيات المخصصة للمستخدمين',
+      name: 'إدارة نطاقات الصلاحيات',
       module: 'المستخدمون',
-      description: 'منح وسحب صلاحيات مستخدم واحد بصورة مستقلة عن دوره.',
+      description: 'منح وسحب الصلاحيات لكل مستخدم',
     ),
-    const PermissionModel(
+    PermissionModel(
+      id: 'catalog-cars-view',
+      code: 'cars.view',
+      name: 'عرض السيارات',
+      module: 'السيارات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-cars-create',
+      code: 'cars.create',
+      name: 'إضافة السيارات',
+      module: 'السيارات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-cars-update',
+      code: 'cars.update',
+      name: 'تعديل السيارات',
+      module: 'السيارات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-cars-delete',
+      code: 'cars.delete',
+      name: 'حذف السيارات',
+      module: 'السيارات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-view',
+      code: 'inventory.view',
+      name: 'عرض المنتجات والمخازن',
+      module: 'المخزون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-create',
+      code: 'inventory.create',
+      name: 'إضافة المنتجات',
+      module: 'المخزون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-update',
+      code: 'inventory.update',
+      name: 'تعديل المنتجات والمخازن',
+      module: 'المخزون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-delete',
+      code: 'inventory.delete',
+      name: 'حذف المنتجات',
+      module: 'المخزون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-warehouses-view',
+      code: 'warehouses.view',
+      name: 'عرض المخازن',
+      module: 'المخزون',
+      description: 'عرض تعريفات المخازن وحساباتها',
+    ),
+    PermissionModel(
+      id: 'catalog-warehouses-create',
+      code: 'warehouses.create',
+      name: 'إضافة مخزن',
+      module: 'المخزون',
+      description: 'إنشاء مخزن وتعريف حساباته',
+    ),
+    PermissionModel(
+      id: 'catalog-warehouses-update',
+      code: 'warehouses.update',
+      name: 'تعديل المخازن',
+      module: 'المخزون',
+      description: 'تعديل تعريف المخزن وحساباته',
+    ),
+    PermissionModel(
+      id: 'catalog-warehouses-delete',
+      code: 'warehouses.delete',
+      name: 'حذف المخازن',
+      module: 'المخزون',
+      description: 'حذف مخزن وفق قيود الارتباط',
+    ),
+    PermissionModel(
+      id: 'catalog-sales-view',
+      code: 'sales.view',
+      name: 'عرض المبيعات',
+      module: 'المبيعات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-sales-create',
+      code: 'sales.create',
+      name: 'إضافة المبيعات',
+      module: 'المبيعات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-sales-update',
+      code: 'sales.update',
+      name: 'تعديل المبيعات',
+      module: 'المبيعات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-sales-delete',
+      code: 'sales.delete',
+      name: 'حذف المبيعات',
+      module: 'المبيعات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-purchases-view',
+      code: 'purchases.view',
+      name: 'عرض المشتريات',
+      module: 'المشتريات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-purchases-create',
+      code: 'purchases.create',
+      name: 'إضافة المشتريات',
+      module: 'المشتريات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-purchases-update',
+      code: 'purchases.update',
+      name: 'تعديل المشتريات',
+      module: 'المشتريات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-purchases-delete',
+      code: 'purchases.delete',
+      name: 'حذف المشتريات',
+      module: 'المشتريات',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-maintenance-view',
+      code: 'maintenance.view',
+      name: 'عرض الصيانة',
+      module: 'الصيانة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-maintenance-create',
+      code: 'maintenance.create',
+      name: 'إضافة الصيانة',
+      module: 'الصيانة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-maintenance-update',
+      code: 'maintenance.update',
+      name: 'تعديل الصيانة',
+      module: 'الصيانة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-maintenance-delete',
+      code: 'maintenance.delete',
+      name: 'حذف الصيانة',
+      module: 'الصيانة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-accounting-view',
+      code: 'accounting.view',
+      name: 'عرض المحاسبة',
+      module: 'المحاسبة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-accounting-create',
+      code: 'accounting.create',
+      name: 'إضافة القيود والحركات',
+      module: 'المحاسبة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-accounting-update',
+      code: 'accounting.update',
+      name: 'تعديل المحاسبة',
+      module: 'المحاسبة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-accounting-delete',
+      code: 'accounting.delete',
+      name: 'حذف المحاسبة',
+      module: 'المحاسبة',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-sales-approve',
+      code: 'sales.approve',
+      name: 'تصديق أوامر البيع',
+      module: 'المبيعات',
+      description: 'تصديق أوامر البيع والتجهيز والفواتير',
+    ),
+    PermissionModel(
+      id: 'catalog-sales-cancel',
+      code: 'sales.cancel',
+      name: 'إلغاء مستندات البيع',
+      module: 'المبيعات',
+      description: 'إلغاء مستندات البيع وعكس ارتباطاتها',
+    ),
+    PermissionModel(
+      id: 'catalog-purchases-approve',
+      code: 'purchases.approve',
+      name: 'تصديق أوامر الشراء',
+      module: 'المشتريات',
+      description: 'تصديق أوامر الشراء والاستلام والفواتير',
+    ),
+    PermissionModel(
+      id: 'catalog-purchases-cancel',
+      code: 'purchases.cancel',
+      name: 'إلغاء مستندات الشراء',
+      module: 'المشتريات',
+      description: 'إلغاء مستندات الشراء وعكس ارتباطاتها',
+    ),
+    PermissionModel(
+      id: 'catalog-maintenance-approve',
+      code: 'maintenance.approve',
+      name: 'تصديق أوامر الصيانة',
+      module: 'الصيانة',
+      description: 'تصديق أوامر الصيانة والتجهيز والفواتير',
+    ),
+    PermissionModel(
+      id: 'catalog-maintenance-cancel',
+      code: 'maintenance.cancel',
+      name: 'إلغاء مستندات الصيانة',
+      module: 'الصيانة',
+      description: 'إلغاء مستندات الصيانة وعكس ارتباطاتها',
+    ),
+    PermissionModel(
+      id: 'catalog-accounting-post',
+      code: 'accounting.post',
+      name: 'ترحيل القيود',
+      module: 'المحاسبة',
+      description: 'ترحيل القيود المحاسبية واعتمادها',
+    ),
+    PermissionModel(
+      id: 'catalog-accounting-reverse',
+      code: 'accounting.reverse',
+      name: 'عكس القيود',
+      module: 'المحاسبة',
+      description: 'إنشاء قيود عكسية للمستندات المرحلة',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-transfer',
+      code: 'inventory.transfer',
+      name: 'نقل المخزون',
+      module: 'المخزون',
+      description: 'إنشاء وتصديق عمليات النقل بين المخازن',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-transfer-delete',
+      code: 'inventory.transfer.delete',
+      name: 'حذف نقل المنتجات',
+      module: 'المخزون',
+      description: 'حذف سند نقل المنتجات وعكس أثره المخزني وتحديث ارتباطاته',
+    ),
+    PermissionModel(
+      id: 'catalog-cars-transfer-delete',
+      code: 'cars.transfer.delete',
+      name: 'حذف نقل السيارات',
+      module: 'السيارات',
+      description: 'حذف سند نقل السيارة وإعادتها إلى مخزن المصدر وتحديث سجلها',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-adjust',
+      code: 'inventory.adjust',
+      name: 'تسوية المخزون',
+      module: 'المخزون',
+      description: 'تنفيذ الجرد وتسويات الزيادة والنقص',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-receive',
+      code: 'inventory.receive',
+      name: 'استلام مخزني',
+      module: 'المخزون',
+      description: 'تصديق إشعارات الاستلام المخزني',
+    ),
+    PermissionModel(
+      id: 'catalog-inventory-issue',
+      code: 'inventory.issue',
+      name: 'تجهيز مخزني',
+      module: 'المخزون',
+      description: 'تصديق أذونات التجهيز والصرف المخزني',
+    ),
+    PermissionModel(
+      id: 'catalog-cashbox-receipt',
+      code: 'cashbox.receipt',
+      name: 'استلام دفعة مالية',
+      module: 'الصندوق',
+      description: 'تسجيل سندات القبض والدفعات الواردة',
+    ),
+    PermissionModel(
+      id: 'catalog-cashbox-payment',
+      code: 'cashbox.payment',
+      name: 'تسليم دفعة مالية',
+      module: 'الصندوق',
+      description: 'تسجيل سندات الصرف والدفعات الخارجة',
+    ),
+    PermissionModel(
+      id: 'catalog-installments-view',
+      code: 'installments.view',
+      name: 'عرض الأقساط والدفعات',
+      module: 'الأقساط',
+      description: 'عرض جداول الأقساط والاستحقاقات المرتبطة بالمبيعات',
+    ),
+    PermissionModel(
+      id: 'catalog-installments-collect',
+      code: 'installments.collect',
+      name: 'تحصيل الأقساط',
+      module: 'الأقساط',
+      description: 'تسجيل تحصيل الأقساط والدفعات المستحقة',
+    ),
+    PermissionModel(
+      id: 'catalog-dashboard-view',
+      code: 'dashboard.view',
+      name: 'عرض لوحة التحكم',
+      module: 'لوحة التحكم',
+      description: 'عرض المؤشرات والملخصات التشغيلية',
+    ),
+    PermissionModel(
+      id: 'catalog-customers-view',
+      code: 'customers.view',
+      name: 'عرض العملاء',
+      module: 'العملاء',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-customers-create',
+      code: 'customers.create',
+      name: 'إضافة العملاء',
+      module: 'العملاء',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-customers-update',
+      code: 'customers.update',
+      name: 'تعديل العملاء',
+      module: 'العملاء',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-customers-delete',
+      code: 'customers.delete',
+      name: 'حذف العملاء',
+      module: 'العملاء',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-suppliers-view',
+      code: 'suppliers.view',
+      name: 'عرض الموردين',
+      module: 'الموردون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-suppliers-create',
+      code: 'suppliers.create',
+      name: 'إضافة الموردين',
+      module: 'الموردون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-suppliers-update',
+      code: 'suppliers.update',
+      name: 'تعديل الموردين',
+      module: 'الموردون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-suppliers-delete',
+      code: 'suppliers.delete',
+      name: 'حذف الموردين',
+      module: 'الموردون',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-customer-service-view',
+      code: 'customer_service.view',
+      name: 'عرض خدمة العملاء',
+      module: 'خدمة العملاء',
+      description: 'عرض الفرص والأنشطة وحالات الخدمة',
+    ),
+    PermissionModel(
+      id: 'catalog-customer-service-create',
+      code: 'customer_service.create',
+      name: 'إضافة فرص خدمة العملاء',
+      module: 'خدمة العملاء',
+      description: 'إنشاء فرص وأنشطة خدمة العملاء',
+    ),
+    PermissionModel(
+      id: 'catalog-customer-service-update',
+      code: 'customer_service.update',
+      name: 'تعديل خدمة العملاء',
+      module: 'خدمة العملاء',
+      description: 'تعديل الفرص وحالاتها وربطها بالمبيعات',
+    ),
+    PermissionModel(
+      id: 'catalog-customer-service-delete',
+      code: 'customer_service.delete',
+      name: 'حذف سجلات خدمة العملاء',
+      module: 'خدمة العملاء',
+      description: 'حذف الفرص المسموح بها وفق قواعد النظام',
+    ),
+    PermissionModel(
+      id: 'catalog-settings-view',
+      code: 'settings.view',
+      name: 'عرض الإعدادات',
+      module: 'الإعدادات',
+      description: 'الوصول إلى مركز الإعدادات',
+    ),
+    PermissionModel(
+      id: 'catalog-settings-backup',
+      code: 'settings.backup',
+      name: 'إنشاء نسخة احتياطية',
+      module: 'الإعدادات',
+      description: 'تصدير نسخة احتياطية لبيانات النظام',
+    ),
+    PermissionModel(
+      id: 'catalog-settings-restore',
+      code: 'settings.restore',
+      name: 'استعادة نسخة احتياطية',
+      module: 'الإعدادات',
+      description: 'استيراد واستعادة بيانات النظام',
+    ),
+    PermissionModel(
+      id: 'catalog-approvals-view',
+      code: 'approvals.view',
+      name: 'عرض الموافقات',
+      module: 'الموافقات',
+      description: 'عرض الطلبات المنتظرة ومسارات الاعتماد',
+    ),
+    PermissionModel(
+      id: 'catalog-approvals-decide',
+      code: 'approvals.decide',
+      name: 'اتخاذ قرار الموافقة',
+      module: 'الموافقات',
+      description: 'الموافقة أو الرفض ضمن مسار الاعتماد',
+    ),
+    PermissionModel(
+      id: 'catalog-periods-view',
+      code: 'periods.view',
+      name: 'عرض الجدول الزمني',
+      module: 'الفترات التشغيلية',
+      description: 'عرض الفترات والتواريخ التشغيلية',
+    ),
+    PermissionModel(
+      id: 'catalog-periods-close',
+      code: 'periods.close',
+      name: 'إدارة وإغلاق الفترات',
+      module: 'الفترات التشغيلية',
+      description: 'إنشاء الفترات وتعديلها وإغلاقها',
+    ),
+    PermissionModel(
+      id: 'catalog-periods-reopen',
+      code: 'periods.reopen',
+      name: 'إعادة فتح الفترات',
+      module: 'الفترات التشغيلية',
+      description: 'إعادة فتح فترة تشغيلية مغلقة',
+    ),
+    PermissionModel(
+      id: 'catalog-audit-view',
+      code: 'audit.view',
+      name: 'عرض سجل التدقيق',
+      module: 'التدقيق',
+      description: 'عرض سجل العمليات والتغييرات الحساسة',
+    ),
+    PermissionModel(
+      id: 'catalog-reports-view',
+      code: 'reports.view',
+      name: 'عرض التقارير',
+      module: 'التقارير',
+      description: '',
+    ),
+    PermissionModel(
+      id: 'catalog-reports-export',
+      code: 'reports.export',
+      name: 'طباعة وتصدير التقارير',
+      module: 'التقارير',
+      description: '',
+    ),
+    PermissionModel(
       id: 'catalog-recycle-view',
       code: 'settings.recycle_bin.view',
       name: 'عرض سلة المحذوفات',
       module: 'الإعدادات',
       description: '',
     ),
-    const PermissionModel(
+    PermissionModel(
       id: 'catalog-recycle-restore',
       code: 'settings.recycle_bin.restore',
       name: 'استعادة المحذوفات',
       module: 'الإعدادات',
       description: '',
     ),
-    const PermissionModel(
+    PermissionModel(
       id: 'catalog-recycle-purge',
       code: 'settings.recycle_bin.purge',
       name: 'الحذف النهائي',
@@ -367,29 +551,4 @@ abstract final class PermissionCatalog {
     ),
     ...FieldPermissionCatalog.all,
   ];
-
-  static List<PermissionModel> forModuleKey(String moduleKey) {
-    final prefix = '$moduleKey.';
-    return all
-        .where((permission) => permission.code.startsWith(prefix))
-        .toList(growable: false);
-  }
-
-  static String? recordScopeFor(Set<String> codes, String moduleKey) {
-    if (codes.contains('$moduleKey.records.all')) return 'all';
-    if (codes.contains('$moduleKey.records.own')) return 'own';
-    return null;
-  }
-
-  static Set<String> withRecordScope(
-    Set<String> codes,
-    String moduleKey,
-    String? scope,
-  ) {
-    final next = Set<String>.from(codes)
-      ..remove('$moduleKey.records.own')
-      ..remove('$moduleKey.records.all');
-    if (scope == 'own' || scope == 'all') next.add('$moduleKey.records.$scope');
-    return next;
-  }
 }

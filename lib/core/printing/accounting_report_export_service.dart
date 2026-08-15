@@ -9,6 +9,7 @@ import 'package:quality_line_erp/core/exporting/export_document.dart';
 import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
 import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
 import 'package:quality_line_erp/core/exporting/xlsx_integrity.dart';
+import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/localization/domain_translation_catalog.dart';
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 
@@ -16,6 +17,12 @@ import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 /// document identity. PostgreSQL rows remain authoritative in every format.
 class AccountingReportExportService {
   const AccountingReportExportService();
+
+  /// Some legacy accounting callers predate bilingual exports and still pass
+  /// `arabic: false`. The active application locale is authoritative in that
+  /// case, while an explicit Arabic request continues to win.
+  bool _useArabic(bool requestedArabic) =>
+      requestedArabic || AppTranslation.isArabic;
 
   Future<void> exportExcel({
     required String reportName,
@@ -27,13 +34,14 @@ class AccountingReportExportService {
     required bool arabic,
     bool forceCashFlow = false,
   }) async {
-    final language = arabic ? 'ar' : 'en';
+    final useArabic = _useArabic(arabic);
+    final language = useArabic ? 'ar' : 'en';
     final book = Excel.createExcel();
     final initial = book.getDefaultSheet();
     final sheetName = _safeSheet(_text(reportName, language));
     final sheet = book[sheetName];
     if (initial != null && initial != sheetName) book.delete(initial);
-    ExcelWorkbookPresentation.prepareSheet(sheet, arabic: arabic);
+    ExcelWorkbookPresentation.prepareSheet(sheet, arabic: useArabic);
 
     final columns = _columns(rows, forceCashFlow: forceCashFlow);
     sheet.appendRow([TextCellValue(_text(reportName, language))]);
@@ -43,15 +51,15 @@ class AccountingReportExportService {
       columnCount: columns.isEmpty ? 2 : columns.length,
     );
     sheet.appendRow([
-      TextCellValue(arabic ? 'الفترة' : 'Period'),
+      TextCellValue(useArabic ? 'الفترة' : 'Period'),
       TextCellValue(_text(period, language)),
     ]);
     sheet.appendRow([
-      TextCellValue(arabic ? 'العملة' : 'Currency'),
+      TextCellValue(useArabic ? 'العملة' : 'Currency'),
       TextCellValue(_text(currency, language)),
     ]);
     sheet.appendRow([
-      TextCellValue(arabic ? 'عدد السجلات' : 'Row count'),
+      TextCellValue(useArabic ? 'عدد السجلات' : 'Row count'),
       IntCellValue(rows.length),
     ]);
     sheet.appendRow(<CellValue>[]);
@@ -90,7 +98,7 @@ class AccountingReportExportService {
         startRow: headerRow + 1,
         rowCount: rows.length,
         columnCount: headers.length,
-        arabic: arabic,
+        arabic: useArabic,
       );
       for (var index = 0; index < headers.length; index++) {
         final header = headers[index].toLowerCase();
@@ -107,7 +115,9 @@ class AccountingReportExportService {
 
     final encoded = book.encode();
     if (encoded == null) {
-      throw StateError(arabic ? 'تعذر إنشاء ملف Excel.' : 'Unable to create Excel file.');
+      throw StateError(
+        useArabic ? 'تعذر إنشاء ملف Excel.' : 'Unable to create Excel file.',
+      );
     }
     await ExcelDownloadService.save(
       fileName:
@@ -125,6 +135,7 @@ class AccountingReportExportService {
     required String Function(Object? value) format,
     required bool arabic,
   }) async {
+    final useArabic = _useArabic(arabic);
     final bytes = await buildPdf(
       reportName: reportName,
       period: period,
@@ -132,10 +143,11 @@ class AccountingReportExportService {
       rows: rows,
       label: label,
       format: format,
-      arabic: arabic,
+      arabic: useArabic,
     );
     await PdfPrintService.print(
-      fileName: '${PdfTextSupport.filePart(_text(reportName, arabic ? 'ar' : 'en'))}.pdf',
+      fileName:
+          '${PdfTextSupport.filePart(_text(reportName, useArabic ? 'ar' : 'en'))}.pdf',
       bytes: bytes,
     );
   }
@@ -149,6 +161,7 @@ class AccountingReportExportService {
     required String Function(Object? value) format,
     required bool arabic,
   }) async {
+    final useArabic = _useArabic(arabic);
     final bytes = await buildPdf(
       reportName: reportName,
       period: period,
@@ -156,11 +169,11 @@ class AccountingReportExportService {
       rows: rows,
       label: label,
       format: format,
-      arabic: arabic,
+      arabic: useArabic,
     );
     await BinaryDownloadService.save(
       fileName:
-          '${PdfTextSupport.filePart(_text(reportName, arabic ? 'ar' : 'en'))}-${DateTime.now().millisecondsSinceEpoch}.pdf',
+          '${PdfTextSupport.filePart(_text(reportName, useArabic ? 'ar' : 'en'))}-${DateTime.now().millisecondsSinceEpoch}.pdf',
       bytes: bytes,
       mimeType: 'application/pdf',
     );
@@ -175,7 +188,8 @@ class AccountingReportExportService {
     required String Function(Object? value) format,
     required bool arabic,
   }) async {
-    final language = arabic ? 'ar' : 'en';
+    final useArabic = _useArabic(arabic);
+    final language = useArabic ? 'ar' : 'en';
     final columns = _columns(rows);
     final documentRows = rows
         .map(
@@ -189,14 +203,15 @@ class AccountingReportExportService {
 
     final document = ExportDocument(
       title: _text(reportName, language),
-      subtitle: '${arabic ? 'الفترة' : 'Period'}: ${_text(period, language)}',
+      subtitle:
+          '${useArabic ? 'الفترة' : 'Period'}: ${_text(period, language)}',
       language: language,
       currency: _text(currency, language),
       generatedAt: DateTime.now(),
       metadata: <String, Object?>{
-        arabic ? 'الفترة' : 'Period': _text(period, language),
-        arabic ? 'العملة' : 'Currency': _text(currency, language),
-        arabic ? 'عدد السجلات' : 'Row count': rows.length,
+        useArabic ? 'الفترة' : 'Period': _text(period, language),
+        useArabic ? 'العملة' : 'Currency': _text(currency, language),
+        useArabic ? 'عدد السجلات' : 'Row count': rows.length,
       },
       columns: <ExportColumn>[
         for (final key in columns)
@@ -249,7 +264,8 @@ class AccountingReportExportService {
       'branchName',
     ];
     final all = <String>{for (final row in rows) ...row.keys};
-    final extras = all.where((key) => !preferred.contains(key)).toList()..sort();
+    final extras = all.where((key) => !preferred.contains(key)).toList()
+      ..sort();
     final result = <String>[
       ...preferred.where(all.contains),
       ...extras,
@@ -293,8 +309,11 @@ class AccountingReportExportService {
     if (clean == 'تقرير خط الجودة') {
       return language == 'ar' ? clean : 'Quality Line Report';
     }
-    if (clean == 'جميع الفترات') {
-      return language == 'ar' ? clean : 'All periods';
+    if (clean == 'جميع الفترات' || clean == 'All periods') {
+      return language == 'ar' ? 'جميع الفترات' : 'All periods';
+    }
+    if (clean == 'All currencies') {
+      return language == 'ar' ? 'كل العملات' : clean;
     }
     return DomainTranslationCatalog.translate(clean, language);
   }
