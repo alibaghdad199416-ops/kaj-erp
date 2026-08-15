@@ -43,35 +43,28 @@ class CloudBootstrap {
     return _initialization ??= _initializeOnce();
   }
 
-  /// R57 local-development auth isolation.
-  ///
-  /// supabase_flutter's default persisted-session key is derived from the URL
-  /// host. Multiple Supabase CLI projects on 127.0.0.1 would therefore share
-  /// the same browser session key. Give each local project its own namespace.
-  /// Hosted Supabase behavior is intentionally unchanged.
-  static FlutterAuthClientOptions _r57AuthOptionsForCurrentBackend() {
+  /// Browser authentication is namespaced by the actual Supabase project for
+  /// both hosted and local runtimes. The earlier runtime only isolated local
+  /// CLI projects, which allowed a persisted hosted session to survive backend
+  /// configuration changes and restore the wrong company context.
+  static FlutterAuthClientOptions _authOptionsForCurrentBackend() {
     final uri = Uri.tryParse(SupabaseConfig.url);
     final host = uri?.host.toLowerCase() ?? '';
     final isLoopback =
         host == '127.0.0.1' ||
         host == 'localhost' ||
         host.endsWith('.localhost');
-
-    if (!isLoopback) {
-      return const FlutterAuthClientOptions();
-    }
-
-    final configuredProject = SupabaseConfig.localProjectId;
-    final project = configuredProject.trim().isEmpty
-        ? 'quality_line_erp_local_dev'
-        : configuredProject.trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-
-    return FlutterAuthClientOptions(
-      localStorage: SharedPreferencesLocalStorage(
-        persistSessionKey: 'kaj-erp-$project-auth-token',
-      ),
-      detectSessionInUri: false,
+    final localStorage = SharedPreferencesLocalStorage(
+      persistSessionKey: SupabaseConfig.authPersistSessionKey,
     );
+
+    if (isLoopback) {
+      return FlutterAuthClientOptions(
+        localStorage: localStorage,
+        detectSessionInUri: false,
+      );
+    }
+    return FlutterAuthClientOptions(localStorage: localStorage);
   }
 
   static Future<CloudBootstrapResult> _initializeOnce() async {
@@ -80,11 +73,14 @@ class CloudBootstrap {
 
     if (SupabaseConfig.validate() == null) {
       try {
+        AppLogger.debug(
+          'Supabase bootstrap target: ${SupabaseConfig.projectRef}; '
+          'authStorage=${SupabaseConfig.authPersistSessionKey}',
+        );
         await Supabase.initialize(
           url: SupabaseConfig.url,
           publishableKey: SupabaseConfig.anonKey,
-
-          authOptions: _r57AuthOptionsForCurrentBackend(),
+          authOptions: _authOptionsForCurrentBackend(),
         );
         supabaseReady = true;
       } catch (error, stackTrace) {
@@ -106,7 +102,8 @@ class CloudBootstrap {
     );
     _lastResult = result;
     AppLogger.debug(
-      'Cloud bootstrap: Supabase=${result.supabaseReady}; hosting=Firebase',
+      'Cloud bootstrap: Supabase=${result.supabaseReady}; '
+      'project=${SupabaseConfig.projectRef}; hosting=Firebase',
     );
     return result;
   }
