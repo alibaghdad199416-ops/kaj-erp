@@ -9,7 +9,7 @@ create or replace function public.erp_r74_runtime_identity(
   p_company_id uuid
 ) returns jsonb
 language plpgsql
-stable
+volatile
 security definer
 set search_path=public
 as $$
