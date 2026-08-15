@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
 
+import 'package:quality_line_erp/core/accounting/cash_flow_hierarchy.dart';
 import 'package:quality_line_erp/core/exporting/binary_download_service.dart';
 import 'package:quality_line_erp/core/exporting/excel_download_service.dart';
 import 'package:quality_line_erp/core/exporting/excel_workbook_presentation.dart';
@@ -44,6 +45,7 @@ class AccountingReportExportService {
     ExcelWorkbookPresentation.prepareSheet(sheet, arabic: useArabic);
 
     final columns = _columns(rows, forceCashFlow: forceCashFlow);
+    final cashFlow = forceCashFlow ? CashFlowHierarchy.fromRows(rows) : null;
     sheet.appendRow([TextCellValue(_text(reportName, language))]);
     ExcelWorkbookPresentation.styleTitle(
       sheet,
@@ -62,10 +64,24 @@ class AccountingReportExportService {
       TextCellValue(useArabic ? 'عدد السجلات' : 'Row count'),
       IntCellValue(rows.length),
     ]);
+    if (cashFlow != null) ...{
+      sheet.appendRow([
+        TextCellValue(useArabic ? 'إجمالي التدفقات الداخلة' : 'Total cash in'),
+        DoubleCellValue(cashFlow.cashInTotal),
+      ]),
+      sheet.appendRow([
+        TextCellValue(useArabic ? 'إجمالي التدفقات الخارجة' : 'Total cash out'),
+        DoubleCellValue(cashFlow.cashOutTotal),
+      ]),
+      sheet.appendRow([
+        TextCellValue(useArabic ? 'صافي التدفق النقدي' : 'Net cash flow'),
+        DoubleCellValue(cashFlow.netTotal),
+      ]),
+    };
     sheet.appendRow(<CellValue>[]);
 
     if (columns.isNotEmpty) {
-      const headerRow = 5;
+      final headerRow = cashFlow == null ? 5 : 8;
       final headers = columns
           .map((key) => _label(label(key), language))
           .toList(growable: false);
