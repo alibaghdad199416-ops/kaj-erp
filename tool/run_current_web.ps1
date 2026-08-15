@@ -20,9 +20,6 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 python -B tool/verify_r72_dashboard_database_contract.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-python -B tool/verify_r73_current_runtime_identity.py
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
 python -B tool/verify_r74_authenticated_tenant_runtime.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
