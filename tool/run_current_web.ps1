@@ -23,6 +23,9 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 python -B tool/verify_r84_user_media_scope_ui_exports.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+python -B tool/verify_r85_secondary_record_scope.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "`nPreparing the CURRENT LOCAL Supabase database..." -ForegroundColor Cyan
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tool\prepare_local_current_database.ps1
@@ -34,7 +37,7 @@ if (-not (Test-Path 'dart_defines.local.generated.json')) {
 
 Write-Host "`nLaunching KAJ ERP against LOCAL Supabase only..." -ForegroundColor Green
 Write-Host 'Backend source: Supabase CLI local stack (127.0.0.1)' -ForegroundColor Green
-Write-Host 'All pending migrations, including R78/R79/R80/R84, are applied forward-only to the existing local database.' -ForegroundColor Green
+Write-Host 'All pending migrations, including R78/R79/R80/R84/R85, are applied forward-only to the existing local database.' -ForegroundColor Green
 Write-Host 'Production configuration remains separate and unchanged.' -ForegroundColor Green
 flutter run -d edge --dart-define-from-file=dart_defines.local.generated.json
 exit $LASTEXITCODE
