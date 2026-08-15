@@ -110,6 +110,20 @@ class SupabaseConfig {
     allowLocalDev: allowLocalDevelopment ?? SupabaseConfig.allowLocalDev,
   );
 
+  /// Runtime validation is stricter than the reusable URL/key validator: any
+  /// hosted build must point to the explicitly approved production project.
+  /// A stale dart-define therefore fails closed instead of silently opening an
+  /// older Supabase project. Explicit loopback development remains supported.
+  static String? validateRuntime() {
+    final configurationError = validate();
+    if (configurationError != null) return configurationError;
+    if (!isLocalTarget() && projectRef != expectedProductionProjectRef) {
+      return 'إعداد Supabase لا يشير إلى قاعدة الإنتاج المعتمدة '
+          '$expectedProductionProjectRef.';
+    }
+    return null;
+  }
+
   static String? validateConfiguration({
     required String projectUrl,
     required String publishableKey,
@@ -235,5 +249,5 @@ class SupabaseConfig {
         normalized.endsWith('.localhost');
   }
 
-  static bool get isConfigured => validate() == null;
+  static bool get isConfigured => validateRuntime() == null;
 }
