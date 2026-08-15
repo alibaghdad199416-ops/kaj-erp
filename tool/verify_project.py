@@ -30,6 +30,7 @@ GATES = (
     "verify_v742_final_audit.py",
     "verify_r78_complete_requirements.py",
     "verify_r79_media_export_stabilization.py",
+    "verify_r84_user_media_scope_ui_exports.py",
 )
 
 
