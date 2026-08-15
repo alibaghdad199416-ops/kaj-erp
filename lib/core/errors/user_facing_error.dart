@@ -24,6 +24,109 @@ String userFacingError(
       .trim();
   final normalized = cleaned.toLowerCase();
 
+  if (normalized.contains('opportunity_won_owned_by_sales_workflow') ||
+      normalized.contains('opportunity_terminal_stage_sales_owned') ||
+      normalized.contains('opportunity_won_requires_canonical_sales_workflow') ||
+      normalized.contains('opportunity_already_won')) {
+    return isArabic
+        ? 'حالة الفوز والإغلاق في الفرصة تُحدَّث تلقائيًا من مسار المبيعات المعتمد. افتح أمر البيع المرتبط وأكمل مرحلته المطلوبة.'
+        : 'Opportunity Won/Closed status is controlled by the canonical sales workflow. Open the linked sales order and complete the required stage.';
+  }
+
+  if (normalized.contains('opportunity_has_sales_history')) {
+    return isArabic
+        ? 'لا يمكن حذف الفرصة ما دام أمر بيع فعال مرتبطًا بها. ألغِ أو عالج أمر البيع المرتبط أولًا.'
+        : 'The opportunity cannot be deleted while an active sales order is linked to it. Cancel or resolve the linked sales order first.';
+  }
+
+  if (normalized.contains('opportunity_has_maintenance_history')) {
+    return isArabic
+        ? 'لا يمكن حذف الفرصة ما دام أمر صيانة غير محذوف مرتبطًا بها. ألغِ أمر الصيانة عند الحاجة ثم احذفه وفق دورة الحذف المعتمدة أولًا.'
+        : 'The opportunity cannot be deleted while a non-deleted maintenance order is linked to it. Cancel it if required, then complete the governed maintenance deletion lifecycle first.';
+  }
+
+  if (normalized.contains('opportunity_customer_required')) {
+    return isArabic
+        ? 'يجب تحديد عميل صالح للفرصة قبل الحفظ.'
+        : 'Select a valid customer for the opportunity before saving.';
+  }
+
+  if (normalized.contains('opportunity_customer_mismatch') ||
+      normalized.contains('opportunity_sales_customer_locked')) {
+    return isArabic
+        ? 'عميل الفرصة لا يطابق العميل في أمر البيع المرتبط. بعد إنشاء أمر البيع لا يمكن تغيير هوية العميل من الفرصة.'
+        : 'The opportunity customer does not match the linked sales order. Customer identity cannot be changed from CRM after a sales order exists.';
+  }
+
+  if (normalized.contains('opportunity_maintenance_customer_locked')) {
+    return isArabic
+        ? 'عميل الفرصة لا يطابق العميل في أمر الصيانة المرتبط. عالج دورة الصيانة المرتبطة أولًا بدل تغيير هوية العميل من الفرصة.'
+        : 'The opportunity customer does not match the linked maintenance order. Resolve the linked maintenance lifecycle before changing customer identity in CRM.';
+  }
+
+  if (normalized.contains('opportunity_maintenance_vehicle_locked')) {
+    return isArabic
+        ? 'المركبة المرتبطة بالفرصة لا تطابق مركبة أمر الصيانة. لا يمكن تغيير المركبة من الفرصة ما دام أمر الصيانة مرتبطًا بها.'
+        : 'The opportunity vehicle does not match the linked maintenance order. The CRM vehicle cannot be changed while that maintenance lifecycle remains linked.';
+  }
+
+  if (normalized.contains('opportunity_currency_invalid')) {
+    return isArabic
+        ? 'عملة الفرصة غير صالحة. استخدم USD أو IQD.'
+        : 'The opportunity currency is invalid. Use USD or IQD.';
+  }
+
+  if (normalized.contains('opportunity_currency_mismatch') ||
+      normalized.contains('opportunity_sales_currency_locked')) {
+    return isArabic
+        ? 'عملة الفرصة لا تطابق عملة أمر البيع المرتبط. بعد إنشاء أمر البيع لا يمكن تغيير العملة من الفرصة.'
+        : 'The opportunity currency does not match the linked sales order. Currency cannot be changed from CRM after a sales order exists.';
+  }
+
+  if (normalized.contains('opportunity_expected_value_invalid')) {
+    return isArabic
+        ? 'القيمة المتوقعة للفرصة يجب أن تكون رقمًا صالحًا غير سالب.'
+        : 'The opportunity expected value must be a valid non-negative number.';
+  }
+
+  if (normalized.contains('opportunity_probability_invalid')) {
+    return isArabic
+        ? 'احتمالية الفرصة يجب أن تكون بين 0 و100.'
+        : 'Opportunity probability must be between 0 and 100.';
+  }
+
+  if (normalized.contains('opportunity_responsible_user_invalid')) {
+    return isArabic
+        ? 'المستخدم المسؤول غير فعال في الشركة الحالية. اختر مستخدمًا فعالًا أو اترك الفرصة بدون إسناد.'
+        : 'The responsible user is not an active member of the current company. Select an active user or leave the opportunity unassigned.';
+  }
+
+  if (normalized.contains('opportunity_lost_requires_transition') ||
+      normalized.contains('opportunity_lost_requires_mark_lost')) {
+    return isArabic
+        ? 'حوّل الفرصة إلى خاسرة باستخدام إجراء «خاسرة» المعتمد بدل تعديل الحالة مباشرة.'
+        : 'Mark the opportunity Lost using the governed Lost action instead of changing the terminal state directly.';
+  }
+
+  if (normalized.contains('opportunity_is_lost') ||
+      normalized.contains('lost_opportunity_cannot_create_sales_order')) {
+    return isArabic
+        ? 'الفرصة خاسرة حاليًا ولا يمكن إنشاء أو إعادة تفعيل أمر بيع منها. راجع حالة الفرصة قبل بدء دورة بيع جديدة.'
+        : 'This opportunity is currently Lost, so a sales order cannot be created or reactivated from it. Review the opportunity state before starting a new sales lifecycle.';
+  }
+
+  if (normalized.contains('lost_opportunity_cannot_create_maintenance_order')) {
+    return isArabic
+        ? 'الفرصة خاسرة ولا يمكن إنشاء أمر صيانة جديد منها. يمكن فتح أو مراجعة أمر الصيانة التاريخي المرتبط إن وُجد.'
+        : 'This opportunity is Lost, so a new maintenance order cannot be created from it. An existing historical maintenance order can still be opened for review.';
+  }
+
+  if (normalized.contains('maintenance_opportunity_link_missing_after_save')) {
+    return isArabic
+        ? 'تم حفظ أمر الصيانة لكن تعذر إعادة قراءة ارتباطه بالفرصة. حدّث الفرص وتحقق من أمر الصيانة قبل إعادة المحاولة.'
+        : 'The maintenance order was saved, but its Opportunity link could not be read back. Refresh CRM and verify the maintenance order before trying again.';
+  }
+
   if (normalized.contains('financial_family_incomplete_or_ambiguous') ||
       normalized.contains('financial_family_postcondition_failed')) {
     return isArabic

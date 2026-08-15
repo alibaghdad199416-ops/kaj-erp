@@ -286,7 +286,6 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-
                 inputFormatters: <TextInputFormatter>[
                   ThousandsInputFormatter(decimalDigits: 2),
                 ],
@@ -813,7 +812,10 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
           maxWidth: 1080,
           maxHeight: 780,
           builder: (_) => AddMaintenanceOrderPage(
-            order: existing,
+            // A cancelled Maintenance order is preserved as history. The
+            // explicit "Create Maintenance Draft" action starts a new active
+            // lifecycle instead of trying to edit the cancelled document.
+            order: existing?.isCancelled == true ? null : existing,
             initialCarId: carId == null || carId.isEmpty ? null : carId,
             opportunityId: item.id,
           ),
@@ -832,6 +834,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
           maxHeight: 760,
           builder: (_) => SalesOrderDraftPage(
             initialCustomerId: customer.id,
+            initialCurrency: item.currency,
             opportunityId: item.id,
             orderId: orderId == null || orderId.isEmpty ? null : orderId,
           ),

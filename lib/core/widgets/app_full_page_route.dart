@@ -5,25 +5,23 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
+import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
-/// Opens module work in a movable, manually resizable content window.
-///
-/// The window has no title header, footer, taskbar, back button, minimum button,
-/// maximum button, or restore button. The only visible window control is one
-/// close button positioned inside the content surface. Dragging that close dock
-/// moves the window; an invisible corner hit area keeps two-axis resizing.
+/// Opens module work in one consistent premium, movable and resizable window.
+/// Every legacy Dialog/AlertDialog/Scaffold is normalized into the same header,
+/// content viewport and command footer so controls cannot escape the window.
 Future<T?> showAppFullPageRoute<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   String? title,
   bool barrierDismissible = false,
-  double maxWidth = 920,
-  double maxHeight = 720,
-  double minWidth = 440,
-  double minHeight = 320,
+  double maxWidth = 1040,
+  double maxHeight = 760,
+  double minWidth = 520,
+  double minHeight = 380,
 }) {
   FocusManager.instance.primaryFocus?.unfocus();
   return showGeneralDialog<T>(
@@ -31,7 +29,7 @@ Future<T?> showAppFullPageRoute<T>({
     useRootNavigator: true,
     barrierDismissible: false,
     barrierLabel: title ?? 'module-window',
-    barrierColor: Colors.black.withValues(alpha: .64),
+    barrierColor: Colors.black.withValues(alpha: .68),
     transitionDuration: const Duration(milliseconds: 210),
     pageBuilder: (dialogContext, _, _) => _AppResizableModuleWindow<T>(
       title: title,
@@ -49,7 +47,7 @@ Future<T?> showAppFullPageRoute<T>({
       return FadeTransition(
         opacity: curved,
         child: ScaleTransition(
-          scale: Tween<double>(begin: .965, end: 1).animate(curved),
+          scale: Tween<double>(begin: .97, end: 1).animate(curved),
           child: child,
         ),
       );
@@ -180,8 +178,8 @@ class _AppResizableModuleWindowState<T>
         type: MaterialType.transparency,
         child: LayoutBuilder(
           builder: (context, viewport) {
-            final horizontalMargin = viewport.maxWidth < 720 ? 8.0 : 26.0;
-            final verticalMargin = viewport.maxHeight < 620 ? 8.0 : 22.0;
+            final horizontalMargin = viewport.maxWidth < 720 ? 8.0 : 24.0;
+            final verticalMargin = viewport.maxHeight < 620 ? 8.0 : 20.0;
             final available = Size(
               math.max(280.0, viewport.maxWidth - horizontalMargin * 2),
               math.max(240.0, viewport.maxHeight - verticalMargin * 2),
@@ -197,7 +195,6 @@ class _AppResizableModuleWindowState<T>
                   .clamp(minimum.height, available.height)
                   .toDouble(),
             );
-
             final closeDock = _CloseAndMoveDock(
               onClose: _requestClose,
               onMove: (details) => _moveWindow(
@@ -208,6 +205,7 @@ class _AppResizableModuleWindowState<T>
             );
 
             return Stack(
+              clipBehavior: Clip.none,
               children: [
                 Positioned.fill(
                   child: GestureDetector(
@@ -240,28 +238,32 @@ class _AppResizableModuleWindowState<T>
                             borderRadius: BorderRadius.circular(
                               KajDesignTokens.radiusLg,
                             ),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: RepaintBoundary(
-                                    child: _WindowContentNavigator<T>(
-                                      builder: (contentContext) =>
-                                          _normalizeContent(
-                                            widget.builder(contentContext),
-                                            closeDock: closeDock,
-                                          ),
-                                      onRootPopped: _close,
+                            clipBehavior: Clip.hardEdge,
+                            child: _PremiumWindowTheme(
+                              child: Stack(
+                                clipBehavior: Clip.hardEdge,
+                                children: [
+                                  Positioned.fill(
+                                    child: RepaintBoundary(
+                                      child: _WindowContentNavigator<T>(
+                                        builder: (contentContext) =>
+                                            _normalizeContent(
+                                              widget.builder(contentContext),
+                                              closeDock: closeDock,
+                                            ),
+                                        onRootPopped: _close,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: _InvisibleResizeCorner(
-                                    onPanUpdate: _resizeFromCorner,
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: _InvisibleResizeCorner(
+                                      onPanUpdate: _resizeFromCorner,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -274,6 +276,48 @@ class _AppResizableModuleWindowState<T>
           },
         ),
       ),
+    );
+  }
+}
+
+class _PremiumWindowTheme extends StatelessWidget {
+  const _PremiumWindowTheme({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context);
+    final controlStyle = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(0, 42)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      ),
+      textStyle: WidgetStatePropertyAll(
+        base.textTheme.labelLarge?.copyWith(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
+        ),
+      ),
+    );
+    return Theme(
+      data: base.copyWith(
+        filledButtonTheme: FilledButtonThemeData(style: controlStyle),
+        outlinedButtonTheme: OutlinedButtonThemeData(style: controlStyle),
+        textButtonTheme: TextButtonThemeData(style: controlStyle),
+        inputDecorationTheme: base.inputDecorationTheme.copyWith(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 13,
+            vertical: 13,
+          ),
+        ),
+      ),
+      child: child,
     );
   }
 }
@@ -292,17 +336,12 @@ Widget _normalizeContent(Widget child, {required Widget closeDock}) {
   if (child is Scaffold) {
     return _ScaffoldAsWindow(scaffold: child, closeDock: closeDock);
   }
-  if (child is Dialog) {
-    final dialogChild = child.child;
-    if (dialogChild != null) {
-      return _PlainContentAsWindow(closeDock: closeDock, child: dialogChild);
-    }
+  if (child is Dialog && child.child != null) {
+    return _PlainContentAsWindow(closeDock: closeDock, child: child.child!);
   }
   return _PlainContentAsWindow(closeDock: closeDock, child: child);
 }
 
-/// A local Navigator preserves existing `Navigator.pop(context, result)` calls
-/// in older forms. The permanent guard route prevents an empty window frame.
 class _WindowContentNavigator<T> extends StatelessWidget {
   const _WindowContentNavigator({
     required this.builder,
@@ -374,20 +413,13 @@ class _CloseAndMoveDock extends StatelessWidget {
           onTap: () => unawaited(onClose()),
           borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
           child: Container(
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: <Color>[
-                  KajDesignTokens.electricBlue.withValues(alpha: .28),
-                  KajDesignTokens.electricBlue.withValues(alpha: .08),
-                ],
-              ),
+              color: KajDesignTokens.electricBlue.withValues(alpha: .10),
               border: Border.all(
-                color: KajDesignTokens.electricBlue.withValues(alpha: .68),
+                color: KajDesignTokens.electricBlue.withValues(alpha: .52),
               ),
             ),
             child: Icon(
@@ -402,26 +434,95 @@ class _CloseAndMoveDock extends StatelessWidget {
   );
 }
 
-class _WindowContentFrame extends StatelessWidget {
-  const _WindowContentFrame({required this.child});
-
-  final Widget child;
+class _WindowHeader extends StatelessWidget {
+  const _WindowHeader({required this.title, required this.closeDock, this.actions});
+  final Widget? title;
+  final Widget closeDock;
+  final List<Widget>? actions;
 
   @override
-  Widget build(BuildContext context) => child;
+  Widget build(BuildContext context) {
+    final values = actions ?? const <Widget>[];
+    return Container(
+      constraints: const BoxConstraints(minHeight: 62),
+      padding: const EdgeInsetsDirectional.fromSTEB(18, 10, 12, 10),
+      decoration: BoxDecoration(
+        gradient: KajDesignTokens.surfaceGradient(Theme.of(context).brightness),
+        border: Border(
+          bottom: BorderSide(
+            color: KajDesignTokens.border(Theme.of(context).brightness),
+          ),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: title == null
+                ? const SizedBox.shrink()
+                : DefaultTextStyle.merge(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.25,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    child: title!,
+                  ),
+          ),
+          if (values.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Flexible(
+              flex: 2,
+              child: AppHorizontalStrip(children: values),
+            ),
+          ],
+          const SizedBox(width: 10),
+          closeDock,
+        ],
+      ),
+    );
+  }
+}
+
+class _WindowFooter extends StatelessWidget {
+  const _WindowFooter({required this.actions});
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    if (actions.isEmpty) return const SizedBox.shrink();
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 16, 10),
+      decoration: BoxDecoration(
+        color: KajDesignTokens.raisedSurface(Theme.of(context).brightness),
+        border: Border(
+          top: BorderSide(
+            color: KajDesignTokens.border(Theme.of(context).brightness),
+          ),
+        ),
+      ),
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: AppHorizontalStrip(
+          spacing: 8,
+          children: Directionality.of(context) == TextDirection.rtl
+              ? actions.reversed.toList(growable: false)
+              : actions,
+        ),
+      ),
+    );
+  }
 }
 
 class _ScaffoldAsWindow extends StatelessWidget {
   const _ScaffoldAsWindow({required this.scaffold, required this.closeDock});
-
   final Scaffold scaffold;
   final Widget closeDock;
 
   @override
   Widget build(BuildContext context) {
-    final appBar = scaffold.appBar is AppBar
-        ? scaffold.appBar! as AppBar
-        : null;
+    final appBar = scaffold.appBar is AppBar ? scaffold.appBar! as AppBar : null;
     final actions = <Widget>[
       ...?appBar?.actions,
       if (scaffold.floatingActionButton != null) scaffold.floatingActionButton!,
@@ -429,164 +530,50 @@ class _ScaffoldAsWindow extends StatelessWidget {
     final bottom = appBar?.bottom;
     final backgroundColor =
         scaffold.backgroundColor ?? Theme.of(context).colorScheme.surface;
-
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 12, 10),
-          decoration: BoxDecoration(
-            gradient: KajDesignTokens.surfaceGradient(
-              Theme.of(context).brightness,
-            ),
-            border: Border(
-              bottom: BorderSide(
-                color: KajDesignTokens.border(Theme.of(context).brightness),
-              ),
-            ),
-          ),
-          child: Row(
-            children: <Widget>[
-              if (appBar?.title case final title?)
-                Expanded(
-                  child: DefaultTextStyle.merge(
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -.25,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    child: title,
-                  ),
-                )
-              else
-                const Spacer(),
-              const SizedBox(width: 12),
-              if (actions.isNotEmpty)
-                Flexible(
-                  flex: 2,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    reverse: Directionality.of(context) == TextDirection.rtl,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        for (
-                          var index = 0;
-                          index < actions.length;
-                          index++
-                        ) ...[
-                          if (index > 0) const SizedBox(width: 7),
-                          actions[index],
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              if (actions.isNotEmpty) const SizedBox(width: 8),
-              closeDock,
-            ],
-          ),
-        ),
-        if (bottom != null)
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: KajDesignTokens.raisedSurface(
-                Theme.of(context).brightness,
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: KajDesignTokens.border(Theme.of(context).brightness),
-                ),
-              ),
-            ),
-            child: SizedBox(height: bottom.preferredSize.height, child: bottom),
-          ),
-        Expanded(child: scaffold.body ?? const SizedBox.shrink()),
-      ],
-    );
-
     return ColoredBox(
       color: backgroundColor,
-      child: _WindowContentFrame(child: body),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _WindowHeader(title: appBar?.title, closeDock: closeDock, actions: actions),
+          if (bottom != null)
+            SizedBox(height: bottom.preferredSize.height, child: bottom),
+          Expanded(
+            child: ClipRect(child: scaffold.body ?? const SizedBox.shrink()),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _AlertDialogAsWindow extends StatelessWidget {
   const _AlertDialogAsWindow({required this.dialog, required this.closeDock});
-
   final AlertDialog dialog;
   final Widget closeDock;
 
   @override
   Widget build(BuildContext context) {
-    final title = dialog.title;
     final actions = dialog.actions ?? const <Widget>[];
-    return _WindowContentFrame(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: <Widget>[
-                if (title != null)
-                  Expanded(
-                    child: DefaultTextStyle.merge(
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      child: title,
-                    ),
-                  )
-                else
-                  const Spacer(),
-                if (actions.isNotEmpty) const SizedBox(width: 12),
-                if (actions.isNotEmpty)
-                  Flexible(
-                    flex: 2,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      reverse: Directionality.of(context) == TextDirection.rtl,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          for (
-                            var index = 0;
-                            index < actions.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
-                            actions[index],
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                if (actions.isNotEmpty) const SizedBox(width: 8),
-                closeDock,
-              ],
+    final content = dialog.content ?? const SizedBox.shrink();
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _WindowHeader(title: dialog.title, closeDock: closeDock),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              child: ClipRect(
+                child: dialog.scrollable
+                    ? SingleChildScrollView(child: content)
+                    : SizedBox(width: double.infinity, child: content),
+              ),
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: dialog.scrollable
-                  ? SingleChildScrollView(
-                      padding: EdgeInsets.zero,
-                      child: dialog.content ?? const SizedBox.shrink(),
-                    )
-                  : Align(
-                      alignment: AlignmentDirectional.topStart,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: dialog.content ?? const SizedBox.shrink(),
-                      ),
-                    ),
-            ),
-          ],
-        ),
+          ),
+          _WindowFooter(actions: actions),
+        ],
       ),
     );
   }
@@ -604,27 +591,13 @@ class _PlainContentAsWindow extends StatelessWidget {
   final bool showCloseOverlay;
 
   @override
-  Widget build(BuildContext context) => _WindowContentFrame(
+  Widget build(BuildContext context) => ColoredBox(
+    color: Theme.of(context).colorScheme.surface,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (showCloseOverlay)
-          Container(
-            height: 56,
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 9, 12, 9),
-            decoration: BoxDecoration(
-              gradient: KajDesignTokens.surfaceGradient(
-                Theme.of(context).brightness,
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: KajDesignTokens.border(Theme.of(context).brightness),
-                ),
-              ),
-            ),
-            child: Row(children: <Widget>[const Spacer(), closeDock]),
-          ),
-        Expanded(child: child),
+        if (showCloseOverlay) _WindowHeader(title: null, closeDock: closeDock),
+        Expanded(child: ClipRect(child: child)),
       ],
     ),
   );
@@ -632,7 +605,6 @@ class _PlainContentAsWindow extends StatelessWidget {
 
 class _InvisibleResizeCorner extends StatelessWidget {
   const _InvisibleResizeCorner({required this.onPanUpdate});
-
   final GestureDragUpdateCallback onPanUpdate;
 
   @override
@@ -642,7 +614,7 @@ class _InvisibleResizeCorner extends StatelessWidget {
       key: const ValueKey('module-window-resize-corner'),
       behavior: HitTestBehavior.translucent,
       onPanUpdate: onPanUpdate,
-      child: const SizedBox(width: 22, height: 22),
+      child: const SizedBox(width: 24, height: 24),
     ),
   );
 }

@@ -8,6 +8,8 @@ node_modules/
 coverage/
 
 backups/
+.local_backups/
+dart_defines.local.generated.json
 __pycache__/
 *.py[cod]
 supabase/.temp/

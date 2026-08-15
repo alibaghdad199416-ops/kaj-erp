@@ -4,9 +4,19 @@ abstract final class PermissionCodes {
   static const usersCreate = 'users.create';
   static const usersUpdate = 'users.update';
   static const usersDelete = 'users.delete';
+  static const usersImageUpdate = 'users.image.update';
+  static const usersCredentialsUpdate = 'users.credentials.update';
+
+  static const customersImageUpdate = 'customers.image.update';
+  static const suppliersImageUpdate = 'suppliers.image.update';
+  static const carsImagesManage = 'cars.images.manage';
+  static const inventoryImagesManage = 'inventory.images.manage';
 
   static const reportsView = 'reports.view';
   static const reportsExport = 'reports.export';
+  static const reportsAuditView = 'reports.audit.view';
+  static const reportsContextualView = 'reports.contextual.view';
+  static const reportsFinancialDetailsView = 'reports.financial_details.view';
   static const settingsView = 'settings.view';
   static const settingsBackup = 'settings.backup';
   static const settingsRestore = 'settings.restore';

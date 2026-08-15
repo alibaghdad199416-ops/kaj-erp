@@ -1,6 +1,12 @@
 class SupabaseConfig {
   SupabaseConfig._();
 
+  /// The only hosted Supabase project used by the current KAJ ERP production
+  /// runtime. Local Supabase CLI development remains available through the
+  /// explicit loopback opt-in below.
+  static const String expectedProductionProjectRef =
+      'havlqebmnjdcwmpaaqew';
+
   // Browser-facing project defaults keep local inspection reliable even
   // when Flutter is launched without --dart-define-from-file. Explicit
   // dart-defines still override these values. Never place secret/service
@@ -49,6 +55,48 @@ class SupabaseConfig {
     required String localProjectId,
   }) => explicitAllowLocalDev || localProjectId.trim().isNotEmpty;
 
+  /// Project-ref/runtime namespace used to isolate browser auth and tenant
+  /// selections. This prevents an old Supabase project or tenant selection
+  /// from being reused after the runtime backend changes.
+  static String get projectRef => projectRefFor(
+    projectUrl: url,
+    localProjectId: localProjectId,
+  );
+
+  static String get browserStorageNamespace => storageNamespaceFor(
+    projectUrl: url,
+    localProjectId: localProjectId,
+  );
+
+  static String get authPersistSessionKey =>
+      'kaj-erp-$browserStorageNamespace-auth-token';
+
+  static String projectRefFor({
+    required String projectUrl,
+    String localProjectId = '',
+  }) {
+    final uri = Uri.tryParse(projectUrl.trim());
+    final host = uri?.host.toLowerCase() ?? '';
+    if (_isLoopback(host)) {
+      final local = localProjectId.trim();
+      return local.isEmpty ? 'quality_line_erp_local_dev' : local;
+    }
+    const suffix = '.supabase.co';
+    if (host.endsWith(suffix)) {
+      final ref = host.substring(0, host.length - suffix.length).trim();
+      if (ref.isNotEmpty && !ref.contains('.')) return ref;
+    }
+    return host.isEmpty ? 'unknown_supabase_backend' : host;
+  }
+
+  static String storageNamespaceFor({
+    required String projectUrl,
+    String localProjectId = '',
+  }) => projectRefFor(
+    projectUrl: projectUrl,
+    localProjectId: localProjectId,
+  ).replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
+
   /// Compatibility alias used by older scripts in existing deployments.
   static String get anonKey => publishableKey;
 
@@ -61,6 +109,20 @@ class SupabaseConfig {
     publishableKey: (publishableKey ?? SupabaseConfig.publishableKey).trim(),
     allowLocalDev: allowLocalDevelopment ?? SupabaseConfig.allowLocalDev,
   );
+
+  /// Runtime validation is stricter than the reusable URL/key validator: any
+  /// hosted build must point to the explicitly approved production project.
+  /// A stale dart-define therefore fails closed instead of silently opening an
+  /// older Supabase project. Explicit loopback development remains supported.
+  static String? validateRuntime() {
+    final configurationError = validate();
+    if (configurationError != null) return configurationError;
+    if (!isLocalTarget() && projectRef != expectedProductionProjectRef) {
+      return 'إعداد Supabase لا يشير إلى قاعدة الإنتاج المعتمدة '
+          '$expectedProductionProjectRef.';
+    }
+    return null;
+  }
 
   static String? validateConfiguration({
     required String projectUrl,
@@ -183,8 +245,9 @@ class SupabaseConfig {
     final normalized = host.toLowerCase();
     return normalized == 'localhost' ||
         normalized == '127.0.0.1' ||
-        normalized == '::1';
+        normalized == '::1' ||
+        normalized.endsWith('.localhost');
   }
 
-  static bool get isConfigured => validate() == null;
+  static bool get isConfigured => validateRuntime() == null;
 }

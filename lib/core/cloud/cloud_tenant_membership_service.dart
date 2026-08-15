@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:quality_line_erp/core/logging/app_logger.dart';
+
 import 'cloud_tenant_context.dart';
 import 'supabase_config.dart';
 
@@ -70,12 +72,13 @@ class CloudTenantMembershipService {
     if (!SupabaseConfig.isConfigured) {
       throw StateError('Supabase غير مضبوط في نسخة البناء الحالية.');
     }
-    final user = Supabase.instance.client.auth.currentUser;
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
     if (user == null) {
       throw StateError('لا توجد جلسة Supabase فعالة.');
     }
 
-    final rows = await Supabase.instance.client
+    final rows = await client
         .from('company_memberships')
         .select(
           'company_id, default_branch_id, role_code, is_system_admin, '
@@ -98,11 +101,14 @@ class CloudTenantMembershipService {
         .toList(growable: false);
     final row = selectCloudMembershipRow(
       memberships: memberships,
-      persistedCompanyId: CloudTenantContext.instance.companyUuid,
+      persistedCompanyId: CloudTenantContext.instance.authUserId == user.id
+          ? CloudTenantContext.instance.companyUuid
+          : null,
     );
     final membership = cloudMembershipFromRow(row);
 
     await CloudTenantContext.instance.selectTenant(
+      authUserId: user.id,
       companyId: membership.companySlug,
       branchId: membership.branchId,
       companyUuid: membership.companyId,
@@ -114,23 +120,25 @@ class CloudTenantMembershipService {
     // This is idempotent and creates only missing cloud defaults (main branch,
     // warehouse, chart of accounts and cashboxes); it never falls back to local
     // storage.
-    final prepared = await Supabase.instance.client.rpc(
+    final prepared = await client.rpc(
       'erp_prepare_company_runtime',
       params: {'p_company_id': membership.companyId},
     );
     final result = Map<String, dynamic>.from(prepared as Map);
     final preparedBranchId = result['branchId']?.toString();
+    var resolvedMembership = membership;
     if ((membership.branchId == null || membership.branchId!.isEmpty) &&
         preparedBranchId != null &&
         preparedBranchId.isNotEmpty) {
       await CloudTenantContext.instance.selectTenant(
+        authUserId: user.id,
         companyId: membership.companySlug,
         branchId: preparedBranchId,
         companyUuid: membership.companyId,
         roleCode: membership.roleCode,
         isSystemAdmin: membership.isSystemAdmin,
       );
-      return CloudMembership(
+      resolvedMembership = CloudMembership(
         companyId: membership.companyId,
         companySlug: membership.companySlug,
         companyName: membership.companyName,
@@ -139,6 +147,29 @@ class CloudTenantMembershipService {
         isSystemAdmin: membership.isSystemAdmin,
       );
     }
-    return membership;
+
+    // Database-attested runtime identity: a stale browser tenant is not allowed
+    // to survive merely because its UUID still exists in the same project.
+    final identityRaw = await client.rpc(
+      'erp_r74_runtime_identity',
+      params: {'p_company_id': resolvedMembership.companyId},
+    );
+    final identity = Map<String, dynamic>.from(identityRaw as Map);
+    final attestedUserId = identity['authUserId']?.toString();
+    final attestedCompanyId = identity['companyId']?.toString();
+    if (attestedUserId != user.id ||
+        attestedCompanyId != resolvedMembership.companyId) {
+      await CloudTenantContext.instance.clearCloudSelection();
+      throw StateError('R74 runtime identity mismatch.');
+    }
+
+    AppLogger.debug(
+      'R74 runtime identity: project=${SupabaseConfig.projectRef}; '
+      'authUser=${user.id}; company=${resolvedMembership.companyId}; '
+      'slug=${resolvedMembership.companySlug}; '
+      'name=${resolvedMembership.companyName}; '
+      'databaseContract=${identity['databaseContract']}',
+    );
+    return resolvedMembership;
   }
 }

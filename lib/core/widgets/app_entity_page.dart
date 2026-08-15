@@ -3,19 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/constants/app_sizes.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_section_header.dart';
-import 'package:quality_line_erp/design_system/kaj_v4_components.dart';
 
 import 'app_back_button.dart';
-import 'app_card.dart';
 import 'app_horizontal_strip.dart';
 import 'app_page_lifecycle_scope.dart';
 import 'app_window_close_button.dart';
 
-/// Shared V4 responsive layout for ERP list and management pages.
+/// Shared ERP workspace layout.
 ///
-/// The page keeps existing module widgets intact while imposing the approved
-/// hierarchy: strong identity header, compact command/filter strip, optional
-/// metrics, and one framed working surface.
+/// Only the module identity header is framed. Statistics, commands and filters
+/// occupy one horizontal command rail and the business body is a continuous,
+/// unboxed workspace. This removes the nested "rectangle inside rectangle"
+/// appearance while keeping dense controls usable through horizontal scrolling.
 class AppEntityPage extends StatelessWidget {
   const AppEntityPage({
     super.key,
@@ -31,7 +30,7 @@ class AppEntityPage extends StatelessWidget {
     this.maxWidth = 1600,
     this.bodyPadding,
     this.hideHeader = false,
-    this.toolbarFramed = true,
+    this.toolbarFramed = false,
     this.mergeHiddenHeaderActionsAndStatistics = true,
   });
 
@@ -47,22 +46,22 @@ class AppEntityPage extends StatelessWidget {
   final double maxWidth;
   final EdgeInsetsGeometry? bodyPadding;
   final bool hideHeader;
+
+  /// Kept for source compatibility. Toolbars are intentionally no longer put
+  /// in their own card; the module is one continuous workspace.
   final bool toolbarFramed;
   final bool mergeHiddenHeaderActionsAndStatistics;
 
   @override
   Widget build(BuildContext context) {
     final insideModuleWindow = AppWorkspaceWindowScope.maybeOf(context) != null;
-    final effectiveActions = <Widget>[
-      ...actions,
-      if (insideModuleWindow && toolbar == null) const AppWindowCloseButton(),
-    ];
-    final effectiveToolbar = insideModuleWindow && toolbar != null
-        ? AppHorizontalStrip(
-            children: <Widget>[toolbar!, const AppWindowCloseButton()],
-          )
-        : toolbar;
     final effectiveShowBackButton = showBackButton && !insideModuleWindow;
+    final railChildren = <Widget>[
+      ...actions,
+      ?statistics,
+      ?toolbar,
+      if (insideModuleWindow) const AppWindowCloseButton(),
+    ];
 
     final content = SafeArea(
       top: false,
@@ -81,103 +80,49 @@ class AppEntityPage extends StatelessWidget {
                           ? AppSizes.compactScreenPadding
                           : AppSizes.screenPadding,
                     );
-
-                final chrome = <Widget>[
-                  if (!hideHeader)
-                    KajSectionHeader(
-                      title: title,
-                      subtitle: subtitle,
-                      compact: compact,
-                      icon: leading == null && !effectiveShowBackButton
-                          ? Icons.grid_view_rounded
-                          : null,
-                      actions: <Widget>[
-                        if (leading != null || effectiveShowBackButton)
-                          leading ?? const AppBackButton(),
-                        ...effectiveActions,
-                      ],
-                    )
-                  else if (mergeHiddenHeaderActionsAndStatistics &&
-                      (effectiveActions.isNotEmpty || statistics != null))
-                    _InlineCommandMetricsRow(
-                      actions: effectiveActions,
-                      statistics: statistics,
-                    )
-                  else if (effectiveActions.isNotEmpty)
-                    AppHorizontalStrip(children: effectiveActions),
-                  if (statistics != null &&
-                      (!hideHeader ||
-                          !mergeHiddenHeaderActionsAndStatistics)) ...<Widget>[
-                    SizedBox(
-                      height: hideHeader
-                          ? KajDesignTokens.space8
-                          : KajDesignTokens.space16,
-                    ),
-                    statistics!,
-                  ],
-                  if (effectiveToolbar != null) ...<Widget>[
-                    SizedBox(
-                      height: hideHeader
-                          ? KajDesignTokens.space8
-                          : KajDesignTokens.space12,
-                    ),
-                    if (toolbarFramed)
-                      AppCard(
-                        padding: const EdgeInsets.all(12),
-                        showShadow: false,
-                        accent: KajDesignTokens.electricBlue,
-                        child: effectiveToolbar,
-                      )
-                    else
-                      effectiveToolbar,
-                  ],
-                ];
-                final bodyPanel = KajV4Panel(
-                  padding: EdgeInsets.zero,
-                  showTopGlow: true,
-                  child: ClipRect(child: body),
-                );
-                final bodySpacing = SizedBox(
-                  height: hideHeader
-                      ? KajDesignTokens.space8
-                      : KajDesignTokens.space16,
-                );
-                final shortHeight = constraints.maxHeight < 720;
-
                 return Padding(
                   padding: padding,
-                  child: shortHeight
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            if (chrome.isNotEmpty)
-                              Flexible(
-                                flex: 2,
-                                fit: FlexFit.loose,
-                                child: SingleChildScrollView(
-                                  key: const ValueKey(
-                                    'app-entity-page-short-height-scroll',
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: chrome,
-                                  ),
-                                ),
-                              ),
-                            if (chrome.isNotEmpty) bodySpacing,
-                            Expanded(flex: 3, child: bodyPanel),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            ...chrome,
-                            bodySpacing,
-                            Expanded(child: bodyPanel),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      if (!hideHeader)
+                        KajSectionHeader(
+                          title: title,
+                          subtitle: subtitle,
+                          compact: compact,
+                          icon: leading == null && !effectiveShowBackButton
+                              ? Icons.grid_view_rounded
+                              : null,
+                          actions: <Widget>[
+                            if (leading != null || effectiveShowBackButton)
+                              leading ?? const AppBackButton(),
                           ],
                         ),
+                      if (railChildren.isNotEmpty) ...<Widget>[
+                        SizedBox(
+                          height: hideHeader
+                              ? KajDesignTokens.space8
+                              : KajDesignTokens.space12,
+                        ),
+                        AppHorizontalStrip(
+                          key: const ValueKey('module-command-rail'),
+                          spacing: KajDesignTokens.space8,
+                          children: railChildren,
+                        ),
+                      ],
+                      SizedBox(
+                        height: railChildren.isEmpty && hideHeader
+                            ? 0
+                            : KajDesignTokens.space12,
+                      ),
+                      Expanded(
+                        child: ClipRect(
+                          key: const ValueKey('module-continuous-workspace'),
+                          child: body,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -190,37 +135,8 @@ class AppEntityPage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 980) return content;
-        return Row(
-          children: <Widget>[
-            sidebar!,
-            Expanded(child: content),
-          ],
-        );
+        return Row(children: <Widget>[sidebar!, Expanded(child: content)]);
       },
-    );
-  }
-}
-
-/// Keeps page commands and KPI explanation boxes on one horizontal line.
-///
-/// The row scrolls instead of wrapping. This is important for dense ERP
-/// workspaces where a second command line is easily mistaken for a different
-/// workflow stage.
-class _InlineCommandMetricsRow extends StatelessWidget {
-  const _InlineCommandMetricsRow({
-    required this.actions,
-    required this.statistics,
-  });
-
-  final List<Widget> actions;
-  final Widget? statistics;
-
-  @override
-  Widget build(BuildContext context) {
-    final children = <Widget>[...actions, ?statistics];
-    return AppHorizontalStrip(
-      spacing: KajDesignTokens.space8,
-      children: children,
     );
   }
 }

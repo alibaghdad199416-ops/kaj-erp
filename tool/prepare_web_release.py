@@ -42,10 +42,16 @@ meta.update(
         "syncEngine": dart_string("syncEngine"),
         "releaseToken": dart_string("releaseToken"),
         "operationalRevision": dart_string("operationalRevision"),
+        "runtimeRevision": dart_string("currentRuntimeRevision"),
+        "runtimeToken": dart_string("currentRuntimeToken"),
+        "databaseContract": "R74",
     }
 )
 path.write_text(
     json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
     encoding="utf-8",
 )
-print(f"Prepared web release {version}+{build}")
+print(
+    f"Prepared web release {version}+{build}-"
+    f"{dart_string('currentRuntimeToken')} / DB R74"
+)

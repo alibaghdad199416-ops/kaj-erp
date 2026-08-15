@@ -1,53 +1,32 @@
-import 'package:quality_line_erp/core/exporting/adaptive_pdf_table.dart';
-import 'package:quality_line_erp/core/exporting/binary_download_service.dart';
-import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
-import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
-import 'package:quality_line_erp/core/exporting/export_document.dart';
-import 'package:quality_line_erp/core/exporting/excel_download_service.dart';
-import 'package:quality_line_erp/core/exporting/excel_workbook_presentation.dart';
-import 'package:quality_line_erp/core/exporting/xlsx_integrity.dart';
-import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
-import 'package:quality_line_erp/core/printing/premium_document_theme.dart';
-import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:math' as math;
 
 import 'package:excel/excel.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/services.dart' show rootBundle;
 
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
-
-import 'report_field_localizer.dart';
+import 'package:quality_line_erp/core/exporting/binary_download_service.dart';
+import 'package:quality_line_erp/core/exporting/excel_download_service.dart';
+import 'package:quality_line_erp/core/exporting/excel_workbook_presentation.dart';
+import 'package:quality_line_erp/core/exporting/export_document.dart';
+import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
+import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
+import 'package:quality_line_erp/core/exporting/xlsx_integrity.dart';
+import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 import 'package:quality_line_erp/features/settings/reports/models/contextual_report_section.dart';
 import 'package:quality_line_erp/features/settings/reports/models/execution_audit_row.dart';
 import 'package:quality_line_erp/features/settings/reports/models/report_export_options.dart';
 import 'package:quality_line_erp/features/settings/reports/models/report_model.dart';
+
 import 'contextual_report_customizer.dart';
+import 'report_field_localizer.dart';
 
+/// Authoritative bilingual export pipeline for the Reports module.
+/// PDF, Excel and CSV use the selected report language, the same filtered rows,
+/// and the shared Quality Line document identity.
 class ReportExportService {
-  static Future<pw.MemoryImage?>? _bundledLogoFuture;
+  const ReportExportService();
 
-  static Future<pw.MemoryImage?> _loadBundledLogo() =>
-      _bundledLogoFuture ??= (() async {
-        try {
-          final data = await rootBundle.load(
-            'assets/images/khat_al_jawda_logo.jpg',
-          );
-          return pw.MemoryImage(data.buffer.asUint8List());
-        } catch (error, stackTrace) {
-          AppLogger.debug(
-            'Report logo could not be loaded: $error\n$stackTrace',
-          );
-          return null;
-        }
-      })();
-
-  bool _isArabicExportLanguage(String language) => language == 'ar';
+  String _language(ReportExportOptions options) =>
+      PdfTextSupport.canonicalPdfLanguage(options.language);
 
   Future<void> exportExcel(
     ReportModel report, {
@@ -57,225 +36,161 @@ class ReportExportService {
     String period = 'جميع الفترات',
     List<ContextualReportSection> sections = const [],
   }) async {
-    sections = const ContextualReportCustomizer().apply(sections, options);
+    final language = _language(options);
+    final arabic = language == 'ar';
+    final customized = const ContextualReportCustomizer().apply(sections, options);
     final book = Excel.createExcel();
-    final defaultSheet = book.getDefaultSheet();
-    const language = 'en';
-    final arabic = _isArabicExportLanguage(language);
-    final generatedAt = DateTime.now();
-    final usedSheetNames = <String>{};
+    final initialSheet = book.getDefaultSheet();
+    final usedNames = <String>{};
 
-    final metadataName = _uniqueSheetTitle(
+    final profileName = _uniqueSheetName(
       arabic ? 'تعريف الملف' : 'Workbook profile',
-      'Profile',
-      usedSheetNames,
+      usedNames,
     );
-    usedSheetNames.add(metadataName);
-    final metadata = book[metadataName];
-    // excel refuses to delete the only worksheet. Delete the auto-created
-    // Sheet1 only after the first real worksheet exists.
-    if (defaultSheet != null && defaultSheet != metadataName) {
-      book.delete(defaultSheet);
-      if (book.tables.containsKey(defaultSheet)) {
-        throw StateError(_tr('excelError', language));
-      }
-    }
-    ExcelWorkbookPresentation.prepareSheet(metadata, arabic: arabic);
-    metadata.appendRow([_excelText(_localize(options.title, language))]);
-    ExcelWorkbookPresentation.styleTitle(metadata, row: 0, columnCount: 2);
-    final metadataRows = <(String, Object?)>[
-      (_tr('module', language), _moduleName(module, language)),
-      (_tr('period', language), _localize(period, language)),
-      (
-        arabic ? 'لغة الملف' : 'Workbook language',
-        arabic ? 'العربية' : 'English',
-      ),
-      (arabic ? 'سياق العملة' : 'Currency context', 'IQD / USD'),
-      (arabic ? 'تاريخ التصدير' : 'Export date', generatedAt),
-      (arabic ? 'وقت التصدير' : 'Export time', generatedAt),
+    usedNames.add(profileName);
+    final profile = book[profileName];
+    if (initialSheet != null && initialSheet != profileName) book.delete(initialSheet);
+    ExcelWorkbookPresentation.prepareSheet(profile, arabic: arabic);
+    profile.appendRow([TextCellValue(_localized(options.title, language))]);
+    ExcelWorkbookPresentation.styleTitle(profile, row: 0, columnCount: 2);
+    final metadata = <(String, Object?)>[
+      (_t('module', language), _moduleName(module, language)),
+      (_t('period', language), _localized(period, language)),
+      (arabic ? 'لغة الملف' : 'Workbook language', arabic ? 'العربية' : 'English'),
+      (arabic ? 'سياق العملة' : 'Currency context', 'USD / IQD'),
       (arabic ? 'إصدار بنية الملف' : 'Workbook schema version', '18.9.12'),
+      if (options.includeGeneratedAt)
+        (_t('generatedAt', language), DateTime.now()),
     ];
-    for (var index = 0; index < metadataRows.length; index++) {
-      final row = metadataRows[index];
-      metadata.appendRow([
-        _excelText(row.$1),
-        _excelText(_excelExportValue(row.$2)),
+    for (var index = 0; index < metadata.length; index++) {
+      final row = metadata[index];
+      profile.appendRow([
+        TextCellValue(row.$1),
+        ExcelWorkbookPresentation.typedValue(row.$2, columnLabel: row.$1),
       ]);
-      metadata
-          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: index + 1))
-          .cellStyle = ExcelWorkbookPresentation
-          .metadataLabelStyle;
-      metadata
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1))
-          .cellStyle = ExcelWorkbookPresentation
-          .metadataValueStyle;
+      profile
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: index + 1))
+              .cellStyle =
+          ExcelWorkbookPresentation.metadataLabelStyle;
+      profile
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1))
+              .cellStyle =
+          ExcelWorkbookPresentation.metadataValueStyle;
     }
-    metadata.setColumnWidth(0, 25);
-    metadata.setColumnWidth(1, 34);
+    profile.setColumnWidth(0, 26);
+    profile.setColumnWidth(1, 36);
 
-    final overviewName = _uniqueSheetTitle(
-      _sheetName('summary', language),
-      'Summary',
-      usedSheetNames,
-    );
-    usedSheetNames.add(overviewName);
-    final overview = book[overviewName];
-    _appendExcelTable(
-      overview,
-      title: options.title,
-      headers: [_tr('indicator', language), _tr('value', language)],
-      rows: _moduleRows(report, module, language)
-          .map<List<Object?>>((row) => <Object?>[row.$1, row.$2])
-          .toList(growable: false),
-      language: language,
-    );
-
-    if (options.includeOperational) {
-      final name = _uniqueSheetTitle(
-        _sheetName('operations', language),
-        'Operations',
-        usedSheetNames,
-      );
-      usedSheetNames.add(name);
-      _appendExcelTable(
-        book[name],
-        title: _tr('operationalIndicators', language),
-        headers: [
-          _tr('operationalIndicator', language),
-          _tr('value', language),
-        ],
-        rows: _operationalRows(report, language)
-            .map<List<Object?>>((row) => <Object?>[row.$1, row.$2])
+    if (options.includeSummary || options.includeModuleDetails) {
+      _appendSheet(
+        book,
+        usedNames: usedNames,
+        preferredName: _t('summary', language),
+        title: _t('moduleSummary', language),
+        headers: [_t('indicator', language), _t('value', language)],
+        rows: _moduleRows(report, module, language)
+            .map((entry) => <Object?>[entry.$1, entry.$2])
             .toList(growable: false),
-        language: language,
+        arabic: arabic,
       );
     }
-
-    if (options.includeMonthly) {
-      final name = _uniqueSheetTitle(
-        _sheetName('monthly', language),
-        'Monthly',
-        usedSheetNames,
+    if (options.includeOperational) {
+      _appendSheet(
+        book,
+        usedNames: usedNames,
+        preferredName: _t('operations', language),
+        title: _t('operationalIndicators', language),
+        headers: [_t('indicator', language), _t('value', language)],
+        rows: _operationalRows(report, language)
+            .map((entry) => <Object?>[entry.$1, entry.$2])
+            .toList(growable: false),
+        arabic: arabic,
       );
-      usedSheetNames.add(name);
-      _appendExcelTable(
-        book[name],
-        title: _tr('monthlyPerformance', language),
+    }
+    if (options.includeMonthly) {
+      _appendSheet(
+        book,
+        usedNames: usedNames,
+        preferredName: _t('monthly', language),
+        title: _t('monthlyPerformance', language),
         headers: [
-          _tr('month', language),
-          _tr('sales', language),
-          _tr('purchases', language),
-          _tr('expenses', language),
+          _t('month', language),
+          _t('sales', language),
+          _t('purchases', language),
+          _t('expenses', language),
         ],
         rows: report.monthlyPoints
-            .map<List<Object?>>(
+            .map(
               (point) => <Object?>[
-                _localize(point.label, language),
+                _localized(point.label, language),
                 point.sales,
                 point.purchases,
                 point.expenses,
               ],
             )
             .toList(growable: false),
-        language: language,
+        arabic: arabic,
       );
     }
-
     if (options.includeExecutors) {
-      final name = _uniqueSheetTitle(
-        _sheetName('executors', language),
-        'Executors',
-        usedSheetNames,
-      );
-      usedSheetNames.add(name);
-      _appendExcelTable(
-        book[name],
-        title: _tr('dataExecutors', language),
+      _appendSheet(
+        book,
+        usedNames: usedNames,
+        preferredName: _t('executors', language),
+        title: _t('dataExecutors', language),
         headers: [
-          _tr('user', language),
-          _tr('action', language),
-          _tr('entity', language),
-          _tr('date', language),
+          _t('user', language),
+          _t('action', language),
+          _t('entity', language),
+          _t('date', language),
         ],
         rows: executionRows
-            .map<List<Object?>>(
+            .map(
               (row) => <Object?>[
                 row.userName,
-                _localize(row.action, language),
-                _localize(row.entityType, language),
+                _localized(row.action, language),
+                _localized(row.entityType, language),
                 row.createdAt,
               ],
             )
             .toList(growable: false),
-        language: language,
+        arabic: arabic,
       );
     }
-
-    for (final section in sections) {
-      final sheetName = _uniqueSheetTitle(
-        _localize(section.title, language),
-        section.key,
-        usedSheetNames,
-      );
-      usedSheetNames.add(sheetName);
-      _appendExcelTable(
-        book[sheetName],
-        title: _localize(section.title, language),
+    for (final section in customized) {
+      _appendSheet(
+        book,
+        usedNames: usedNames,
+        preferredName: _localized(section.title, language),
+        title: _localized(section.title, language),
         headers: section.columns
-            .map((value) => _localize(value, language))
+            .map((column) => ReportFieldLocalizer.localize(column, language))
             .toList(growable: false),
-        rows: section.rows
-            .map<List<Object?>>(
-              (row) => List<Object?>.generate(
-                section.columns.length,
-                (index) =>
-                    _localize(index < row.length ? row[index] : '', language),
-              ),
-            )
-            .toList(growable: false),
-        language: language,
+        rows: section.rows.map((row) => <Object?>[...row]).toList(growable: false),
+        arabic: arabic,
       );
     }
 
-    final relationRows = _relationIndexRows(sections, language);
-    final relationName = _uniqueSheetTitle(
-      arabic ? 'دليل الربط' : 'Relation index',
-      'Relations',
-      usedSheetNames,
-    );
-    usedSheetNames.add(relationName);
-    _appendExcelTable(
-      book[relationName],
+    final relationRows = _relationIndexRows(customized, language);
+    _appendSheet(
+      book,
+      usedNames: usedNames,
+      preferredName: arabic ? 'دليل الربط' : 'Relation index',
       title: arabic
           ? 'الربط بين الوحدات والمستندات'
           : 'Cross-module document relations',
       headers: arabic
-          ? const <String>[
-              'الوحدة المصدرية',
-              'السجل المصدر',
-              'نوع الارتباط',
-              'رقم السجل المرتبط',
-              'الوحدة المرتبطة',
-            ]
-          : const <String>[
-              'Source module',
-              'Source record',
-              'Relation type',
-              'Linked record number',
-              'Linked module',
-            ],
+          ? const ['الوحدة المصدرية', 'السجل المصدر', 'نوع الارتباط', 'رقم السجل المرتبط', 'الوحدة المرتبطة']
+          : const ['Source module', 'Source record', 'Relation type', 'Linked record number', 'Linked module'],
       rows: relationRows,
-      language: language,
+      arabic: arabic,
     );
 
-    if (!book.setDefaultSheet(metadataName)) {
-      throw StateError(_tr('excelError', language));
-    }
-    final bytes = book.encode();
-    if (bytes == null) throw StateError(_tr('excelError', language));
+    if (!book.setDefaultSheet(profileName)) throw StateError(_t('excelError', language));
+    final encoded = book.encode();
+    if (encoded == null) throw StateError(_t('excelError', language));
     await ExcelDownloadService.save(
-      fileName: '${_fileName(module, language)}.xlsx',
-      bytes: XlsxIntegrity.finalize(bytes),
+      fileName: '${fileNameFor(module, language)}.xlsx',
+      bytes: XlsxIntegrity.finalize(encoded),
     );
   }
 
@@ -287,72 +202,23 @@ class ReportExportService {
     String period = 'جميع الفترات',
     List<ContextualReportSection> sections = const [],
   }) async {
-    sections = const ContextualReportCustomizer().apply(sections, options);
-    final l = options.language;
+    final language = _language(options);
+    final customized = const ContextualReportCustomizer().apply(sections, options);
+    final dataRows = _flatRows(
+      report,
+      module: module,
+      executionRows: executionRows,
+      options: options,
+      sections: customized,
+      language: language,
+    );
     final rows = <List<Object?>>[
-      [options.title],
-      [_tr('module', l), _moduleName(module, l)],
-      [_tr('period', l), period],
+      [_t('section', language), _t('field', language), _t('value', language), _t('details', language)],
+      ...dataRows,
     ];
-    if (options.includeGeneratedAt)
-      rows.add([_tr('generatedAt', l), _dateTime(DateTime.now(), l)]);
-    rows.add([]);
-    rows.add([_tr('indicator', l), _tr('value', l)]);
-    rows.addAll(_moduleRows(report, module, l).map((e) => [e.$1, e.$2]));
-    if (options.includeOperational) {
-      rows.add([]);
-      rows.add([_tr('operationalIndicator', l), _tr('value', l)]);
-      rows.addAll(_operationalRows(report, l).map((e) => [e.$1, e.$2]));
-    }
-    if (options.includeMonthly) {
-      rows.add([]);
-      rows.add([
-        _tr('month', l),
-        _tr('sales', l),
-        _tr('purchases', l),
-        _tr('expenses', l),
-      ]);
-      rows.addAll(
-        report.monthlyPoints.map(
-          (p) => [p.label, p.sales, p.purchases, p.expenses],
-        ),
-      );
-    }
-    if (options.includeExecutors) {
-      rows.add([]);
-      rows.add([
-        _tr('user', l),
-        _tr('action', l),
-        _tr('entity', l),
-        _tr('date', l),
-      ]);
-      rows.addAll(
-        executionRows.map(
-          (e) => [
-            e.userName,
-            e.action,
-            e.entityType,
-            _dateTime(e.createdAt, l),
-          ],
-        ),
-      );
-    }
-    for (final section in sections) {
-      rows.add([]);
-      rows.add([_localize(section.title, l)]);
-      rows.add(section.columns.map((value) => _localize(value, l)).toList());
-      rows.addAll(
-        section.rows.map(
-          (row) => List<String>.generate(
-            section.columns.length,
-            (index) => _localize(index < row.length ? row[index] : '', l),
-          ),
-        ),
-      );
-    }
-    final csv = rows.map((r) => r.map(_escapeCsv).join(',')).join('\r\n');
+    final csv = rows.map((row) => row.map(_escapeCsv).join(',')).join('\r\n');
     await BinaryDownloadService.save(
-      fileName: '${_fileName(module, l)}.csv',
+      fileName: '${fileNameFor(module, language)}.csv',
       bytes: Uint8List.fromList(utf8.encode('\uFEFF$csv')),
       mimeType: 'text/csv;charset=utf-8',
     );
@@ -366,6 +232,7 @@ class ReportExportService {
     String period = 'جميع الفترات',
     List<ContextualReportSection> sections = const [],
   }) async {
+    final language = _language(options);
     final bytes = await buildPdf(
       report,
       module: module,
@@ -375,7 +242,7 @@ class ReportExportService {
       sections: sections,
     );
     await PdfPrintService.print(
-      fileName: '${fileNameFor(module, options.language)}.pdf',
+      fileName: '${fileNameFor(module, language)}.pdf',
       bytes: bytes,
     );
   }
@@ -388,6 +255,7 @@ class ReportExportService {
     String period = 'جميع الفترات',
     List<ContextualReportSection> sections = const [],
   }) async {
+    final language = _language(options);
     final bytes = await buildPdf(
       report,
       module: module,
@@ -397,15 +265,12 @@ class ReportExportService {
       sections: sections,
     );
     await BinaryDownloadService.save(
-      fileName: '${fileNameFor(module, options.language)}.pdf',
+      fileName: '${fileNameFor(module, language)}.pdf',
       bytes: bytes,
       mimeType: 'application/pdf',
     );
   }
 
-  // R57_REPORTS_SHARED_PDF_FALLBACK
-  // Prefer the rich Reports renderer, but fail over to the shared ERP PDF
-  // pipeline if optional branding, Web assets, layout, or serialization fails.
   Future<Uint8List> buildPdf(
     ReportModel report, {
     String module = 'overview',
@@ -414,609 +279,141 @@ class ReportExportService {
     String period = 'جميع الفترات',
     List<ContextualReportSection> sections = const [],
   }) async {
-    try {
-      final bytes = await _buildRichPdf(
-        report,
-        module: module,
-        executionRows: executionRows,
-        options: options,
-        period: period,
-        sections: sections,
-      );
-      if (bytes.isEmpty) {
-        throw StateError('Generated rich report PDF is empty.');
-      }
-      return bytes;
-    } catch (error, stackTrace) {
-      AppLogger.error(
-        'Reports rich PDF generation failed; switching to shared PDF pipeline',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      try {
-        final bytes = await _buildSharedFallbackPdf(
-          report,
-          module: module,
-          executionRows: executionRows,
-          options: options,
-          period: period,
-          sections: sections,
-        );
-        if (bytes.isEmpty) {
-          throw StateError('Generated shared fallback report PDF is empty.');
-        }
-        return bytes;
-      } catch (fallbackError, fallbackStackTrace) {
-        AppLogger.error(
-          'Reports shared PDF fallback failed',
-          error: fallbackError,
-          stackTrace: fallbackStackTrace,
-        );
-        rethrow;
-      }
-    }
+    final language = _language(options);
+    final customized = const ContextualReportCustomizer().apply(sections, options);
+    final rows = _flatRows(
+      report,
+      module: module,
+      executionRows: executionRows,
+      options: options,
+      sections: customized,
+      language: language,
+    );
+    final document = ExportDocument(
+      title: _localized(options.title, language),
+      subtitle: '${_moduleName(module, language)} — ${_localized(period, language)}',
+      language: language,
+      currency: 'USD / IQD',
+      generatedAt: DateTime.now(),
+      metadata: {
+        _t('module', language): _moduleName(module, language),
+        _t('period', language): _localized(period, language),
+        _t('rows', language): rows.length,
+      },
+      columns: [
+        ExportColumn(key: 'section', label: _t('section', language)),
+        ExportColumn(key: 'field', label: _t('field', language)),
+        ExportColumn(key: 'value', label: _t('value', language)),
+        ExportColumn(key: 'details', label: _t('details', language)),
+      ],
+      rows: rows,
+    );
+    return PdfExportService().build(
+      document,
+      pageFormat: options.landscape ? ExportPageFormat.a4Landscape : ExportPageFormat.a4Portrait,
+    );
   }
 
-  Future<Uint8List> _buildSharedFallbackPdf(
+  List<List<Object?>> _flatRows(
     ReportModel report, {
     required String module,
     required List<ExecutionAuditRow> executionRows,
     required ReportExportOptions options,
-    required String period,
     required List<ContextualReportSection> sections,
-  }) async {
-    final customized = const ContextualReportCustomizer().apply(
-      sections,
-      options,
-    );
-    final language = PdfTextSupport.canonicalPdfLanguage(options.language);
-    final arabic = language == 'ar';
+    required String language,
+  }) {
     final rows = <List<Object?>>[];
-
-    void addRow(String section, Object? field, Object? value, Object? details) {
-      rows.add(<Object?>[
-        PdfTextSupport.sanitize(section, singleLine: true),
-        PdfTextSupport.sanitize(field, singleLine: true),
-        PdfTextSupport.sanitize(value, singleLine: true),
-        PdfTextSupport.sanitize(details, singleLine: true),
-      ]);
+    void add(String section, Object? field, Object? value, [Object? details = '']) {
+      rows.add([section, field, value, details]);
     }
-
-    if (options.includeModuleDetails || options.includeSummary) {
-      for (final row in _moduleRows(report, module, language)) {
-        addRow(
-          _tr('moduleSummary', language),
-          row.$1,
-          _exportValue(row.$2),
-          '',
-        );
+    if (options.includeSummary || options.includeModuleDetails) {
+      for (final item in _moduleRows(report, module, language)) {
+        add(_t('moduleSummary', language), item.$1, item.$2);
       }
     }
-
     if (options.includeOperational) {
-      for (final row in _operationalRows(report, language)) {
-        addRow(
-          _tr('operationalIndicators', language),
-          row.$1,
-          _exportValue(row.$2),
-          '',
-        );
+      for (final item in _operationalRows(report, language)) {
+        add(_t('operationalIndicators', language), item.$1, item.$2);
       }
     }
-
     if (options.includeMonthly) {
       for (final point in report.monthlyPoints) {
-        addRow(
-          _tr('monthlyPerformance', language),
-          _localize(point.label, language),
-          '${_tr('sales', language)}: ${_number(point.sales)}',
-          '${_tr('purchases', language)}: ${_number(point.purchases)}'
-              ' | ${_tr('expenses', language)}: ${_number(point.expenses)}',
+        add(
+          _t('monthlyPerformance', language),
+          _localized(point.label, language),
+          '${_t('sales', language)}: ${_number(point.sales)}',
+          '${_t('purchases', language)}: ${_number(point.purchases)} • ${_t('expenses', language)}: ${_number(point.expenses)}',
         );
       }
     }
-
     if (options.includeExecutors) {
-      if (executionRows.isEmpty) {
-        addRow(
-          _tr('dataExecutors', language),
-          _tr('noExecutors', language),
-          '',
-          '',
+      for (final execution in executionRows) {
+        add(
+          _t('dataExecutors', language),
+          execution.userName,
+          _localized(execution.action, language),
+          '${_localized(execution.entityType, language)} • ${_dateTime(execution.createdAt)}',
         );
-      } else {
-        for (final execution in executionRows) {
-          addRow(
-            _tr('dataExecutors', language),
-            execution.userName,
-            _localize(execution.action, language),
-            '${_tr('entity', language)}: '
-            '${_localize(execution.entityType, language)} | '
-            '${_tr('date', language)}: '
-            '${_dateTime(execution.createdAt, language)}',
-          );
-        }
       }
     }
-
-    for (final rawSection in customized) {
-      final section = _localizedSection(rawSection, language);
+    for (final section in sections) {
+      final title = _localized(section.title, language);
+      final headers = section.columns
+          .map((column) => ReportFieldLocalizer.localize(column, language))
+          .toList(growable: false);
       if (section.rows.isEmpty) {
-        addRow(section.title, _tr('noData', language), '', '');
+        add(title, _t('noData', language), '', '');
         continue;
       }
-
       for (final rawRow in section.rows) {
-        final cells = List<String>.generate(
-          section.columns.length,
-          (index) => PdfTextSupport.sanitize(
-            index < rawRow.length ? rawRow[index] : '',
-            singleLine: true,
-          ),
+        final values = List<String>.generate(
+          headers.length,
+          (index) => index < rawRow.length ? rawRow[index] : '',
           growable: false,
         );
-
-        final field = cells.isEmpty ? '' : '${section.columns[0]}: ${cells[0]}';
-        final value = cells.length < 2
-            ? ''
-            : '${section.columns[1]}: ${cells[1]}';
+        final field = headers.isEmpty ? '' : '${headers[0]}: ${values[0]}';
+        final value = headers.length < 2 ? '' : '${headers[1]}: ${values[1]}';
         final details = <String>[
-          for (var index = 2; index < cells.length; index++)
-            '${section.columns[index]}: ${cells[index]}',
-        ].where((entry) => !entry.endsWith(': ')).join(' | ');
-
-        addRow(section.title, field, value, details);
+          for (var index = 2; index < headers.length; index++)
+            if (values[index].trim().isNotEmpty) '${headers[index]}: ${values[index]}',
+        ].join(' • ');
+        add(title, field, value, details);
       }
     }
-
-    if (rows.isEmpty) {
-      addRow(arabic ? 'التقرير' : 'Report', _tr('noData', language), '', '');
-    }
-
-    final generatedAt = DateTime.now();
-    final document = ExportDocument(
-      title: _localize(options.title, language),
-      subtitle:
-          '${_moduleName(module, language)}'
-          ' - ${_localize(period, language)}',
-      language: language,
-      currency: 'USD / IQD',
-      generatedAt: generatedAt,
-      metadata: <String, Object?>{
-        _tr('module', language): _moduleName(module, language),
-        _tr('period', language): _localize(period, language),
-        if (options.includeGeneratedAt)
-          _tr('generatedAt', language): _dateTime(generatedAt, language),
-      },
-      columns: <ExportColumn>[
-        ExportColumn(key: 'section', label: arabic ? 'القسم' : 'Section'),
-        ExportColumn(key: 'field', label: arabic ? 'الحقل' : 'Field'),
-        ExportColumn(key: 'value', label: arabic ? 'القيمة' : 'Value'),
-        ExportColumn(key: 'details', label: arabic ? 'التفاصيل' : 'Details'),
-      ],
-      rows: rows,
-    );
-
-    return PdfExportService().build(
-      document,
-      pageFormat:
-          options.landscape ||
-              customized.any((section) => section.columns.length > 5)
-          ? ExportPageFormat.a4Landscape
-          : ExportPageFormat.a4Portrait,
-    );
+    if (rows.isEmpty) add(_t('report', language), _t('noData', language), '', '');
+    return rows;
   }
 
-  Future<Uint8List> _buildRichPdf(
-    ReportModel report, {
-    String module = 'overview',
-    List<ExecutionAuditRow> executionRows = const [],
-    ReportExportOptions options = const ReportExportOptions(),
-    String period = 'جميع الفترات',
-    List<ContextualReportSection> sections = const [],
-  }) async {
-    sections = const ContextualReportCustomizer().apply(sections, options);
-    final l = PdfTextSupport.canonicalPdfLanguage(options.language);
-    final arabic = _isArabicExportLanguage(l);
-    // PdfGoogleFonts.notoNaskhArabicRegular is cached by PdfTextSupport.
-    late final PdfFontPack fonts;
-    try {
-      fonts = await PdfTextSupport.loadFonts();
-    } catch (error, stackTrace) {
-      AppLogger.error(
-        'Report PDF font loading failed',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      throw StateError(
-        'Unable to load the PDF font pack required for report export: $error',
-      );
-    }
-    final regular = fonts.regular;
-    final bold = fonts.bold;
-    final theme = pw.ThemeData.withFont(base: regular, bold: bold);
-    final branding = await _loadBranding(l);
-    final document = pw.Document(
-      title: _localize(options.title, l),
-      author: 'KAJ ERP',
-      subject: _moduleName(module, l),
-      theme: theme,
-    );
-    final direction = arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
-    document.addPage(
-      pw.MultiPage(
-        pageFormat:
-            options.landscape ||
-                sections.any((section) => section.columns.length > 5)
-            ? PdfPageFormat.a4.landscape
-            : PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
-        textDirection: direction,
-        header: (_) => pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 8),
-          decoration: const pw.BoxDecoration(
-            border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400)),
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Row(
-                children: [
-                  if (branding.logo != null)
-                    pw.Container(
-                      width: 30,
-                      height: 30,
-                      margin: const pw.EdgeInsets.only(right: 8),
-                      child: pw.Image(branding.logo!),
-                    ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        branding.companyName,
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          fontSize: 15,
-                          color: PdfColor.fromHex('#111827'),
-                        ),
-                      ),
-                      if (branding.details.isNotEmpty)
-                        pw.Text(
-                          branding.details,
-                          style: const pw.TextStyle(
-                            fontSize: 7.5,
-                            color: PdfColors.grey700,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              pw.Text(
-                _localize(period, l),
-                style: const pw.TextStyle(fontSize: 9),
-              ),
-            ],
-          ),
-        ),
-        footer: (c) => pw.Container(
-          padding: const pw.EdgeInsets.only(top: 6),
-          decoration: const pw.BoxDecoration(
-            border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400)),
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                arabic
-                    ? 'تم إنشاء التقرير إلكترونيًا بواسطة نظام خط الجودة'
-                    : 'Generated electronically by Quality Line ERP',
-                style: const pw.TextStyle(fontSize: 7.5),
-              ),
-              pw.Text(
-                '${c.pageNumber} / ${c.pagesCount}',
-                style: pw.TextStyle(font: bold, fontSize: 8),
-              ),
-            ],
-          ),
-        ),
-        build: (_) => [
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(14),
-            decoration: pw.BoxDecoration(
-              color: PremiumDocumentTheme.ink,
-              borderRadius: pw.BorderRadius.circular(9),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  _localize(options.title, l),
-                  style: pw.TextStyle(
-                    fontSize: 20,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.white,
-                  ),
-                  textDirection: direction,
-                ),
-                pw.SizedBox(height: 6),
-                pw.Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: [
-                    pw.Text(
-                      '${_tr('module', l)}: ${_moduleName(module, l)}',
-                      style: pw.TextStyle(
-                        fontSize: 8,
-                        color: PremiumDocumentTheme.accentSoft,
-                      ),
-                    ),
-                    pw.Text(
-                      '${_tr('period', l)}: ${_localize(period, l)}',
-                      style: pw.TextStyle(
-                        fontSize: 8,
-                        color: PremiumDocumentTheme.accentSoft,
-                      ),
-                    ),
-                    if (options.includeGeneratedAt)
-                      pw.Text(
-                        '${_tr('generatedAt', l)}: ${_dateTime(DateTime.now(), l)}',
-                        style: pw.TextStyle(
-                          fontSize: 8,
-                          color: PremiumDocumentTheme.accentSoft,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
-          if (options.includeModuleDetails || options.includeSummary) ...[
-            _section(_tr('moduleSummary', l), bold),
-            _table(
-              [_tr('indicator', l), _tr('value', l)],
-              _moduleRows(
-                report,
-                module,
-                l,
-              ).map((e) => [e.$1, _exportValue(e.$2)]).toList(),
-              direction,
-            ),
-            pw.SizedBox(height: 16),
-          ],
-          if (options.includeOperational) ...[
-            _section(_tr('operationalIndicators', l), bold),
-            _table(
-              [_tr('indicator', l), _tr('value', l)],
-              _operationalRows(
-                report,
-                l,
-              ).map((e) => [e.$1, _exportValue(e.$2)]).toList(),
-              direction,
-            ),
-            pw.SizedBox(height: 16),
-          ],
-          if (options.includeMonthly) ...[
-            _section(_tr('monthlyPerformance', l), bold),
-            _table(
-              [
-                _tr('month', l),
-                _tr('sales', l),
-                _tr('purchases', l),
-                _tr('expenses', l),
-              ],
-              report.monthlyPoints
-                  .map(
-                    (p) => [
-                      p.label,
-                      _number(p.sales),
-                      _number(p.purchases),
-                      _number(p.expenses),
-                    ],
-                  )
-                  .toList(),
-              direction,
-            ),
-            pw.SizedBox(height: 16),
-          ],
-          if (options.includeExecutors) ...[
-            _section(_tr('dataExecutors', l), bold),
-            if (executionRows.isEmpty)
-              pw.Text(_tr('noExecutors', l))
-            else
-              _table(
-                [
-                  _tr('user', l),
-                  _tr('action', l),
-                  _tr('entity', l),
-                  _tr('date', l),
-                ],
-                executionRows
-                    .map(
-                      (e) => [
-                        e.userName,
-                        e.action,
-                        e.entityType,
-                        _dateTime(e.createdAt, l),
-                      ],
-                    )
-                    .toList(),
-                direction,
-              ),
-          ],
-          for (final section in sections) ...[
-            pw.SizedBox(height: 16),
-            _section(_localize(section.title, l), bold),
-            if (section.rows.isEmpty)
-              pw.Text(_tr('noData', l))
-            else
-              ..._pdfSectionTables(
-                _localizedSection(section, l),
-                regular,
-                bold,
-                arabic,
-              ),
-          ],
-        ],
-      ),
-    );
-    try {
-      final bytes = await document.save();
-      if (bytes.isEmpty) {
-        throw StateError('Generated report PDF is empty.');
-      }
-      return bytes;
-    } catch (error, stackTrace) {
-      AppLogger.error(
-        'Report PDF serialization failed',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      rethrow;
-    }
-  }
-
-  ContextualReportSection _localizedSection(
-    ContextualReportSection section,
-    String language,
-  ) => ContextualReportSection(
-    key: section.key,
-    title: _localize(section.title, language),
-    columns: section.columns
-        .map((value) => _localize(value, language))
-        .toList(),
-    rows: section.rows
-        .map((row) => row.map((value) => _localize(value, language)).toList())
-        .toList(),
-  );
-
-  String _localize(String value, String language) {
-    final bilingual = value.split(' / ');
-    final selected = bilingual.length == 2
-        ? (language == 'ar' ? bilingual.last : bilingual.first)
-        : value;
-    return ReportFieldLocalizer.localize(
-      _translateLegacy(selected.trim(), language),
-      language,
-    );
-  }
-
-  List<pw.Widget> _pdfSectionTables(
-    ContextualReportSection section,
-    pw.Font regular,
-    pw.Font bold,
-    bool arabic,
-  ) => AdaptivePdfTable.build(
-    headers: section.columns
-        .map((value) => PdfTextSupport.sanitize(value))
-        .toList(growable: false),
-    rows: section.rows
-        .map(
-          (row) => row
-              .map((value) => PdfTextSupport.sanitize(value))
-              .toList(growable: false),
-        )
-        .toList(growable: false),
-    regular: regular,
-    bold: bold,
-    arabic: arabic,
-    headerColor: PremiumDocumentTheme.ink,
-    alternateColor: PremiumDocumentTheme.accentSoft,
-    maxColumnsPerGroup: 5,
-    maxRowsPerChunk: 12,
-  );
-
-  pw.Widget _section(String text, pw.Font bold) => pw.Container(
-    margin: const pw.EdgeInsets.only(bottom: 7),
-    padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-    decoration: pw.BoxDecoration(
-      color: PremiumDocumentTheme.accentSoft,
-      border: pw.Border(
-        left: pw.BorderSide(color: PremiumDocumentTheme.accent, width: 3),
-      ),
-      borderRadius: pw.BorderRadius.circular(5),
-    ),
-    child: pw.Text(
-      text,
-      style: pw.TextStyle(
-        font: bold,
-        fontSize: 12,
-        color: PremiumDocumentTheme.ink,
-      ),
-    ),
-  );
-  pw.Widget _table(
-    List<String> headers,
-    List<List<String>> data,
-    pw.TextDirection direction,
-  ) => pw.Directionality(
-    textDirection: direction,
-    child: pw.TableHelper.fromTextArray(
-      headers: headers
-          .map((value) => PdfTextSupport.sanitize(value, singleLine: true))
-          .toList(growable: false),
-      data: data
-          .map(
-            (row) => row
-                .map(
-                  (value) => PdfTextSupport.sanitize(value, singleLine: true),
-                )
-                .toList(growable: false),
-          )
-          .toList(growable: false),
-      headerDecoration: pw.BoxDecoration(color: PremiumDocumentTheme.ink),
-      headerStyle: pw.TextStyle(
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.white,
-        fontSize: 8,
-      ),
-      cellStyle: const pw.TextStyle(fontSize: 7.2),
-      oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#F5F7F8')),
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      border: pw.TableBorder.all(color: PdfColor.fromHex('#D6DEE3'), width: .4),
-      cellAlignment: direction == pw.TextDirection.rtl
-          ? pw.Alignment.centerRight
-          : pw.Alignment.centerLeft,
-    ),
-  );
-
-  TextCellValue _excelText(Object? value) =>
-      TextCellValue(PdfTextSupport.sanitize(value, singleLine: true));
-
-  Object? _excelExportValue(Object? value) {
-    if (value is DateTime || value is num || value is bool || value == null) {
-      return value;
-    }
-    return PdfTextSupport.sanitize(value, singleLine: true);
-  }
-
-  void _appendExcelTable(
-    Sheet sheet, {
+  void _appendSheet(
+    Excel book, {
+    required Set<String> usedNames,
+    required String preferredName,
     required String title,
     required List<String> headers,
     required List<List<Object?>> rows,
-    required String language,
+    required bool arabic,
   }) {
-    final arabic = language == 'ar';
+    final name = _uniqueSheetName(preferredName, usedNames);
+    usedNames.add(name);
+    final sheet = book[name];
     ExcelWorkbookPresentation.prepareSheet(sheet, arabic: arabic);
-    sheet.appendRow([_excelText(title)]);
+    sheet.appendRow([TextCellValue(title)]);
     ExcelWorkbookPresentation.styleTitle(
       sheet,
       row: 0,
       columnCount: headers.isEmpty ? 1 : headers.length,
     );
-    sheet.appendRow(headers.map(_excelText).toList(growable: false));
+    sheet.appendRow(headers.map(TextCellValue.new).toList(growable: false));
     ExcelWorkbookPresentation.styleHeader(sheet, 1, headers.length);
     for (final row in rows) {
       sheet.appendRow(
         List<CellValue>.generate(
           headers.length,
           (index) => ExcelWorkbookPresentation.typedValue(
-            _excelExportValue(index < row.length ? row[index] : null),
+            index < row.length ? row[index] : null,
             columnLabel: headers[index],
           ),
+          growable: false,
         ),
       );
     }
@@ -1028,15 +425,7 @@ class ReportExportService {
       arabic: arabic,
     );
     for (var index = 0; index < headers.length; index++) {
-      final label = headers[index].toLowerCase();
-      final wide =
-          label.contains('description') ||
-          label.contains('notes') ||
-          label.contains('الوصف') ||
-          label.contains('الملاحظات') ||
-          label.contains('linked') ||
-          label.contains('مرتبط');
-      sheet.setColumnWidth(index, wide ? 30 : 19);
+      sheet.setColumnWidth(index, index == 0 ? 24 : 20);
     }
   }
 
@@ -1048,7 +437,7 @@ class ReportExportService {
     for (final section in sections) {
       if (section.columns.isEmpty || section.rows.isEmpty) continue;
       final localizedColumns = section.columns
-          .map((value) => _localize(value, language))
+          .map((value) => ReportFieldLocalizer.localize(value, language))
           .toList(growable: false);
       final relationIndexes = <int>[];
       for (var index = 0; index < section.columns.length; index++) {
@@ -1082,8 +471,8 @@ class ReportExportService {
           if (relationIndex >= row.length) continue;
           final linkedValue = row[relationIndex].trim();
           if (linkedValue.isEmpty || linkedValue == sourceValue) continue;
-          result.add(<Object?>[
-            _localize(section.title, language),
+          result.add([
+            _localized(section.title, language),
             sourceValue,
             localizedColumns[relationIndex],
             linkedValue,
@@ -1093,221 +482,121 @@ class ReportExportService {
       }
     }
     if (result.isEmpty) {
-      result.add(<Object?>[
-        language == 'ar' ? 'لا توجد روابط في الفترة' : 'No relations in period',
-        '',
-        '',
-        '',
-        '',
-      ]);
+      result.add([language == 'ar' ? 'لا توجد روابط في الفترة' : 'No relations in period', '', '', '', '']);
     }
     return result;
   }
 
   String _linkedModuleForColumn(String column, String language) {
-    final normalized = column
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-        .toLowerCase();
-    String key;
-    if (normalized.contains('opportunity')) {
-      key = 'module_opportunities';
-    } else if (normalized.contains('purchase')) {
-      key = 'module_purchases';
-    } else if (normalized.contains('sales') || normalized.contains('order')) {
-      key = 'module_sales';
-    } else if (normalized.contains('invoice')) {
-      key = 'module_finance';
-    } else if (normalized.contains('movement') ||
-        normalized.contains('warehouse') ||
-        normalized.contains('transfer')) {
-      key = 'module_inventory';
-    } else if (normalized.contains('payment') ||
-        normalized.contains('entry') ||
-        normalized.contains('voucher')) {
-      key = 'module_accounting';
-    } else if (normalized.contains('vehicle')) {
-      key = 'module_cars';
-    } else {
-      key = 'module_operations';
-    }
-    return _tr(key, language);
+    final normalized = column.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+    final key = normalized.contains('opportunity')
+        ? 'module_opportunities'
+        : normalized.contains('purchase')
+        ? 'module_purchases'
+        : normalized.contains('sales') || normalized.contains('order')
+        ? 'module_sales'
+        : normalized.contains('invoice')
+        ? 'module_finance'
+        : normalized.contains('movement') || normalized.contains('warehouse') || normalized.contains('transfer')
+        ? 'module_inventory'
+        : normalized.contains('payment') || normalized.contains('entry') || normalized.contains('voucher')
+        ? 'module_accounting'
+        : normalized.contains('vehicle')
+        ? 'module_cars'
+        : 'module_operations';
+    return _t(key, language);
   }
 
-  List<(String, Object)> _moduleRows(ReportModel r, String m, String l) =>
-      switch (m) {
-        'cars' => [
-          (_tr('totalCars', l), r.totalCars.toDouble()),
-          (_tr('availableCars', l), r.availableCars.toDouble()),
-          (_tr('reservedCars', l), r.reservedCars.toDouble()),
-          (_tr('soldCars', l), r.soldCars.toDouble()),
-        ],
-        'products' => [
-          (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
-          (_tr('inventoryValue', l), _currencyMap(r.inventoryValueByCurrency)),
-        ],
-        'warehouses' => [
-          (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
-          (_tr('inventoryValue', l), _currencyMap(r.inventoryValueByCurrency)),
-        ],
-        'customers' => [
-          (_tr('customers', l), r.totalCustomers.toDouble()),
-          (_tr('receivables', l), _currencyMap(r.totalReceivablesByCurrency)),
-        ],
-        'suppliers' => [
-          (_tr('suppliers', l), r.totalSuppliers.toDouble()),
-          (_tr('payables', l), _currencyMap(r.totalPurchaseDebtByCurrency)),
-        ],
-        'payments' => [
-          (_tr('paidSales', l), _currencyMap(r.totalPaidSalesByCurrency)),
-          (_tr('receivables', l), _currencyMap(r.totalReceivablesByCurrency)),
-          (_tr('payables', l), _currencyMap(r.totalPurchaseDebtByCurrency)),
-        ],
-        'accounting' => [
-          (_tr('totalSales', l), _currencyMap(r.totalSalesByCurrency)),
-          (_tr('totalPurchases', l), _currencyMap(r.totalPurchasesByCurrency)),
-          (_tr('expenses', l), _currencyMap(r.totalExpensesByCurrency)),
-          (_tr('netProfit', l), _currencyMap(r.netProfitByCurrency)),
-        ],
-        'sales' => [
-          (_tr('totalSales', l), _currencyMap(r.totalSalesByCurrency)),
-          (_tr('paidSales', l), _currencyMap(r.totalPaidSalesByCurrency)),
-          (_tr('receivables', l), _currencyMap(r.totalReceivablesByCurrency)),
-          (_tr('netProfit', l), _currencyMap(r.netProfitByCurrency)),
-        ],
-        'purchases' => [
-          (_tr('totalPurchases', l), _currencyMap(r.totalPurchasesByCurrency)),
-          (_tr('purchaseDebt', l), _currencyMap(r.totalPurchaseDebtByCurrency)),
-          (_tr('inventoryValue', l), _currencyMap(r.inventoryValueByCurrency)),
-          (_tr('expenses', l), _currencyMap(r.totalExpensesByCurrency)),
-        ],
-        'inventory' => [
-          (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
-          (_tr('inventoryValue', l), _currencyMap(r.inventoryValueByCurrency)),
-          (_tr('totalPurchases', l), _currencyMap(r.totalPurchasesByCurrency)),
-          (_tr('totalSales', l), _currencyMap(r.totalSalesByCurrency)),
-        ],
-        'finance' => [
-          (_tr('cashUsd', l), r.cashBalanceUsd),
-          (_tr('cashIqd', l), r.cashBalanceIqd),
-          (_tr('receivables', l), _currencyMap(r.totalReceivablesByCurrency)),
-          (_tr('payables', l), _currencyMap(r.totalPurchaseDebtByCurrency)),
-          (_tr('netProfit', l), _currencyMap(r.netProfitByCurrency)),
-        ],
-        'partners' => [
-          (_tr('customers', l), r.totalCustomers.toDouble()),
-          (_tr('suppliers', l), r.totalSuppliers.toDouble()),
-          (_tr('activeReservations', l), r.activeReservations.toDouble()),
-          (_tr('overdueInstallments', l), r.overdueInstallments.toDouble()),
-        ],
-        'operations' => _operationalRows(r, l),
-        _ => [
-          (_tr('totalSales', l), _currencyMap(r.totalSalesByCurrency)),
-          (_tr('totalPurchases', l), _currencyMap(r.totalPurchasesByCurrency)),
-          (_tr('expenses', l), _currencyMap(r.totalExpensesByCurrency)),
-          (_tr('inventoryValue', l), _currencyMap(r.inventoryValueByCurrency)),
-          (_tr('cashUsd', l), r.cashBalanceUsd),
-          (_tr('cashIqd', l), r.cashBalanceIqd),
-          (_tr('netProfit', l), _currencyMap(r.netProfitByCurrency)),
-        ],
-      };
-  List<(String, double)> _operationalRows(ReportModel r, String l) => [
-    (_tr('totalCars', l), r.totalCars.toDouble()),
-    (_tr('availableCars', l), r.availableCars.toDouble()),
-    (_tr('reservedCars', l), r.reservedCars.toDouble()),
-    (_tr('soldCars', l), r.soldCars.toDouble()),
-    (_tr('customers', l), r.totalCustomers.toDouble()),
-    (_tr('suppliers', l), r.totalSuppliers.toDouble()),
-    (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
-    (_tr('activeReservations', l), r.activeReservations.toDouble()),
-    (_tr('overdueInstallments', l), r.overdueInstallments.toDouble()),
+  List<(String, Object)> _moduleRows(ReportModel r, String module, String language) => switch (module) {
+    'cars' => [
+      (_t('totalCars', language), r.totalCars),
+      (_t('availableCars', language), r.availableCars),
+      (_t('reservedCars', language), r.reservedCars),
+      (_t('soldCars', language), r.soldCars),
+    ],
+    'products' || 'warehouses' || 'inventory' => [
+      (_t('inventoryItems', language), r.totalInventoryItems),
+      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
+    ],
+    'customers' => [
+      (_t('customers', language), r.totalCustomers),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+    ],
+    'suppliers' => [
+      (_t('suppliers', language), r.totalSuppliers),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
+    ],
+    'payments' => [
+      (_t('paidSales', language), _currencyMap(r.totalPaidSalesByCurrency)),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
+    ],
+    'sales' => [
+      (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
+      (_t('paidSales', language), _currencyMap(r.totalPaidSalesByCurrency)),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+      (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
+    ],
+    'purchases' => [
+      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
+      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (_t('expenses', language), _currencyMap(r.totalExpensesByCurrency)),
+    ],
+    'finance' || 'accounting' => [
+      (_t('cashUsd', language), r.cashBalanceUsd),
+      (_t('cashIqd', language), r.cashBalanceIqd),
+      (_t('receivables', language), _currencyMap(r.totalReceivablesByCurrency)),
+      (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
+      (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
+    ],
+    'partners' => [
+      (_t('customers', language), r.totalCustomers),
+      (_t('suppliers', language), r.totalSuppliers),
+      (_t('activeReservations', language), r.activeReservations),
+      (_t('overdueInstallments', language), r.overdueInstallments),
+    ],
+    'operations' => _operationalRows(r, language),
+    _ => [
+      (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
+      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (_t('expenses', language), _currencyMap(r.totalExpensesByCurrency)),
+      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (_t('cashUsd', language), r.cashBalanceUsd),
+      (_t('cashIqd', language), r.cashBalanceIqd),
+      (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
+    ],
+  };
+
+  List<(String, Object)> _operationalRows(ReportModel r, String language) => [
+    (_t('totalCars', language), r.totalCars),
+    (_t('availableCars', language), r.availableCars),
+    (_t('reservedCars', language), r.reservedCars),
+    (_t('soldCars', language), r.soldCars),
+    (_t('customers', language), r.totalCustomers),
+    (_t('suppliers', language), r.totalSuppliers),
+    (_t('inventoryItems', language), r.totalInventoryItems),
+    (_t('activeReservations', language), r.activeReservations),
+    (_t('overdueInstallments', language), r.overdueInstallments),
   ];
 
-  String _moduleName(String m, String l) => _tr('module_$m', l);
-  String _safeSheetTitle(String title, String fallback) {
-    final cleaned = title.replaceAll(RegExp(r'[\\/*?:\[\]]'), ' ').trim();
-    final value = cleaned.isEmpty ? fallback : cleaned;
-    return value.length > 31 ? value.substring(0, 31) : value;
+  String fileNameFor(String module, String language) {
+    final canonical = PdfTextSupport.canonicalPdfLanguage(language);
+    final safeModule = module.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    return 'quality_line_${safeModule}_${DateTime.now().millisecondsSinceEpoch}_$canonical';
   }
 
-  String _uniqueSheetTitle(String title, String fallback, Set<String> used) {
-    final base = _safeSheetTitle(title, fallback);
-    if (!used.contains(base)) return base;
-    var index = 2;
-    while (true) {
-      final suffix = ' ($index)';
-      final maxBase = 31 - suffix.length;
-      final candidate =
-          '${base.substring(0, math.min(base.length, maxBase))}$suffix';
-      if (!used.contains(candidate)) return candidate;
-      index++;
-    }
-  }
+  String _moduleName(String module, String language) => _t('module_$module', language);
 
-  String _sheetName(String key, String l) {
-    final n = _tr(key, l);
-    return n.length > 31 ? n.substring(0, 31) : n;
+  String _localized(Object? value, String language) {
+    final raw = '${value ?? ''}'.trim();
+    if (raw == 'تقرير خط الجودة') return language == 'ar' ? raw : 'Quality Line Report';
+    if (raw == 'Quality Line Report') return language == 'ar' ? 'تقرير خط الجودة' : raw;
+    if (raw == 'جميع الفترات') return language == 'ar' ? raw : 'All periods';
+    return ReportFieldLocalizer.localize(raw, language);
   }
-
-  Future<_ReportBranding> _loadBranding(String language) async {
-    final companyId = CloudTenantContext.instance.companyUuid;
-    if (companyId == null || companyId.isEmpty) {
-      // Branding is optional. Report generation must continue with the
-      // bundled Quality Line identity even if tenant context is temporarily
-      // unavailable during local-development/session bootstrap.
-      AppLogger.debug(
-        'Report branding fallback activated: active company is unavailable.',
-      );
-    }
-    Map<String, String> values = const <String, String>{};
-    try {
-      final result = await Supabase.instance.client
-          .rpc('erp_get_cloud_company_settings')
-          .timeout(const Duration(seconds: 12));
-      values = Map<String, Object?>.from(
-        result as Map,
-      ).map((key, value) => MapEntry(key, value?.toString() ?? ''));
-    } catch (error, stackTrace) {
-      // Branding must never block operational printing or exporting. The
-      // document falls back to the built-in company identity when the optional
-      // settings RPC is unavailable or the connection is temporarily slow.
-      AppLogger.debug(
-        'Report branding fallback activated: $error\n$stackTrace',
-      );
-    }
-    final logo = await _loadBundledLogo();
-    final arabic = language == 'ar';
-    return _ReportBranding(
-      companyName: arabic
-          ? (values['company_name']?.trim().isNotEmpty == true
-                ? values['company_name']!
-                : 'شركة خط الجودة')
-          : (values['company_name_en']?.trim().isNotEmpty == true
-                ? values['company_name_en']!
-                : 'Quality Line'),
-      logo: logo,
-      details: [
-        values['address'],
-        values['phone'],
-        values['tax_number'],
-      ].where((value) => value?.trim().isNotEmpty == true).join(' • '),
-    );
-  }
-
-  String _dateTime(DateTime value, String language) {
-    final local = value.toLocal();
-    final date =
-        '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
-    final time =
-        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-    return language == 'ar' ? '$date، $time' : '$date $time';
-  }
-
-  String _fileName(String module, String l) =>
-      'quality_line_${module}_${DateTime.now().millisecondsSinceEpoch}_$l';
-  String fileNameFor(String module, String language) =>
-      _fileName(module, PdfTextSupport.canonicalPdfLanguage(language));
-  String _exportValue(Object value) =>
-      value is num ? _number(value.toDouble()) : value.toString();
 
   String _currencyMap(Map<String, double> values) {
     if (values.isEmpty) return '—';
@@ -1315,193 +604,97 @@ class ReportExportService {
     return keys.map((key) => '${_number(values[key] ?? 0)} $key').join(' • ');
   }
 
-  String _number(double v) =>
-      v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
+  String _number(double value) => value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toStringAsFixed(2);
+
+  String _dateTime(DateTime value) {
+    final local = value.toLocal();
+    return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _uniqueSheetName(String raw, Set<String> used) {
+    var base = PdfTextSupport.sanitize(raw, singleLine: true)
+        .replaceAll(RegExp(r'[\\/*?:\[\]]'), ' ')
+        .trim();
+    if (base.isEmpty) base = 'Report';
+    if (base.length > 31) base = base.substring(0, 31);
+    if (!used.contains(base)) return base;
+    var index = 2;
+    while (true) {
+      final suffix = ' ($index)';
+      final maxHead = (31 - suffix.length).clamp(1, base.length).toInt();
+      final candidate = '${base.substring(0, maxHead)}$suffix';
+      if (!used.contains(candidate)) return candidate;
+      index++;
+    }
+  }
+
   String _escapeCsv(Object? value) {
     var text = PdfTextSupport.sanitize(value, singleLine: true);
-    if (text.isNotEmpty && '=+-@\t\r'.contains(text[0])) {
-      text = "'$text";
-    }
+    if (text.isNotEmpty && '=+-@\t\r'.contains(text[0])) text = "'$text";
     return '"${text.replaceAll('"', '""')}"';
   }
 
-  String _translateLegacy(String value, String language) {
-    const pairs = <String, String>{
-      'تقرير خط الجودة': 'Quality Line Report',
-      'جميع الفترات': 'All periods',
-      'رقم الأمر': 'Order number',
-      'رقم الفاتورة': 'Invoice number',
-      'الحالة': 'Status',
-      'العملة': 'Currency',
-      'سعر الصرف': 'Exchange rate',
-      'الإجمالي': 'Total',
-      'المبلغ': 'Amount',
-      'الوصف': 'Description',
-      'الكمية': 'Quantity',
-      'سعر الوحدة': 'Unit price',
-      'التاريخ': 'Date',
-      'المخزن': 'Warehouse',
-      'العميل': 'Customer',
-      'المورد': 'Supplier',
-      'السيارة': 'Vehicle',
-      'المنتج': 'Product',
-      'نوع التسوية': 'Settlement mode',
-      'فرق الصرف': 'Exchange difference',
-      'البيانات الخام': 'Raw data',
-      'rawData': 'Raw data',
-      'itemDetails': 'Item details',
-      'payload': 'Payload',
-      'createdAt': 'Created at',
-      'updatedAt': 'Updated at',
-      'fromWarehouse': 'From warehouse',
-      'toWarehouse': 'To warehouse',
-      'availableQuantity': 'Available quantity',
-      'reservedQuantity': 'Reserved quantity',
-      'stockValue': 'Stock value',
-    };
-    if (language == 'en') return pairs[value] ?? value;
-    for (final entry in pairs.entries) {
-      if (entry.value == value) return entry.key;
-    }
-    return value;
-  }
-
-  String _tr(String key, String l) {
+  String _t(String key, String language) {
     const ar = <String, String>{
-      'summary': 'الملخص',
-      'operations': 'المؤشرات التشغيلية',
-      'monthly': 'الأداء الشهري',
-      'executors': 'منفذو الإدخال',
-      'module': 'المودل',
-      'period': 'الفترة',
-      'generatedAt': 'تاريخ إنشاء التقرير',
-      'indicator': 'المؤشر',
-      'value': 'القيمة',
-      'operationalIndicator': 'المؤشر التشغيلي',
-      'month': 'الشهر',
-      'sales': 'المبيعات',
-      'purchases': 'المشتريات',
-      'expenses': 'المصاريف',
-      'user': 'المستخدم',
-      'action': 'الإجراء',
-      'entity': 'الكيان',
-      'date': 'التاريخ',
-      'moduleSummary': 'ملخص المودل',
-      'operationalIndicators': 'المؤشرات التشغيلية',
-      'monthlyPerformance': 'الأداء الشهري',
-      'dataExecutors': 'منفذو إدخال البيانات',
-      'noExecutors': 'لا توجد عمليات مسجلة ضمن هذا المودل.',
-      'noData': 'لا توجد بيانات في هذا القسم.',
-      'excelError': 'تعذر إنشاء ملف Excel.',
-      'totalCars': 'إجمالي السيارات',
-      'availableCars': 'السيارات المتاحة',
-      'reservedCars': 'السيارات قيد البيع',
-      'soldCars': 'السيارات المباعة',
-      'totalSales': 'إجمالي المبيعات',
-      'paidSales': 'المبيعات المحصلة',
-      'receivables': 'الذمم المدينة',
-      'netProfit': 'صافي الربح',
-      'totalPurchases': 'إجمالي المشتريات',
-      'purchaseDebt': 'ذمم الموردين',
-      'inventoryValue': 'قيمة المخزون',
-      'inventoryItems': 'عدد مواد المخزون',
-      'cashUsd': 'رصيد الصناديق بالدولار',
-      'cashIqd': 'رصيد الصناديق بالدينار',
-      'payables': 'الذمم الدائنة',
-      'customers': 'العملاء',
-      'suppliers': 'الموردون',
-      'activeReservations': 'الحجوزات النشطة',
-      'overdueInstallments': 'الأقساط المتأخرة',
-      'module_overview': 'نظرة عامة',
-      'module_cars': 'السيارات',
-      'module_products': 'المنتجات',
-      'module_warehouses': 'المخازن',
-      'module_customers': 'العملاء',
-      'module_customer_service': 'خدمة العملاء',
-      'module_opportunities': 'الفرص التجارية',
-      'module_suppliers': 'الموردون',
-      'module_payments': 'الدفعات',
-      'module_accounting': 'المحاسبة',
-      'module_sales': 'المبيعات',
-      'module_purchases': 'المشتريات',
-      'module_inventory': 'المخزون',
-      'module_finance': 'المالية',
-      'module_partners': 'الشركاء التجاريون',
-      'module_operations': 'التشغيل',
+      'summary': 'الملخص', 'operations': 'التشغيل', 'monthly': 'الأداء الشهري',
+      'executors': 'منفذو الإدخال', 'module': 'الوحدة', 'period': 'الفترة',
+      'generatedAt': 'تاريخ الإنشاء', 'indicator': 'المؤشر', 'value': 'القيمة',
+      'moduleSummary': 'ملخص الوحدة', 'operationalIndicators': 'المؤشرات التشغيلية',
+      'monthlyPerformance': 'الأداء الشهري', 'dataExecutors': 'منفذو إدخال البيانات',
+      'month': 'الشهر', 'sales': 'المبيعات', 'purchases': 'المشتريات',
+      'expenses': 'المصاريف', 'user': 'المستخدم', 'action': 'الإجراء',
+      'entity': 'نوع السجل', 'date': 'التاريخ', 'section': 'القسم',
+      'field': 'الحقل', 'details': 'التفاصيل', 'rows': 'عدد السجلات',
+      'report': 'التقرير', 'noData': 'لا توجد بيانات', 'excelError': 'تعذر إنشاء ملف Excel.',
+      'totalCars': 'إجمالي السيارات', 'availableCars': 'السيارات المتاحة',
+      'reservedCars': 'السيارات قيد البيع', 'soldCars': 'السيارات المباعة',
+      'inventoryItems': 'عدد مواد المخزون', 'inventoryValue': 'قيمة المخزون',
+      'totalSales': 'إجمالي المبيعات', 'paidSales': 'المبيعات المحصلة',
+      'receivables': 'الذمم المدينة', 'totalPurchases': 'إجمالي المشتريات',
+      'payables': 'الذمم الدائنة', 'netProfit': 'صافي الربح',
+      'cashUsd': 'رصيد الصناديق USD', 'cashIqd': 'رصيد الصناديق IQD',
+      'customers': 'العملاء', 'suppliers': 'الموردون',
+      'activeReservations': 'الحجوزات النشطة', 'overdueInstallments': 'الأقساط المتأخرة',
+      'module_overview': 'نظرة عامة', 'module_cars': 'السيارات',
+      'module_products': 'المنتجات', 'module_warehouses': 'المخازن',
+      'module_customers': 'العملاء', 'module_customer_service': 'خدمة العملاء',
+      'module_opportunities': 'الفرص التجارية', 'module_suppliers': 'الموردون',
+      'module_sales': 'المبيعات', 'module_purchases': 'المشتريات',
+      'module_payments': 'الدفعات', 'module_accounting': 'المحاسبة',
+      'module_inventory': 'المخزون', 'module_finance': 'المالية',
+      'module_partners': 'الشركاء التجاريون', 'module_operations': 'التشغيل',
     };
     const en = <String, String>{
-      'summary': 'Summary',
-      'operations': 'Operational indicators',
-      'monthly': 'Monthly performance',
-      'executors': 'Data entry users',
-      'module': 'Module',
-      'period': 'Period',
-      'generatedAt': 'Generated at',
-      'indicator': 'Indicator',
-      'value': 'Value',
-      'operationalIndicator': 'Operational indicator',
-      'month': 'Month',
-      'sales': 'Sales',
-      'purchases': 'Purchases',
-      'expenses': 'Expenses',
-      'user': 'User',
-      'action': 'Action',
-      'entity': 'Entity',
-      'date': 'Date',
-      'moduleSummary': 'Module summary',
-      'operationalIndicators': 'Operational indicators',
-      'monthlyPerformance': 'Monthly performance',
-      'dataExecutors': 'Data entry users',
-      'noExecutors': 'No recorded operations for this module.',
-      'noData': 'No data in this section.',
-      'excelError': 'Unable to create Excel file.',
-      'totalCars': 'Total vehicles',
-      'availableCars': 'Available vehicles',
-      'reservedCars': 'Reserved vehicles',
-      'soldCars': 'Sold vehicles',
-      'totalSales': 'Total sales',
-      'paidSales': 'Collected sales',
-      'receivables': 'Accounts receivable',
-      'netProfit': 'Net profit',
-      'totalPurchases': 'Total purchases',
-      'purchaseDebt': 'Supplier payables',
-      'inventoryValue': 'Inventory value',
-      'inventoryItems': 'Inventory items',
-      'cashUsd': 'Cash balance USD',
-      'cashIqd': 'Cash balance IQD',
-      'payables': 'Accounts payable',
-      'customers': 'Customers',
-      'suppliers': 'Suppliers',
-      'activeReservations': 'Active reservations',
-      'overdueInstallments': 'Overdue installments',
-      'module_overview': 'Overview',
-      'module_cars': 'Vehicles',
-      'module_products': 'Products',
-      'module_warehouses': 'Warehouses',
-      'module_customers': 'Customers',
-      'module_customer_service': 'Customer Service',
-      'module_opportunities': 'Opportunities',
-      'module_suppliers': 'Suppliers',
-      'module_payments': 'Payments',
-      'module_accounting': 'Accounting',
-      'module_sales': 'Sales',
-      'module_purchases': 'Purchases',
-      'module_inventory': 'Inventory',
-      'module_finance': 'Finance',
-      'module_partners': 'Business partners',
+      'summary': 'Summary', 'operations': 'Operations', 'monthly': 'Monthly',
+      'executors': 'Executors', 'module': 'Module', 'period': 'Period',
+      'generatedAt': 'Generated at', 'indicator': 'Indicator', 'value': 'Value',
+      'moduleSummary': 'Module summary', 'operationalIndicators': 'Operational indicators',
+      'monthlyPerformance': 'Monthly performance', 'dataExecutors': 'Data entry users',
+      'month': 'Month', 'sales': 'Sales', 'purchases': 'Purchases', 'expenses': 'Expenses',
+      'user': 'User', 'action': 'Action', 'entity': 'Entity', 'date': 'Date',
+      'section': 'Section', 'field': 'Field', 'details': 'Details', 'rows': 'Rows',
+      'report': 'Report', 'noData': 'No data', 'excelError': 'Unable to create Excel file.',
+      'totalCars': 'Total vehicles', 'availableCars': 'Available vehicles',
+      'reservedCars': 'Reserved vehicles', 'soldCars': 'Sold vehicles',
+      'inventoryItems': 'Inventory items', 'inventoryValue': 'Inventory value',
+      'totalSales': 'Total sales', 'paidSales': 'Collected sales',
+      'receivables': 'Accounts receivable', 'totalPurchases': 'Total purchases',
+      'payables': 'Accounts payable', 'netProfit': 'Net profit',
+      'cashUsd': 'Cash balance USD', 'cashIqd': 'Cash balance IQD',
+      'customers': 'Customers', 'suppliers': 'Suppliers',
+      'activeReservations': 'Active reservations', 'overdueInstallments': 'Overdue installments',
+      'module_overview': 'Overview', 'module_cars': 'Vehicles',
+      'module_products': 'Products', 'module_warehouses': 'Warehouses',
+      'module_customers': 'Customers', 'module_customer_service': 'Customer Service',
+      'module_opportunities': 'Opportunities', 'module_suppliers': 'Suppliers',
+      'module_sales': 'Sales', 'module_purchases': 'Purchases', 'module_payments': 'Payments',
+      'module_accounting': 'Accounting', 'module_inventory': 'Inventory',
+      'module_finance': 'Finance', 'module_partners': 'Business partners',
       'module_operations': 'Operations',
     };
-    return (l == 'en' ? en : ar)[key] ?? key;
+    return (language == 'ar' ? ar : en)[key] ?? key;
   }
-}
-
-class _ReportBranding {
-  const _ReportBranding({
-    required this.companyName,
-    required this.logo,
-    required this.details,
-  });
-  final String companyName;
-  final pw.MemoryImage? logo;
-  final String details;
 }

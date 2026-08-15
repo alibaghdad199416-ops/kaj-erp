@@ -41,7 +41,10 @@
   </div>
   <script>
     (() => {
-      const FALLBACK_BUILD = '22.9.8+229008-r49-focused-final-completion-20260810';
+      const FALLBACK_BUILD = '22.9.8+229008-r74-authenticated-tenant-runtime-20260815';
+      // Historical runtime tokens retained only for compatibility checks:
+      // 22.9.8+229008-r73-current-schema-runtime-20260815
+      // 22.9.8+229008-r49-focused-final-completion-20260810
       // Legacy audit: FALLBACK_BUILD = '18.9.8+189800-v738-full-verified-runtime-accounting-ui-20260806'
       const VERSION_KEY = 'kaj-runtime-build';
       const RELOAD_KEY = 'kaj-version-reload';
@@ -70,7 +73,8 @@
             return FALLBACK_BUILD;
           }
           const baseBuild = `${data.version}+${data.buildNumber || data.build}`;
-          return data.releaseToken ? `${baseBuild}-${data.releaseToken}` : baseBuild;
+          const runtimeToken = data.runtimeToken || data.releaseToken;
+          return runtimeToken ? `${baseBuild}-${runtimeToken}` : baseBuild;
         } catch (_) { return FALLBACK_BUILD; }
       }
 

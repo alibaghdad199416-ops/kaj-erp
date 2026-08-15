@@ -72,6 +72,15 @@ class SupabaseUserAdministrationService {
     required Map<String, dynamic> erpUserPayload,
   }) async {
     final companyId = _activeCompanyId();
+
+    // Identity, membership, ERP profile and avatar now cross one trusted Edge
+    // boundary. The function performs permission checks, read-back validation
+    // and compensating rollback as one governed update instead of allowing the
+    // profile to succeed while a second media request fails afterward.
+    final identityPayload = Map<String, dynamic>.from(erpUserPayload);
+    final hasAvatarField = identityPayload.containsKey('avatarBase64');
+    final avatarBase64 = identityPayload.remove('avatarBase64');
+
     await _invoke(
       functionName: 'admin-manage-user',
       body: <String, dynamic>{
@@ -83,7 +92,8 @@ class SupabaseUserAdministrationService {
         'full_name': fullName.trim(),
         'role_code': roleCode,
         'is_active': isActive,
-        'erp_user': erpUserPayload,
+        'erp_user': identityPayload,
+        if (hasAvatarField) 'avatar_base64': avatarBase64,
       },
     );
   }
@@ -171,6 +181,7 @@ class SupabaseUserAdministrationService {
       401 => 'unauthenticated',
       403 => 'permission_denied',
       404 => 'hosted_function_unavailable',
+      413 => 'media_payload_too_large',
       _ when error.status >= 500 => 'request_failed',
       _ => null,
     };
@@ -194,12 +205,16 @@ class SupabaseUserAdministrationService {
         'تعذر حذف حساب Supabase بسبب مراجع قديمة مرتبطة به. طُبّق إصلاح قاعدة البيانات؛ أعد المحاولة.',
       'role_mapping_mismatch' => 'الدور المحلي لا يطابق الدور السحابي.',
       'invalid_input' => 'بيانات المستخدم المرسلة إلى الخدمة غير صالحة.',
+      'invalid_media_payload' => 'صيغة صورة المستخدم غير صالحة.',
+      'media_readback_mismatch' =>
+        'لم يتم تثبيت صورة المستخدم بعد الحفظ. لم تُعتمد العملية.',
       'method_not_allowed' => 'طريقة طلب خدمة المستخدمين غير مسموحة.',
       'server_configuration_missing' =>
         'إعداد خدمة المستخدمين السحابية غير مكتمل.',
       'hosted_function_unavailable' =>
-        'خدمة إدارة المستخدمين غير منشورة أو غير متاحة في بيئة Supabase الحالية. يلزم نشر Edge Function المعتمدة ثم إعادة المحاولة.',
+        'خدمة إدارة المستخدمين أو الصور غير منشورة في بيئة Supabase الحالية. يلزم نشر Edge Functions المعتمدة ثم إعادة المحاولة.',
       'company_slug_missing' => 'إعداد الشركة السحابية غير مكتمل.',
+      'media_payload_too_large' => 'حجم الصورة أكبر من الحد المسموح بعد الضغط.',
       'request_failed' =>
         'تعذر إكمال إدارة المستخدم السحابي بسبب خطأ في الخدمة.',
       _ => 'تعذر إكمال إدارة المستخدم السحابي.',
