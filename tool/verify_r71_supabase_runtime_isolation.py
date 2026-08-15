@@ -26,13 +26,20 @@ assert "browserStorageNamespace" in config
 assert "authPersistSessionKey" in config
 assert "projectRefFor" in config
 assert "storageNamespaceFor" in config
+assert "validateRuntime" in config
+assert "projectRef != expectedProductionProjectRef" in config
+assert "isConfigured => validateRuntime() == null" in config
 
-# Hosted auth must no longer fall back to Supabase's generic/default browser key.
+# Hosted auth must no longer fall back to Supabase's generic/default browser key,
+# and bootstrap must reject every hosted project except the approved one.
 assert "SharedPreferencesLocalStorage" in bootstrap
 assert "SupabaseConfig.authPersistSessionKey" in bootstrap
 assert "if (!isLoopback)" not in bootstrap
 assert "return const FlutterAuthClientOptions();" not in bootstrap
 assert "Supabase bootstrap target: ${SupabaseConfig.projectRef}" in bootstrap
+assert "SupabaseConfig.validateRuntime()" in bootstrap
+assert "SupabaseConfig.validate() == null" not in bootstrap
+assert "Supabase runtime configuration rejected" in bootstrap
 
 # Tenant/company cache must be project-scoped, and legacy ambiguous keys must be
 # removed rather than silently migrated into the currently selected backend.
@@ -45,6 +52,7 @@ assert "preferences.setString(_scopedKey(_companyKey)" in tenant
 
 print("PASS R71 Supabase runtime/auth/tenant project isolation")
 print(f"  - required project: {expected}")
+print("  - unexpected hosted Supabase projects fail closed")
 print("  - hosted auth storage is project-scoped")
 print("  - tenant cache is project-scoped")
 print("  - legacy unscoped tenant cache is discarded")
