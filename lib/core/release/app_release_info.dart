@@ -12,12 +12,12 @@ class AppReleaseInfo {
       '22.9.8-r49-focused-final-completion';
   static const String releaseToken = 'r49-focused-final-completion-20260810';
 
-  // Current source/runtime identity. This advances independently from the
-  // historical R49 package identity so browsers can never mistake the current
-  // R72+ schema/runtime for the August 10 fallback build.
-  static const String currentRuntimeRevision = 'r73-current-schema-runtime';
+  // Current source/runtime identity. R74 adds authenticated user+tenant
+  // attestation and invalidates the earlier project-only tenant cache.
+  static const String currentRuntimeRevision =
+      'r74-authenticated-tenant-runtime';
   static const String currentRuntimeToken =
-      'r73-current-schema-runtime-20260815';
+      'r74-authenticated-tenant-runtime-20260815';
 
   // Historical audit markers retained for backward-compatible release checks:
   // 18.9.8 / 189800 / v738-full-verified-runtime-accounting-ui-20260806
