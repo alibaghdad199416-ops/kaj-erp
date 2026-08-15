@@ -81,7 +81,7 @@ Write-Host '==================================================' -ForegroundColor
 
 $statusValues = Get-LocalStatusVariables
 if ($null -eq $statusValues) {
-  Write-Host '`nStarting the existing local Supabase stack...' -ForegroundColor Cyan
+  Write-Host "`nStarting the existing local Supabase stack..." -ForegroundColor Cyan
   Write-Host 'No db reset and no remote project operation will be used.' -ForegroundColor Yellow
   Invoke-Supabase -Arguments @('start') | Out-Null
   $statusValues = Get-LocalStatusVariables
@@ -141,9 +141,11 @@ $localRuntime = [ordered]@{
   SUPABASE_LOCAL_PROJECT_ID = $ExpectedLocalProjectId
   SUPABASE_ALLOW_LOCAL_DEV = $true
 }
-$localRuntime | ConvertTo-Json | Set-Content -Path $LocalDefines -Encoding utf8
+$runtimeJson = $localRuntime | ConvertTo-Json
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($LocalDefines, $runtimeJson + [Environment]::NewLine, $utf8NoBom)
 
-Write-Host '`nPASS: current local Supabase runtime is ready.' -ForegroundColor Green
+Write-Host "`nPASS: current local Supabase runtime is ready." -ForegroundColor Green
 Write-Host "  API: $apiUrl" -ForegroundColor Green
 Write-Host "  Studio: $studioUrl" -ForegroundColor Green
 if (-not [string]::IsNullOrWhiteSpace($dbUrl)) {
