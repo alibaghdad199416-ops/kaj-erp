@@ -31,7 +31,7 @@ if (-not (Test-Path 'dart_defines.local.generated.json')) {
 
 Write-Host "`nLaunching KAJ ERP against LOCAL Supabase only..." -ForegroundColor Green
 Write-Host 'Backend source: Supabase CLI local stack (127.0.0.1)' -ForegroundColor Green
-Write-Host 'All pending migrations, including R78/R79, are applied forward-only to the existing local database.' -ForegroundColor Green
+Write-Host 'All pending migrations, including R78/R79/R80, are applied forward-only to the existing local database.' -ForegroundColor Green
 Write-Host 'Production configuration remains separate and unchanged.' -ForegroundColor Green
 flutter run -d edge --dart-define-from-file=dart_defines.local.generated.json
 exit $LASTEXITCODE

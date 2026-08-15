@@ -37,7 +37,11 @@ def main() -> None:
         "changed: false",
         "media_readback_mismatch",
     )
-    assert media_edge.index("currentAvatar === expectedAvatar") < media_edge.index("users.image.update")
+    no_op_index = media_edge.index("if (currentAvatar === expectedAvatar)")
+    permission_index = media_edge.index(
+        "hasPermission(caller, companyId, 'users.image.update')"
+    )
+    assert no_op_index < permission_index
 
     require(
         "lib/features/inventory/cars/data/car_images_repository.dart",
@@ -58,6 +62,17 @@ def main() -> None:
         "notify pgrst,'reload schema'",
     )
     assert "jsonb_agg" in migration and "erp_product_images" in migration
+
+    security = require(
+        "supabase/migrations/20260816004500_r80_media_noop_scope_hardening.sql",
+        "tg_table_name='erp_product_images'",
+        "qualityline.r79_verified_media_noop",
+        "erp_inventory master row",
+        "inventory.images.manage",
+        "notify pgrst,'reload schema'",
+    )
+    bypass_line = "current_setting('qualityline.r79_verified_media_noop',true)='on'"
+    assert security.count(bypass_line) == 1
 
     reports = require(
         "lib/features/settings/reports/services/report_export_service.dart",
@@ -137,14 +152,15 @@ def main() -> None:
     )
     assert "db push" not in launcher.lower()
 
-    print("PASS R79 media/export stabilization")
+    print("PASS R79/R80 media/export stabilization")
     print("  - image edit controls mirror dedicated backend permissions")
     print("  - unchanged user/car/product images no longer block ordinary data edits")
+    print("  - verified product-image no-op bypass is scoped to erp_product_images only")
     print("  - actual image mutations remain fail-closed in Edge/PostgreSQL")
     print("  - report Excel preserves selected Arabic/English language + relation index")
     print("  - accounting PDF/Excel follow active application language")
     print("  - generic PDF uses the unified Quality Line identity and company branding")
-    print("  - local launcher verifies R76 + R78 + R79 before migration/run")
+    print("  - local launcher verifies source before migration/run")
     print(f"  - production project remains isolated: {EXPECTED_REF}")
 
 
