@@ -5,13 +5,15 @@ root = Path(__file__).resolve().parents[1]
 expected_ref = "havlqebmnjdcwmpaaqew"
 expected_url = f"https://{expected_ref}.supabase.co"
 
+# Production-only paths. The default current-web launcher is intentionally local
+# and is verified separately by R76.
 runtime_files = [
     root / "dart_defines.json",
     root / "dart_defines.example.json",
     root / "lib/core/cloud/supabase_config.dart",
     root / "tool/configure_production.ps1",
     root / "tool/deploy_production.ps1",
-    root / "tool/run_current_web.ps1",
+    root / "tool/run_production_web.ps1",
     root / "tool/repair_r72_current_database_schema.ps1",
     root / "tool/repair_r74_auth_tenant_runtime.ps1",
     root / "tool/verify_deployment_target.py",
@@ -50,7 +52,7 @@ required_markers = {
     "lib/core/cloud/supabase_config.dart",
     "tool/configure_production.ps1",
     "tool/deploy_production.ps1",
-    "tool/run_current_web.ps1",
+    "tool/run_production_web.ps1",
     "tool/verify_deployment_target.py",
 }
 missing_expected = sorted(required_markers - seen_expected)
@@ -62,17 +64,19 @@ if missing_expected:
 
 config = (root / "lib/core/cloud/supabase_config.dart").read_text(encoding="utf-8")
 if f"expectedProductionProjectRef =\n      '{expected_ref}'" not in config:
-    errors.append("SupabaseConfig does not fail-closed to the approved project ref")
+    errors.append("SupabaseConfig does not fail-closed to the approved hosted project ref")
 if "projectRef != expectedProductionProjectRef" not in config:
-    errors.append("SupabaseConfig runtime project guard is missing")
+    errors.append("SupabaseConfig hosted runtime project guard is missing")
+if "isLocalTarget()" not in config:
+    errors.append("SupabaseConfig must preserve the explicit local development path")
 
 if errors:
-    print("FAIL R75 HAVL-only Supabase target verification")
+    print("FAIL R75 HAVL-only production target verification")
     for error in errors:
         print(f"  - {error}")
     raise SystemExit(1)
 
-print("PASS R75 HAVL-only Supabase target verification")
+print("PASS R75 HAVL-only production target verification")
 print(f"  - only hosted project allowed: {expected_ref}")
 print(f"  - only hosted URL allowed: {expected_url}")
-print("  - runtime, repair, deploy, and verification paths reject other hosted projects")
+print("  - local current-web runtime is intentionally separated and checked by R76")
