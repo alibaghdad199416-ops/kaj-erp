@@ -19,7 +19,7 @@ if ($SupabaseOnly -and $HostingOnly) {
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
 
-$SupabaseProjectRef = 'havlqebmnjdcwmpaaqew'
+$SupabaseProjectRef = 'fjiaxdorunedmltgqtty'
 $FirebaseProjectId = 'kaj-erp'
 $RunSupabase = -not $HostingOnly
 $RunHosting = -not $SupabaseOnly
