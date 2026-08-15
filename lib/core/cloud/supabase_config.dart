@@ -6,9 +6,9 @@ class SupabaseConfig {
   // dart-defines still override these values. Never place secret/service
   // role keys here; only the public Supabase project URL/publishable key.
   static const String _defaultProjectUrl =
-      'https://havlqebmnjdcwmpaaqew.supabase.co';
+      'https://fjiaxdorunedmltgqtty.supabase.co';
   static const String _defaultPublishableKey =
-      'sb_publishable_JfrD4JkzaOkkZDbANocq_g_-MRdyWix';
+      'sb_publishable_RfUW-SPSSBveBvn9fVCR2g_6IpwznWA';
 
   /// Supply these values at run/build time. The publishable key is safe for a
   /// browser client; service-role and secret keys are rejected explicitly.
