@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify V7.3.6 invoice-owned accounting, headless UI and cache repair."""
+"""Verify V7.3.6 invoice-owned accounting and current premium UI contracts."""
 from __future__ import annotations
 
 import json
@@ -272,17 +272,23 @@ require(pill_surface, ("AppPillTabBar",), "module pill tab integration")
 for arabic_label in ("السيارات", "العملاء", "أوامر البيع", "أوامر الشراء"):
     if arabic_label not in pill_surface:
         errors.append(f"module pill tab integration: missing localized label {arabic_label!r}")
+
+# R78+ intentionally replaced the old nested inline-metric container with one
+# continuous module workspace: a single horizontal command rail followed by the
+# unboxed business body. Keep this verifier aligned with the current premium
+# architecture instead of requiring removed internal rectangles/classes.
 require(
     entity_page + horizontal_strip,
     (
         "mergeHiddenHeaderActionsAndStatistics",
-        "class _InlineCommandMetricsRow",
+        "module-command-rail",
+        "module-continuous-workspace",
         "AppHorizontalStrip",
         "scrollDirection: Axis.horizontal",
-        "statistics!",
         "SingleChildScrollView(",
+        "Only the module identity header is framed",
     ),
-    "one-line actions and metrics",
+    "continuous one-line command/metric workspace",
 )
 require(
     product_page + car_page + maintenance_page + accounting_page + customer_stats,
@@ -303,21 +309,27 @@ require(
     ),
     "accounting pill sections without ruler frame",
 )
+
+# Internal work now uses one consistent premium movable/resizable window with
+# a clipped frame, visible title header and governed footer/close controls.
+# This supersedes the older headless-window requirement.
 require(
     window + back,
     (
-        "The window has no title header, footer",
+        "class _PremiumWindowTheme",
+        "class _WindowHeader",
+        "class _WindowFooter",
         "class _ScaffoldAsWindow",
         "class _AlertDialogAsWindow",
-        "...?appBar?.actions",
         "scaffold.floatingActionButton",
         "closeDock",
+        "Clip.hardEdge",
         "AppWorkspaceWindowScope.maybeOf(context) != null",
     ),
-    "headless internal windows and hidden back control",
+    "premium movable/resizable internal windows",
 )
 if "module-window-control-strip" in window:
-    errors.append("separate module window header strip is still present")
+    errors.append("obsolete duplicate module window control strip is still present")
 
 require(
     customer_card + supplier_card,
@@ -391,5 +403,5 @@ print("  - invoice quantities match approved multi-warehouse logistics exactly")
 print("  - IQD/USD revenue and cost-currency journals are separated")
 print("  - invoice cancellation restores journals, FIFO and valuation snapshots")
 print("  - maintenance and opportunities follow the same invoice lifecycle")
-print("  - pill navigation, one-line commands and headless windows are enforced")
+print("  - pill navigation, continuous command rails and premium windows are enforced")
 print("  - web runtime assets bypass stale service-worker/browser caches")
