@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from verification_text import contains_code
+
 root = Path(__file__).resolve().parents[1]
 migration = root / "supabase/migrations/20260815124700_r71_fx_orphan_cash_transfer_delete_repair.sql"
 text = migration.read_text(encoding="utf-8")
@@ -30,7 +32,10 @@ core = text[core_start:wrapper_start]
 assert "if not found then return" not in core.lower(), (
     "core must not no-op when the transfer header is absent/deleted"
 )
-assert "where t.company_id=p_company_id\n    and t.id=p_transfer_id\n  for update" in core
+assert contains_code(
+    core,
+    "where t.company_id=p_company_id and t.id=p_transfer_id for update",
+)
 assert "like 'cash_transfer%'" in core
 assert "public.erp_v65_soft_delete_journal" in core
 
