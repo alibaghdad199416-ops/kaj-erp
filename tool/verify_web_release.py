@@ -67,6 +67,8 @@ try:
             errors.append("AppReleaseInfo.currentRuntimeRevision is missing")
         elif meta.get("runtimeRevision") != runtime_revision_match.group(1):
             errors.append("version.json runtimeRevision differs from AppReleaseInfo")
+        if meta.get("databaseContract") != "R74":
+            errors.append("version.json databaseContract is not R74")
 except Exception as exc:  # noqa: BLE001
     errors.append(f"metadata validation failed: {exc}")
 
@@ -82,8 +84,8 @@ try:
     index = (BUILD / "index.html").read_text(encoding="utf-8")
     if "data.runtimeToken || data.releaseToken" not in index:
         errors.append("web boot does not prefer the current runtime token")
-    if "22.9.8+229008-r73-current-schema-runtime-20260815" not in index:
-        errors.append("web boot fallback is not the current R73 runtime identity")
+    if "22.9.8+229008-r74-authenticated-tenant-runtime-20260815" not in index:
+        errors.append("web boot fallback is not the current R74 runtime identity")
 except OSError as exc:
     errors.append(f"index validation failed: {exc}")
 
@@ -102,4 +104,5 @@ if errors:
 
 print("PASS web release verification")
 print(" - CanvasKit is self-hosted under build/web/canvaskit")
-print(" - current R73 runtime identity is synchronized and cache-busting")
+print(" - current R74 runtime identity is synchronized and cache-busting")
+print(" - database contract is R74")
