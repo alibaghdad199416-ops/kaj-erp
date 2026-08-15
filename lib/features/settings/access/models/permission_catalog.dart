@@ -529,6 +529,27 @@ abstract final class PermissionCatalog {
       description: '',
     ),
     PermissionModel(
+      id: 'catalog-reports-audit-view',
+      code: 'reports.audit.view',
+      name: 'عرض تفاصيل تدقيق التقارير',
+      module: 'التقارير',
+      description: 'عرض منفذي الإدخال وآثار العمليات داخل التقارير.',
+    ),
+    PermissionModel(
+      id: 'catalog-reports-contextual-view',
+      code: 'reports.contextual.view',
+      name: 'عرض التفاصيل السياقية للتقارير',
+      module: 'التقارير',
+      description: 'عرض الجداول والسجلات المرتبطة بالمودل المحدد.',
+    ),
+    PermissionModel(
+      id: 'catalog-reports-financial-details-view',
+      code: 'reports.financial_details.view',
+      name: 'عرض التفاصيل المالية للتقارير',
+      module: 'التقارير',
+      description: 'عرض تفاصيل الحسابات والدفعات والذمم داخل مركز التقارير.',
+    ),
+    PermissionModel(
       id: 'catalog-recycle-view',
       code: 'settings.recycle_bin.view',
       name: 'عرض سلة المحذوفات',
