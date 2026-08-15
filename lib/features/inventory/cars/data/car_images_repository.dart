@@ -5,6 +5,10 @@ import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/features/inventory/cars/models/car_image_model.dart';
 
 /// Supabase-only repository for vehicle images.
+///
+/// Image replacement is verified from the authoritative read RPC before the
+/// operation is considered successful. This prevents silent loss of full-size
+/// or thumbnail bytes when field-level permission mappings change.
 class CarImagesRepository {
   final CloudMasterDataService _cloud = CloudMasterDataService.instance;
 
@@ -69,6 +73,26 @@ class CarImagesRepository {
         throw ArgumentError('مرجع صورة السيارة لا يطابق السيارة الحالية.');
       }
       await _cloud.upsert('erp_car_images', image.id, image.toMap());
+    }
+
+    final persisted = await getImages(carId);
+    final persistedById = <String, CarImageModel>{
+      for (final image in persisted) image.id: image,
+    };
+    if (persistedById.length != images.length) {
+      throw StateError(
+        'لم يتم تثبيت جميع صور السيارة في Supabase. أعد المحاولة بعد تحديث قاعدة البيانات.',
+      );
+    }
+    for (final expected in images) {
+      final actual = persistedById[expected.id];
+      if (actual == null ||
+          actual.imageBase64.trim() != expected.imageBase64.trim() ||
+          actual.thumbnailBase64.trim() != expected.thumbnailBase64.trim()) {
+        throw StateError(
+          'فشل التحقق من صورة السيارة بعد الحفظ. لم يتم اعتبار العملية ناجحة.',
+        );
+      }
     }
   }
 

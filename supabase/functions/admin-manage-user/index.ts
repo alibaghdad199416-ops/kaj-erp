@@ -46,6 +46,19 @@ function statusFor(code: string) {
   return 422
 }
 
+async function hasPermission(
+  caller: ReturnType<typeof createClient>,
+  companyId: string,
+  code: string,
+) {
+  const { data, error } = await caller.rpc('erp_cloud_current_user_has_permission', {
+    p_company_id: companyId,
+    p_permission_code: code,
+  })
+  if (error) throw error
+  return data === true
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return jsonResponse({ ok: false, error: 'method_not_allowed' }, 405)
@@ -78,15 +91,21 @@ Deno.serve(async (req) => {
       .eq('is_active', true)
       .maybeSingle()
     if (callerError || !callerMembership) throw new Error('membership_not_found')
-    if (!callerMembership.is_system_admin && !['owner', 'admin'].includes(callerMembership.role_code)) {
-      throw new Error('permission_denied')
-    }
 
     const action = String(body.action ?? '').trim()
     const targetUserId = String(body.target_user_id ?? '').trim()
     const localUserId = String(body.local_user_id ?? '').trim()
     if (!['update', 'delete'].includes(action) || !targetUserId || !localUserId) {
       throw new Error('invalid_input')
+    }
+
+    const isAdministrator = callerMembership.is_system_admin ||
+      ['owner', 'admin'].includes(callerMembership.role_code)
+    if (!isAdministrator) {
+      const requiredPermission = action === 'delete' ? 'users.delete' : 'users.update'
+      if (!await hasPermission(callerClient, requestedCompanyId, requiredPermission)) {
+        throw new Error('permission_denied')
+      }
     }
 
     const { data: targetMembership, error: targetError } = await admin
@@ -99,8 +118,9 @@ Deno.serve(async (req) => {
     if (String(targetMembership.local_user_id ?? '') !== localUserId) {
       throw new Error('target_identity_mismatch')
     }
+
     const modifiesSelf = targetUserId === authData.user.id
-    if (!modifiesSelf && targetMembership.role_code === 'owner') {
+    if (!modifiesSelf && (targetMembership.role_code === 'owner' || targetMembership.is_system_admin)) {
       throw new Error('permission_denied')
     }
     if (!modifiesSelf && targetMembership.role_code === 'admin' && callerMembership.role_code !== 'owner') {
@@ -117,10 +137,6 @@ Deno.serve(async (req) => {
     if (action === 'delete') {
       if (modifiesSelf) throw new Error('cannot_modify_current_user')
 
-      // Preserve the ERP row state so a failed Auth deletion can be rolled back.
-      // Membership/profile rows are not disabled before deleting Auth: their
-      // foreign keys cascade after a successful deletion, while historical
-      // actor references are retained with ON DELETE SET NULL.
       const { data: previousRecord, error: readRecordError } = await admin
         .from('erp_records')
         .select('payload,is_deleted,deleted_at')
@@ -158,8 +174,6 @@ Deno.serve(async (req) => {
         throw new Error('user_delete_blocked')
       }
 
-      // These normally disappear through ON DELETE CASCADE. Explicit cleanup
-      // keeps the operation idempotent for databases upgraded from old schemas.
       const { error: membershipCleanupError } = await admin
         .from('company_memberships')
         .delete()
@@ -186,6 +200,21 @@ Deno.serve(async (req) => {
     if (!email.includes('@') || !fullName || !['owner', 'admin', 'user'].includes(roleCode) || !erpUser) {
       throw new Error('invalid_input')
     }
+
+    const previousEmail = String(targetMembership.user_email ?? '').trim().toLowerCase()
+    if (email !== previousEmail && !isAdministrator) {
+      if (!await hasPermission(callerClient, requestedCompanyId, 'users.credentials.update')) {
+        throw new Error('permission_denied')
+      }
+    }
+
+    // Role changes are privilege-boundary changes. A delegated users.update
+    // permission may edit a regular user's profile/status but never promote or
+    // remap roles. System administrators retain the existing hierarchy rules.
+    if (!isAdministrator && roleCode !== targetMembership.role_code) {
+      throw new Error('permission_denied')
+    }
+
     if (modifiesSelf) {
       if (!isActive || roleCode !== targetMembership.role_code) {
         throw new Error('cannot_modify_current_user')
@@ -215,10 +244,6 @@ Deno.serve(async (req) => {
       updatedAt: now,
     }
 
-    // Auth cannot participate in the database transaction. Snapshot every
-    // database row, write those reversible rows first, and update Auth last.
-    // If Auth rejects the email or metadata change, restore the exact tenant
-    // state so the browser never observes a split Auth/ERP identity.
     const { data: previousProfile, error: previousProfileError } = await admin
       .from('profiles')
       .select('id,full_name,is_active,updated_at')

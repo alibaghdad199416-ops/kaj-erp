@@ -7,11 +7,28 @@ class ContextualReportsRepository {
   String get _companyId =>
       CloudTenantContext.instance.companyUuid ??
       (throw StateError('لم يتم تحديد شركة سحابية.'));
+
+  Future<bool> _hasPermission(String code) async {
+    final result = await _client.rpc(
+      'erp_cloud_current_user_has_permission',
+      params: {'p_company_id': _companyId, 'p_permission_code': code},
+    );
+    return result == true;
+  }
+
   Future<List<ContextualReportSection>> load(
     String module, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    if (!await _hasPermission('reports.contextual.view')) {
+      return const <ContextualReportSection>[];
+    }
+    if (const <String>{'payments', 'accounting', 'finance', 'partners'}.contains(module) &&
+        !await _hasPermission('reports.financial_details.view')) {
+      return const <ContextualReportSection>[];
+    }
+
     const modelModules = <String>{
       'products',
       'warehouses',
