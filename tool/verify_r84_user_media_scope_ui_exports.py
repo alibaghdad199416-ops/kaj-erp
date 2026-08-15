@@ -22,8 +22,9 @@ def main() -> None:
     service = require(
         "lib/core/cloud/supabase_user_administration_service.dart",
         "functionName: 'admin-manage-user'",
+        "'action': 'update'",
+        "'erp_user': identityPayload",
         "'avatar_base64': avatarBase64",
-        "identity/membership/ERP/avatar",
         "media_readback_mismatch",
     )
     assert "functionName: 'admin-update-user-media'" not in service, (
@@ -99,8 +100,6 @@ def main() -> None:
         "CloudTenantContext.instance.companyUuid",
     )
 
-    # Media persistence must fail visibly when PostgreSQL did not persist the
-    # exact image submitted by the user.
     require(
         "lib/features/business_partners/customers/data/customer_repository.dart",
         "photo_base64",
@@ -129,7 +128,6 @@ def main() -> None:
         "erp_r78_media_permission_guard",
     )
 
-    # One continuous module workspace and one shared branded PDF pipeline.
     require(
         "lib/core/widgets/app_entity_page.dart",
         "module-command-rail",
