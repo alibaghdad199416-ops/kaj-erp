@@ -32,7 +32,7 @@ begin
 end;
 $$;
 
-forbidden_label: do $$
+do $$
 declare v_table text;
 begin
   foreach v_table in array array['erp_service_cases','erp_partner_activities'] loop
@@ -168,8 +168,6 @@ begin
     );
   end if;
 
-  -- Unknown search categories retain their previous visibility. Every category
-  -- emitted by the current global search is handled above.
   return true;
 end;
 $$;
@@ -182,7 +180,9 @@ create or replace function public.erp_r49_cloud_global_search(
 language sql stable security definer set search_path=public as $$
   with base as (
     select x
-    from public.erp_r9_cloud_global_search(p_company_id,p_query,least(coalesce(p_limit,50),100)) x
+    from public.erp_r9_cloud_global_search(
+      p_company_id,p_query,least(coalesce(p_limit,50),100)
+    ) x
     where public.erp_r85_search_result_visible(
       p_company_id,x->>'type',x->>'id'
     )
@@ -246,9 +246,9 @@ grant execute on function public.erp_r49_cloud_global_search(uuid,text,integer)
   to authenticated,service_role;
 
 -- ---------------------------------------------------------------------------
--- 3. Scope-aware report section filtering. Every current detailed section
--- carries createdBy/performedBy metadata. If a future section omits creator
--- metadata while records.own is active, it fails closed with an empty row set.
+-- 3. Scope-aware report section filtering. Current detailed sections carry
+-- createdBy/performedBy metadata. A future section without creator metadata is
+-- fail-closed while records.own is active instead of leaking company rows.
 -- ---------------------------------------------------------------------------
 create or replace function public.erp_r85_current_creator_aliases(p_company_id uuid)
 returns text[]
