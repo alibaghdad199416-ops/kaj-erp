@@ -15,6 +15,21 @@ $ConfigPath = Join-Path $ProjectRoot 'supabase\config.toml'
 $BackupDirectory = Join-Path $ProjectRoot '.local_backups'
 $Npx = (Get-Command npx.cmd -ErrorAction Stop).Source
 
+# These versions were written to the local migration history by an intermediate
+# source state and no longer exist in the authoritative migration directory.
+# Supabase CLI itself recommends marking these history rows reverted before
+# continuing. This changes only supabase_migrations.schema_migrations; it does
+# not execute rollback SQL and does not remove business data.
+$KnownOrphanedLocalMigrationVersions = @(
+  '20260815044500',
+  '20260815055000',
+  '20260815060000',
+  '20260815080000',
+  '20260815083000',
+  '20260815083800',
+  '20260815120500'
+)
+
 function Invoke-Supabase {
   param(
     [Parameter(Mandatory = $true)][string[]]$Arguments,
@@ -65,6 +80,65 @@ function Get-LocalStatusVariables {
   return $values
 }
 
+function Invoke-LocalMigrationUpWithSafeHistoryRepair {
+  Write-Host "`nApplying all pending migrations to the EXISTING LOCAL database..." -ForegroundColor Cyan
+  Write-Host 'This is forward-only: no db reset, no DROP database, no linked/remote push.' -ForegroundColor Yellow
+
+  $up = Invoke-Supabase -Arguments @('migration', 'up', '--local', '--include-all') -AllowFailure -Capture
+  if ($up.Code -eq 0) {
+    foreach ($line in $up.Output) { Write-Host $line }
+    return
+  }
+
+  $allOutput = ($up.Output | ForEach-Object { [string]$_ }) -join "`n"
+  if ($allOutput -notmatch 'Remote migration versions not found in local migrations directory') {
+    foreach ($line in $up.Output) { Write-Host $line }
+    throw 'Local migration update failed for a reason unrelated to migration-history drift.'
+  }
+
+  $repairLine = $up.Output |
+    ForEach-Object { [string]$_ } |
+    Where-Object { $_ -match 'migration repair\s+--status\s+reverted' } |
+    Select-Object -First 1
+
+  if ([string]::IsNullOrWhiteSpace([string]$repairLine)) {
+    foreach ($line in $up.Output) { Write-Host $line }
+    throw 'Supabase reported migration-history drift but did not provide repair versions.'
+  }
+
+  $versions = @(
+    [regex]::Matches([string]$repairLine, '\b\d{14}\b') |
+      ForEach-Object { $_.Value } |
+      Select-Object -Unique
+  )
+  if ($versions.Count -eq 0) {
+    foreach ($line in $up.Output) { Write-Host $line }
+    throw 'No migration versions could be parsed from the Supabase repair recommendation.'
+  }
+
+  $unexpected = @($versions | Where-Object { $_ -notin $KnownOrphanedLocalMigrationVersions })
+  if ($unexpected.Count -gt 0) {
+    foreach ($line in $up.Output) { Write-Host $line }
+    throw "Refusing automatic migration-history repair because unexpected local-only versions were found: $($unexpected -join ', ')"
+  }
+
+  Write-Host "`nDetected known orphaned LOCAL migration-history rows:" -ForegroundColor Yellow
+  foreach ($version in $versions) {
+    Write-Host "  - $version" -ForegroundColor Yellow
+  }
+  Write-Host 'Repairing tracking history only; no SQL rollback and no business-row deletion.' -ForegroundColor Yellow
+
+  $repairArgs = @('migration', 'repair') + $versions + @('--status', 'reverted', '--local')
+  Invoke-Supabase -Arguments $repairArgs | Out-Null
+
+  Write-Host "`nRetrying forward-only local migration update after history reconciliation..." -ForegroundColor Cyan
+  $retry = Invoke-Supabase -Arguments @('migration', 'up', '--local', '--include-all') -AllowFailure -Capture
+  foreach ($line in $retry.Output) { Write-Host $line }
+  if ($retry.Code -ne 0) {
+    throw 'Local migration update still failed after safe migration-history reconciliation.'
+  }
+}
+
 if (-not (Test-Path $ConfigPath)) {
   throw 'supabase\config.toml is missing. The local database cannot be started safely.'
 }
@@ -112,21 +186,26 @@ if ([string]::IsNullOrWhiteSpace($anonKey)) {
 if (-not $SkipBusinessDataBackup) {
   New-Item -ItemType Directory -Path $BackupDirectory -Force | Out-Null
   $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-  $backupPath = Join-Path $BackupDirectory "pre_local_migration_$timestamp.sql"
-  Write-Host "`nCreating a non-blocking local business-data backup..." -ForegroundColor Cyan
-  Invoke-Supabase -Arguments @('db', 'dump', '--local', '--data-only', '--file', $backupPath) | Out-Null
-  if (-not (Test-Path $backupPath) -or (Get-Item $backupPath).Length -le 0) {
-    throw 'Local business-data backup was not created; migrations were not applied.'
+  $dataBackupPath = Join-Path $BackupDirectory "pre_local_migration_data_$timestamp.sql"
+  $schemaBackupPath = Join-Path $BackupDirectory "pre_local_migration_schema_$timestamp.sql"
+
+  Write-Host "`nCreating local backups before migration/history reconciliation..." -ForegroundColor Cyan
+  Invoke-Supabase -Arguments @('db', 'dump', '--local', '--data-only', '--file', $dataBackupPath) | Out-Null
+  Invoke-Supabase -Arguments @('db', 'dump', '--local', '--file', $schemaBackupPath) | Out-Null
+
+  foreach ($backupPath in @($dataBackupPath, $schemaBackupPath)) {
+    if (-not (Test-Path $backupPath) -or (Get-Item $backupPath).Length -le 0) {
+      throw "Local backup was not created correctly: $backupPath"
+    }
   }
-  Write-Host "PASS: local backup created: $backupPath" -ForegroundColor Green
+  Write-Host "PASS: local data backup created: $dataBackupPath" -ForegroundColor Green
+  Write-Host "PASS: local schema backup created: $schemaBackupPath" -ForegroundColor Green
 }
 
 Write-Host "`nLocal migration state before update:" -ForegroundColor Cyan
 Invoke-Supabase -Arguments @('migration', 'list', '--local') | Out-Null
 
-Write-Host "`nApplying all pending migrations to the EXISTING LOCAL database..." -ForegroundColor Cyan
-Write-Host 'This is forward-only: no db reset, no DROP database, no linked/remote push.' -ForegroundColor Yellow
-Invoke-Supabase -Arguments @('migration', 'up', '--local', '--include-all') | Out-Null
+Invoke-LocalMigrationUpWithSafeHistoryRepair
 
 Write-Host "`nLocal migration state after update:" -ForegroundColor Cyan
 Invoke-Supabase -Arguments @('migration', 'list', '--local') | Out-Null
