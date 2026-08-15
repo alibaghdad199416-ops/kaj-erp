@@ -32,8 +32,8 @@ class PdfExportService {
   Future<Uint8List> build(
     ExportDocument document, {
     ExportPageFormat pageFormat = ExportPageFormat.a4Portrait,
-    int? maxColumnsPerGroup,
-    int maxRowsPerChunk = 14,
+    int maxColumnsPerGroup = 5,
+    int maxRowsPerChunk = 12,
   }) async {
     document.validate();
     final fonts = await PdfTextSupport.loadFonts();
@@ -54,12 +54,9 @@ class PdfExportService {
     };
     final landscape = pageFormat == ExportPageFormat.a4Landscape;
     final receipt = pageFormat == ExportPageFormat.receipt80mm;
-    final effectiveColumnGroup = maxColumnsPerGroup ??
-        (receipt
-            ? 2
-            : landscape
-                ? 8
-                : 6);
+    final effectiveColumnGroup = receipt
+        ? maxColumnsPerGroup.clamp(1, 2).toInt()
+        : maxColumnsPerGroup.clamp(1, 12).toInt();
     final pdf = pw.Document(
       title: document.title,
       author: branding.companyName,
