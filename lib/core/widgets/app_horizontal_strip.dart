@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// One non-wrapping horizontal strip for dense ERP commands and metrics.
-///
-/// The strip owns the only horizontal scroll view in a command area. Child
-/// widgets must therefore return plain rows/items rather than nesting another
-/// horizontal scroller. Scrollbars and overscroll decoration are intentionally
-/// disabled so the row does not look like a ruler under the module buttons.
+/// One polished non-wrapping command/metric rail shared by ERP modules.
 class AppHorizontalStrip extends StatelessWidget {
   const AppHorizontalStrip({
     super.key,
@@ -13,25 +8,33 @@ class AppHorizontalStrip extends StatelessWidget {
     this.spacing = 8,
     this.padding = EdgeInsets.zero,
     this.alignment = CrossAxisAlignment.center,
+    this.minControlHeight = 42,
   });
 
   final List<Widget> children;
   final double spacing;
   final EdgeInsetsGeometry padding;
   final CrossAxisAlignment alignment;
+  final double minControlHeight;
 
   @override
   Widget build(BuildContext context) {
     final spaced = <Widget>[];
     for (var index = 0; index < children.length; index++) {
       if (index > 0) spaced.add(SizedBox(width: spacing));
-      spaced.add(children[index]);
+      spaced.add(
+        ConstrainedBox(
+          constraints: BoxConstraints(minHeight: minControlHeight),
+          child: Align(alignment: AlignmentDirectional.centerStart, child: children[index]),
+        ),
+      );
     }
 
     return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(
-        context,
-      ).copyWith(scrollbars: false, overscroll: false),
+      behavior: ScrollConfiguration.of(context).copyWith(
+        scrollbars: false,
+        overscroll: false,
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: padding,

@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/preferences/app_preferences_controller.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
 import 'app_top_navigation.dart';
 import 'app_workspace_top_bar.dart';
 
-/// V4 application shell.
+/// Application shell with a single continuous module workspace.
 ///
-/// The approved design always keeps the global navigation visually separate
-/// from the working canvas. On desktop the side rail and compact workspace bar
-/// are visible together; on narrow screens the original top navigation remains
-/// available. Module pages still own their business content and workflows.
+/// Only the upper module/navigation bar owns a framed visual surface. The body
+/// is deliberately borderless so pages no longer render inside a second large
+/// rectangle/card. Individual business controls may still use their own small
+/// semantic surfaces where needed.
 class AppModuleShell extends StatelessWidget {
   const AppModuleShell({super.key, required this.route, required this.child});
 
@@ -92,18 +91,11 @@ class _WorkspaceCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 12, 12),
-      child: KajShellSurface(
-        padding: EdgeInsets.zero,
-        radius: KajDesignTokens.radiusLg,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
-          child: ColoredBox(
-            color: KajDesignTokens.workspace(brightness),
-            child: child,
-          ),
-        ),
+    return ColoredBox(
+      color: KajDesignTokens.workspace(brightness),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 14, 14),
+        child: child,
       ),
     );
   }

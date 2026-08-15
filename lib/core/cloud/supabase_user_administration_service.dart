@@ -72,6 +72,14 @@ class SupabaseUserAdministrationService {
     required Map<String, dynamic> erpUserPayload,
   }) async {
     final companyId = _activeCompanyId();
+
+    // Keep heavy avatar bytes out of the identity/membership transaction. This
+    // prevents a valid user edit from being coupled to a large Base64 payload
+    // and lets media persistence use its own retry/error boundary.
+    final identityPayload = Map<String, dynamic>.from(erpUserPayload);
+    final hasAvatarField = identityPayload.containsKey('avatarBase64');
+    final avatarBase64 = identityPayload.remove('avatarBase64')?.toString();
+
     await _invoke(
       functionName: 'admin-manage-user',
       body: <String, dynamic>{
@@ -83,9 +91,21 @@ class SupabaseUserAdministrationService {
         'full_name': fullName.trim(),
         'role_code': roleCode,
         'is_active': isActive,
-        'erp_user': erpUserPayload,
+        'erp_user': identityPayload,
       },
     );
+
+    if (hasAvatarField) {
+      await _invoke(
+        functionName: 'admin-update-user-media',
+        body: <String, dynamic>{
+          'company_id': companyId,
+          'target_user_id': cloudUserId,
+          'local_user_id': localUserId,
+          'avatar_base64': avatarBase64,
+        },
+      );
+    }
   }
 
   Future<void> deleteUser({
@@ -198,8 +218,9 @@ class SupabaseUserAdministrationService {
       'server_configuration_missing' =>
         'إعداد خدمة المستخدمين السحابية غير مكتمل.',
       'hosted_function_unavailable' =>
-        'خدمة إدارة المستخدمين غير منشورة أو غير متاحة في بيئة Supabase الحالية. يلزم نشر Edge Function المعتمدة ثم إعادة المحاولة.',
+        'خدمة إدارة المستخدمين أو الصور غير منشورة في بيئة Supabase الحالية. يلزم نشر Edge Functions المعتمدة ثم إعادة المحاولة.',
       'company_slug_missing' => 'إعداد الشركة السحابية غير مكتمل.',
+      'media_payload_too_large' => 'حجم الصورة أكبر من الحد المسموح بعد الضغط.',
       'request_failed' =>
         'تعذر إكمال إدارة المستخدم السحابي بسبب خطأ في الخدمة.',
       _ => 'تعذر إكمال إدارة المستخدم السحابي.',
