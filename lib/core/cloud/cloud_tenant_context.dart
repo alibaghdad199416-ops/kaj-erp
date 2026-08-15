@@ -1,6 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'supabase_config.dart';
+
 /// Active tenant selection cached for user convenience. Business data remains in Supabase.
+///
+/// Browser keys are scoped by the configured Supabase project. Legacy unscoped
+/// keys are deliberately discarded because they cannot prove which backend
+/// produced the cached company UUID/role and may resurrect an old environment.
 class CloudTenantContext {
   CloudTenantContext._();
 
@@ -26,13 +32,25 @@ class CloudTenantContext {
   bool get isBootstrapReady =>
       _companyUuid != null && _roleCode != 'signed_out';
 
+  String _scopedKey(String baseKey) =>
+      '$baseKey.${SupabaseConfig.browserStorageNamespace}';
+
   Future<void> load() async {
     final preferences = await SharedPreferences.getInstance();
-    _companyId = preferences.getString(_companyKey) ?? 'quality-line';
-    _companyUuid = preferences.getString(_companyUuidKey);
-    _branchId = preferences.getString(_branchKey);
-    _roleCode = preferences.getString(_roleKey) ?? 'signed_out';
-    _isSystemAdmin = preferences.getBool(_adminKey) ?? false;
+
+    // Pre-R71 keys were shared by every hosted backend. Never migrate them to
+    // the current project because their provenance is unknowable. The current
+    // authenticated membership will immediately repopulate scoped values.
+    await _removeLegacyUnscopedKeys(preferences);
+
+    _companyId =
+        preferences.getString(_scopedKey(_companyKey)) ?? 'quality-line';
+    _companyUuid = preferences.getString(_scopedKey(_companyUuidKey));
+    _branchId = preferences.getString(_scopedKey(_branchKey));
+    _roleCode =
+        preferences.getString(_scopedKey(_roleKey)) ?? 'signed_out';
+    _isSystemAdmin =
+        preferences.getBool(_scopedKey(_adminKey)) ?? false;
   }
 
   Future<void> selectTenant({
@@ -56,19 +74,34 @@ class CloudTenantContext {
     _isSystemAdmin = isSystemAdmin;
 
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(_companyKey, _companyId);
-    await _writeNullable(preferences, _companyUuidKey, _companyUuid);
-    await _writeNullable(preferences, _branchKey, _branchId);
-    await preferences.setString(_roleKey, _roleCode);
-    await preferences.setBool(_adminKey, _isSystemAdmin);
+    await preferences.setString(_scopedKey(_companyKey), _companyId);
+    await _writeNullable(
+      preferences,
+      _scopedKey(_companyUuidKey),
+      _companyUuid,
+    );
+    await _writeNullable(preferences, _scopedKey(_branchKey), _branchId);
+    await preferences.setString(_scopedKey(_roleKey), _roleCode);
+    await preferences.setBool(_scopedKey(_adminKey), _isSystemAdmin);
   }
 
   Future<void> clearCloudSelection() async {
+    _companyId = 'quality-line';
     _companyUuid = null;
     _branchId = null;
     _roleCode = 'signed_out';
     _isSystemAdmin = false;
     final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_scopedKey(_companyKey));
+    await preferences.remove(_scopedKey(_companyUuidKey));
+    await preferences.remove(_scopedKey(_branchKey));
+    await preferences.remove(_scopedKey(_roleKey));
+    await preferences.remove(_scopedKey(_adminKey));
+    await _removeLegacyUnscopedKeys(preferences);
+  }
+
+  Future<void> _removeLegacyUnscopedKeys(SharedPreferences preferences) async {
+    await preferences.remove(_companyKey);
     await preferences.remove(_companyUuidKey);
     await preferences.remove(_branchKey);
     await preferences.remove(_roleKey);
