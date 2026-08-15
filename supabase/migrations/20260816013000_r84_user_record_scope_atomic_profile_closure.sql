@@ -1,9 +1,7 @@
 -- Quality Line ERP R84
--- User-specific record visibility is authoritative in PostgreSQL:
--- each record-scoped module may expose only the current user's entries or all
--- company entries. Existing deployments remain backward compatible until a
--- scope is explicitly customized; existing per-user overrides are migrated to
--- records.all so this forward migration never silently hides their history.
+-- Per-user record scope is PostgreSQL-authoritative. Each record-scoped module
+-- supports either the current user's entries or all company entries while old
+-- role assignments remain backward compatible until deliberately customized.
 begin;
 
 -- ---------------------------------------------------------------------------
@@ -49,16 +47,13 @@ on conflict(code) do update set
   name_ar=excluded.name_ar,
   name_en=excluded.name_en;
 
--- Owners/admins explicitly receive all-record visibility. Other legacy roles
--- remain backward compatible: absence of either scope continues to mean all
--- until that role/user is deliberately customized.
 insert into public.role_permissions(role_code,permission_code)
 select r.role_code,p.code
 from (values('owner'),('admin')) as r(role_code)
 join public.permissions p on p.code like '%.records.all'
 on conflict do nothing;
 
--- Push the canonical permissions into each tenant-local access catalog.
+-- Mirror the canonical permission catalog into every tenant access snapshot.
 do $$
 declare c record;
 begin
@@ -69,9 +64,8 @@ begin
   end if;
 end $$;
 
--- Existing explicit per-user override sets used to imply company-wide record
--- visibility. Add records.all to those existing overrides before the new
--- default-own behavior is activated, preserving current production behavior.
+-- Existing explicit user overrides historically implied company-wide rows.
+-- Preserve that behavior during migration by adding every records.all scope.
 with override_users as (
   select distinct company_id,record_id as user_id
   from public.erp_records
@@ -79,7 +73,7 @@ with override_users as (
     and deleted_at is null and not is_deleted
     and coalesce((payload->>'enabled')::boolean,true)
 ), scope_permissions as (
-  select company_id,record_id,payload->>'code' as code
+  select company_id,record_id
   from public.erp_records
   where entity_type='permissions'
     and deleted_at is null and not is_deleted
@@ -98,7 +92,7 @@ on conflict(company_id,entity_type,record_id) do update set
   payload=excluded.payload,is_deleted=false,deleted_at=null,updated_at=now();
 
 -- ---------------------------------------------------------------------------
--- 2. Record-scope policy helpers.
+-- 2. Shared record-scope helpers.
 -- ---------------------------------------------------------------------------
 create or replace function public.erp_r84_user_has_permission_override(p_company_id uuid)
 returns boolean
@@ -126,24 +120,19 @@ create or replace function public.erp_r84_record_scope_mode(
   p_company_id uuid,p_resource text
 ) returns text
 language plpgsql stable security definer set search_path=public as $$
-declare
-  v_resource text:=btrim(coalesce(p_resource,''));
+declare v_resource text:=btrim(coalesce(p_resource,''));
 begin
   if p_company_id is null or v_resource='' then return 'none'; end if;
-  if auth.uid() is null then return 'all'; end if;
-  if public.is_company_admin(p_company_id) then return 'all'; end if;
+  if auth.uid() is null or public.is_company_admin(p_company_id) then return 'all'; end if;
   if public.erp_cloud_user_has_permission(p_company_id,v_resource||'.records.all') then
     return 'all';
   end if;
   if public.erp_cloud_user_has_permission(p_company_id,v_resource||'.records.own') then
     return 'own';
   end if;
-  -- An explicit user override is fail-closed for record scope. Existing
-  -- overrides were migrated to records.all above, so only newly customized
-  -- users that omit a scope fall back to own.
+  -- Explicit per-user overrides are fail-closed when a newly customized user
+  -- omits a record scope. Existing overrides were backfilled to records.all.
   if public.erp_r84_user_has_permission_override(p_company_id) then return 'own'; end if;
-  -- Legacy role assignment with no new scope permission retains previous
-  -- company-wide visibility until the administrator customizes it.
   return 'all';
 end;
 $$;
@@ -169,8 +158,8 @@ begin
   if p_created_by is not null and p_created_by=auth.uid() then return true; end if;
   v_erp_user:=coalesce(public.erp_current_cloud_erp_user_id(p_company_id),'');
   if v_creator<>'' and v_creator in (v_auth,v_erp_user) then return true; end if;
-  -- Historical rows created before creator attribution existed remain visible;
-  -- every newly created row after R84 is attributed and therefore strict.
+  -- Historical rows created before attribution existed stay visible. Every new
+  -- record after this migration is attributed and therefore strictly scoped.
   return p_created_by is null and v_creator='';
 end;
 $$;
@@ -183,7 +172,7 @@ grant execute on function public.erp_r84_record_scope_mode(uuid,text) to authent
 grant execute on function public.erp_r84_record_visible(uuid,text,uuid,text) to authenticated,service_role;
 
 -- ---------------------------------------------------------------------------
--- 3. Creator attribution for operational records that historically lacked it.
+-- 3. Creator attribution for operational tables that did not originally have it.
 -- ---------------------------------------------------------------------------
 alter table if exists public.erp_sales_orders_cloud
   add column if not exists created_by uuid default auth.uid();
@@ -194,51 +183,41 @@ alter table if exists public.erp_maintenance_orders
 alter table if exists public.erp_reservations
   add column if not exists created_by uuid default auth.uid();
 
--- Commercial audit already retained the actor; use the earliest audited action
--- to recover creator attribution for existing sales/purchase orders.
 update public.erp_sales_orders_cloud o
 set created_by=(
-  select a.performed_by
-  from public.erp_commercial_workflow_audit a
+  select a.performed_by from public.erp_commercial_workflow_audit a
   where a.company_id=o.company_id and a.module='sales'
     and a.parent_id=o.id and a.performed_by is not null
   order by a.performed_at,a.id limit 1
 )
-where o.created_by is null
-  and exists(
-    select 1 from public.erp_commercial_workflow_audit a
-    where a.company_id=o.company_id and a.module='sales'
-      and a.parent_id=o.id and a.performed_by is not null
-  );
+where o.created_by is null and exists(
+  select 1 from public.erp_commercial_workflow_audit a
+  where a.company_id=o.company_id and a.module='sales'
+    and a.parent_id=o.id and a.performed_by is not null
+);
 
 update public.erp_purchase_orders_cloud o
 set created_by=(
-  select a.performed_by
-  from public.erp_commercial_workflow_audit a
+  select a.performed_by from public.erp_commercial_workflow_audit a
   where a.company_id=o.company_id and a.module='purchases'
     and a.parent_id=o.id and a.performed_by is not null
   order by a.performed_at,a.id limit 1
 )
-where o.created_by is null
-  and exists(
-    select 1 from public.erp_commercial_workflow_audit a
-    where a.company_id=o.company_id and a.module='purchases'
-      and a.parent_id=o.id and a.performed_by is not null
-  );
+where o.created_by is null and exists(
+  select 1 from public.erp_commercial_workflow_audit a
+  where a.company_id=o.company_id and a.module='purchases'
+    and a.parent_id=o.id and a.performed_by is not null
+);
 
 create index if not exists erp_sales_orders_cloud_creator_idx
-  on public.erp_sales_orders_cloud(company_id,created_by,updated_at desc)
-  where not is_deleted;
+  on public.erp_sales_orders_cloud(company_id,created_by,updated_at desc) where not is_deleted;
 create index if not exists erp_purchase_orders_cloud_creator_idx
-  on public.erp_purchase_orders_cloud(company_id,created_by,updated_at desc)
-  where not is_deleted;
+  on public.erp_purchase_orders_cloud(company_id,created_by,updated_at desc) where not is_deleted;
 create index if not exists erp_maintenance_orders_creator_idx
-  on public.erp_maintenance_orders(company_id,created_by,updated_at desc)
-  where not is_deleted;
+  on public.erp_maintenance_orders(company_id,created_by,updated_at desc) where not is_deleted;
 
 -- ---------------------------------------------------------------------------
--- 4. Protect writes as well as reads. A user who can only see own records may
--- never update/delete another user's record by calling an RPC directly.
+-- 4. Writes are scoped too; hidden records cannot be modified by direct RPC.
 -- ---------------------------------------------------------------------------
 create or replace function public.erp_r84_scoped_write_guard()
 returns trigger
@@ -270,7 +249,9 @@ declare
     when 'erp_reservations' then 'customer_service'
     else null end;
 begin
-  if v_resource is null or auth.uid() is null then return coalesce(new,old); end if;
+  if v_resource is null or auth.uid() is null then
+    if tg_op='DELETE' then return old; else return new; end if;
+  end if;
   if tg_op='INSERT' then
     if new.created_by is null then new.created_by:=auth.uid(); end if;
     return new;
@@ -286,7 +267,6 @@ begin
 end;
 $$;
 
--- Attach only to tables that expose the common created_by contract.
 do $$
 declare v_table text;
 begin
@@ -298,11 +278,10 @@ begin
     'erp_cash_transactions','erp_expenses','erp_journal_entries',
     'erp_sales_orders_cloud','erp_purchase_orders_cloud','erp_maintenance_orders','erp_reservations'
   ] loop
-    if to_regclass('public.'||v_table) is not null
-       and exists(
-         select 1 from information_schema.columns
-         where table_schema='public' and table_name=v_table and column_name='created_by'
-       ) then
+    if to_regclass('public.'||v_table) is not null and exists(
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name=v_table and column_name='created_by'
+    ) then
       execute format('drop trigger if exists aa_r84_record_scope_guard on public.%I',v_table);
       execute format(
         'create trigger aa_r84_record_scope_guard before insert or update or delete on public.%I '
@@ -312,8 +291,6 @@ begin
   end loop;
 end $$;
 
--- Opportunities are compatibility JSON records; preserve creator identity and
--- enforce customer_service.records.own at the table boundary.
 create or replace function public.erp_r84_opportunity_scope_guard()
 returns trigger
 language plpgsql security definer set search_path=public as $$
@@ -321,12 +298,15 @@ declare
   v_company uuid;
   v_creator text;
   v_current_erp text;
+  v_entity text;
 begin
-  if coalesce(new.entity_type,old.entity_type) <> 'opportunities' or auth.uid() is null then
-    return coalesce(new,old);
+  v_entity:=case when tg_op='DELETE' then old.entity_type else new.entity_type end;
+  if v_entity<>'opportunities' or auth.uid() is null then
+    if tg_op='DELETE' then return old; else return new; end if;
   end if;
   select id into v_company from public.companies
-  where slug=coalesce(new.company_id,old.company_id) and is_active limit 1;
+  where slug=case when tg_op='DELETE' then old.company_id else new.company_id end
+    and is_active limit 1;
   if v_company is null then raise exception 'company_membership_required' using errcode='42501'; end if;
   v_current_erp:=public.erp_current_cloud_erp_user_id(v_company);
   if tg_op='INSERT' then
@@ -363,7 +343,7 @@ before insert or update or delete on public.erp_records
 for each row execute function public.erp_r84_opportunity_scope_guard();
 
 -- ---------------------------------------------------------------------------
--- 5. Master-data readers: record scope is evaluated before field masking.
+-- 5. Master readers enforce record scope before field masking.
 -- ---------------------------------------------------------------------------
 create or replace function public.erp_r9_list_cloud_master_records(
   p_company_id uuid,p_table text
@@ -391,20 +371,16 @@ begin
          and not public.is_company_admin(p_company_id)) then
     raise exception 'permission_denied:%',coalesce(v_permission,'master.view') using errcode='42501';
   end if;
-
   for v_row in execute format(
     'select id::text id,case when jsonb_typeof(data)=''object'' then data else ''{}''::jsonb end data,'
     ||'version,updated_at,created_by from public.%I r where company_id=$1 '
     ||'and not coalesce(is_deleted,false) '
     ||'and not public.erp_r15_pending_delete_exists($1,%L,r.id) '
-    ||'and public.erp_r84_record_visible($1,%L,r.created_by,null) '
-    ||'order by updated_at desc',
+    ||'and public.erp_r84_record_visible($1,%L,r.created_by,null) order by updated_at desc',
     p_table,p_table,v_resource
   ) using p_company_id loop
     return next public.erp_r9_filter_readable_master_json(p_company_id,p_table,v_row.data)
-      ||jsonb_build_object(
-        'id',v_row.id,'_cloudVersion',v_row.version,'_cloudUpdatedAt',v_row.updated_at
-      );
+      ||jsonb_build_object('id',v_row.id,'_cloudVersion',v_row.version,'_cloudUpdatedAt',v_row.updated_at);
   end loop;
   return;
 end;
@@ -445,17 +421,12 @@ begin
   ) into v_row using p_company_id,p_record_id;
   if v_row.id is null then return null; end if;
   return public.erp_r9_filter_readable_master_json(p_company_id,p_table,v_row.data)
-    ||jsonb_build_object(
-      'id',v_row.id,'_cloudVersion',v_row.version,'_cloudUpdatedAt',v_row.updated_at
-    );
+    ||jsonb_build_object('id',v_row.id,'_cloudVersion',v_row.version,'_cloudUpdatedAt',v_row.updated_at);
 end;
 $$;
 
--- R15 remains the browser facade and therefore automatically inherits the R84
--- scope through the R9 readers above.
-
 -- ---------------------------------------------------------------------------
--- 6. Operational readers and detail readers.
+-- 6. Sales, purchases, maintenance and CRM operational reads.
 -- ---------------------------------------------------------------------------
 create or replace function public.erp_r9_list_cloud_sales_workflow_orders(p_company_id uuid)
 returns setof jsonb language sql stable security definer set search_path=public as $$
@@ -532,12 +503,9 @@ begin
      and not public.erp_cloud_user_has_permission(p_company_id,'sales.view') then
     raise exception 'permission_denied:sales.view' using errcode='42501';
   end if;
-  select updated_at,created_by into v_updated,v_creator
-  from public.erp_sales_orders_cloud
+  select updated_at,created_by into v_updated,v_creator from public.erp_sales_orders_cloud
   where company_id=p_company_id and id=p_order_id and not is_deleted;
-  if not found or not public.erp_r84_record_visible(p_company_id,'sales',v_creator,null) then
-    return null;
-  end if;
+  if not found or not public.erp_r84_record_visible(p_company_id,'sales',v_creator,null) then return null; end if;
   v_result:=public.erp_get_cloud_sales_order_draft(p_company_id,p_order_id);
   if v_result is null then return null; end if;
   return jsonb_set(v_result,'{order,updatedAt}',to_jsonb(v_updated),true);
@@ -553,33 +521,31 @@ begin
      and not public.erp_cloud_user_has_permission(p_company_id,'purchases.view') then
     raise exception 'permission_denied:purchases.view' using errcode='42501';
   end if;
-  select updated_at,created_by into v_updated,v_creator
-  from public.erp_purchase_orders_cloud
+  select updated_at,created_by into v_updated,v_creator from public.erp_purchase_orders_cloud
   where company_id=p_company_id and id=p_order_id and not is_deleted;
-  if not found or not public.erp_r84_record_visible(p_company_id,'purchases',v_creator,null) then
-    return null;
-  end if;
+  if not found or not public.erp_r84_record_visible(p_company_id,'purchases',v_creator,null) then return null; end if;
   v_result:=public.erp_get_cloud_purchase_order_draft(p_company_id,p_order_id);
   if v_result is null then return null; end if;
   return jsonb_set(v_result,'{order,updatedAt}',to_jsonb(v_updated),true);
 end $$;
 
--- Dedicated opportunity list avoids rewriting the large transactional R49
--- command while still making list visibility fully PostgreSQL-authoritative.
 create or replace function public.erp_r84_list_opportunities(p_company_id uuid)
 returns setof jsonb
 language plpgsql stable security definer set search_path=public as $$
 declare v_slug text;
 begin
-  select company_slug into v_slug from public.erp_active_company_context(p_company_id);
+  perform public.erp_active_company_context(p_company_id);
+  select slug into v_slug from public.companies where id=p_company_id and is_active limit 1;
   if v_slug is null then raise exception 'membership_not_found' using errcode='42501'; end if;
   if not public.is_company_admin(p_company_id)
      and not public.erp_cloud_user_has_permission(p_company_id,'customer_service.view') then
     raise exception 'permission_denied:customer_service.view' using errcode='42501';
   end if;
   return query
-  select public.erp_r9_filter_readable_json(p_company_id,'opportunities',
-      r.payload||jsonb_build_object('updatedAt',r.updated_at,'_cloudUpdatedAt',r.updated_at))
+  select public.erp_r9_filter_readable_json(
+      p_company_id,'opportunities',
+      r.payload||jsonb_build_object('updatedAt',r.updated_at,'_cloudUpdatedAt',r.updated_at)
+    )
   from public.erp_records r
   where r.company_id=v_slug and r.entity_type='opportunities'
     and r.deleted_at is null and not r.is_deleted
@@ -595,44 +561,9 @@ revoke all on function public.erp_r84_list_opportunities(uuid) from public,anon;
 grant execute on function public.erp_r84_list_opportunities(uuid) to authenticated,service_role;
 
 -- ---------------------------------------------------------------------------
--- 7. Direct/realtime SELECTs receive the same scope. Child workflow tables are
--- visible only when their owning parent is visible.
+-- 7. Restrictive RLS scope is ANDed with every existing permissive policy.
+-- This closes direct/realtime reads without disturbing existing write policies.
 -- ---------------------------------------------------------------------------
-do $$
-declare p record;
-begin
-  -- Parent/master tables that expose created_by.
-  for p in
-    select * from (values
-      ('erp_cars','cars'),('erp_car_images','cars'),('erp_customers','customers'),
-      ('erp_suppliers','suppliers'),('erp_warehouses','warehouses'),
-      ('erp_inventory','inventory'),('erp_inventory_groups','inventory'),
-      ('erp_product_images','inventory'),('erp_warehouse_stock','inventory'),
-      ('erp_inventory_movements','inventory'),('erp_warehouse_transfers','inventory'),
-      ('erp_sales','sales'),('erp_purchases','purchases'),('erp_installments','installments'),
-      ('erp_cash_accounts','cashbox'),('erp_cash_transactions','cashbox'),
-      ('erp_expenses','expenses'),('erp_journal_entries','accounting'),
-      ('erp_sales_orders_cloud','sales'),('erp_purchase_orders_cloud','purchases'),
-      ('erp_maintenance_orders','maintenance'),('erp_reservations','customer_service')
-    ) v(table_name,resource)
-  loop
-    if to_regclass('public.'||p.table_name) is null or not exists(
-      select 1 from information_schema.columns
-      where table_schema='public' and table_name=p.table_name and column_name='created_by'
-    ) then continue; end if;
-    execute format('drop policy if exists %I on public.%I',left(p.table_name||'_r84_scoped_select',63),p.table_name);
-    -- Remove older SELECT policies because PostgreSQL combines permissive
-    -- policies with OR; retaining one would bypass the scope.
-    for p in select policyname,tablename from pg_policies
-      where schemaname='public' and tablename=p.table_name and cmd='SELECT'
-    loop
-      execute format('drop policy if exists %I on public.%I',p.policyname,p.tablename);
-    end loop;
-  end loop;
-end $$;
-
--- Recreate scoped SELECT policies in a separate loop (avoids nested record-name
--- aliasing and preserves field-restriction behavior).
 do $$
 declare v_table text; v_resource text;
 begin
@@ -652,72 +583,74 @@ begin
       select 1 from information_schema.columns
       where table_schema='public' and table_name=v_table and column_name='created_by'
     ) then continue; end if;
+    execute format('drop policy if exists %I on public.%I',left(v_table||'_r84_record_scope',63),v_table);
     execute format(
-      'create policy %I on public.%I for select to authenticated using ('
+      'create policy %I on public.%I as restrictive for select to authenticated using ('
       ||'public.is_active_company_member(company_id) '
-      ||'and public.erp_r84_record_visible(company_id,%L,created_by,null) '
-      ||'and not public.erp_cloud_user_has_permission(company_id,%L))',
-      left(v_table||'_r84_scoped_select',63),v_table,v_resource,v_resource||'.fields.restrict'
+      ||'and public.erp_r84_record_visible(company_id,%L,created_by,null))',
+      left(v_table||'_r84_record_scope',63),v_table,v_resource
     );
   end loop;
 end $$;
 
--- Child commercial/maintenance tables inherit the parent scope.
-do $$
-declare p record;
-begin
-  for p in select policyname,tablename from pg_policies
-    where schemaname='public' and cmd='SELECT'
-      and tablename in (
-        'erp_sales_order_items_cloud','erp_purchase_order_items_cloud',
-        'erp_maintenance_parts','erp_maintenance_payments'
+-- Compatibility-record opportunities also get restrictive direct-read scope.
+drop policy if exists erp_records_r84_opportunity_scope on public.erp_records;
+create policy erp_records_r84_opportunity_scope
+on public.erp_records as restrictive for select to authenticated using (
+  entity_type<>'opportunities'
+  or exists(
+    select 1 from public.companies c
+    where c.slug=erp_records.company_id and c.is_active
+      and public.erp_r84_record_visible(
+        c.id,'customer_service',null,
+        coalesce(erp_records.payload->>'createdByUserId',erp_records.payload->>'createdBy','')
       )
-  loop execute format('drop policy if exists %I on public.%I',p.policyname,p.tablename); end loop;
-end $$;
+  )
+);
 
-create policy erp_sales_order_items_cloud_r84_scoped_select
-on public.erp_sales_order_items_cloud for select to authenticated using (
-  public.is_active_company_member(company_id)
-  and exists(
+-- Child tables inherit scope from their parent record.
+drop policy if exists erp_sales_order_items_cloud_r84_record_scope on public.erp_sales_order_items_cloud;
+create policy erp_sales_order_items_cloud_r84_record_scope
+on public.erp_sales_order_items_cloud as restrictive for select to authenticated using (
+  exists(
     select 1 from public.erp_sales_orders_cloud o
     where o.company_id=erp_sales_order_items_cloud.company_id
       and o.id=erp_sales_order_items_cloud.order_id and not o.is_deleted
       and public.erp_r84_record_visible(o.company_id,'sales',o.created_by,null)
   )
-  and not public.erp_cloud_user_has_permission(company_id,'sales.fields.restrict')
 );
-create policy erp_purchase_order_items_cloud_r84_scoped_select
-on public.erp_purchase_order_items_cloud for select to authenticated using (
-  public.is_active_company_member(company_id)
-  and exists(
+
+drop policy if exists erp_purchase_order_items_cloud_r84_record_scope on public.erp_purchase_order_items_cloud;
+create policy erp_purchase_order_items_cloud_r84_record_scope
+on public.erp_purchase_order_items_cloud as restrictive for select to authenticated using (
+  exists(
     select 1 from public.erp_purchase_orders_cloud o
     where o.company_id=erp_purchase_order_items_cloud.company_id
       and o.id=erp_purchase_order_items_cloud.order_id and not o.is_deleted
       and public.erp_r84_record_visible(o.company_id,'purchases',o.created_by,null)
   )
-  and not public.erp_cloud_user_has_permission(company_id,'purchases.fields.restrict')
 );
-create policy erp_maintenance_parts_r84_scoped_select
-on public.erp_maintenance_parts for select to authenticated using (
-  public.is_active_company_member(company_id)
-  and exists(
+
+drop policy if exists erp_maintenance_parts_r84_record_scope on public.erp_maintenance_parts;
+create policy erp_maintenance_parts_r84_record_scope
+on public.erp_maintenance_parts as restrictive for select to authenticated using (
+  exists(
     select 1 from public.erp_maintenance_orders o
     where o.company_id=erp_maintenance_parts.company_id
       and o.id=erp_maintenance_parts.maintenance_order_id and not o.is_deleted
       and public.erp_r84_record_visible(o.company_id,'maintenance',o.created_by,null)
   )
-  and not public.erp_cloud_user_has_permission(company_id,'maintenance.fields.restrict')
 );
-create policy erp_maintenance_payments_r84_scoped_select
-on public.erp_maintenance_payments for select to authenticated using (
-  public.is_active_company_member(company_id)
-  and exists(
+
+drop policy if exists erp_maintenance_payments_r84_record_scope on public.erp_maintenance_payments;
+create policy erp_maintenance_payments_r84_record_scope
+on public.erp_maintenance_payments as restrictive for select to authenticated using (
+  exists(
     select 1 from public.erp_maintenance_orders o
     where o.company_id=erp_maintenance_payments.company_id
       and o.id=erp_maintenance_payments.maintenance_order_id and not o.is_deleted
       and public.erp_r84_record_visible(o.company_id,'maintenance',o.created_by,null)
   )
-  and not public.erp_cloud_user_has_permission(company_id,'maintenance.fields.restrict')
 );
 
 notify pgrst,'reload schema';
