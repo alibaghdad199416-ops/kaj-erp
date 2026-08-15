@@ -64,20 +64,20 @@ class AccountingReportExportService {
       TextCellValue(useArabic ? 'عدد السجلات' : 'Row count'),
       IntCellValue(rows.length),
     ]);
-    if (cashFlow != null) ...{
+    if (cashFlow != null) {
       sheet.appendRow([
         TextCellValue(useArabic ? 'إجمالي التدفقات الداخلة' : 'Total cash in'),
         DoubleCellValue(cashFlow.cashInTotal),
-      ]),
+      ]);
       sheet.appendRow([
         TextCellValue(useArabic ? 'إجمالي التدفقات الخارجة' : 'Total cash out'),
         DoubleCellValue(cashFlow.cashOutTotal),
-      ]),
+      ]);
       sheet.appendRow([
         TextCellValue(useArabic ? 'صافي التدفق النقدي' : 'Net cash flow'),
         DoubleCellValue(cashFlow.netTotal),
-      ]),
-    };
+      ]);
+    }
     sheet.appendRow(<CellValue>[]);
 
     if (columns.isNotEmpty) {
