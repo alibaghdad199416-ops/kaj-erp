@@ -44,6 +44,7 @@ meta.update(
         "operationalRevision": dart_string("operationalRevision"),
         "runtimeRevision": dart_string("currentRuntimeRevision"),
         "runtimeToken": dart_string("currentRuntimeToken"),
+        "databaseContract": "R74",
     }
 )
 path.write_text(
@@ -52,5 +53,5 @@ path.write_text(
 )
 print(
     f"Prepared web release {version}+{build}-"
-    f"{dart_string('currentRuntimeToken')}"
+    f"{dart_string('currentRuntimeToken')} / DB R74"
 )
