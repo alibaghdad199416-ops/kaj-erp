@@ -47,10 +47,26 @@ try:
             r"static const String releaseToken\s*=\s*(?:\n\s*)?'([^']+)'",
             release_info,
         )
+        runtime_token_match = re.search(
+            r"static const String currentRuntimeToken\s*=\s*(?:\n\s*)?'([^']+)'",
+            release_info,
+        )
+        runtime_revision_match = re.search(
+            r"static const String currentRuntimeRevision\s*=\s*(?:\n\s*)?'([^']+)'",
+            release_info,
+        )
         if not token_match:
             errors.append("AppReleaseInfo.releaseToken is missing")
         elif meta.get("releaseToken") != token_match.group(1):
             errors.append("version.json releaseToken differs from AppReleaseInfo")
+        if not runtime_token_match:
+            errors.append("AppReleaseInfo.currentRuntimeToken is missing")
+        elif meta.get("runtimeToken") != runtime_token_match.group(1):
+            errors.append("version.json runtimeToken differs from AppReleaseInfo")
+        if not runtime_revision_match:
+            errors.append("AppReleaseInfo.currentRuntimeRevision is missing")
+        elif meta.get("runtimeRevision") != runtime_revision_match.group(1):
+            errors.append("version.json runtimeRevision differs from AppReleaseInfo")
 except Exception as exc:  # noqa: BLE001
     errors.append(f"metadata validation failed: {exc}")
 
@@ -62,6 +78,14 @@ try:
 except OSError as exc:
     errors.append(f"bootstrap validation failed: {exc}")
 
+try:
+    index = (BUILD / "index.html").read_text(encoding="utf-8")
+    if "data.runtimeToken || data.releaseToken" not in index:
+        errors.append("web boot does not prefer the current runtime token")
+    if "22.9.8+229008-r73-current-schema-runtime-20260815" not in index:
+        errors.append("web boot fallback is not the current R73 runtime identity")
+except OSError as exc:
+    errors.append(f"index validation failed: {exc}")
 
 try:
     host_metadata = (BUILD / "_headers").read_text(encoding="utf-8") + (BUILD / ".htaccess").read_text(encoding="utf-8")
@@ -78,3 +102,4 @@ if errors:
 
 print("PASS web release verification")
 print(" - CanvasKit is self-hosted under build/web/canvaskit")
+print(" - current R73 runtime identity is synchronized and cache-busting")
