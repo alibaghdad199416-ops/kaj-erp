@@ -9,9 +9,19 @@ config = (root / "lib/core/cloud/supabase_config.dart").read_text(encoding="utf-
 supabase_config = (root / "supabase/config.toml").read_text(encoding="utf-8")
 production_defines = (root / "dart_defines.json").read_text(encoding="utf-8")
 seed = (root / "supabase/seed.sql").read_text(encoding="utf-8")
+gitignore = (root / ".gitignore").read_text(encoding="utf-8")
 
 expected_local_id = "quality_line_erp_local_dev"
 production_ref = "havlqebmnjdcwmpaaqew"
+known_orphans = (
+    "20260815044500",
+    "20260815055000",
+    "20260815060000",
+    "20260815080000",
+    "20260815083000",
+    "20260815083800",
+    "20260815120500",
+)
 
 for marker in (
     "supabase @Arguments",
@@ -20,19 +30,34 @@ for marker in (
     "@('migration', 'up', '--local', '--include-all')",
     "@('migration', 'list', '--local')",
     "@('db', 'dump', '--local', '--data-only'",
+    "@('db', 'dump', '--local', '--file'",
     "SUPABASE_LOCAL_PROJECT_ID",
     "SUPABASE_ALLOW_LOCAL_DEV",
     "dart_defines.local.generated.json",
     "Refusing non-local Supabase API URL",
     "UTF8Encoding($false)",
+    "KnownOrphanedLocalMigrationVersions",
+    "migration repair",
+    "'--status', 'reverted', '--local'",
+    "Refusing automatic migration-history repair",
+    "Retrying forward-only local migration update after history reconciliation",
 ):
     assert marker in prepare, marker
+
+for version in known_orphans:
+    assert version in prepare, version
 
 # No destructive or remote database command may execute in the local repair path.
 assert "@('db', 'reset'" not in prepare
 assert "'--linked'" not in prepare
 assert "supabase link" not in prepare.lower()
 assert "db push" not in prepare.lower()
+assert "drop database" not in prepare.lower()
+
+# Migration-history repair must be fail-closed to the exact known legacy set.
+assert "$_ -notin $KnownOrphanedLocalMigrationVersions" in prepare
+assert "migration-history drift" in prepare
+assert "tracking history only" in prepare
 
 assert expected_local_id in supabase_config
 assert "localProjectId" in config
@@ -62,11 +87,16 @@ for marker in (
 ):
     assert marker in package, marker
 
+assert ".local_backups/" in gitignore
+assert "dart_defines.local.generated.json" in gitignore
+
 print("PASS R76 current local database runtime")
 print(f"  - local project id: {expected_local_id}")
-print("  - npm run run:web now launches local Supabase")
+print("  - npm run run:web launches local Supabase")
 print("  - local credentials are read from supabase status, never from hosted defines")
-print("  - pending migrations are applied with --local --include-all")
-print("  - existing local business data is backed up before migration")
+print("  - existing local data + schema are backed up before migration")
+print("  - seven known orphaned migration-history rows are repaired locally only")
+print("  - unexpected migration-history drift fails closed")
+print("  - pending migrations are then applied with --local --include-all")
 print("  - no local db reset and no linked/remote database operation")
 print(f"  - hosted production remains explicit as npm run run:web:production ({production_ref})")
