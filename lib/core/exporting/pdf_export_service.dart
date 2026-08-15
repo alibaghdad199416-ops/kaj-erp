@@ -14,10 +14,15 @@ import 'export_document.dart';
 import 'pdf_print_service.dart';
 import 'report_template_engine.dart';
 import '../printing/pdf_text_support.dart';
+import '../printing/premium_document_theme.dart';
 import '../printing/unified_pdf_document.dart';
 import '../printing/unified_pdf_identity.dart';
 
 /// Canonical PDF renderer shared by reports and generic exports.
+///
+/// [PremiumDocumentTheme] is the compatibility facade over the newer
+/// [UnifiedPdfIdentity], so older commercial-document contracts and the unified
+/// header/footer pipeline continue to resolve to one visual identity.
 class PdfExportService {
   PdfExportService({ReportTemplateEngine? templateEngine})
     : _template = templateEngine ?? const ReportTemplateEngine();
@@ -27,6 +32,8 @@ class PdfExportService {
   Future<Uint8List> build(
     ExportDocument document, {
     ExportPageFormat pageFormat = ExportPageFormat.a4Portrait,
+    int? maxColumnsPerGroup,
+    int maxRowsPerChunk = 14,
   }) async {
     document.validate();
     final fonts = await PdfTextSupport.loadFonts();
@@ -47,6 +54,12 @@ class PdfExportService {
     };
     final landscape = pageFormat == ExportPageFormat.a4Landscape;
     final receipt = pageFormat == ExportPageFormat.receipt80mm;
+    final effectiveColumnGroup = maxColumnsPerGroup ??
+        (receipt
+            ? 2
+            : landscape
+                ? 8
+                : 6);
     final pdf = pw.Document(
       title: document.title,
       author: branding.companyName,
@@ -95,7 +108,7 @@ class PdfExportService {
             pw.Container(
               width: double.infinity,
               padding: const pw.EdgeInsets.all(8),
-              color: UnifiedPdfIdentity.ink,
+              color: PremiumDocumentTheme.ink,
               child: PdfTextSupport.text(
                 document.title,
                 textAlign: pw.TextAlign.center,
@@ -167,9 +180,10 @@ class PdfExportService {
             regular: regular,
             bold: bold,
             arabic: arabic,
-            headerColor: UnifiedPdfIdentity.tableHeader,
-            alternateColor: UnifiedPdfIdentity.surface,
-            maxColumnsPerGroup: receipt ? 2 : (landscape ? 8 : 6),
+            headerColor: PremiumDocumentTheme.ink,
+            alternateColor: PremiumDocumentTheme.surface,
+            maxColumnsPerGroup: effectiveColumnGroup,
+            maxRowsPerChunk: maxRowsPerChunk,
           ),
         ],
       ),
