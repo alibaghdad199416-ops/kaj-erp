@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'persisted_session_failure.dart';
 import 'supabase_config.dart';
 
 class CloudBootstrapResult {
@@ -67,6 +70,62 @@ class CloudBootstrap {
     return FlutterAuthClientOptions(localStorage: localStorage);
   }
 
+  /// Validate any restored browser credential against the backend that was
+  /// actually initialized. A project-scoped storage key prevents most leakage,
+  /// but an already-populated invalid token must still fail closed before any
+  /// tenant or preferences request is allowed to reuse it.
+  static Future<void> _verifyPersistedSessionForCurrentBackend() async {
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    if (session == null) return;
+
+    try {
+      final response = await client.auth.getUser().timeout(
+        const Duration(seconds: 12),
+      );
+      final verified = response.user;
+      if (verified == null || verified.id != session.user.id) {
+        throw const AuthInvalidJwtException('Persisted user identity mismatch');
+      }
+      AppLogger.debug(
+        'R74 persisted Supabase session verified: '
+        'project=${SupabaseConfig.projectRef}; user=${verified.id}',
+      );
+    } on TimeoutException catch (error, stackTrace) {
+      // A timeout proves neither validity nor invalidity. Preserve the token and
+      // let the normal authenticated bootstrap make the final decision.
+      AppLogger.debug(
+        'Persisted Supabase session verification timed out; preserving session: '
+        '$error',
+      );
+      AppLogger.stack(stackTrace);
+    } catch (error, stackTrace) {
+      if (!isInvalidPersistedAuthFailure(error)) {
+        AppLogger.debug(
+          'Persisted Supabase session could not be verified yet; preserving it: '
+          '$error',
+        );
+        AppLogger.stack(stackTrace);
+        return;
+      }
+      AppLogger.debug(
+        'R74 discarding invalid persisted Supabase session for '
+        '${SupabaseConfig.projectRef}: $error',
+      );
+      AppLogger.stack(stackTrace);
+      try {
+        await client.auth.signOut(scope: SignOutScope.local).timeout(
+          const Duration(seconds: 8),
+        );
+      } catch (cleanupError, cleanupStack) {
+        AppLogger.debug(
+          'R74 invalid persisted-session cleanup skipped: $cleanupError',
+        );
+        AppLogger.stack(cleanupStack);
+      }
+    }
+  }
+
   static Future<CloudBootstrapResult> _initializeOnce() async {
     var supabaseReady = false;
     final messages = <String>[];
@@ -83,6 +142,7 @@ class CloudBootstrap {
           publishableKey: SupabaseConfig.anonKey,
           authOptions: _authOptionsForCurrentBackend(),
         );
+        await _verifyPersistedSessionForCurrentBackend();
         supabaseReady = true;
       } catch (error, stackTrace) {
         messages.add('Supabase: تعذرت التهيئة.');
