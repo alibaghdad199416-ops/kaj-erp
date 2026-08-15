@@ -11,23 +11,20 @@ try {
   throw "The current folder is not a valid KAJ ERP Git workspace."
 }
 
-python -B tool/verify_r75_havl_only_target.py
+python -B tool/verify_r76_local_current_database.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-python -B tool/verify_r71_supabase_runtime_isolation.py
+Write-Host "`nPreparing the CURRENT LOCAL Supabase database..." -ForegroundColor Cyan
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tool\prepare_local_current_database.ps1
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-python -B tool/verify_r71_current_runtime_source.py
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not (Test-Path 'dart_defines.local.generated.json')) {
+  throw 'Local Supabase runtime file was not generated.'
+}
 
-python -B tool/verify_r72_dashboard_database_contract.py
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-python -B tool/verify_r74_authenticated_tenant_runtime.py
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-Write-Host "Launching Edge against havlqebmnjdcwmpaaqew from the verified current source..."
-Write-Host "Only allowed Supabase project: havlqebmnjdcwmpaaqew" -ForegroundColor Green
-Write-Host "Browser runtime token: r74-authenticated-tenant-runtime-20260815" -ForegroundColor Green
-flutter run -d edge --dart-define-from-file=dart_defines.json
+Write-Host "`nLaunching KAJ ERP against LOCAL Supabase only..." -ForegroundColor Green
+Write-Host 'Backend source: Supabase CLI local stack (127.0.0.1)' -ForegroundColor Green
+Write-Host 'Production configuration remains separate and unchanged.' -ForegroundColor Green
+flutter run -d edge --dart-define-from-file=dart_defines.local.generated.json
 exit $LASTEXITCODE
