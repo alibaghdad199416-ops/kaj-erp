@@ -70,6 +70,26 @@ class CloudBootstrap {
     return FlutterAuthClientOptions(localStorage: localStorage);
   }
 
+  static Future<void> _discardLocalSession(
+    SupabaseClient client, {
+    required String reason,
+  }) async {
+    AppLogger.debug(
+      'R74 discarding persisted Supabase session for '
+      '${SupabaseConfig.projectRef}: $reason',
+    );
+    try {
+      await client.auth.signOut(scope: SignOutScope.local).timeout(
+        const Duration(seconds: 8),
+      );
+    } catch (cleanupError, cleanupStack) {
+      AppLogger.debug(
+        'R74 invalid persisted-session cleanup skipped: $cleanupError',
+      );
+      AppLogger.stack(cleanupStack);
+    }
+  }
+
   /// Validate any restored browser credential against the backend that was
   /// actually initialized. A project-scoped storage key prevents most leakage,
   /// but an already-populated invalid token must still fail closed before any
@@ -85,7 +105,11 @@ class CloudBootstrap {
       );
       final verified = response.user;
       if (verified == null || verified.id != session.user.id) {
-        throw const AuthInvalidJwtException('Persisted user identity mismatch');
+        await _discardLocalSession(
+          client,
+          reason: 'persisted user identity mismatch',
+        );
+        return;
       }
       AppLogger.debug(
         'R74 persisted Supabase session verified: '
@@ -108,21 +132,8 @@ class CloudBootstrap {
         AppLogger.stack(stackTrace);
         return;
       }
-      AppLogger.debug(
-        'R74 discarding invalid persisted Supabase session for '
-        '${SupabaseConfig.projectRef}: $error',
-      );
       AppLogger.stack(stackTrace);
-      try {
-        await client.auth.signOut(scope: SignOutScope.local).timeout(
-          const Duration(seconds: 8),
-        );
-      } catch (cleanupError, cleanupStack) {
-        AppLogger.debug(
-          'R74 invalid persisted-session cleanup skipped: $cleanupError',
-        );
-        AppLogger.stack(cleanupStack);
-      }
+      await _discardLocalSession(client, reason: error.toString());
     }
   }
 
