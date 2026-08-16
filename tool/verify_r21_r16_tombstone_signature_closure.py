@@ -26,12 +26,12 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8", errors="strict")
 
 for relative, digest in {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }.items():
     need(normalized_text_sha256(ROOT / relative) == digest,
-         f"production configuration changed: {relative}")
+         f"local runtime/hosting baseline changed: {relative}")
 
 r16 = read("supabase/migrations/20260808024500_r16_persistent_canonical_state.sql")
 recycle = read("supabase/migrations/20260801070000_universal_recycle_bin_and_document_polish.sql")
@@ -106,4 +106,4 @@ print("  - recycle-bin UUID actor columns are explicitly cast to the canonical t
 print("  - every R16 seed call resolves to the existing erp_r16_sync_tombstone text signature")
 print("  - the corrected R16 migration remains the only pending canonical-state database step after R15")
 print("  - R20 native CLI exit-code handling and unexpected-migration refusal remain mandatory")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

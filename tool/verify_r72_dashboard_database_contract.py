@@ -8,7 +8,8 @@ dashboard = (root / "lib/features/dashboard/data/dashboard_repository.dart").rea
 defines = (root / "dart_defines.json").read_text(encoding="utf-8")
 guarded_push = (root / "tool/guarded_supabase_db_push.py").read_text(encoding="utf-8")
 
-expected_ref = "havlqebmnjdcwmpaaqew"
+expected_local_id = "quality_line_erp_local_dev"
+expected_url = "http://127.0.0.1:54321"
 rpc = "erp_r65_get_authoritative_dashboard_snapshot"
 required = {
     "20260814053406_r65_authoritative_dashboard_snapshot.sql": [
@@ -39,7 +40,8 @@ required = {
     ],
 }
 
-assert expected_ref in defines, "runtime does not target the approved Supabase project"
+assert expected_url in defines, "runtime does not target Local Supabase"
+assert ".supabase.co" not in defines, "active runtime still targets Hosted Supabase"
 assert rpc in dashboard, "Dashboard repository does not call the authoritative R65 RPC"
 assert "erp_r16_get_authorita" not in dashboard, "legacy R16 Dashboard RPC is still referenced"
 assert "db\", \"push\"" in guarded_push or '"db", "push"' in guarded_push
@@ -63,7 +65,8 @@ assert "20260815150000" in versions
 assert versions.index("20260814053406") < versions.index("20260815150000")
 
 print("PASS R72 authoritative Dashboard database deployment contract")
-print(f"  - Supabase project: {expected_ref}")
+print(f"  - Local Supabase project: {expected_local_id}")
+print(f"  - Local Supabase API: {expected_url}")
 print(f"  - runtime RPC: {rpc}")
 print("  - R65 + R65.1/.2/.3/.4 migration chain: present")
 print("  - R72 remote schema postcondition + PostgREST reload: present")

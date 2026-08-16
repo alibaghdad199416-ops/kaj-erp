@@ -24,12 +24,12 @@ def sha(rel: str) -> str:
     return normalized_text_sha256(ROOT / rel)
 
 expected = {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }
 for rel, digest in expected.items():
-    need(sha(rel) == digest, f"production configuration changed: {rel}")
+    need(sha(rel) == digest, f"local runtime/hosting baseline changed: {rel}")
 
 helper = read("tool/verification_text.py")
 need("def compact_code" in helper and "def contains_code" in helper,
@@ -122,5 +122,5 @@ print("PASS R12 root validation closure")
 print("  - Python verifier decoding is explicit UTF-8")
 print("  - V7.4.1 semantic invoice fallback checks are formatter-safe")
 print("  - verify:all includes R12 and Windows validation is fail-fast")
-print("  - production Supabase/Firebase configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")
 print("  - package cleanliness is delegated to the pre-install verify:delivery gate")

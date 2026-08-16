@@ -22,7 +22,10 @@ def need(label, condition):
 
 
 def digest(relative):
-    return sha256((root / relative).read_bytes()).hexdigest().upper()
+    # Git may materialize tracked SQL with CRLF on Windows. Keep the historical
+    # migration content guard strict while ignoring newline encoding only.
+    payload = (root / relative).read_bytes().replace(b'\r\n', b'\n')
+    return sha256(payload).hexdigest().upper()
 
 
 compact_migration = re.sub(r'\s+', ' ', migration.lower())

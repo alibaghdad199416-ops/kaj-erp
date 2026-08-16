@@ -36,14 +36,14 @@ def function_body(sql: str, name: str) -> str:
 
 
 for relative, digest in {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }.items():
     need((ROOT / relative).exists(), f"missing production configuration: {relative}")
     if (ROOT / relative).exists():
         need(normalized_text_sha256(ROOT / relative) == digest,
-             f"production configuration changed: {relative}")
+             f"local runtime/hosting baseline changed: {relative}")
 
 migration_dir = ROOT / "supabase/migrations"
 all_migrations = sorted(p.name for p in migration_dir.glob("*.sql"))
@@ -147,7 +147,7 @@ for name in MIGRATIONS:
 
 # Flutter runtime performance/rebuild closure.
 cashbox_controller = read("lib/features/accounting/cashbox/controllers/cashbox_controller.dart")
-for token in ("Future<void>? _refreshInFlight", "Future<void> _refresh()", "Future<void> _performRefresh()", "identical(_refreshInFlight, request)"):
+for token in ("Future<void>? _refreshInFlight", "Future<void> _refresh({bool force = false})", "Future<void> _performRefresh()", "identical(_refreshInFlight, request)"):
     need(token in cashbox_controller, f"CashboxController refresh coalescing missing: {token}")
 need("if (_isLoading == value) return;" in cashbox_controller,
      "CashboxController emits redundant loading notifications")
@@ -244,4 +244,4 @@ print("  - cashbox refreshes are coalesced and tab/page state is not mutated dur
 print("  - all form dropdowns expand responsively, closing the observed yellow/black RenderFlex class")
 print("  - saved company language updates the active app locale and responsive settings layout")
 print("  - R22 direct Supplier <-> Inventory purchase accounting remains intact")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")
