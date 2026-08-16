@@ -1,8 +1,9 @@
-import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import 'package:quality_line_erp/core/localization/app_localizations.dart';
 
 class AppUserAvatar extends StatelessWidget {
   const AppUserAvatar({
@@ -53,7 +54,13 @@ class AppUserAvatar extends StatelessWidget {
           : null,
     );
     final callback = onTap;
-    if (callback == null) return avatar;
+    if (callback == null) {
+      return Semantics(
+        label: context.l10n.isArabic ? 'صورة المستخدم' : 'User avatar',
+        image: true,
+        child: avatar,
+      );
+    }
     return Semantics(
       label: AppTranslation.translate('تعديل الملف الشخصي'),
       button: true,
