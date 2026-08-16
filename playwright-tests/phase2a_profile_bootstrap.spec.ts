@@ -15,6 +15,20 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+async function enableFlutterSemantics(page: import('@playwright/test').Page): Promise<void> {
+  const placeholder = page.locator('flt-semantics-placeholder').first();
+  const placeholderCount = await placeholder.count();
+  console.log(`[profile-bootstrap] semantics placeholder count=${placeholderCount}`);
+  if (placeholderCount > 0) {
+    // Flutter's accessibility placeholder can be intentionally positioned outside
+    // the visual viewport. A Playwright pointer click therefore fails actionability
+    // even though the DOM control is valid. Invoke the element's native click so
+    // Flutter receives the same accessibility-enablement event without geometry.
+    await placeholder.evaluate((element: HTMLElement) => element.click());
+  }
+  await page.waitForTimeout(750);
+}
+
 test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request }) => {
   fs.mkdirSync(artifactDir, { recursive: true });
   const email = requiredEnv('E2E_ADMIN_EMAIL');
@@ -51,11 +65,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
   expect(persisted.direct ?? persisted.flutter, 'Injected Supabase session disappeared from localStorage').not.toBeNull();
 
   console.log('[profile-bootstrap] 4/6 enabling Flutter semantics');
-  const placeholder = page.locator('flt-semantics-placeholder').first();
-  const placeholderCount = await placeholder.count();
-  console.log(`[profile-bootstrap] semantics placeholder count=${placeholderCount}`);
-  if (placeholderCount > 0) await placeholder.click({ timeout: 10_000 });
-  await page.waitForTimeout(750);
+  await enableFlutterSemantics(page);
 
   const labels = await page.locator('[aria-label]').evaluateAll((elements) =>
     elements
