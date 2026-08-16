@@ -29,20 +29,14 @@ type WorkflowSnapshot = {
   opportunity?: Row | null;
 };
 
-type TestContext = {
-  companyId: string;
-  userId: string;
-  userName: string;
-};
-
-type StockState = {
+type TestContext = { companyId: string; userId: string; userName: string };
+type ProductState = {
   kind: 'product';
   itemId: string;
   warehouseId: string;
   quantity: number;
   value: number;
 };
-
 type CarState = {
   kind: 'car';
   itemId: string;
@@ -50,8 +44,7 @@ type CarState = {
   status: string;
   cost: number;
 };
-
-type ItemState = StockState | CarState;
+type ItemState = ProductState | CarState;
 
 const artifactRoot = path.resolve('playwright-artifacts/phase-2b/sales');
 
@@ -81,9 +74,9 @@ function value(row: Row, ...keys: string[]): unknown {
   return undefined;
 }
 
-function rows(value: unknown): Row[] {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is Row => Boolean(entry) && typeof entry === 'object')
+function rows(raw: unknown): Row[] {
+  return Array.isArray(raw)
+    ? raw.filter((entry): entry is Row => Boolean(entry) && typeof entry === 'object')
     : [];
 }
 
@@ -111,9 +104,7 @@ async function rpc<T>(options: {
   );
   const body = await response.text();
   if (!response.ok()) {
-    throw new Error(
-      `Local RPC ${options.name} failed: HTTP ${response.status()} ${body}`,
-    );
+    throw new Error(`Local RPC ${options.name} failed: HTTP ${response.status()} ${body}`);
   }
   return JSON.parse(body) as T;
 }
@@ -132,23 +123,23 @@ async function restRows(options: {
   );
   const body = await response.text();
   if (!response.ok()) {
-    throw new Error(
-      `Local REST ${options.table} failed: HTTP ${response.status()} ${body}`,
-    );
+    throw new Error(`Local REST ${options.table} failed: HTTP ${response.status()} ${body}`);
   }
   return rows(JSON.parse(body));
 }
 
 function companyCandidate(payload: Row): string {
   const direct = text(
-    payload.companyId ?? payload.company_id ?? payload.currentCompanyId ?? payload.current_company_id,
+    payload.companyId ??
+      payload.company_id ??
+      payload.currentCompanyId ??
+      payload.current_company_id,
   );
   if (direct) return direct;
   const company = payload.company;
-  if (company && typeof company === 'object') {
-    return text((company as Row).id ?? (company as Row).companyId);
-  }
-  return '';
+  return company && typeof company === 'object'
+    ? text((company as Row).id ?? (company as Row).companyId)
+    : '';
 }
 
 async function resolveTestContext(options: {
@@ -160,11 +151,12 @@ async function resolveTestContext(options: {
     ...options,
     name: 'erp_bootstrap_current_user_access',
   });
-  expect(bootstrap.ok, 'Authenticated access bootstrap failed').toBe(true);
+  expect(bootstrap.ok).toBe(true);
   const user = (bootstrap.user ?? {}) as Row;
-  const explicitCompany = process.env.E2E_COMPANY_ID?.trim() ?? '';
-  let companyId = explicitCompany || companyCandidate(bootstrap) || companyCandidate(user);
-
+  let companyId =
+    process.env.E2E_COMPANY_ID?.trim() ||
+    companyCandidate(bootstrap) ||
+    companyCandidate(user);
   if (!companyId) {
     const companies = await restRows({
       ...options,
@@ -173,23 +165,24 @@ async function resolveTestContext(options: {
     });
     if (companies.length !== 1) {
       throw new Error(
-        `Unable to resolve one local E2E company from the authenticated session. ` +
-          `Visible active companies=${companies.length}; set E2E_COMPANY_ID for this local runtime.`,
+        `Unable to resolve one local E2E company. Visible active companies=${companies.length}; ` +
+          `set E2E_COMPANY_ID for this local runtime.`,
       );
     }
     companyId = text(companies[0].id);
   }
-
   const userId = text(user.id);
   const userName = text(user.fullName ?? user.full_name ?? user.username);
   if (!companyId || !userId || !userName) {
-    throw new Error('Local access bootstrap did not expose company/user identity required by Phase 2B.');
+    throw new Error('Local access bootstrap did not expose required company/user identity.');
   }
   return { companyId, userId, userName };
 }
 
 async function waitForFlutter(page: Page): Promise<void> {
-  await page.waitForSelector('#boot', { state: 'detached', timeout: 90_000 }).catch(() => undefined);
+  await page
+    .waitForSelector('#boot', { state: 'detached', timeout: 90_000 })
+    .catch(() => undefined);
   await page.waitForSelector('flt-glass-pane', { state: 'attached', timeout: 45_000 });
 }
 
@@ -211,11 +204,7 @@ async function openCustomerService(page: Page, appUrl: string): Promise<void> {
   ).toBeVisible({ timeout: 30_000 });
 }
 
-async function chooseDropdown(
-  page: Page,
-  label: RegExp,
-  option: string,
-): Promise<void> {
+async function chooseDropdown(page: Page, label: RegExp, option: string): Promise<void> {
   const field = page.getByLabel(label).last();
   await expect(field).toBeVisible({ timeout: 20_000 });
   await field.click();
@@ -224,7 +213,7 @@ async function chooseDropdown(
   await item.click();
 }
 
-async function fillOpportunityAndOpenSalesDraft(options: {
+async function createOpportunityAndSalesDraft(options: {
   page: Page;
   marker: string;
   currency: 'USD' | 'IQD';
@@ -233,11 +222,15 @@ async function fillOpportunityAndOpenSalesDraft(options: {
 }): Promise<void> {
   const { page } = options;
   await page.getByRole('button', { name: /^(New opportunity|فرصة جديدة)$/i }).click();
-
-  await page.getByLabel(/^(Customer name|اسم العميل)$/i).fill(`E2E Customer ${options.marker}`);
-  await page.getByLabel(/^(Opportunity title \(optional\)|عنوان الفرصة \(اختياري\))$/i).fill(options.marker);
-  await page.getByLabel(/^(Expected value \(optional\)|القيمة المتوقعة \(اختيارية\))$/i).fill(options.expectedValue);
-
+  await page
+    .getByLabel(/^(Customer name|اسم العميل)$/i)
+    .fill(`E2E Customer ${options.marker}`);
+  await page
+    .getByLabel(/^(Opportunity title \(optional\)|عنوان الفرصة \(اختياري\))$/i)
+    .fill(options.marker);
+  await page
+    .getByLabel(/^(Expected value \(optional\)|القيمة المتوقعة \(اختيارية\))$/i)
+    .fill(options.expectedValue);
   if (options.currency === 'IQD') {
     await chooseDropdown(page, /^(Opportunity currency|عملة الفرصة)$/i, 'IQD');
   }
@@ -246,7 +239,6 @@ async function fillOpportunityAndOpenSalesDraft(options: {
     /^(Responsible user \(optional\)|المستخدم المسؤول \(اختياري\))$/i,
     options.responsibleUser,
   );
-
   await page
     .getByRole('button', {
       name: /^(Save & Create Sales Draft|Save and Create Sales Draft|حفظ وإنشاء مسودة أمر بيع)$/i,
@@ -278,7 +270,7 @@ async function listOpportunities(options: {
   });
 }
 
-async function findOpportunityByTitle(
+async function opportunityByTitle(
   options: {
     request: APIRequestContext;
     runtime: LocalSupabaseRuntime;
@@ -300,7 +292,7 @@ async function findOpportunityByTitle(
   return found!;
 }
 
-async function workflowSnapshot(options: {
+async function snapshot(options: {
   request: APIRequestContext;
   runtime: LocalSupabaseRuntime;
   accessToken: string;
@@ -318,11 +310,28 @@ async function workflowSnapshot(options: {
   });
 }
 
+async function waitSnapshot(
+  load: () => Promise<WorkflowSnapshot>,
+  predicate: (value: WorkflowSnapshot) => boolean,
+  message: string,
+): Promise<WorkflowSnapshot> {
+  let current: WorkflowSnapshot = {};
+  await expect
+    .poll(
+      async () => {
+        current = await load();
+        return predicate(current);
+      },
+      { timeout: 35_000, message },
+    )
+    .toBe(true);
+  return current;
+}
+
 function activeRow(list: Row[] | undefined): Row | undefined {
-  return (list ?? []).find((row) => {
-    const status = lower(row.status);
-    return !['cancelled', 'canceled', 'voided', 'deleted'].includes(status);
-  });
+  return (list ?? []).find(
+    (row) => !['cancelled', 'canceled', 'voided', 'deleted'].includes(lower(row.status)),
+  );
 }
 
 function allocations(document: Row | undefined): Row[] {
@@ -348,7 +357,7 @@ async function readItemState(options: {
       table: 'erp_cars',
       query: `select=*&company_id=eq.${encodeURIComponent(options.companyId)}&id=eq.${encodeURIComponent(options.itemId)}&limit=1`,
     });
-    if (carRows.length !== 1) throw new Error(`Car ${options.itemId} is not readable after Sales selection.`);
+    if (carRows.length !== 1) throw new Error(`Car ${options.itemId} is not readable.`);
     const car = carRows[0];
     return {
       kind: 'car',
@@ -366,18 +375,23 @@ async function readItemState(options: {
   });
   const matches = stockRows.filter(
     (row) =>
-      text(value(row, 'product_id', 'productId', 'inventory_id', 'inventoryId')) === options.itemId &&
+      text(value(row, 'product_id', 'productId', 'inventory_id', 'inventoryId')) ===
+        options.itemId &&
       text(value(row, 'warehouse_id', 'warehouseId')) === options.warehouseId,
   );
-  const quantity = matches.reduce((sum, row) => sum + numberValue(row.quantity), 0);
-  const stockValue = matches.reduce((sum, row) => {
-    const q = numberValue(row.quantity);
-    const unitCost = numberValue(
-      value(row, 'average_unit_cost', 'averageUnitCost', 'unit_cost', 'unitCost'),
-    );
-    return sum + q * unitCost;
-  }, 0);
-  return { kind: 'product', itemId: options.itemId, warehouseId: options.warehouseId, quantity, value: stockValue };
+  return {
+    kind: 'product',
+    itemId: options.itemId,
+    warehouseId: options.warehouseId,
+    quantity: matches.reduce((sum, row) => sum + numberValue(row.quantity), 0),
+    value: matches.reduce((sum, row) => {
+      const quantity = numberValue(row.quantity);
+      const unitCost = numberValue(
+        value(row, 'average_unit_cost', 'averageUnitCost', 'unit_cost', 'unitCost'),
+      );
+      return sum + quantity * unitCost;
+    }, 0),
+  };
 }
 
 async function cashState(options: {
@@ -387,24 +401,35 @@ async function cashState(options: {
   companyId: string;
 }): Promise<{ accounts: Row[]; transactions: Row[] }> {
   const [accounts, transactions] = await Promise.all([
-    restRows({ ...options, table: 'erp_cash_accounts', query: `select=*&company_id=eq.${encodeURIComponent(options.companyId)}` }),
-    restRows({ ...options, table: 'erp_cash_transactions', query: `select=*&company_id=eq.${encodeURIComponent(options.companyId)}` }),
+    restRows({
+      ...options,
+      table: 'erp_cash_accounts',
+      query: `select=*&company_id=eq.${encodeURIComponent(options.companyId)}`,
+    }),
+    restRows({
+      ...options,
+      table: 'erp_cash_transactions',
+      query: `select=*&company_id=eq.${encodeURIComponent(options.companyId)}`,
+    }),
   ]);
   return { accounts, transactions };
 }
 
 function cashBalances(state: { accounts: Row[] }): Map<string, number> {
   return new Map(
-    state.accounts.map((row) => [text(row.id), numberValue(value(row, 'balance', 'current_balance', 'currentBalance'))]),
+    state.accounts.map((row) => [
+      text(row.id),
+      numberValue(value(row, 'balance', 'current_balance', 'currentBalance')),
+    ]),
   );
 }
 
-function assertNoDownstreamEffects(snapshot: WorkflowSnapshot): void {
-  expect(activeRow(snapshot.logistics), 'Approval must not implicitly create Delivery').toBeUndefined();
-  expect(activeRow(snapshot.invoices), 'Approval must not implicitly create Invoice').toBeUndefined();
-  expect(snapshot.payments ?? [], 'Approval must not create Payment').toHaveLength(0);
-  expect(snapshot.movements ?? [], 'Approval must not move Inventory').toHaveLength(0);
-  expect(snapshot.journalEntries ?? [], 'Approval must not post commercial accounting').toHaveLength(0);
+function assertNoDownstreamEffects(workflow: WorkflowSnapshot): void {
+  expect(activeRow(workflow.logistics), 'Sales Order Approval ≠ Delivery').toBeUndefined();
+  expect(activeRow(workflow.invoices), 'Sales Order Approval ≠ Invoice').toBeUndefined();
+  expect(workflow.payments ?? [], 'Invoice ≠ Payment').toHaveLength(0);
+  expect(workflow.movements ?? [], 'Inventory changes only at approved Sales Delivery').toHaveLength(0);
+  expect(workflow.journalEntries ?? [], 'Commercial posting occurs at invoicing').toHaveLength(0);
 }
 
 async function clickAction(page: Page, name: RegExp): Promise<void> {
@@ -423,9 +448,8 @@ for (const currency of ['USD', 'IQD'] as const) {
     const appUrl = baseURL ?? 'http://127.0.0.1:8080';
     const email = requiredEnv('E2E_ADMIN_EMAIL');
     const password = requiredEnv('E2E_ADMIN_PASSWORD');
-
     const compiled = await request.get(`${appUrl}/main.dart.js`, { timeout: 20_000 });
-    expect(compiled.ok(), 'Served Flutter build is unavailable/stale').toBeTruthy();
+    expect(compiled.ok(), 'Served Flutter build is unavailable').toBeTruthy();
 
     const { runtime, session } = await signInLocalUserAndPrimeBrowser({
       request,
@@ -439,9 +463,9 @@ for (const currency of ['USD', 'IQD'] as const) {
     const marker = `R86-P2B-${currency}-${Date.now()}`;
     const expectedValue = currency === 'USD' ? '1000' : '1500000';
 
-    console.log(`[phase2b:${currency}] 1/9 create Opportunity and Sales draft through Flutter UI`);
+    console.log(`[phase2b:${currency}] 1/9 Opportunity → Sales draft`);
     await openCustomerService(page, appUrl);
-    await fillOpportunityAndOpenSalesDraft({
+    await createOpportunityAndSalesDraft({
       page,
       marker,
       currency,
@@ -449,70 +473,77 @@ for (const currency of ['USD', 'IQD'] as const) {
       responsibleUser: context.userName,
     });
 
-    const opportunity = await findOpportunityByTitle(backend, marker);
-    expect(text(opportunity.customerId), 'Opportunity customer missing').not.toBe('');
-    expect(text(opportunity.assignedUserId), 'Responsible user was not persisted').toBe(context.userId);
+    const opportunity = await opportunityByTitle(backend, marker);
+    expect(text(opportunity.customerId)).not.toBe('');
+    expect(text(opportunity.assignedUserId)).toBe(context.userId);
     expect(text(opportunity.currency)).toBe(currency);
     expect(numberValue(opportunity.expectedValue)).toBe(numberValue(expectedValue));
     expect(lower(opportunity.status)).toBe('pending');
-    expect(lower(opportunity.stage)).toBe('new');
+    expect(lower(opportunity.stage)).toBe('proposal');
+    expect(numberValue(opportunity.probability)).toBeGreaterThanOrEqual(50);
     expect(text(opportunity.salesOrderId), 'Opportunity ↔ Sales linkage missing').not.toBe('');
     expect(text(opportunity.salesOrderNumber), 'Sales business reference missing').not.toBe('');
 
     const orderId = text(opportunity.salesOrderId);
-    const draft = await workflowSnapshot({ ...backend, orderId });
+    const draft = await snapshot({ ...backend, orderId });
     const order = draft.order ?? {};
     expect(text(order.id)).toBe(orderId);
     expect(text(value(order, 'customerId', 'customer_id'))).toBe(text(opportunity.customerId));
     expect(text(order.currency)).toBe(currency);
     expect(text(value(order, 'opportunityId', 'opportunity_id'))).toBe(text(opportunity.id));
-    expect(text(value(order, 'orderNumber', 'order_number')), 'Sales Order reference missing').not.toBe('');
+    expect(text(value(order, 'orderNumber', 'order_number'))).not.toBe('');
     expect(lower(order.status)).toBe('draft');
     assertNoDownstreamEffects(draft);
-    expect(draft.items ?? [], 'Sales order must contain a real product/car').toHaveLength(1);
+    expect(draft.items ?? []).toHaveLength(1);
     const item = draft.items![0];
     const itemType = text(value(item, 'itemType', 'item_type')) || 'product';
     const itemId = text(value(item, 'itemId', 'item_id'));
     const orderedQuantity = numberValue(item.quantity);
     expect(['product', 'car']).toContain(itemType);
-    expect(itemId, 'Product/car identity missing').not.toBe('');
+    expect(itemId).not.toBe('');
     expect(orderedQuantity).toBeGreaterThan(0);
 
-    console.log(`[phase2b:${currency}] 2/9 open linked Sales Order and approve only`);
+    console.log(`[phase2b:${currency}] 2/9 Sales Order Approval only`);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForFlutter(page);
     await enableSemantics(page);
-    await expect(page.getByPlaceholder(/Search by opportunity|البحث برقم الفرصة/i)).toBeVisible({ timeout: 30_000 });
-    await page.getByPlaceholder(/Search by opportunity|البحث برقم الفرصة/i).fill(marker);
+    const search = page.getByPlaceholder(/Search by opportunity|البحث برقم الفرصة/i);
+    await expect(search).toBeVisible({ timeout: 30_000 });
+    await search.fill(marker);
     await clickAction(page, /^(Open sales order|فتح أمر البيع)$/i);
     await clickAction(page, /^(Approve sales order|تصديق أمر البيع)$/i);
-
-    const approved = await expect
-      .poll(async () => workflowSnapshot({ ...backend, orderId }), { timeout: 30_000 })
-      .toMatchObject({ order: expect.objectContaining({ status: 'approved' }) });
-    void approved;
-    const afterApproval = await workflowSnapshot({ ...backend, orderId });
+    const afterApproval = await waitSnapshot(
+      () => snapshot({ ...backend, orderId }),
+      (state) => lower(state.order?.status) === 'approved',
+      'Sales Order did not become approved in backend',
+    );
     assertNoDownstreamEffects(afterApproval);
+    const opportunityAfterApproval = await opportunityByTitle(backend, marker);
+    expect(lower(opportunityAfterApproval.status)).toBe('pending');
+    expect(lower(opportunityAfterApproval.stage)).toBe('negotiation');
+    expect(numberValue(opportunityAfterApproval.probability)).toBeGreaterThanOrEqual(70);
 
-    console.log(`[phase2b:${currency}] 3/9 create Delivery draft; inventory must remain unchanged`);
+    console.log(`[phase2b:${currency}] 3/9 Delivery draft — no inventory delta`);
     await clickAction(page, /^(Create warehouse delivery|إنشاء إذن التجهيز المخزني)$/i);
     await clickAction(page, /^(Approve allocation|اعتماد التوزيع)$/i);
-    const deliveryDraft = await workflowSnapshot({ ...backend, orderId });
-    const delivery = activeRow(deliveryDraft.logistics);
-    expect(delivery, 'Delivery draft missing in backend').toBeDefined();
-    expect(['draft', 'pending_approval']).toContain(lower(delivery!.status));
-    expect(text(value(delivery!, 'deliveryNumber', 'documentNumber', 'document_number')), 'Delivery reference missing').not.toBe('');
-    expect(activeRow(deliveryDraft.invoices), 'Delivery draft must not create Invoice').toBeUndefined();
-    expect(deliveryDraft.movements ?? [], 'Delivery draft must not move inventory').toHaveLength(0);
-    expect(deliveryDraft.journalEntries ?? [], 'Delivery draft must not post accounting').toHaveLength(0);
-    expect(deliveryDraft.payments ?? [], 'Delivery draft must not create payment').toHaveLength(0);
-
+    const deliveryDraft = await waitSnapshot(
+      () => snapshot({ ...backend, orderId }),
+      (state) => Boolean(activeRow(state.logistics)),
+      'Delivery draft was not persisted',
+    );
+    const delivery = activeRow(deliveryDraft.logistics)!;
+    expect(['draft', 'pending_approval']).toContain(lower(delivery.status));
+    expect(text(value(delivery, 'deliveryNumber', 'documentNumber', 'document_number'))).not.toBe('');
+    expect(activeRow(deliveryDraft.invoices)).toBeUndefined();
+    expect(deliveryDraft.movements ?? []).toHaveLength(0);
+    expect(deliveryDraft.journalEntries ?? []).toHaveLength(0);
+    expect(deliveryDraft.payments ?? []).toHaveLength(0);
     const allocation = allocations(delivery).find(
       (row) => text(value(row, 'itemId', 'item_id')) === itemId,
     );
-    expect(allocation, 'Delivery allocation for the exact Sales item is missing').toBeDefined();
+    expect(allocation).toBeDefined();
     const warehouseId = text(value(allocation!, 'warehouseId', 'warehouse_id'));
-    expect(warehouseId, 'Warehouse identity missing from Delivery').not.toBe('');
+    expect(warehouseId).not.toBe('');
     const inventoryBeforeDelivery = await readItemState({
       ...backend,
       itemType,
@@ -520,17 +551,20 @@ for (const currency of ['USD', 'IQD'] as const) {
       warehouseId,
     });
 
-    console.log(`[phase2b:${currency}] 4/9 approve Delivery; inventory must change here and only here`);
+    console.log(`[phase2b:${currency}] 4/9 approve Delivery — inventory changes here`);
     await clickAction(page, /^(Approve warehouse delivery|تصديق التجهيز المخزني)$/i);
-    const afterDelivery = await workflowSnapshot({ ...backend, orderId });
-    expect(['approved', 'posted', 'completed', 'confirmed']).toContain(
-      lower(activeRow(afterDelivery.logistics)?.status),
+    const afterDelivery = await waitSnapshot(
+      () => snapshot({ ...backend, orderId }),
+      (state) => {
+        const status = lower(activeRow(state.logistics)?.status);
+        return ['approved', 'posted', 'completed', 'confirmed'].includes(status) &&
+          (state.movements?.length ?? 0) > 0;
+      },
+      'Approved Delivery did not create warehouse movement',
     );
-    expect(afterDelivery.movements?.length ?? 0, 'Approved Delivery must create warehouse movement').toBeGreaterThan(0);
-    expect(activeRow(afterDelivery.invoices), 'Delivery approval must not create Invoice').toBeUndefined();
-    expect(afterDelivery.journalEntries ?? [], 'Delivery approval must not post commercial invoice accounting').toHaveLength(0);
-    expect(afterDelivery.payments ?? [], 'Delivery approval must not create Payment').toHaveLength(0);
-
+    expect(activeRow(afterDelivery.invoices), 'Delivery ≠ Invoice').toBeUndefined();
+    expect(afterDelivery.journalEntries ?? []).toHaveLength(0);
+    expect(afterDelivery.payments ?? []).toHaveLength(0);
     const inventoryAfterDelivery = await readItemState({
       ...backend,
       itemType,
@@ -538,71 +572,107 @@ for (const currency of ['USD', 'IQD'] as const) {
       warehouseId,
     });
     if (inventoryBeforeDelivery.kind === 'product' && inventoryAfterDelivery.kind === 'product') {
-      expect(inventoryAfterDelivery.quantity).toBe(inventoryBeforeDelivery.quantity - orderedQuantity);
-      expect(inventoryBeforeDelivery.value, 'Product selected for Phase 2B has no inventory valuation').toBeGreaterThan(0);
-      expect(inventoryAfterDelivery.value, 'Inventory value must fall only on approved Delivery').toBeLessThan(inventoryBeforeDelivery.value);
+      expect(inventoryAfterDelivery.quantity).toBe(
+        inventoryBeforeDelivery.quantity - orderedQuantity,
+      );
+      expect(inventoryBeforeDelivery.value, 'Selected product has no inventory valuation').toBeGreaterThan(0);
+      expect(inventoryAfterDelivery.value).toBeLessThan(inventoryBeforeDelivery.value);
     } else if (inventoryBeforeDelivery.kind === 'car' && inventoryAfterDelivery.kind === 'car') {
-      expect(inventoryBeforeDelivery.itemId).toBe(inventoryAfterDelivery.itemId);
-      expect(inventoryAfterDelivery.status, 'Vehicle lifecycle must change on approved Delivery').not.toBe(inventoryBeforeDelivery.status);
-      expect(inventoryAfterDelivery.cost, 'Vehicle cost identity must remain valued').toBe(inventoryBeforeDelivery.cost);
+      expect(inventoryAfterDelivery.itemId).toBe(inventoryBeforeDelivery.itemId);
+      expect(inventoryAfterDelivery.status).not.toBe(inventoryBeforeDelivery.status);
+      expect(inventoryAfterDelivery.cost, 'Vehicle valuation identity changed').toBe(
+        inventoryBeforeDelivery.cost,
+      );
     } else {
-      throw new Error('Inventory identity changed type during Sales Delivery.');
+      throw new Error('Product/car identity changed type during Delivery.');
     }
+    const opportunityAfterDelivery = await opportunityByTitle(backend, marker);
+    expect(lower(opportunityAfterDelivery.stage)).toBe('negotiation');
+    expect(numberValue(opportunityAfterDelivery.probability)).toBeGreaterThanOrEqual(80);
 
-    console.log(`[phase2b:${currency}] 5/9 create Invoice draft; no posting/payment yet`);
+    console.log(`[phase2b:${currency}] 5/9 Invoice draft — no journal/cash`);
     await clickAction(page, /^(Create sales invoice draft|إنشاء مسودة فاتورة بيع)$/i);
-    const invoiceDraftSnapshot = await workflowSnapshot({ ...backend, orderId });
-    const invoiceDraft = activeRow(invoiceDraftSnapshot.invoices);
-    expect(invoiceDraft, 'Invoice draft missing in backend').toBeDefined();
-    expect(['draft', 'pending_approval']).toContain(lower(invoiceDraft!.status));
-    expect(text(value(invoiceDraft!, 'invoiceNumber', 'documentNumber', 'document_number')), 'Invoice reference missing').not.toBe('');
-    expect(invoiceDraftSnapshot.journalEntries ?? [], 'Invoice creation alone must not post accounting').toHaveLength(0);
-    expect(invoiceDraftSnapshot.payments ?? [], 'Invoice creation alone must not create payment').toHaveLength(0);
-    const inventoryAtInvoiceDraft = await readItemState({ ...backend, itemType, itemId, warehouseId });
-    expect(inventoryAtInvoiceDraft).toEqual(inventoryAfterDelivery);
+    const invoiceDraftState = await waitSnapshot(
+      () => snapshot({ ...backend, orderId }),
+      (state) => Boolean(activeRow(state.invoices)),
+      'Invoice draft was not persisted',
+    );
+    const invoiceDraft = activeRow(invoiceDraftState.invoices)!;
+    expect(['draft', 'pending_approval']).toContain(lower(invoiceDraft.status));
+    expect(text(value(invoiceDraft, 'invoiceNumber', 'documentNumber', 'document_number'))).not.toBe('');
+    expect(invoiceDraftState.journalEntries ?? []).toHaveLength(0);
+    expect(invoiceDraftState.payments ?? []).toHaveLength(0);
+    expect(await readItemState({ ...backend, itemType, itemId, warehouseId })).toEqual(
+      inventoryAfterDelivery,
+    );
 
-    console.log(`[phase2b:${currency}] 6/9 approve Invoice; post AR/accounting but not cash`);
+    console.log(`[phase2b:${currency}] 6/9 approve Invoice — AR/accounting only`);
     const cashBeforeInvoice = await cashState(backend);
     await clickAction(page, /^(Approve sales invoice|تصديق فاتورة البيع)$/i);
-    const invoiced = await workflowSnapshot({ ...backend, orderId });
+    const invoiced = await waitSnapshot(
+      () => snapshot({ ...backend, orderId }),
+      (state) =>
+        lower(activeRow(state.invoices)?.status) === 'approved' &&
+        (state.journalEntries?.length ?? 0) > 0,
+      'Invoice approval did not post accounting',
+    );
     const invoice = activeRow(invoiced.invoices)!;
-    expect(lower(invoice.status)).toBe('approved');
-    expect(invoiced.journalEntries?.length ?? 0, 'Invoice approval must post commercial accounting/AR').toBeGreaterThan(0);
-    expect(invoiced.payments ?? [], 'Invoice approval must not create Payment').toHaveLength(0);
+    expect(invoiced.payments ?? [], 'Invoice ≠ Payment').toHaveLength(0);
     expect(numberValue(value(invoice, 'paidAmount', 'paid_amount'))).toBe(0);
-    expect(numberValue(value(invoice, 'remainingAmount', 'remaining_amount')), 'Approved invoice must create customer receivable').toBeGreaterThan(0);
-    const cashAfterInvoice = await cashState(backend);
-    expect(cashAfterInvoice.transactions.length, 'Invoice approval must not create cash transaction').toBe(cashBeforeInvoice.transactions.length);
-    expect(cashBalances(cashAfterInvoice)).toEqual(cashBalances(cashBeforeInvoice));
-    const inventoryAfterInvoice = await readItemState({ ...backend, itemType, itemId, warehouseId });
-    expect(inventoryAfterInvoice).toEqual(inventoryAfterDelivery);
-
-    console.log(`[phase2b:${currency}] 7/9 record customer Payment through Cashbox UI`);
-    await clickAction(page, /^(Record customer payment|تسجيل دفعة عميل)$/i);
-    await expect(
-      page.getByRole('button', { name: /^(Register all payments|تسجيل جميع الدفعات)$/i }),
-    ).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: /^(Register all payments|تسجيل جميع الدفعات)$/i }).click();
-
-    const paid = await workflowSnapshot({ ...backend, orderId });
-    expect(paid.payments?.length ?? 0, 'Payment was not persisted').toBeGreaterThan(0);
-    const paidInvoice = activeRow(paid.invoices)!;
-    expect(numberValue(value(paidInvoice, 'remainingAmount', 'remaining_amount'))).toBeLessThanOrEqual(0.01);
-    expect(numberValue(value(paidInvoice, 'paidAmount', 'paid_amount'))).toBeGreaterThan(0);
-    expect(paid.journalEntries?.length ?? 0, 'Payment must keep accounting settlement evidence').toBeGreaterThanOrEqual(invoiced.journalEntries?.length ?? 0);
-    const cashAfterPayment = await cashState(backend);
-    expect(cashAfterPayment.transactions.length, 'Payment must create a cash transaction').toBeGreaterThan(cashAfterInvoice.transactions.length);
-    const beforeBalances = cashBalances(cashAfterInvoice);
-    const afterBalances = cashBalances(cashAfterPayment);
     expect(
-      [...afterBalances.entries()].some(([id, balance]) => balance !== beforeBalances.get(id)),
+      numberValue(value(invoice, 'remainingAmount', 'remaining_amount')),
+      'Approved invoice must create customer receivable',
+    ).toBeGreaterThan(0);
+    const cashAfterInvoice = await cashState(backend);
+    expect(cashAfterInvoice.transactions.length).toBe(cashBeforeInvoice.transactions.length);
+    expect(cashBalances(cashAfterInvoice)).toEqual(cashBalances(cashBeforeInvoice));
+    expect(await readItemState({ ...backend, itemType, itemId, warehouseId })).toEqual(
+      inventoryAfterDelivery,
+    );
+    const opportunityAfterInvoice = await opportunityByTitle(backend, marker);
+    expect(lower(opportunityAfterInvoice.status)).toBe('won');
+    expect(lower(opportunityAfterInvoice.stage)).toBe('won');
+    expect(numberValue(opportunityAfterInvoice.probability)).toBe(100);
+    expect(lower(opportunityAfterInvoice.paymentStatus)).toBe('unpaid');
+
+    console.log(`[phase2b:${currency}] 7/9 Payment/Cashbox`);
+    await clickAction(page, /^(Record customer payment|تسجيل دفعة عميل)$/i);
+    const registerPayments = page.getByRole('button', {
+      name: /^(Register all payments|تسجيل جميع الدفعات)$/i,
+    });
+    await expect(registerPayments).toBeVisible({ timeout: 30_000 });
+    await registerPayments.click();
+    const paid = await waitSnapshot(
+      () => snapshot({ ...backend, orderId }),
+      (state) => {
+        const currentInvoice = activeRow(state.invoices);
+        return (state.payments?.length ?? 0) > 0 &&
+          numberValue(value(currentInvoice ?? {}, 'remainingAmount', 'remaining_amount')) <= 0.01;
+      },
+      'Payment/Cashbox stage did not settle invoice',
+    );
+    const paidInvoice = activeRow(paid.invoices)!;
+    expect(numberValue(value(paidInvoice, 'paidAmount', 'paid_amount'))).toBeGreaterThan(0);
+    expect(paid.journalEntries?.length ?? 0).toBeGreaterThanOrEqual(
+      invoiced.journalEntries?.length ?? 0,
+    );
+    const cashAfterPayment = await cashState(backend);
+    expect(cashAfterPayment.transactions.length).toBeGreaterThan(
+      cashAfterInvoice.transactions.length,
+    );
+    const beforeBalances = cashBalances(cashAfterInvoice);
+    expect(
+      [...cashBalances(cashAfterPayment).entries()].some(
+        ([id, balance]) => balance !== beforeBalances.get(id),
+      ),
       'Payment must change a real cashbox balance',
     ).toBe(true);
-    const inventoryAfterPayment = await readItemState({ ...backend, itemType, itemId, warehouseId });
-    expect(inventoryAfterPayment).toEqual(inventoryAfterDelivery);
+    expect(await readItemState({ ...backend, itemType, itemId, warehouseId })).toEqual(
+      inventoryAfterDelivery,
+    );
 
-    console.log(`[phase2b:${currency}] 8/9 prove CRM authoritative readback after Payment`);
-    const finalOpportunity = await findOpportunityByTitle(backend, marker);
+    console.log(`[phase2b:${currency}] 8/9 authoritative CRM final readback`);
+    const finalOpportunity = await opportunityByTitle(backend, marker);
     expect(text(finalOpportunity.salesOrderId)).toBe(orderId);
     expect(text(finalOpportunity.salesOrderNumber)).not.toBe('');
     expect(text(finalOpportunity.deliveryId)).not.toBe('');
@@ -610,12 +680,15 @@ for (const currency of ['USD', 'IQD'] as const) {
     expect(text(finalOpportunity.invoiceId)).not.toBe('');
     expect(text(finalOpportunity.invoiceNumber)).not.toBe('');
     expect(text(finalOpportunity.invoiceCurrency)).toBe(currency);
+    expect(lower(finalOpportunity.status)).toBe('won');
+    expect(lower(finalOpportunity.stage)).toBe('closed');
+    expect(numberValue(finalOpportunity.probability)).toBe(100);
     expect(lower(finalOpportunity.paymentStatus)).toBe('paid');
     expect(numberValue(finalOpportunity.remainingAmount)).toBeLessThanOrEqual(0.01);
     expect(finalOpportunity.workflowLinked).toBe(true);
     expect(finalOpportunity.workflowCompleted).toBe(true);
 
-    console.log(`[phase2b:${currency}] 9/9 capture final browser evidence`);
+    console.log(`[phase2b:${currency}] 9/9 final browser evidence`);
     await page.screenshot({
       path: path.join(artifactRoot, currency, 'final-sales-cycle.png'),
       fullPage: true,
