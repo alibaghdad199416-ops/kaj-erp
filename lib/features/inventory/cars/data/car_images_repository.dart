@@ -66,7 +66,9 @@ class CarImagesRepository {
     List<CarImageModel> incoming,
   ) {
     if (existing.length != incoming.length) return false;
-    final byId = <String, CarImageModel>{for (final image in existing) image.id: image};
+    final byId = <String, CarImageModel>{
+      for (final image in existing) image.id: image,
+    };
     for (final image in incoming) {
       final current = byId[image.id];
       if (current == null ||

@@ -89,24 +89,20 @@ class AccountingReportExportService {
       ExcelWorkbookPresentation.styleHeader(sheet, headerRow, headers.length);
       for (final row in rows) {
         sheet.appendRow(
-          List<CellValue>.generate(
-            columns.length,
-            (index) {
-              final key = columns[index];
-              final value = row[key];
-              if (value is num || value is bool || value is DateTime) {
-                return ExcelWorkbookPresentation.typedValue(
-                  value,
-                  columnLabel: headers[index],
-                );
-              }
+          List<CellValue>.generate(columns.length, (index) {
+            final key = columns[index];
+            final value = row[key];
+            if (value is num || value is bool || value is DateTime) {
               return ExcelWorkbookPresentation.typedValue(
-                _value(format(value), language),
+                value,
                 columnLabel: headers[index],
               );
-            },
-            growable: false,
-          ),
+            }
+            return ExcelWorkbookPresentation.typedValue(
+              _value(format(value), language),
+              columnLabel: headers[index],
+            );
+          }, growable: false),
         );
       }
       ExcelWorkbookPresentation.styleDataRows(
@@ -118,7 +114,8 @@ class AccountingReportExportService {
       );
       for (var index = 0; index < headers.length; index++) {
         final header = headers[index].toLowerCase();
-        final wide = header.contains('description') ||
+        final wide =
+            header.contains('description') ||
             header.contains('بيان') ||
             header.contains('الوصف') ||
             header.contains('reference') ||
@@ -282,10 +279,7 @@ class AccountingReportExportService {
     final all = <String>{for (final row in rows) ...row.keys};
     final extras = all.where((key) => !preferred.contains(key)).toList()
       ..sort();
-    final result = <String>[
-      ...preferred.where(all.contains),
-      ...extras,
-    ];
+    final result = <String>[...preferred.where(all.contains), ...extras];
     if (forceCashFlow) {
       const first = <String>[
         'flowSection',
@@ -335,9 +329,10 @@ class AccountingReportExportService {
   }
 
   String _safeSheet(String value) {
-    final clean = PdfTextSupport.sanitize(value, singleLine: true)
-        .replaceAll(RegExp(r'[\\/*?:\[\]]'), ' ')
-        .trim();
+    final clean = PdfTextSupport.sanitize(
+      value,
+      singleLine: true,
+    ).replaceAll(RegExp(r'[\\/*?:\[\]]'), ' ').trim();
     if (clean.isEmpty) return 'Report';
     return clean.length > 31 ? clean.substring(0, 31) : clean;
   }

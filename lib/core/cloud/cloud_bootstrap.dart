@@ -79,9 +79,9 @@ class CloudBootstrap {
       '${SupabaseConfig.projectRef}: $reason',
     );
     try {
-      await client.auth.signOut(scope: SignOutScope.local).timeout(
-        const Duration(seconds: 8),
-      );
+      await client.auth
+          .signOut(scope: SignOutScope.local)
+          .timeout(const Duration(seconds: 8));
     } catch (cleanupError, cleanupStack) {
       AppLogger.debug(
         'R74 invalid persisted-session cleanup skipped: $cleanupError',

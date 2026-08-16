@@ -170,7 +170,10 @@ abstract final class UnifiedPdfDocument {
             padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: pw.BoxDecoration(
               color: UnifiedPdfIdentity.accentSoft,
-              border: pw.Border.all(color: UnifiedPdfIdentity.accent, width: .7),
+              border: pw.Border.all(
+                color: UnifiedPdfIdentity.accent,
+                width: .7,
+              ),
               borderRadius: pw.BorderRadius.circular(4),
             ),
             child: PdfTextSupport.text(
@@ -275,7 +278,9 @@ abstract final class UnifiedPdfDocument {
     headers: headers,
     data: rows,
     border: pw.TableBorder.all(color: UnifiedPdfIdentity.border, width: .45),
-    headerDecoration: const pw.BoxDecoration(color: UnifiedPdfIdentity.tableHeader),
+    headerDecoration: const pw.BoxDecoration(
+      color: UnifiedPdfIdentity.tableHeader,
+    ),
     oddRowDecoration: const pw.BoxDecoration(color: UnifiedPdfIdentity.surface),
     headerStyle: pw.TextStyle(
       font: bold,

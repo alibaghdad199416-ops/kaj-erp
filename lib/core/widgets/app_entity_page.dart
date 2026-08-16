@@ -56,10 +56,11 @@ class AppEntityPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final insideModuleWindow = AppWorkspaceWindowScope.maybeOf(context) != null;
     final effectiveShowBackButton = showBackButton && !insideModuleWindow;
+    final effectiveToolbar = toolbar;
     final railChildren = <Widget>[
       ...actions,
       ?statistics,
-      ?toolbar,
+      ?effectiveToolbar,
       if (insideModuleWindow) const AppWindowCloseButton(),
     ];
 
@@ -80,49 +81,82 @@ class AppEntityPage extends StatelessWidget {
                           ? AppSizes.compactScreenPadding
                           : AppSizes.screenPadding,
                     );
+
+                final chrome = <Widget>[
+                  if (!hideHeader)
+                    KajSectionHeader(
+                      title: title,
+                      subtitle: subtitle,
+                      compact: compact,
+                      icon: leading == null && !effectiveShowBackButton
+                          ? Icons.grid_view_rounded
+                          : null,
+                      actions: <Widget>[
+                        if (leading != null || effectiveShowBackButton)
+                          leading ?? const AppBackButton(),
+                      ],
+                    ),
+                  if (railChildren.isNotEmpty) ...<Widget>[
+                    SizedBox(
+                      height: hideHeader
+                          ? KajDesignTokens.space8
+                          : KajDesignTokens.space12,
+                    ),
+                    AppHorizontalStrip(
+                      key: const ValueKey('module-command-rail'),
+                      spacing: KajDesignTokens.space8,
+                      children: railChildren,
+                    ),
+                  ],
+                ];
+
+                final bodySpacing = SizedBox(
+                  height: railChildren.isEmpty && hideHeader
+                      ? 0
+                      : KajDesignTokens.space12,
+                );
+
+                final bodyPanel = ClipRect(
+                  key: const ValueKey('module-continuous-workspace'),
+                  child: body,
+                );
+
+                final shortHeight = constraints.maxHeight < 720;
+
                 return Padding(
                   padding: padding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      if (!hideHeader)
-                        KajSectionHeader(
-                          title: title,
-                          subtitle: subtitle,
-                          compact: compact,
-                          icon: leading == null && !effectiveShowBackButton
-                              ? Icons.grid_view_rounded
-                              : null,
-                          actions: <Widget>[
-                            if (leading != null || effectiveShowBackButton)
-                              leading ?? const AppBackButton(),
+                  child: shortHeight
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            if (chrome.isNotEmpty)
+                              Flexible(
+                                flex: 2,
+                                fit: FlexFit.loose,
+                                child: SingleChildScrollView(
+                                  key: const ValueKey(
+                                    'app-entity-page-short-height-scroll',
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: chrome,
+                                  ),
+                                ),
+                              ),
+                            if (chrome.isNotEmpty) bodySpacing,
+                            Expanded(flex: 3, child: bodyPanel),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            ...chrome,
+                            if (chrome.isNotEmpty) bodySpacing,
+                            Expanded(child: bodyPanel),
                           ],
                         ),
-                      if (railChildren.isNotEmpty) ...<Widget>[
-                        SizedBox(
-                          height: hideHeader
-                              ? KajDesignTokens.space8
-                              : KajDesignTokens.space12,
-                        ),
-                        AppHorizontalStrip(
-                          key: const ValueKey('module-command-rail'),
-                          spacing: KajDesignTokens.space8,
-                          children: railChildren,
-                        ),
-                      ],
-                      SizedBox(
-                        height: railChildren.isEmpty && hideHeader
-                            ? 0
-                            : KajDesignTokens.space12,
-                      ),
-                      Expanded(
-                        child: ClipRect(
-                          key: const ValueKey('module-continuous-workspace'),
-                          child: body,
-                        ),
-                      ),
-                    ],
-                  ),
                 );
               },
             ),
@@ -135,7 +169,12 @@ class AppEntityPage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 980) return content;
-        return Row(children: <Widget>[sidebar!, Expanded(child: content)]);
+        return Row(
+          children: <Widget>[
+            sidebar!,
+            Expanded(child: content),
+          ],
+        );
       },
     );
   }

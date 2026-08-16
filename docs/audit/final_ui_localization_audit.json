@@ -1,9 +1,9 @@
 {
   "dartFiles": 355,
   "unlocalizedRawUiTextCandidates": 0,
-  "runtimeLocalizedAppTextLiterals": 375,
+  "runtimeLocalizedAppTextLiterals": 374,
   "nonDesignSystemColorLiterals": 78,
-  "nonDesignSystemRadiusLiterals": 116,
+  "nonDesignSystemRadiusLiterals": 111,
   "rawUiText": [],
   "runtimeLocalizedAppText": [
     {
@@ -28,12 +28,12 @@
     },
     {
       "file": "lib/core/widgets/base64_photo_picker.dart",
-      "line": 106,
+      "line": 118,
       "value": "اختيار صورة"
     },
     {
       "file": "lib/core/widgets/base64_photo_picker.dart",
-      "line": 114,
+      "line": 124,
       "value": "إزالة"
     },
     {
@@ -888,27 +888,27 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 493,
+      "line": 492,
       "value": "موعد المتابعة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 599,
+      "line": 598,
       "value": "حفظ الفرصة"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 613,
+      "line": 612,
       "value": "حفظ وإنشاء مسودة أمر بيع"
     },
     {
       "file": "lib/features/customer_service/pages/customer_service_page.dart",
-      "line": 256,
+      "line": 295,
       "value": "Excel"
     },
     {
       "file": "lib/features/customer_service/pages/customer_service_page.dart",
-      "line": 263,
+      "line": 302,
       "value": "PDF"
     },
     {
@@ -1438,32 +1438,27 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 453,
-      "value": "أمر البيع مرتبط بفرصة تجارية"
-    },
-    {
-      "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 546,
+      "line": 565,
       "value": "USD"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 547,
+      "line": 566,
       "value": "IQD"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 619,
+      "line": 638,
       "value": "البنود"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 632,
+      "line": 651,
       "value": "إضافة بند"
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 1003,
+      "line": 1020,
       "value": "القيمة المحولة: ${NumberFormat("
     },
     {
@@ -2471,21 +2466,6 @@
       "value": "12"
     },
     {
-      "file": "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
-      "line": 63,
-      "value": "8"
-    },
-    {
-      "file": "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
-      "line": 76,
-      "value": "7"
-    },
-    {
-      "file": "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
-      "line": 175,
-      "value": "6"
-    },
-    {
       "file": "lib/features/accounting/cashbox/widgets/cash_transaction_card.dart",
       "line": 39,
       "value": "16"
@@ -2572,17 +2552,17 @@
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 491,
+      "line": 490,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/add_opportunity_page.dart",
-      "line": 511,
+      "line": 510,
       "value": "4"
     },
     {
       "file": "lib/features/customer_service/pages/customer_service_page.dart",
-      "line": 295,
+      "line": 334,
       "value": "18"
     },
     {
@@ -2817,7 +2797,7 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/sales_order_draft_page.dart",
-      "line": 778,
+      "line": 796,
       "value": "18"
     },
     {
@@ -2839,16 +2819,6 @@
       "file": "lib/features/settings/reports/pages/reports_page.dart",
       "line": 1886,
       "value": "12"
-    },
-    {
-      "file": "lib/features/settings/reports/services/report_export_service.dart",
-      "line": 729,
-      "value": "9"
-    },
-    {
-      "file": "lib/features/settings/reports/services/report_export_service.dart",
-      "line": 939,
-      "value": "5"
     },
     {
       "file": "lib/main.dart",

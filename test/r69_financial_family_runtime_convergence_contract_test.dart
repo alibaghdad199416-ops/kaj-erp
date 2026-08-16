@@ -14,9 +14,7 @@ void main() {
     expect(migration, contains('erp_r69_delete_financial_transaction_family'));
     expect(
       migration,
-      contains(
-        'v_result:=public.erp_r69_delete_financial_transaction_family(',
-      ),
+      contains('v_result:=public.erp_r69_delete_financial_transaction_family('),
     );
     expect(
       migration,
@@ -34,27 +32,26 @@ void main() {
     expect(migration, isNot(contains('transactionDate::date')));
   });
 
-  test('rollback proof matches real legacy topology and both FX directions', () {
-    expect(proof, contains("(1,'USD','IQD')"));
-    expect(proof, contains("(2,'IQD','USD')"));
-    expect(proof, contains("'paymentChainVersion','v757'"));
-    expect(proof, contains("'paymentTransferId',transfer"));
-    expect(
-      proof,
-      contains(
-        "erp_delete_cloud_cash_transfer(c,'r69-transfer-1')",
-      ),
-    );
-    expect(
-      proof,
-      contains(
-        "erp_delete_cloud_accounting_entry(c,'r69-fx-out-journal-2')",
-      ),
-    );
-    expect(proof, contains('payment_has_active_allocations'));
-    expect(proof, contains('R69 active family artifact remained'));
-    expect(proof, contains('rollback;'));
-  });
+  test(
+    'rollback proof matches real legacy topology and both FX directions',
+    () {
+      expect(proof, contains("(1,'USD','IQD')"));
+      expect(proof, contains("(2,'IQD','USD')"));
+      expect(proof, contains("'paymentChainVersion','v757'"));
+      expect(proof, contains("'paymentTransferId',transfer"));
+      expect(
+        proof,
+        contains("erp_delete_cloud_cash_transfer(c,'r69-transfer-1')"),
+      );
+      expect(
+        proof,
+        contains("erp_delete_cloud_accounting_entry(c,'r69-fx-out-journal-2')"),
+      );
+      expect(proof, contains('payment_has_active_allocations'));
+      expect(proof, contains('R69 active family artifact remained'));
+      expect(proof, contains('rollback;'));
+    },
+  );
 
   test('R67 proof owns its rollback fixtures', () {
     final r67 = File(

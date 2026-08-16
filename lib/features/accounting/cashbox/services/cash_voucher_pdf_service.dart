@@ -1,5 +1,4 @@
 import 'package:flutter/services.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
@@ -167,8 +166,12 @@ class CashVoucherPdfService {
               ),
               UnifiedPdfDocument.summaryTile(
                 bold: bold,
-                label: t('مرجع الإدخال المحاسبي', 'Accounting posting reference'),
-                value: journalEntryNumber ??
+                label: t(
+                  'مرجع الإدخال المحاسبي',
+                  'Accounting posting reference',
+                ),
+                value:
+                    journalEntryNumber ??
                     _compactReference(transaction.journalEntryId),
                 width: 260,
               ),

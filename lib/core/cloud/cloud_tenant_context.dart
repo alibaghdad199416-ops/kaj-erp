@@ -37,9 +37,7 @@ class CloudTenantContext {
   bool get isSystemAdmin => _isSystemAdmin;
   String? get authUserId => _authUserId;
   bool get isBootstrapReady =>
-      _companyUuid != null &&
-      _roleCode != 'signed_out' &&
-      _authUserId != null;
+      _companyUuid != null && _roleCode != 'signed_out' && _authUserId != null;
 
   String _scopedKey(String baseKey) =>
       '$baseKey.${SupabaseConfig.browserStorageNamespace}';
@@ -69,9 +67,7 @@ class CloudTenantContext {
     await _removeLegacyUnscopedKeys(preferences);
 
     final currentAuthUserId = _currentAuthUserId();
-    final cachedAuthUserId = preferences.getString(
-      _scopedKey(_authUserKey),
-    );
+    final cachedAuthUserId = preferences.getString(_scopedKey(_authUserKey));
     final cachedEpoch = preferences.getString(_scopedKey(_cacheEpochKey));
 
     // R74 invalidates the earlier project-only tenant cache once. It also
@@ -90,10 +86,8 @@ class CloudTenantContext {
         preferences.getString(_scopedKey(_companyKey)) ?? 'quality-line';
     _companyUuid = preferences.getString(_scopedKey(_companyUuidKey));
     _branchId = preferences.getString(_scopedKey(_branchKey));
-    _roleCode =
-        preferences.getString(_scopedKey(_roleKey)) ?? 'signed_out';
-    _isSystemAdmin =
-        preferences.getBool(_scopedKey(_adminKey)) ?? false;
+    _roleCode = preferences.getString(_scopedKey(_roleKey)) ?? 'signed_out';
+    _isSystemAdmin = preferences.getBool(_scopedKey(_adminKey)) ?? false;
   }
 
   Future<void> selectTenant({
@@ -106,14 +100,11 @@ class CloudTenantContext {
   }) async {
     final normalizedAuthUserId = authUserId.trim();
     if (normalizedAuthUserId.isEmpty) {
-      throw ArgumentError.value(
-        authUserId,
-        'authUserId',
-        'Must not be empty',
-      );
+      throw ArgumentError.value(authUserId, 'authUserId', 'Must not be empty');
     }
     final currentAuthUserId = _currentAuthUserId();
-    if (currentAuthUserId != null && currentAuthUserId != normalizedAuthUserId) {
+    if (currentAuthUserId != null &&
+        currentAuthUserId != normalizedAuthUserId) {
       throw StateError(
         'Authenticated user changed while selecting the company tenant.',
       );
@@ -134,10 +125,7 @@ class CloudTenantContext {
     _isSystemAdmin = isSystemAdmin;
 
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(
-      _scopedKey(_authUserKey),
-      normalizedAuthUserId,
-    );
+    await preferences.setString(_scopedKey(_authUserKey), normalizedAuthUserId);
     await preferences.setString(_scopedKey(_cacheEpochKey), _cacheEpoch);
     await preferences.setString(_scopedKey(_companyKey), _companyId);
     await _writeNullable(

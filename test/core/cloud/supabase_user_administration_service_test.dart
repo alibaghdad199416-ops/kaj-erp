@@ -13,6 +13,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await CloudTenantContext.instance.clearCloudSelection();
     await CloudTenantContext.instance.selectTenant(
+      authUserId: 'test-admin-user',
       companyId: 'company-b',
       companyUuid: companyB,
       roleCode: 'owner',

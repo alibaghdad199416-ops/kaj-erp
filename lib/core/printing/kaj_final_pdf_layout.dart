@@ -42,7 +42,10 @@ abstract final class KajFinalPdfLayout {
           pw.SizedBox(height: 3),
           PdfTextSupport.text(
             subtitle,
-            style: const pw.TextStyle(fontSize: 9, color: UnifiedPdfIdentity.muted),
+            style: const pw.TextStyle(
+              fontSize: 9,
+              color: UnifiedPdfIdentity.muted,
+            ),
           ),
         ],
       ],

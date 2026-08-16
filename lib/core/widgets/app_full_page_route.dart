@@ -435,7 +435,11 @@ class _CloseAndMoveDock extends StatelessWidget {
 }
 
 class _WindowHeader extends StatelessWidget {
-  const _WindowHeader({required this.title, required this.closeDock, this.actions});
+  const _WindowHeader({
+    required this.title,
+    required this.closeDock,
+    this.actions,
+  });
   final Widget? title;
   final Widget closeDock;
   final List<Widget>? actions;
@@ -471,10 +475,7 @@ class _WindowHeader extends StatelessWidget {
           ),
           if (values.isNotEmpty) ...[
             const SizedBox(width: 12),
-            Flexible(
-              flex: 2,
-              child: AppHorizontalStrip(children: values),
-            ),
+            Flexible(flex: 2, child: AppHorizontalStrip(children: values)),
           ],
           const SizedBox(width: 10),
           closeDock,
@@ -522,12 +523,15 @@ class _ScaffoldAsWindow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appBar = scaffold.appBar is AppBar ? scaffold.appBar! as AppBar : null;
+    final appBar = scaffold.appBar is AppBar
+        ? scaffold.appBar! as AppBar
+        : null;
     final actions = <Widget>[
       ...?appBar?.actions,
       if (scaffold.floatingActionButton != null) scaffold.floatingActionButton!,
     ];
     final bottom = appBar?.bottom;
+    final footerActions = scaffold.persistentFooterButtons;
     final backgroundColor =
         scaffold.backgroundColor ?? Theme.of(context).colorScheme.surface;
     return ColoredBox(
@@ -535,12 +539,18 @@ class _ScaffoldAsWindow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _WindowHeader(title: appBar?.title, closeDock: closeDock, actions: actions),
+          _WindowHeader(
+            title: appBar?.title,
+            closeDock: closeDock,
+            actions: actions,
+          ),
           if (bottom != null)
             SizedBox(height: bottom.preferredSize.height, child: bottom),
           Expanded(
             child: ClipRect(child: scaffold.body ?? const SizedBox.shrink()),
           ),
+          if (footerActions != null && footerActions.isNotEmpty)
+            _WindowFooter(actions: footerActions),
         ],
       ),
     );
@@ -561,18 +571,24 @@ class _AlertDialogAsWindow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _WindowHeader(title: dialog.title, closeDock: closeDock),
+          _WindowHeader(
+            title: dialog.title,
+            closeDock: closeDock,
+            actions: actions,
+          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
               child: ClipRect(
                 child: dialog.scrollable
                     ? SingleChildScrollView(child: content)
-                    : SizedBox(width: double.infinity, child: content),
+                    : Align(
+                        alignment: AlignmentDirectional.topStart,
+                        child: SizedBox(width: double.infinity, child: content),
+                      ),
               ),
             ),
           ),
-          _WindowFooter(actions: actions),
         ],
       ),
     );

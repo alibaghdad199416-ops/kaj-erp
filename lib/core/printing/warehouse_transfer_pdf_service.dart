@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:quality_line_erp/core/cloud/cloud_feature_command.dart';
@@ -91,7 +90,8 @@ class WarehouseTransferPdfService {
           UnifiedPdfDocument.titleBlock(
             bold: bold,
             title: _t('Warehouse transfer order', language),
-            subtitle: '${_t('Transfer date', language)}: ${value(transferDate)}',
+            subtitle:
+                '${_t('Transfer date', language)}: ${value(transferDate)}',
             status: number,
           ),
           pw.Wrap(
@@ -308,9 +308,14 @@ class WarehouseTransferPdfService {
   Future<_WarehouseTransferBranding> _loadBranding(String language) async {
     Map<String, dynamic> row = <String, dynamic>{};
     try {
-      row = await CloudFeatureCommand.instance.map('company_settings', 'branding');
+      row = await CloudFeatureCommand.instance.map(
+        'company_settings',
+        'branding',
+      );
     } catch (error, stackTrace) {
-      AppLogger.debug('Warehouse transfer branding fallback: $error\n$stackTrace');
+      AppLogger.debug(
+        'Warehouse transfer branding fallback: $error\n$stackTrace',
+      );
     }
     final values = <String, String>{
       for (final entry in row.entries) entry.key: entry.value?.toString() ?? '',
@@ -332,11 +337,11 @@ class WarehouseTransferPdfService {
     return _WarehouseTransferBranding(
       companyName: arabic
           ? (values['company_name']?.trim().isNotEmpty == true
-              ? values['company_name']!
-              : 'شركة خط الجودة')
+                ? values['company_name']!
+                : 'شركة خط الجودة')
           : (values['company_name_en']?.trim().isNotEmpty == true
-              ? values['company_name_en']!
-              : 'Quality Line'),
+                ? values['company_name_en']!
+                : 'Quality Line'),
       logo: logo,
     );
   }
@@ -376,7 +381,10 @@ class WarehouseTransferPdfService {
 }
 
 class _WarehouseTransferBranding {
-  const _WarehouseTransferBranding({required this.companyName, required this.logo});
+  const _WarehouseTransferBranding({
+    required this.companyName,
+    required this.logo,
+  });
   final String companyName;
   final pw.MemoryImage? logo;
 }

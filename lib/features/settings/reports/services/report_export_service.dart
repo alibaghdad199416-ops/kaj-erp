@@ -38,7 +38,10 @@ class ReportExportService {
   }) async {
     final language = _language(options);
     final arabic = language == 'ar';
-    final customized = const ContextualReportCustomizer().apply(sections, options);
+    final customized = const ContextualReportCustomizer().apply(
+      sections,
+      options,
+    );
     final book = Excel.createExcel();
     final initialSheet = book.getDefaultSheet();
     final usedNames = <String>{};
@@ -49,14 +52,18 @@ class ReportExportService {
     );
     usedNames.add(profileName);
     final profile = book[profileName];
-    if (initialSheet != null && initialSheet != profileName) book.delete(initialSheet);
+    if (initialSheet != null && initialSheet != profileName)
+      book.delete(initialSheet);
     ExcelWorkbookPresentation.prepareSheet(profile, arabic: arabic);
     profile.appendRow([TextCellValue(_localized(options.title, language))]);
     ExcelWorkbookPresentation.styleTitle(profile, row: 0, columnCount: 2);
     final metadata = <(String, Object?)>[
       (_t('module', language), _moduleName(module, language)),
       (_t('period', language), _localized(period, language)),
-      (arabic ? 'لغة الملف' : 'Workbook language', arabic ? 'العربية' : 'English'),
+      (
+        arabic ? 'لغة الملف' : 'Workbook language',
+        arabic ? 'العربية' : 'English',
+      ),
       (arabic ? 'سياق العملة' : 'Currency context', 'USD / IQD'),
       (arabic ? 'إصدار بنية الملف' : 'Workbook schema version', '18.9.12'),
       if (options.includeGeneratedAt)
@@ -69,13 +76,13 @@ class ReportExportService {
         ExcelWorkbookPresentation.typedValue(row.$2, columnLabel: row.$1),
       ]);
       profile
-              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: index + 1))
-              .cellStyle =
-          ExcelWorkbookPresentation.metadataLabelStyle;
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: index + 1))
+          .cellStyle = ExcelWorkbookPresentation
+          .metadataLabelStyle;
       profile
-              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1))
-              .cellStyle =
-          ExcelWorkbookPresentation.metadataValueStyle;
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1))
+          .cellStyle = ExcelWorkbookPresentation
+          .metadataValueStyle;
     }
     profile.setColumnWidth(0, 26);
     profile.setColumnWidth(1, 36);
@@ -87,9 +94,11 @@ class ReportExportService {
         preferredName: _t('summary', language),
         title: _t('moduleSummary', language),
         headers: [_t('indicator', language), _t('value', language)],
-        rows: _moduleRows(report, module, language)
-            .map((entry) => <Object?>[entry.$1, entry.$2])
-            .toList(growable: false),
+        rows: _moduleRows(
+          report,
+          module,
+          language,
+        ).map((entry) => <Object?>[entry.$1, entry.$2]).toList(growable: false),
         arabic: arabic,
       );
     }
@@ -100,9 +109,10 @@ class ReportExportService {
         preferredName: _t('operations', language),
         title: _t('operationalIndicators', language),
         headers: [_t('indicator', language), _t('value', language)],
-        rows: _operationalRows(report, language)
-            .map((entry) => <Object?>[entry.$1, entry.$2])
-            .toList(growable: false),
+        rows: _operationalRows(
+          report,
+          language,
+        ).map((entry) => <Object?>[entry.$1, entry.$2]).toList(growable: false),
         arabic: arabic,
       );
     }
@@ -165,7 +175,9 @@ class ReportExportService {
         headers: section.columns
             .map((column) => ReportFieldLocalizer.localize(column, language))
             .toList(growable: false),
-        rows: section.rows.map((row) => <Object?>[...row]).toList(growable: false),
+        rows: section.rows
+            .map((row) => <Object?>[...row])
+            .toList(growable: false),
         arabic: arabic,
       );
     }
@@ -179,13 +191,26 @@ class ReportExportService {
           ? 'الربط بين الوحدات والمستندات'
           : 'Cross-module document relations',
       headers: arabic
-          ? const ['الوحدة المصدرية', 'السجل المصدر', 'نوع الارتباط', 'رقم السجل المرتبط', 'الوحدة المرتبطة']
-          : const ['Source module', 'Source record', 'Relation type', 'Linked record number', 'Linked module'],
+          ? const [
+              'الوحدة المصدرية',
+              'السجل المصدر',
+              'نوع الارتباط',
+              'رقم السجل المرتبط',
+              'الوحدة المرتبطة',
+            ]
+          : const [
+              'Source module',
+              'Source record',
+              'Relation type',
+              'Linked record number',
+              'Linked module',
+            ],
       rows: relationRows,
       arabic: arabic,
     );
 
-    if (!book.setDefaultSheet(profileName)) throw StateError(_t('excelError', language));
+    if (!book.setDefaultSheet(profileName))
+      throw StateError(_t('excelError', language));
     final encoded = book.encode();
     if (encoded == null) throw StateError(_t('excelError', language));
     await ExcelDownloadService.save(
@@ -203,7 +228,10 @@ class ReportExportService {
     List<ContextualReportSection> sections = const [],
   }) async {
     final language = _language(options);
-    final customized = const ContextualReportCustomizer().apply(sections, options);
+    final customized = const ContextualReportCustomizer().apply(
+      sections,
+      options,
+    );
     final dataRows = _flatRows(
       report,
       module: module,
@@ -213,7 +241,12 @@ class ReportExportService {
       language: language,
     );
     final rows = <List<Object?>>[
-      [_t('section', language), _t('field', language), _t('value', language), _t('details', language)],
+      [
+        _t('section', language),
+        _t('field', language),
+        _t('value', language),
+        _t('details', language),
+      ],
       ...dataRows,
     ];
     final csv = rows.map((row) => row.map(_escapeCsv).join(',')).join('\r\n');
@@ -280,7 +313,10 @@ class ReportExportService {
     List<ContextualReportSection> sections = const [],
   }) async {
     final language = _language(options);
-    final customized = const ContextualReportCustomizer().apply(sections, options);
+    final customized = const ContextualReportCustomizer().apply(
+      sections,
+      options,
+    );
     final rows = _flatRows(
       report,
       module: module,
@@ -291,7 +327,8 @@ class ReportExportService {
     );
     final document = ExportDocument(
       title: _localized(options.title, language),
-      subtitle: '${_moduleName(module, language)} — ${_localized(period, language)}',
+      subtitle:
+          '${_moduleName(module, language)} — ${_localized(period, language)}',
       language: language,
       currency: 'USD / IQD',
       generatedAt: DateTime.now(),
@@ -310,7 +347,9 @@ class ReportExportService {
     );
     return PdfExportService().build(
       document,
-      pageFormat: options.landscape ? ExportPageFormat.a4Landscape : ExportPageFormat.a4Portrait,
+      pageFormat: options.landscape
+          ? ExportPageFormat.a4Landscape
+          : ExportPageFormat.a4Portrait,
     );
   }
 
@@ -323,9 +362,15 @@ class ReportExportService {
     required String language,
   }) {
     final rows = <List<Object?>>[];
-    void add(String section, Object? field, Object? value, [Object? details = '']) {
+    void add(
+      String section,
+      Object? field,
+      Object? value, [
+      Object? details = '',
+    ]) {
       rows.add([section, field, value, details]);
     }
+
     if (options.includeSummary || options.includeModuleDetails) {
       for (final item in _moduleRows(report, module, language)) {
         add(_t('moduleSummary', language), item.$1, item.$2);
@@ -375,12 +420,14 @@ class ReportExportService {
         final value = headers.length < 2 ? '' : '${headers[1]}: ${values[1]}';
         final details = <String>[
           for (var index = 2; index < headers.length; index++)
-            if (values[index].trim().isNotEmpty) '${headers[index]}: ${values[index]}',
+            if (values[index].trim().isNotEmpty)
+              '${headers[index]}: ${values[index]}',
         ].join(' • ');
         add(title, field, value, details);
       }
     }
-    if (rows.isEmpty) add(_t('report', language), _t('noData', language), '', '');
+    if (rows.isEmpty)
+      add(_t('report', language), _t('noData', language), '', '');
     return rows;
   }
 
@@ -482,13 +529,21 @@ class ReportExportService {
       }
     }
     if (result.isEmpty) {
-      result.add([language == 'ar' ? 'لا توجد روابط في الفترة' : 'No relations in period', '', '', '', '']);
+      result.add([
+        language == 'ar' ? 'لا توجد روابط في الفترة' : 'No relations in period',
+        '',
+        '',
+        '',
+        '',
+      ]);
     }
     return result;
   }
 
   String _linkedModuleForColumn(String column, String language) {
-    final normalized = column.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+    final normalized = column
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .toLowerCase();
     final key = normalized.contains('opportunity')
         ? 'module_opportunities'
         : normalized.contains('purchase')
@@ -497,9 +552,13 @@ class ReportExportService {
         ? 'module_sales'
         : normalized.contains('invoice')
         ? 'module_finance'
-        : normalized.contains('movement') || normalized.contains('warehouse') || normalized.contains('transfer')
+        : normalized.contains('movement') ||
+              normalized.contains('warehouse') ||
+              normalized.contains('transfer')
         ? 'module_inventory'
-        : normalized.contains('payment') || normalized.contains('entry') || normalized.contains('voucher')
+        : normalized.contains('payment') ||
+              normalized.contains('entry') ||
+              normalized.contains('voucher')
         ? 'module_accounting'
         : normalized.contains('vehicle')
         ? 'module_cars'
@@ -507,7 +566,11 @@ class ReportExportService {
     return _t(key, language);
   }
 
-  List<(String, Object)> _moduleRows(ReportModel r, String module, String language) => switch (module) {
+  List<(String, Object)> _moduleRows(
+    ReportModel r,
+    String module,
+    String language,
+  ) => switch (module) {
     'cars' => [
       (_t('totalCars', language), r.totalCars),
       (_t('availableCars', language), r.availableCars),
@@ -516,8 +579,14 @@ class ReportExportService {
     ],
     'products' || 'warehouses' || 'inventory' => [
       (_t('inventoryItems', language), r.totalInventoryItems),
-      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
-      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (
+        _t('inventoryValue', language),
+        _currencyMap(r.inventoryValueByCurrency),
+      ),
+      (
+        _t('totalPurchases', language),
+        _currencyMap(r.totalPurchasesByCurrency),
+      ),
       (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
     ],
     'customers' => [
@@ -540,9 +609,15 @@ class ReportExportService {
       (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
     ],
     'purchases' => [
-      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (
+        _t('totalPurchases', language),
+        _currencyMap(r.totalPurchasesByCurrency),
+      ),
       (_t('payables', language), _currencyMap(r.totalPurchaseDebtByCurrency)),
-      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (
+        _t('inventoryValue', language),
+        _currencyMap(r.inventoryValueByCurrency),
+      ),
       (_t('expenses', language), _currencyMap(r.totalExpensesByCurrency)),
     ],
     'finance' || 'accounting' => [
@@ -561,9 +636,15 @@ class ReportExportService {
     'operations' => _operationalRows(r, language),
     _ => [
       (_t('totalSales', language), _currencyMap(r.totalSalesByCurrency)),
-      (_t('totalPurchases', language), _currencyMap(r.totalPurchasesByCurrency)),
+      (
+        _t('totalPurchases', language),
+        _currencyMap(r.totalPurchasesByCurrency),
+      ),
       (_t('expenses', language), _currencyMap(r.totalExpensesByCurrency)),
-      (_t('inventoryValue', language), _currencyMap(r.inventoryValueByCurrency)),
+      (
+        _t('inventoryValue', language),
+        _currencyMap(r.inventoryValueByCurrency),
+      ),
       (_t('cashUsd', language), r.cashBalanceUsd),
       (_t('cashIqd', language), r.cashBalanceIqd),
       (_t('netProfit', language), _currencyMap(r.netProfitByCurrency)),
@@ -588,12 +669,15 @@ class ReportExportService {
     return 'quality_line_${safeModule}_${DateTime.now().millisecondsSinceEpoch}_$canonical';
   }
 
-  String _moduleName(String module, String language) => _t('module_$module', language);
+  String _moduleName(String module, String language) =>
+      _t('module_$module', language);
 
   String _localized(Object? value, String language) {
     final raw = '${value ?? ''}'.trim();
-    if (raw == 'تقرير خط الجودة') return language == 'ar' ? raw : 'Quality Line Report';
-    if (raw == 'Quality Line Report') return language == 'ar' ? 'تقرير خط الجودة' : raw;
+    if (raw == 'تقرير خط الجودة')
+      return language == 'ar' ? raw : 'Quality Line Report';
+    if (raw == 'Quality Line Report')
+      return language == 'ar' ? 'تقرير خط الجودة' : raw;
     if (raw == 'جميع الفترات') return language == 'ar' ? raw : 'All periods';
     return ReportFieldLocalizer.localize(raw, language);
   }
@@ -615,9 +699,10 @@ class ReportExportService {
   }
 
   String _uniqueSheetName(String raw, Set<String> used) {
-    var base = PdfTextSupport.sanitize(raw, singleLine: true)
-        .replaceAll(RegExp(r'[\\/*?:\[\]]'), ' ')
-        .trim();
+    var base = PdfTextSupport.sanitize(
+      raw,
+      singleLine: true,
+    ).replaceAll(RegExp(r'[\\/*?:\[\]]'), ' ').trim();
     if (base.isEmpty) base = 'Report';
     if (base.length > 31) base = base.substring(0, 31);
     if (!used.contains(base)) return base;
@@ -639,60 +724,131 @@ class ReportExportService {
 
   String _t(String key, String language) {
     const ar = <String, String>{
-      'summary': 'الملخص', 'operations': 'التشغيل', 'monthly': 'الأداء الشهري',
-      'executors': 'منفذو الإدخال', 'module': 'الوحدة', 'period': 'الفترة',
-      'generatedAt': 'تاريخ الإنشاء', 'indicator': 'المؤشر', 'value': 'القيمة',
-      'moduleSummary': 'ملخص الوحدة', 'operationalIndicators': 'المؤشرات التشغيلية',
-      'monthlyPerformance': 'الأداء الشهري', 'dataExecutors': 'منفذو إدخال البيانات',
-      'month': 'الشهر', 'sales': 'المبيعات', 'purchases': 'المشتريات',
-      'expenses': 'المصاريف', 'user': 'المستخدم', 'action': 'الإجراء',
-      'entity': 'نوع السجل', 'date': 'التاريخ', 'section': 'القسم',
-      'field': 'الحقل', 'details': 'التفاصيل', 'rows': 'عدد السجلات',
-      'report': 'التقرير', 'noData': 'لا توجد بيانات', 'excelError': 'تعذر إنشاء ملف Excel.',
-      'totalCars': 'إجمالي السيارات', 'availableCars': 'السيارات المتاحة',
-      'reservedCars': 'السيارات قيد البيع', 'soldCars': 'السيارات المباعة',
-      'inventoryItems': 'عدد مواد المخزون', 'inventoryValue': 'قيمة المخزون',
-      'totalSales': 'إجمالي المبيعات', 'paidSales': 'المبيعات المحصلة',
-      'receivables': 'الذمم المدينة', 'totalPurchases': 'إجمالي المشتريات',
-      'payables': 'الذمم الدائنة', 'netProfit': 'صافي الربح',
-      'cashUsd': 'رصيد الصناديق USD', 'cashIqd': 'رصيد الصناديق IQD',
-      'customers': 'العملاء', 'suppliers': 'الموردون',
-      'activeReservations': 'الحجوزات النشطة', 'overdueInstallments': 'الأقساط المتأخرة',
-      'module_overview': 'نظرة عامة', 'module_cars': 'السيارات',
-      'module_products': 'المنتجات', 'module_warehouses': 'المخازن',
-      'module_customers': 'العملاء', 'module_customer_service': 'خدمة العملاء',
-      'module_opportunities': 'الفرص التجارية', 'module_suppliers': 'الموردون',
-      'module_sales': 'المبيعات', 'module_purchases': 'المشتريات',
-      'module_payments': 'الدفعات', 'module_accounting': 'المحاسبة',
-      'module_inventory': 'المخزون', 'module_finance': 'المالية',
-      'module_partners': 'الشركاء التجاريون', 'module_operations': 'التشغيل',
+      'summary': 'الملخص',
+      'operations': 'التشغيل',
+      'monthly': 'الأداء الشهري',
+      'executors': 'منفذو الإدخال',
+      'module': 'الوحدة',
+      'period': 'الفترة',
+      'generatedAt': 'تاريخ الإنشاء',
+      'indicator': 'المؤشر',
+      'value': 'القيمة',
+      'moduleSummary': 'ملخص الوحدة',
+      'operationalIndicators': 'المؤشرات التشغيلية',
+      'monthlyPerformance': 'الأداء الشهري',
+      'dataExecutors': 'منفذو إدخال البيانات',
+      'month': 'الشهر',
+      'sales': 'المبيعات',
+      'purchases': 'المشتريات',
+      'expenses': 'المصاريف',
+      'user': 'المستخدم',
+      'action': 'الإجراء',
+      'entity': 'نوع السجل',
+      'date': 'التاريخ',
+      'section': 'القسم',
+      'field': 'الحقل',
+      'details': 'التفاصيل',
+      'rows': 'عدد السجلات',
+      'report': 'التقرير',
+      'noData': 'لا توجد بيانات',
+      'excelError': 'تعذر إنشاء ملف Excel.',
+      'totalCars': 'إجمالي السيارات',
+      'availableCars': 'السيارات المتاحة',
+      'reservedCars': 'السيارات قيد البيع',
+      'soldCars': 'السيارات المباعة',
+      'inventoryItems': 'عدد مواد المخزون',
+      'inventoryValue': 'قيمة المخزون',
+      'totalSales': 'إجمالي المبيعات',
+      'paidSales': 'المبيعات المحصلة',
+      'receivables': 'الذمم المدينة',
+      'totalPurchases': 'إجمالي المشتريات',
+      'payables': 'الذمم الدائنة',
+      'netProfit': 'صافي الربح',
+      'cashUsd': 'رصيد الصناديق USD',
+      'cashIqd': 'رصيد الصناديق IQD',
+      'customers': 'العملاء',
+      'suppliers': 'الموردون',
+      'activeReservations': 'الحجوزات النشطة',
+      'overdueInstallments': 'الأقساط المتأخرة',
+      'module_overview': 'نظرة عامة',
+      'module_cars': 'السيارات',
+      'module_products': 'المنتجات',
+      'module_warehouses': 'المخازن',
+      'module_customers': 'العملاء',
+      'module_customer_service': 'خدمة العملاء',
+      'module_opportunities': 'الفرص التجارية',
+      'module_suppliers': 'الموردون',
+      'module_sales': 'المبيعات',
+      'module_purchases': 'المشتريات',
+      'module_payments': 'الدفعات',
+      'module_accounting': 'المحاسبة',
+      'module_inventory': 'المخزون',
+      'module_finance': 'المالية',
+      'module_partners': 'الشركاء التجاريون',
+      'module_operations': 'التشغيل',
     };
     const en = <String, String>{
-      'summary': 'Summary', 'operations': 'Operations', 'monthly': 'Monthly',
-      'executors': 'Executors', 'module': 'Module', 'period': 'Period',
-      'generatedAt': 'Generated at', 'indicator': 'Indicator', 'value': 'Value',
-      'moduleSummary': 'Module summary', 'operationalIndicators': 'Operational indicators',
-      'monthlyPerformance': 'Monthly performance', 'dataExecutors': 'Data entry users',
-      'month': 'Month', 'sales': 'Sales', 'purchases': 'Purchases', 'expenses': 'Expenses',
-      'user': 'User', 'action': 'Action', 'entity': 'Entity', 'date': 'Date',
-      'section': 'Section', 'field': 'Field', 'details': 'Details', 'rows': 'Rows',
-      'report': 'Report', 'noData': 'No data', 'excelError': 'Unable to create Excel file.',
-      'totalCars': 'Total vehicles', 'availableCars': 'Available vehicles',
-      'reservedCars': 'Reserved vehicles', 'soldCars': 'Sold vehicles',
-      'inventoryItems': 'Inventory items', 'inventoryValue': 'Inventory value',
-      'totalSales': 'Total sales', 'paidSales': 'Collected sales',
-      'receivables': 'Accounts receivable', 'totalPurchases': 'Total purchases',
-      'payables': 'Accounts payable', 'netProfit': 'Net profit',
-      'cashUsd': 'Cash balance USD', 'cashIqd': 'Cash balance IQD',
-      'customers': 'Customers', 'suppliers': 'Suppliers',
-      'activeReservations': 'Active reservations', 'overdueInstallments': 'Overdue installments',
-      'module_overview': 'Overview', 'module_cars': 'Vehicles',
-      'module_products': 'Products', 'module_warehouses': 'Warehouses',
-      'module_customers': 'Customers', 'module_customer_service': 'Customer Service',
-      'module_opportunities': 'Opportunities', 'module_suppliers': 'Suppliers',
-      'module_sales': 'Sales', 'module_purchases': 'Purchases', 'module_payments': 'Payments',
-      'module_accounting': 'Accounting', 'module_inventory': 'Inventory',
-      'module_finance': 'Finance', 'module_partners': 'Business partners',
+      'summary': 'Summary',
+      'operations': 'Operations',
+      'monthly': 'Monthly',
+      'executors': 'Executors',
+      'module': 'Module',
+      'period': 'Period',
+      'generatedAt': 'Generated at',
+      'indicator': 'Indicator',
+      'value': 'Value',
+      'moduleSummary': 'Module summary',
+      'operationalIndicators': 'Operational indicators',
+      'monthlyPerformance': 'Monthly performance',
+      'dataExecutors': 'Data entry users',
+      'month': 'Month',
+      'sales': 'Sales',
+      'purchases': 'Purchases',
+      'expenses': 'Expenses',
+      'user': 'User',
+      'action': 'Action',
+      'entity': 'Entity',
+      'date': 'Date',
+      'section': 'Section',
+      'field': 'Field',
+      'details': 'Details',
+      'rows': 'Rows',
+      'report': 'Report',
+      'noData': 'No data',
+      'excelError': 'Unable to create Excel file.',
+      'totalCars': 'Total vehicles',
+      'availableCars': 'Available vehicles',
+      'reservedCars': 'Reserved vehicles',
+      'soldCars': 'Sold vehicles',
+      'inventoryItems': 'Inventory items',
+      'inventoryValue': 'Inventory value',
+      'totalSales': 'Total sales',
+      'paidSales': 'Collected sales',
+      'receivables': 'Accounts receivable',
+      'totalPurchases': 'Total purchases',
+      'payables': 'Accounts payable',
+      'netProfit': 'Net profit',
+      'cashUsd': 'Cash balance USD',
+      'cashIqd': 'Cash balance IQD',
+      'customers': 'Customers',
+      'suppliers': 'Suppliers',
+      'activeReservations': 'Active reservations',
+      'overdueInstallments': 'Overdue installments',
+      'module_overview': 'Overview',
+      'module_cars': 'Vehicles',
+      'module_products': 'Products',
+      'module_warehouses': 'Warehouses',
+      'module_customers': 'Customers',
+      'module_customer_service': 'Customer Service',
+      'module_opportunities': 'Opportunities',
+      'module_suppliers': 'Suppliers',
+      'module_sales': 'Sales',
+      'module_purchases': 'Purchases',
+      'module_payments': 'Payments',
+      'module_accounting': 'Accounting',
+      'module_inventory': 'Inventory',
+      'module_finance': 'Finance',
+      'module_partners': 'Business partners',
       'module_operations': 'Operations',
     };
     return (language == 'ar' ? ar : en)[key] ?? key;

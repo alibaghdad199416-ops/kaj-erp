@@ -4,8 +4,7 @@ class SupabaseConfig {
   /// The only hosted Supabase project used by the current KAJ ERP production
   /// runtime. Local Supabase CLI development remains available through the
   /// explicit loopback opt-in below.
-  static const String expectedProductionProjectRef =
-      'havlqebmnjdcwmpaaqew';
+  static const String expectedProductionProjectRef = 'havlqebmnjdcwmpaaqew';
 
   // Browser-facing project defaults keep local inspection reliable even
   // when Flutter is launched without --dart-define-from-file. Explicit
@@ -58,15 +57,11 @@ class SupabaseConfig {
   /// Project-ref/runtime namespace used to isolate browser auth and tenant
   /// selections. This prevents an old Supabase project or tenant selection
   /// from being reused after the runtime backend changes.
-  static String get projectRef => projectRefFor(
-    projectUrl: url,
-    localProjectId: localProjectId,
-  );
+  static String get projectRef =>
+      projectRefFor(projectUrl: url, localProjectId: localProjectId);
 
-  static String get browserStorageNamespace => storageNamespaceFor(
-    projectUrl: url,
-    localProjectId: localProjectId,
-  );
+  static String get browserStorageNamespace =>
+      storageNamespaceFor(projectUrl: url, localProjectId: localProjectId);
 
   static String get authPersistSessionKey =>
       'kaj-erp-$browserStorageNamespace-auth-token';

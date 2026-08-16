@@ -26,7 +26,9 @@ String userFacingError(
 
   if (normalized.contains('opportunity_won_owned_by_sales_workflow') ||
       normalized.contains('opportunity_terminal_stage_sales_owned') ||
-      normalized.contains('opportunity_won_requires_canonical_sales_workflow') ||
+      normalized.contains(
+        'opportunity_won_requires_canonical_sales_workflow',
+      ) ||
       normalized.contains('opportunity_already_won')) {
     return isArabic
         ? 'حالة الفوز والإغلاق في الفرصة تُحدَّث تلقائيًا من مسار المبيعات المعتمد. افتح أمر البيع المرتبط وأكمل مرحلته المطلوبة.'

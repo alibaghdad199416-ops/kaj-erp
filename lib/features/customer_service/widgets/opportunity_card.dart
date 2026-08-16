@@ -464,7 +464,9 @@ class OpportunityCard extends StatelessWidget {
                           ).format(opportunity.updatedAt!.toLocal()),
                         ),
                       ),
-                    if ((opportunity.salesOrderNumber ?? '').trim().isNotEmpty ||
+                    if ((opportunity.salesOrderNumber ?? '')
+                            .trim()
+                            .isNotEmpty ||
                         (opportunity.salesOrderStatus ?? '').trim().isNotEmpty)
                       _field(
                         'linkedSale',

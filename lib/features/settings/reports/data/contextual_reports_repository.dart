@@ -24,7 +24,12 @@ class ContextualReportsRepository {
     if (!await _hasPermission('reports.contextual.view')) {
       return const <ContextualReportSection>[];
     }
-    if (const <String>{'payments', 'accounting', 'finance', 'partners'}.contains(module) &&
+    if (const <String>{
+          'payments',
+          'accounting',
+          'finance',
+          'partners',
+        }.contains(module) &&
         !await _hasPermission('reports.financial_details.view')) {
       return const <ContextualReportSection>[];
     }

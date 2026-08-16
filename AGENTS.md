@@ -172,3 +172,194 @@ When relevant to the affected code, explicitly verify:
 - every affected end-to-end workflow and its downstream accounting, inventory, audit, notification, export/printing, permission, and persistence consequences.
 
 Focused tests are necessary but not sufficient: finish by running all applicable repository gates and retesting after every corrective change.
+# Quality Line ERP — Permanent Autonomous Workflow
+
+These rules are permanent for this repository.
+
+## Autonomous repair workflow
+
+When the user provides a repair or development request, complete it autonomously end-to-end.
+
+Do not ask the user for routine technical decisions that can be determined from:
+- source code
+- database schema
+- migrations
+- tests
+- existing architecture
+- established Quality Line ERP business rules
+
+Workflow:
+
+Inspect
+→ diagnose root cause
+→ implement
+→ format
+→ analyze
+→ test
+→ fix regressions
+→ verify workspace
+→ build web
+→ update LOCAL Supabase when required
+→ run local runtime/browser verification
+→ commit
+→ push current branch
+→ return one final report
+
+Do not stop after diagnosis when the issue is technically fixable.
+
+## Quality requirements
+
+Preserve:
+- Flutter Web + Supabase architecture
+- Arabic RTL and English LTR
+- USD and IQD correctness
+- company and tenant isolation
+- backend-enforced permissions
+- records.own / records.all security
+- premium enterprise automotive UI
+- responsive layout at 100% browser zoom
+- no RenderFlex overflow
+- accounting correctness
+- inventory correctness
+- workflow stage boundaries
+
+Business boundaries:
+- Purchase approval is not receipt.
+- Sales approval is not delivery.
+- Order approval is not invoice posting.
+- Invoice is not payment.
+- Inventory changes only at valid operational events.
+- Accounting postings must respect configured account bindings.
+
+## Source authorization
+
+The agent may autonomously:
+- inspect all repository files
+- modify source files
+- create source/test files
+- delete genuinely obsolete project files when safe
+- refactor when technically required
+- create forward-only Supabase migrations
+- modify local Edge Function source
+- format code
+- run analyzer
+- run tests
+- run repository verification
+- run web builds
+- run browser/Playwright verification
+- run Git read operations
+
+Never modify an already-applied historical migration.
+
+Never weaken:
+- RLS
+- permissions
+- tenant isolation
+- accounting
+- inventory
+- workflow rules
+
+merely to make tests pass.
+
+## Mandatory verification
+
+Before completing any repair run:
+
+1. npm run format:check
+2. npm run analyze
+3. npm run test
+4. npm run verify:workspace
+5. npm run build:web
+6. git diff --check
+
+If any step fails:
+- diagnose
+- fix root cause
+- rerun
+- continue until no known fixable failures remain
+
+Required:
+- zero known fixable analyzer errors/warnings
+- zero known fixable test failures
+
+## Local Supabase authorization
+
+LOCAL Supabase is authorized for normal development and verification.
+
+The agent may:
+- inspect local Supabase status
+- apply NEW pending forward migrations to LOCAL Supabase
+- preserve existing local data
+- run/restart local Edge Functions
+- verify RPC/RLS/database behavior
+- run the application against local Supabase
+- perform Playwright/browser testing
+
+Never:
+- run supabase db reset during normal repair
+- destroy existing local data merely to pass tests
+- push database changes to HOSTED Supabase automatically
+- deploy hosted Edge Functions automatically
+
+If images are changed, verify real:
+- add
+- replace
+- remove
+- read-back
+
+If permissions or record scope change, test with at least:
+- restricted records.own user
+- records.all/admin user
+
+when practical.
+
+## GitHub authorization
+
+After all required verification passes, the agent may autonomously:
+
+- git add the completed repair
+- create one descriptive commit
+- push the CURRENT working branch normally to origin
+
+Never:
+- force push
+- git reset
+- git clean
+- rewrite history
+- automatically rebase
+- automatically merge unrelated branches
+- cherry-pick unrelated work
+
+Always inspect the diff before commit.
+
+## Hosted Supabase
+
+Do not automatically:
+- apply migrations to hosted Supabase
+- deploy hosted Edge Functions
+- modify hosted production data
+
+Hosted Supabase requires an explicit user request.
+
+## Final report
+
+After every completed repair provide ONE report containing:
+
+- root causes
+- files changed
+- files added/deleted
+- migrations created
+- migrations applied locally
+- Edge Functions changed/tested locally
+- formatter result
+- analyzer result
+- tests result
+- verification result
+- web build result
+- browser/Playwright result
+- local Supabase result
+- commit SHA
+- pushed branch
+- GitHub push result
+- final git status
+- anything still requiring hosted/external verification

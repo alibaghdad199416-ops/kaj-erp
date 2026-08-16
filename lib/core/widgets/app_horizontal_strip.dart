@@ -25,16 +25,18 @@ class AppHorizontalStrip extends StatelessWidget {
       spaced.add(
         ConstrainedBox(
           constraints: BoxConstraints(minHeight: minControlHeight),
-          child: Align(alignment: AlignmentDirectional.centerStart, child: children[index]),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: children[index],
+          ),
         ),
       );
     }
 
     return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(
-        scrollbars: false,
-        overscroll: false,
-      ),
+      behavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(scrollbars: false, overscroll: false),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: padding,

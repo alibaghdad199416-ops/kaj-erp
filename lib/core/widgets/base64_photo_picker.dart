@@ -53,9 +53,10 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
           context.l10n.isArabic
               ? 'تعذر قراءة ملف الصورة من المتصفح.'
               : 'The browser could not read the selected image.',
-        _ => context.l10n.isArabic
-            ? 'ملف الصورة غير صالح. استخدم JPG أو PNG أو WEBP.'
-            : 'Invalid image file. Use JPG, PNG, or WEBP.',
+        _ =>
+          context.l10n.isArabic
+              ? 'ملف الصورة غير صالح. استخدم JPG أو PNG أو WEBP.'
+              : 'Invalid image file. Use JPG, PNG, or WEBP.',
       };
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: AppText(message), backgroundColor: Colors.red),
@@ -77,19 +78,29 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
           height: 72,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: .55),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: .55,
+            ),
             border: Border.all(color: theme.dividerColor.withValues(alpha: .7)),
           ),
           clipBehavior: Clip.antiAlias,
           child: bytes == null
-              ? Icon(Icons.photo_camera_outlined, color: theme.colorScheme.primary)
+              ? Icon(
+                  Icons.photo_camera_outlined,
+                  color: theme.colorScheme.primary,
+                )
               : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
         );
         final details = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppText(widget.label, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            AppText(
+              widget.label,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 8),
             AppHorizontalStrip(
               children: [
@@ -100,7 +111,10 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.add_photo_alternate_outlined, size: 19),
+                      : const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 19,
+                        ),
                   label: const AppText('اختيار صورة'),
                 ),
                 if (bytes != null)
@@ -121,7 +135,11 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
-          children: [preview, const SizedBox(width: 14), Expanded(child: details)],
+          children: [
+            preview,
+            const SizedBox(width: 14),
+            Expanded(child: details),
+          ],
         );
       },
     );

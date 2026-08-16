@@ -23,44 +23,47 @@ void main() {
     await CloudTenantContext.instance.clearCloudSelection();
   });
 
-  test('profile and avatar update cross one admin-manage-user request', () async {
-    final calls = <(String, Map<String, dynamic>)>[];
-    final service = SupabaseUserAdministrationService.forTesting(
-      functionInvoker: (functionName, body) async {
-        calls.add((functionName, Map<String, dynamic>.from(body)));
-        return <String, dynamic>{'ok': true, 'action': 'update'};
-      },
-    );
+  test(
+    'profile and avatar update cross one admin-manage-user request',
+    () async {
+      final calls = <(String, Map<String, dynamic>)>[];
+      final service = SupabaseUserAdministrationService.forTesting(
+        functionInvoker: (functionName, body) async {
+          calls.add((functionName, Map<String, dynamic>.from(body)));
+          return <String, dynamic>{'ok': true, 'action': 'update'};
+        },
+      );
 
-    await service.updateUser(
-      cloudUserId: 'cloud-user-1',
-      localUserId: 'local-user-1',
-      email: 'ALI@Example.COM',
-      fullName: 'Ali Updated',
-      roleCode: 'user',
-      isActive: true,
-      erpUserPayload: <String, dynamic>{
-        'id': 'local-user-1',
-        'roleId': 'role-user',
-        'phone': '07700000000',
-        'avatarBase64': 'compressed-image-payload',
-      },
-    );
+      await service.updateUser(
+        cloudUserId: 'cloud-user-1',
+        localUserId: 'local-user-1',
+        email: 'ALI@Example.COM',
+        fullName: 'Ali Updated',
+        roleCode: 'user',
+        isActive: true,
+        erpUserPayload: <String, dynamic>{
+          'id': 'local-user-1',
+          'roleId': 'role-user',
+          'phone': '07700000000',
+          'avatarBase64': 'compressed-image-payload',
+        },
+      );
 
-    expect(calls, hasLength(1));
-    expect(calls.single.$1, 'admin-manage-user');
-    final body = calls.single.$2;
-    expect(body['action'], 'update');
-    expect(body['company_id'], '11111111-1111-4111-8111-111111111111');
-    expect(body['email'], 'ali@example.com');
-    expect(body['full_name'], 'Ali Updated');
-    expect(body['avatar_base64'], 'compressed-image-payload');
+      expect(calls, hasLength(1));
+      expect(calls.single.$1, 'admin-manage-user');
+      final body = calls.single.$2;
+      expect(body['action'], 'update');
+      expect(body['company_id'], '11111111-1111-4111-8111-111111111111');
+      expect(body['email'], 'ali@example.com');
+      expect(body['full_name'], 'Ali Updated');
+      expect(body['avatar_base64'], 'compressed-image-payload');
 
-    final erpUser = Map<String, dynamic>.from(body['erp_user'] as Map);
-    expect(erpUser['id'], 'local-user-1');
-    expect(erpUser['phone'], '07700000000');
-    expect(erpUser.containsKey('avatarBase64'), isFalse);
-  });
+      final erpUser = Map<String, dynamic>.from(body['erp_user'] as Map);
+      expect(erpUser['id'], 'local-user-1');
+      expect(erpUser['phone'], '07700000000');
+      expect(erpUser.containsKey('avatarBase64'), isFalse);
+    },
+  );
 
   test('clearing avatar remains part of the same update request', () async {
     final calls = <Map<String, dynamic>>[];

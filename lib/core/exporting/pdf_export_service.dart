@@ -214,7 +214,10 @@ class PdfExportService {
   Future<_PdfBranding> _loadBranding(bool arabic) async {
     Map<String, dynamic> row = <String, dynamic>{};
     try {
-      row = await CloudFeatureCommand.instance.map('company_settings', 'branding');
+      row = await CloudFeatureCommand.instance.map(
+        'company_settings',
+        'branding',
+      );
     } catch (error, stackTrace) {
       AppLogger.debug('PDF branding fallback: $error\n$stackTrace');
     }

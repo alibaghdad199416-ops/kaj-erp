@@ -197,7 +197,7 @@ security definer
 set search_path=public
 as $$
 declare
-  m text:=lower(trim(coalesce(p_module,'overview'));
+  m text:=lower(trim(coalesce(p_module,'overview')));
   p text;
 begin
   p:=case m
