@@ -11,10 +11,10 @@ import 'app_window_close_button.dart';
 
 /// Shared ERP workspace layout.
 ///
-/// Only the module identity header is framed. Statistics, commands and filters
-/// occupy one horizontal command rail and the business body is a continuous,
-/// unboxed workspace. This removes the nested "rectangle inside rectangle"
-/// appearance while keeping dense controls usable through horizontal scrolling.
+/// Only the module identity header is framed. Compact actions and statistics
+/// occupy a horizontal command rail, while width-sensitive filters/toolbars stay
+/// in the normal bounded page flow. The business body remains a continuous,
+/// unboxed workspace without nested large cards.
 class AppEntityPage extends StatelessWidget {
   const AppEntityPage({
     super.key,
@@ -60,7 +60,6 @@ class AppEntityPage extends StatelessWidget {
     final railChildren = <Widget>[
       ...actions,
       ?statistics,
-      ?effectiveToolbar,
       if (insideModuleWindow) const AppWindowCloseButton(),
     ];
 
@@ -108,12 +107,21 @@ class AppEntityPage extends StatelessWidget {
                       children: railChildren,
                     ),
                   ],
+                  if (effectiveToolbar != null) ...<Widget>[
+                    SizedBox(
+                      height: hideHeader && railChildren.isEmpty
+                          ? KajDesignTokens.space8
+                          : KajDesignTokens.space12,
+                    ),
+                    KeyedSubtree(
+                      key: const ValueKey('module-bounded-toolbar'),
+                      child: effectiveToolbar,
+                    ),
+                  ],
                 ];
 
                 final bodySpacing = SizedBox(
-                  height: railChildren.isEmpty && hideHeader
-                      ? 0
-                      : KajDesignTokens.space12,
+                  height: chrome.isEmpty ? 0 : KajDesignTokens.space12,
                 );
 
                 final bodyPanel = ClipRect(
