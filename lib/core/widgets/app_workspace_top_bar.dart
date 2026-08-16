@@ -153,24 +153,26 @@ class AppWorkspaceTopBar extends StatelessWidget {
                             : (ar ? 'مستخدم معتمد' : 'Authorized user')),
                 ),
               const SizedBox(width: 6),
-              IconButton(
-                key: const ValueKey('quality-line-user-profile-action'),
-                tooltip: profileLabel,
-                onPressed: () => showCurrentUserProfileEditor(context),
-                style: IconButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.onSurface,
-                  hoverColor: KajDesignTokens.electricBlue.withValues(alpha: .14),
-                  highlightColor: KajDesignTokens.electricBlue.withValues(alpha: .10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(11),
+              Tooltip(
+                key: const ValueKey('quality-line-profile-tooltip-button-v2'),
+                message: profileLabel,
+                child: IconButton(
+                  onPressed: () => showCurrentUserProfileEditor(context),
+                  style: IconButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.onSurface,
+                    hoverColor: KajDesignTokens.electricBlue.withValues(alpha: .14),
+                    highlightColor: KajDesignTokens.electricBlue.withValues(alpha: .10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
                   ),
-                ),
-                icon: ExcludeSemantics(
-                  child: AppUserAvatar(
-                    radius: 18,
-                    avatarBase64: user?.avatarBase64,
-                    fallbackText:
-                        user?.fullName ?? (ar ? 'مدير النظام' : 'Admin'),
+                  icon: ExcludeSemantics(
+                    child: AppUserAvatar(
+                      radius: 18,
+                      avatarBase64: user?.avatarBase64,
+                      fallbackText:
+                          user?.fullName ?? (ar ? 'مدير النظام' : 'Admin'),
+                    ),
                   ),
                 ),
               ),
