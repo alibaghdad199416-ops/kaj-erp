@@ -213,6 +213,8 @@
     "deploy:r49:production": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/deploy_r49_production.ps1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "http-server": "^14.1.1",
     "supabase": "^2.109.1"
   },
   "version": "22.9.8"
