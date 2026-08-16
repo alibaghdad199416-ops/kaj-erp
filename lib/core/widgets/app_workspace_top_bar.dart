@@ -152,17 +152,14 @@ class AppWorkspaceTopBar extends StatelessWidget {
                             : (ar ? 'مستخدم معتمد' : 'Authorized user')),
                 ),
               const SizedBox(width: 10),
-              InkWell(
-                borderRadius: BorderRadius.circular(11),
-                onTap: () => showCurrentUserProfileEditor(context),
-                child: Padding(
-                  padding: const EdgeInsets.all(3),
-                  child: AppUserAvatar(
-                    radius: 18,
-                    avatarBase64: user?.avatarBase64,
-                    fallbackText:
-                        user?.fullName ?? (ar ? 'مدير النظام' : 'Admin'),
-                  ),
+              Padding(
+                padding: const EdgeInsets.all(3),
+                child: AppUserAvatar(
+                  radius: 18,
+                  avatarBase64: user?.avatarBase64,
+                  fallbackText:
+                      user?.fullName ?? (ar ? 'مدير النظام' : 'Admin'),
+                  onTap: () => showCurrentUserProfileEditor(context),
                 ),
               ),
             ],
