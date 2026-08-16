@@ -1,7 +1,8 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_REF = "havlqebmnjdcwmpaaqew"
+EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"
+EXPECTED_LOCAL_URL = "http://127.0.0.1:54321"
 
 
 def read(path: str) -> str:
@@ -15,6 +16,12 @@ def require(path: str, *markers: str) -> str:
     missing = [marker for marker in markers if marker not in source]
     assert not missing, f"{path} missing: {', '.join(missing)}"
     return source
+
+
+def assert_local_runtime(path: str) -> None:
+    source = read(path)
+    assert ".supabase.co" not in source, f"{path} still permits Hosted Supabase"
+    assert "havlqebmnjdcwmpaaqew" not in source, f"{path} still embeds the old Hosted project ref"
 
 
 def main() -> None:
@@ -136,11 +143,14 @@ def main() -> None:
 
     require(
         "lib/core/cloud/supabase_config.dart",
-        EXPECTED_REF,
+        EXPECTED_LOCAL_PROJECT_ID,
+        EXPECTED_LOCAL_URL,
         "validateRuntime",
         "browserStorageNamespace",
     )
-    require("dart_defines.json", EXPECTED_REF)
+    require("dart_defines.json", EXPECTED_LOCAL_URL, "SUPABASE_ANON_KEY")
+    assert_local_runtime("lib/core/cloud/supabase_config.dart")
+    assert_local_runtime("dart_defines.json")
 
     launcher = require(
         "tool/run_current_web.ps1",
@@ -161,7 +171,7 @@ def main() -> None:
     print("  - accounting PDF/Excel follow active application language")
     print("  - generic PDF uses the unified Quality Line identity and company branding")
     print("  - local launcher verifies source before migration/run")
-    print(f"  - production project remains isolated: {EXPECTED_REF}")
+    print(f"  - local project remains isolated: {EXPECTED_LOCAL_PROJECT_ID} @ {EXPECTED_LOCAL_URL}")
 
 
 if __name__ == "__main__":

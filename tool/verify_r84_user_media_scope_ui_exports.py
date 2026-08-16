@@ -1,7 +1,8 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_REF = "havlqebmnjdcwmpaaqew"
+EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"
+EXPECTED_LOCAL_URL = "http://127.0.0.1:54321"
 MIGRATION = "supabase/migrations/20260816013000_r84_user_record_scope_atomic_profile_closure.sql"
 
 
@@ -16,6 +17,12 @@ def require(path: str, *needles: str) -> str:
     missing = [needle for needle in needles if needle not in source]
     assert not missing, f"{path} is missing: {', '.join(missing)}"
     return source
+
+
+def assert_local_runtime(path: str) -> None:
+    source = text(path)
+    assert ".supabase.co" not in source, f"{path} still permits Hosted Supabase"
+    assert "havlqebmnjdcwmpaaqew" not in source, f"{path} still embeds the old Hosted project ref"
 
 
 def main() -> None:
@@ -167,11 +174,14 @@ def main() -> None:
 
     require(
         "lib/core/cloud/supabase_config.dart",
-        EXPECTED_REF,
+        EXPECTED_LOCAL_PROJECT_ID,
+        EXPECTED_LOCAL_URL,
         "validateRuntime",
         "browserStorageNamespace",
     )
-    require("dart_defines.json", EXPECTED_REF)
+    require("dart_defines.json", EXPECTED_LOCAL_URL, "SUPABASE_ANON_KEY")
+    assert_local_runtime("lib/core/cloud/supabase_config.dart")
+    assert_local_runtime("dart_defines.json")
 
     print("PASS R84 user/media/record-scope/UI/export closure")
     print("  - user profile + avatar update crosses one governed Edge request")
@@ -181,7 +191,7 @@ def main() -> None:
     print("  - PostgreSQL list/detail/write/RLS boundaries enforce record scope")
     print("  - CRM opportunities use the scoped PostgreSQL list RPC")
     print("  - module workspace/windows and PDF/Excel identity remain unified")
-    print(f"  - production project isolation remains {EXPECTED_REF}")
+    print(f"  - local project isolation remains {EXPECTED_LOCAL_PROJECT_ID} @ {EXPECTED_LOCAL_URL}")
 
 
 if __name__ == "__main__":

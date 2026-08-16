@@ -1,7 +1,8 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_REF = "havlqebmnjdcwmpaaqew"
+EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"
+EXPECTED_LOCAL_URL = "http://127.0.0.1:54321"
 PERMISSIONS = {
     "users.image.update",
     "users.credentials.update",
@@ -25,6 +26,12 @@ def contains_all(path: str, values) -> None:
     source = text(path)
     missing = [value for value in values if value not in source]
     assert not missing, f"{path} is missing: {', '.join(missing)}"
+
+
+def assert_local_runtime(path: str) -> None:
+    source = text(path)
+    assert ".supabase.co" not in source, f"{path} still permits Hosted Supabase"
+    assert "havlqebmnjdcwmpaaqew" not in source, f"{path} still embeds the old Hosted project ref"
 
 
 def main() -> None:
@@ -143,9 +150,11 @@ def main() -> None:
 
     contains_all(
         "lib/core/cloud/supabase_config.dart",
-        {EXPECTED_REF, "validateRuntime", "browserStorageNamespace"},
+        {EXPECTED_LOCAL_PROJECT_ID, EXPECTED_LOCAL_URL, "validateRuntime", "browserStorageNamespace"},
     )
-    contains_all("dart_defines.json", {EXPECTED_REF})
+    contains_all("dart_defines.json", {EXPECTED_LOCAL_URL, "SUPABASE_ANON_KEY"})
+    assert_local_runtime("lib/core/cloud/supabase_config.dart")
+    assert_local_runtime("dart_defines.json")
 
     print("PASS R78 complete requirements closure")
     print("  - granular user/media/report permissions: PostgreSQL + Edge + typed client constants")
@@ -154,7 +163,7 @@ def main() -> None:
     print("  - exports: Arabic/English PDF + Excel + relation index share one data pipeline")
     print("  - PDF identity: unified header/table/footer with company branding fallback")
     print("  - UI: continuous module workspace + clipped premium module windows")
-    print(f"  - production project isolation: {EXPECTED_REF}")
+    print(f"  - local project isolation: {EXPECTED_LOCAL_PROJECT_ID} @ {EXPECTED_LOCAL_URL}")
 
 
 if __name__ == "__main__":
