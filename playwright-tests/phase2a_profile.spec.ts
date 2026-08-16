@@ -18,6 +18,7 @@ test.setTimeout(300_000);
 const artifactDir = path.resolve('playwright-artifacts/phase-2a/profile');
 const avatar1 = path.resolve('playwright-tests/fixtures/avatar1.png');
 const avatar2 = path.resolve('playwright-tests/fixtures/avatar2.png');
+const profileBuildMarker = 'quality-line-profile-tooltip-button-v2';
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim() ?? '';
@@ -49,6 +50,24 @@ function profileFromUserPayload(user: Record<string, unknown>): ProfileSnapshot 
       user.avatarBase64 ?? user.avatar_base64 ?? null,
     ),
   };
+}
+
+async function verifyServedBuild(options: {
+  request: APIRequestContext;
+  appUrl: string;
+}): Promise<void> {
+  const response = await options.request.get(`${options.appUrl}/main.dart.js`, {
+    timeout: 20_000,
+  });
+  expect(
+    response.ok(),
+    `Unable to read served main.dart.js: HTTP ${response.status()}`,
+  ).toBeTruthy();
+  const compiledJs = await response.text();
+  expect(
+    compiledJs.includes(profileBuildMarker),
+    `Served Flutter build is stale. Expected marker ${profileBuildMarker} in main.dart.js.`,
+  ).toBeTruthy();
 }
 
 async function readCurrentProfile(options: {
@@ -124,7 +143,7 @@ async function enableFlutterSemantics(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
-async function waitForRestoredWorkspace(page: Page): Promise<void> {
+async function waitForStableAuthenticatedWorkspace(page: Page): Promise<void> {
   await expect
     .poll(
       () => page.url(),
@@ -134,7 +153,33 @@ async function waitForRestoredWorkspace(page: Page): Promise<void> {
       },
     )
     .toMatch(/#\/(settings|dashboard)$/);
-  expect(page.url(), 'Persisted session was rejected and redirected to login').not.toContain('#/login');
+
+  let previous = '';
+  let stableSamples = 0;
+  const deadline = Date.now() + 12_000;
+  while (Date.now() < deadline) {
+    const current = page.url();
+    if (current.includes('#/login')) {
+      throw new Error(`Persisted session was rejected and redirected to login: ${current}`);
+    }
+    if (!/#\/(settings|dashboard)$/.test(current)) {
+      previous = current;
+      stableSamples = 0;
+    } else if (current === previous) {
+      stableSamples += 1;
+      if (stableSamples >= 2) return;
+    } else {
+      previous = current;
+      stableSamples = 0;
+    }
+    await page.waitForTimeout(750);
+  }
+
+  throw new Error(`Authenticated workspace route did not stabilize. Last URL=${page.url()}`);
+}
+
+async function waitForRestoredWorkspace(page: Page): Promise<void> {
+  await waitForStableAuthenticatedWorkspace(page);
   await enableFlutterSemantics(page);
 }
 
@@ -211,7 +256,8 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
   const password = requiredEnv('E2E_ADMIN_PASSWORD');
   const appUrl = baseURL ?? 'http://127.0.0.1:8080';
 
-  console.log('[profile] 1/8 authenticate and snapshot backend profile');
+  console.log('[profile] 1/8 verify served build, authenticate and snapshot backend profile');
+  await verifyServedBuild({ request, appUrl });
   const { runtime, session } = await signInLocalUserAndPrimeBrowser({
     request,
     page,
@@ -226,7 +272,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
   });
 
   try {
-    console.log('[profile] 2/8 restore protected route and open profile');
+    console.log('[profile] 2/8 restore stable protected workspace and open profile');
     await page.goto(`${appUrl}#/settings`, { waitUntil: 'domcontentloaded' });
     await waitForFlutterReady(page);
     await waitForRestoredWorkspace(page);
