@@ -20,6 +20,7 @@ class AppTopProfileAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AccessController>().currentUser;
     final ar = context.l10n.isArabic;
+    final profileLabel = ar ? 'تعديل الملف الشخصي' : 'Edit profile';
 
     return Material(
       color: const Color(0xFF050B10),
@@ -27,11 +28,17 @@ class AppTopProfileAction extends StatelessWidget {
         width: 54,
         height: 68,
         child: Center(
-          child: AppUserAvatar(
-            radius: 18,
-            avatarBase64: user?.avatarBase64,
-            fallbackText: user?.fullName ?? (ar ? 'مستخدم' : 'User'),
-            onTap: () => showCurrentUserProfileEditor(context),
+          child: IconButton(
+            key: const ValueKey('quality-line-user-profile-action'),
+            tooltip: profileLabel,
+            onPressed: () => showCurrentUserProfileEditor(context),
+            icon: ExcludeSemantics(
+              child: AppUserAvatar(
+                radius: 18,
+                avatarBase64: user?.avatarBase64,
+                fallbackText: user?.fullName ?? (ar ? 'مستخدم' : 'User'),
+              ),
+            ),
           ),
         ),
       ),
