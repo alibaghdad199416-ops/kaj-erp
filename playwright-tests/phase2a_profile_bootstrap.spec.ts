@@ -21,12 +21,20 @@ async function enableFlutterSemantics(page: import('@playwright/test').Page): Pr
   console.log(`[profile-bootstrap] semantics placeholder count=${placeholderCount}`);
   if (placeholderCount > 0) {
     // Flutter's accessibility placeholder can be intentionally positioned outside
-    // the visual viewport. A Playwright pointer click therefore fails actionability
-    // even though the DOM control is valid. Invoke the element's native click so
-    // Flutter receives the same accessibility-enablement event without geometry.
+    // the visual viewport. Invoke its native DOM click so the accessibility tree
+    // is enabled without relying on pointer geometry.
     await placeholder.evaluate((element: HTMLElement) => element.click());
   }
   await page.waitForTimeout(750);
+}
+
+async function ariaLabels(page: import('@playwright/test').Page): Promise<string[]> {
+  return page.locator('[aria-label]').evaluateAll((elements) =>
+    elements
+      .map((element) => element.getAttribute('aria-label'))
+      .filter((value): value is string => Boolean(value))
+      .slice(0, 80),
+  );
 }
 
 test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request }) => {
@@ -43,7 +51,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     password,
   });
 
-  console.log('[profile-bootstrap] 2/6 opening Flutter settings route');
+  console.log('[profile-bootstrap] 2/6 opening protected Flutter settings route');
   await page.goto(`${appUrl}#/settings`, {
     waitUntil: 'domcontentloaded',
     timeout: 20_000,
@@ -62,17 +70,41 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
   console.log(
     `[profile-bootstrap] storage direct=${persisted.direct !== null} flutter=${persisted.flutter !== null} key=${runtime.authPersistSessionKey}`,
   );
-  expect(persisted.direct ?? persisted.flutter, 'Injected Supabase session disappeared from localStorage').not.toBeNull();
+  expect(
+    persisted.direct ?? persisted.flutter,
+    'Injected Supabase session disappeared from localStorage',
+  ).not.toBeNull();
 
   console.log('[profile-bootstrap] 4/6 enabling Flutter semantics');
   await enableFlutterSemantics(page);
 
-  const labels = await page.locator('[aria-label]').evaluateAll((elements) =>
-    elements
-      .map((element) => element.getAttribute('aria-label'))
-      .filter((value): value is string => Boolean(value))
-      .slice(0, 80),
-  );
+  console.log('[profile-bootstrap] 5/6 waiting for protected-route session restoration');
+  const profileAction = page
+    .locator(
+      '[aria-label="User avatar"], [aria-label="صورة المستخدم"], [aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"]',
+    )
+    .last();
+
+  try {
+    await expect(profileAction).toBeVisible({ timeout: 45_000 });
+  } catch (error) {
+    const loginFragment = '#/login';
+    const settingsFragment = '#/settings';
+    const dashboardFragment = '#/dashboard';
+    const currentUrl = () => page.url();
+    const labels = await ariaLabels(page);
+    console.log(
+      `[profile-bootstrap] restore failed url=${currentUrl()} labels=${JSON.stringify(labels)}`,
+    );
+    throw new Error(
+      `Protected-route session restoration did not expose the profile action. ` +
+        `url=${currentUrl()} expected route containing ${settingsFragment} or ${dashboardFragment}, ` +
+        `not ${loginFragment}; aria labels=${JSON.stringify(labels)}; cause=${String(error)}`,
+    );
+  }
+
+  const labels = await ariaLabels(page);
+  console.log(`[profile-bootstrap] restored url=${page.url()}`);
   console.log(`[profile-bootstrap] first aria labels=${JSON.stringify(labels)}`);
 
   await page.screenshot({
@@ -80,22 +112,8 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     fullPage: true,
   });
 
-  console.log('[profile-bootstrap] 5/6 locating profile avatar/action');
-  const profileAction = page
-    .locator(
-      '[aria-label="User avatar"], [aria-label="صورة المستخدم"], [aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"]',
-    )
-    .last();
-  const count = await profileAction.count();
-  console.log(`[profile-bootstrap] profile action count=${count}; url=${page.url()}`);
-  expect(
-    count,
-    `No profile action found. Current URL=${page.url()}; aria labels=${JSON.stringify(labels)}`,
-  ).toBeGreaterThan(0);
-  await expect(profileAction).toBeVisible({ timeout: 10_000 });
+  console.log('[profile-bootstrap] 6/6 opening and verifying profile dialog');
   await profileAction.click({ timeout: 10_000 });
-
-  console.log('[profile-bootstrap] 6/6 verifying profile dialog');
   const save = page.getByRole('button', {
     name: /^(Save changes|حفظ التغييرات)$/,
   });
