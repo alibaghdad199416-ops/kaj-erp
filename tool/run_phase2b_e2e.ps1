@@ -5,6 +5,7 @@ Set-Location $ProjectRoot
 
 $AppUrl = 'http://127.0.0.1:8080'
 $CompiledUrl = "$AppUrl/main.dart.js"
+$RuntimeSpec = 'playwright-tests/phase2b_sales_workflow_flutter_runtime.spec.ts'
 
 Write-Host "KAJ ERP Phase 2B E2E runner" -ForegroundColor Cyan
 Write-Host "App: $AppUrl" -ForegroundColor DarkGray
@@ -40,13 +41,20 @@ if ([string]::IsNullOrWhiteSpace($env:E2E_ADMIN_PASSWORD)) {
 }
 
 Write-Host 'PASS: E2E credentials are loaded for this runner process only.' -ForegroundColor Green
-Write-Host 'Running USD + IQD Phase 2B Sales lifecycle...' -ForegroundColor Cyan
+Write-Host 'Running USD + IQD Phase 2B Sales lifecycle in isolated browser workers...' -ForegroundColor Cyan
 
+$finalExitCode = 0
 try {
-  & npx playwright test playwright-tests/phase2b_sales_workflow.spec.ts --reporter=list
-  $exitCode = $LASTEXITCODE
+  foreach ($currency in @('USD', 'IQD')) {
+    Write-Host "`n=== Phase 2B $currency ===" -ForegroundColor Cyan
+    & npx playwright test $RuntimeSpec --grep "$currency$" --reporter=list --workers=1
+    $currentExitCode = $LASTEXITCODE
+    if ($currentExitCode -ne 0 -and $finalExitCode -eq 0) {
+      $finalExitCode = $currentExitCode
+    }
+  }
 } finally {
   Remove-Item Env:E2E_ADMIN_PASSWORD -ErrorAction SilentlyContinue
 }
 
-exit $exitCode
+exit $finalExitCode
