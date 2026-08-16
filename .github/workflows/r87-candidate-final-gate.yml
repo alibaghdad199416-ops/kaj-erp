@@ -1,0 +1,193 @@
+name: R87 Candidate Final Gate
+
+on:
+  push:
+    branches:
+      - agent/r87-local-verifier-publish
+
+permissions:
+  contents: write
+
+jobs:
+  final-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: agent/r87-verifier-candidate
+          fetch-depth: 0
+
+      - name: Assemble one exact verifier commit
+        env:
+          BASE: 554f79ca3771a5d7026296ad3eaa45ab07af9864
+          CANDIDATE: d32101ef8858f377fe280a4c2adbf70d0fa20a24
+          TARGET: antigravity/r86-final-audit-20260816
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          remote_target="$(git ls-remote origin "refs/heads/$TARGET" | cut -f1)"
+          test "$remote_target" = "$BASE"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          path = Path('tool/verify_r9_complete_closure.py')
+          data = path.read_bytes()
+          replacements = [
+              (b'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
+               b'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f'),
+              (b'changed from the user supplied production configuration',
+               b'changed from the current Local Supabase/Firebase baseline'),
+              (b'production Supabase/Firebase configuration hashes unchanged',
+               b'Local Supabase/Firebase baseline hashes unchanged'),
+          ]
+          for old, new in replacements:
+              count = data.count(old)
+              if count != 1:
+                  raise SystemExit(f'R9 replacement count for {old!r}: {count}')
+              data = data.replace(old, new)
+          blob = hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+          expected = 'a387c2390a173643f312307caec1b046fa0a2582'
+          if blob != expected:
+              raise SystemExit(f'R9 blob mismatch: {blob} != {expected}')
+          path.write_bytes(data)
+          PY
+          git reset --soft "$BASE"
+          git add tool/verify_r9_complete_closure.py
+          python3 - <<'PY'
+          import subprocess
+          expected = sorted([
+              'tool/verify_r10_windows_flutter_build_cleanup.py',
+              'tool/verify_r11_formatter_semantic_closure.py',
+              'tool/verify_r12_root_validation_closure.py',
+              'tool/verify_r13_workspace_package_separation.py',
+              'tool/verify_r14_runtime_rpc_invoice_root_closure.py',
+              'tool/verify_r15_canonical_state_reconciliation.py',
+              'tool/verify_r16_persistent_canonical_state.py',
+              'tool/verify_r17_deployment_orchestration.py',
+              'tool/verify_r18_formatter_invariant_deployment.py',
+              'tool/verify_r19_authoritative_gates.py',
+              'tool/verify_r20_native_cli_deployment.py',
+              'tool/verify_r21_r16_tombstone_signature_closure.py',
+              'tool/verify_r22_production_accounting_consolidation.py',
+              'tool/verify_r23_canonical_lifecycle_cash_reconciliation.py',
+              'tool/verify_r24_runtime_accounting_ui_closure.py',
+              'tool/verify_r52_fresh_database_lint_runtime_closure.py',
+              'tool/verify_r6_deployment_closure.py',
+              'tool/verify_r71_current_runtime_source.py',
+              'tool/verify_r71_supabase_runtime_isolation.py',
+              'tool/verify_r72_dashboard_database_contract.py',
+              'tool/verify_r73_current_runtime_identity.py',
+              'tool/verify_r74_authenticated_tenant_runtime.py',
+              'tool/verify_r75_havl_only_target.py',
+              'tool/verify_r76_local_current_database.py',
+              'tool/verify_r77_media_permissions_ui_pdf.py',
+              'tool/verify_r8_release_closure.py',
+              'tool/verify_r9_complete_closure.py',
+              'tool/verify_v2302_runtime_accounting_root_closure.py',
+          ])
+          changed = sorted(subprocess.check_output(['git','diff','--cached','--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'candidate changed-file mismatch: {changed}')
+          if any(p.startswith(('lib/','supabase/migrations/','.kilo/','.github/')) for p in changed):
+              raise SystemExit('forbidden candidate path detected')
+          subprocess.run(['git','diff','--cached','--check'], check=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(verifiers): align historical audits with Local Supabase'
+          test "$(git rev-parse HEAD^)" = "$BASE"
+          test "$(git rev-list --count "$BASE"..HEAD)" = "1"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          flutter pub get
+
+      - name: Format final HEAD
+        run: |
+          npm run format
+          npm run format:check
+          git diff --check
+          git diff --exit-code
+
+      - name: Analyze final HEAD
+        run: npm run analyze
+
+      - name: Full tests on final HEAD
+        run: npm run test
+
+      - name: DB static regression verifiers on final HEAD
+        run: npm run verify:all
+
+      - name: Web build on final HEAD
+        run: npm run build:web
+
+      - name: Final diff and history audit
+        env:
+          BASE: 554f79ca3771a5d7026296ad3eaa45ab07af9864
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, hashlib
+          from pathlib import Path
+          base = '554f79ca3771a5d7026296ad3eaa45ab07af9864'
+          expected = sorted([
+              'tool/verify_r10_windows_flutter_build_cleanup.py','tool/verify_r11_formatter_semantic_closure.py',
+              'tool/verify_r12_root_validation_closure.py','tool/verify_r13_workspace_package_separation.py',
+              'tool/verify_r14_runtime_rpc_invoice_root_closure.py','tool/verify_r15_canonical_state_reconciliation.py',
+              'tool/verify_r16_persistent_canonical_state.py','tool/verify_r17_deployment_orchestration.py',
+              'tool/verify_r18_formatter_invariant_deployment.py','tool/verify_r19_authoritative_gates.py',
+              'tool/verify_r20_native_cli_deployment.py','tool/verify_r21_r16_tombstone_signature_closure.py',
+              'tool/verify_r22_production_accounting_consolidation.py','tool/verify_r23_canonical_lifecycle_cash_reconciliation.py',
+              'tool/verify_r24_runtime_accounting_ui_closure.py','tool/verify_r52_fresh_database_lint_runtime_closure.py',
+              'tool/verify_r6_deployment_closure.py','tool/verify_r71_current_runtime_source.py',
+              'tool/verify_r71_supabase_runtime_isolation.py','tool/verify_r72_dashboard_database_contract.py',
+              'tool/verify_r73_current_runtime_identity.py','tool/verify_r74_authenticated_tenant_runtime.py',
+              'tool/verify_r75_havl_only_target.py','tool/verify_r76_local_current_database.py',
+              'tool/verify_r77_media_permissions_ui_pdf.py','tool/verify_r8_release_closure.py',
+              'tool/verify_r9_complete_closure.py','tool/verify_v2302_runtime_accounting_root_closure.py',
+          ])
+          changed = sorted(subprocess.check_output(['git','diff','--name-only',f'{base}..HEAD'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'final changed-file mismatch: {changed}')
+          if subprocess.check_output(['git','rev-list','--count',f'{base}..HEAD'], text=True).strip() != '1':
+              raise SystemExit('final history is not a single commit')
+          if subprocess.check_output(['git','rev-parse','HEAD^'], text=True).strip() != base:
+              raise SystemExit('final commit parent mismatch')
+          data = Path('tool/verify_r9_complete_closure.py').read_bytes()
+          blob = hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+          if blob != 'a387c2390a173643f312307caec1b046fa0a2582':
+              raise SystemExit(f'final R9 blob mismatch: {blob}')
+          subprocess.run(['git','diff','--check',f'{base}..HEAD'], check=True)
+          status = subprocess.check_output(['git','status','--porcelain=v1'], text=True).strip()
+          if status:
+              raise SystemExit(f'final worktree is dirty: {status}')
+          PY
+          python3 -B tool/verify_deployment_target.py
+          git log --oneline --decorate -3
+
+      - name: Push tested final HEAD
+        env:
+          BASE: 554f79ca3771a5d7026296ad3eaa45ab07af9864
+          TARGET: antigravity/r86-final-audit-20260816
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET"
+          test "$(git rev-parse FETCH_HEAD)" = "$BASE"
+          git push origin "HEAD:refs/heads/$TARGET"
