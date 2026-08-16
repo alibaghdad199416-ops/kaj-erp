@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the local-only Supabase runtime and internal admin boundaries."""
+"""Verify the local-only Supabase runtime and R87 authority boundaries."""
 from __future__ import annotations
 
 import json
@@ -134,6 +134,54 @@ if user_admin_service.is_file():
         if marker not in user_admin_source:
             errors.append(f"Flutter user administration is missing tenant contract: {marker}")
 
+# R87 regression contracts belong in Python verifiers, never source-reading
+# Flutter tests. These checks prove the effective forward migrations keep the
+# delegated authority and R84 record-scope closures wired to live read models.
+authority_path = ROOT / "supabase" / "migrations" / "20260816235500_r87_final_authority_local_runtime_closure.sql"
+inventory_path = ROOT / "supabase" / "migrations" / "20260816235600_r87_inventory_car_scope_closure.sql"
+cashbox_path = ROOT / "lib" / "features" / "accounting" / "cashbox" / "controllers" / "cashbox_controller.dart"
+for required_file in (authority_path, inventory_path, cashbox_path):
+    if not required_file.is_file():
+        errors.append(f"missing R87 closure component: {required_file.relative_to(ROOT)}")
+
+if authority_path.is_file():
+    authority = authority_path.read_text(encoding="utf-8")
+    for marker in (
+        "permission_grant_exceeds_authority",
+        "permission_unknown:",
+        "erp_r84_record_visible(p_company_id,'customer_service'",
+        "erp_r84_record_visible(p_company_id,'maintenance'",
+        "erp_r84_record_visible(p_company_id,'sales'",
+        "erp_r84_record_visible(p_company_id,'purchases'",
+        "erp_r84_record_visible(p_company_id,'cashbox'",
+        "erp_r84_record_visible(p_company_id,'warehouses'",
+        "erp_r56_vehicle_service_card",
+        "erp_r56_business_partner_360",
+        "erp_r49_business_partner_card_summary",
+    ):
+        if marker not in authority:
+            errors.append(f"R87 authority closure is missing: {marker}")
+
+if inventory_path.is_file():
+    inventory = inventory_path.read_text(encoding="utf-8")
+    for marker in (
+        "erp_r49_list_inventory_warehouse_transfers",
+        "erp_r84_record_visible(p_company_id,'inventory',t.created_by,null)",
+        "erp_r49_list_cloud_cars_with_warehouse",
+        "erp_r84_record_visible(p_company_id,'cars',c.created_by,null)",
+    ):
+        if marker not in inventory:
+            errors.append(f"R87 inventory closure is missing: {marker}")
+
+if cashbox_path.is_file():
+    cashbox = cashbox_path.read_text(encoding="utf-8")
+    for marker in ("_refreshRequested", "_runRefreshLoop", "_allTransactions"):
+        if marker not in cashbox:
+            errors.append(f"cashbox refresh regression is missing: {marker}")
+    for forbidden in ("voucherNumberExists(", "_repository.searchTransactions("):
+        if forbidden in cashbox:
+            errors.append(f"cashbox duplicate full-read regression returned: {forbidden}")
+
 if errors:
     print("FAILED local-only deployment target verification")
     for error in errors:
@@ -145,4 +193,6 @@ print(f"  - Supabase API: {EXPECTED_SUPABASE_URL}")
 print(f"  - local project id: {EXPECTED_LOCAL_PROJECT_ID}")
 print("  - browser key is a public Local Supabase anon/publishable key")
 print("  - hosted Supabase endpoints are rejected")
+print("  - delegated permission grants stay within caller authority")
+print("  - composite R84 record scopes cover partner, vehicle, inventory, and cash reads")
 print("  - ERP administrators remain behind verified tenant-scoped edge functions")
