@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that production deployment points only to the intended cloud projects."""
+"""Verify the local-only Supabase runtime and internal admin boundaries."""
 from __future__ import annotations
 
 import json
@@ -7,30 +7,45 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_SUPABASE_REF = "havlqebmnjdcwmpaaqew"
-EXPECTED_SUPABASE_URL = f"https://{EXPECTED_SUPABASE_REF}.supabase.co"
+EXPECTED_SUPABASE_URL = "http://127.0.0.1:54321"
+EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"
 EXPECTED_FIREBASE_PROJECT = "kaj-erp"
 
 errors: list[str] = []
 
-production_candidate = ROOT / "dart_defines.production.json"
 active_runtime_path = ROOT / "dart_defines.json"
-production_path = production_candidate if production_candidate.is_file() else active_runtime_path
 try:
-    production_text = production_path.read_text(encoding="utf-8")
-    production = json.loads(production_text)
+    runtime_text = active_runtime_path.read_text(encoding="utf-8")
+    runtime = json.loads(runtime_text)
 except Exception as error:  # noqa: BLE001
-    errors.append(f"invalid production Dart defines ({production_path.name}): {error}")
-    production_text = ""
-    production = {}
+    errors.append(f"invalid local Dart defines ({active_runtime_path.name}): {error}")
+    runtime_text = ""
+    runtime = {}
 
-if production.get("SUPABASE_URL") != EXPECTED_SUPABASE_URL:
-    errors.append("production SUPABASE_URL does not match the intended project base URL")
-key = str(production.get("SUPABASE_PUBLISHABLE_KEY", ""))
-if not key.startswith("sb_publishable_"):
-    errors.append("production client key must be an sb_publishable_ key")
-if any(marker in key for marker in ("sb_secret_", "service_role")):
+if runtime.get("SUPABASE_URL") != EXPECTED_SUPABASE_URL:
+    errors.append("SUPABASE_URL must point to the Local Supabase loopback API")
+key = str(runtime.get("SUPABASE_PUBLISHABLE_KEY") or runtime.get("SUPABASE_ANON_KEY") or "")
+if not key:
+    errors.append("tracked local runtime must contain the public Local Supabase anon/publishable key")
+if any(marker in key.lower() for marker in ("sb_secret_", "service_role")):
     errors.append("a secret/service-role key must never be packaged for the web client")
+if re.search(r"https://[^\s\"']+\.supabase\.co", runtime_text, re.I):
+    errors.append("Hosted Supabase endpoints are forbidden in the active runtime defines")
+
+config_source = (ROOT / "lib" / "core" / "cloud" / "supabase_config.dart").read_text(
+    encoding="utf-8"
+)
+for forbidden in (".supabase.co'", "expectedProductionProjectRef"):
+    if forbidden in config_source:
+        errors.append(f"SupabaseConfig still contains hosted-runtime behavior: {forbidden}")
+for required in (
+    "http://127.0.0.1:54321",
+    EXPECTED_LOCAL_PROJECT_ID,
+    "Local Supabase فقط",
+    "_isLoopback(uri.host)",
+):
+    if required not in config_source:
+        errors.append(f"SupabaseConfig is missing local-only runtime contract: {required}")
 
 firebaserc = json.loads((ROOT / ".firebaserc").read_text(encoding="utf-8"))
 projects = firebaserc.get("projects", {})
@@ -44,24 +59,22 @@ if firebase.get("hosting", {}).get("public") != "build/web":
     errors.append("Firebase Hosting must publish build/web")
 
 config = (ROOT / "supabase" / "config.toml").read_text(encoding="utf-8")
-required_config = (
-    'site_url = "https://kaj-erp.web.app"',
-    'enable_signup = false',
-    '[auth.email]',
-    'https://kaj-erp.web.app/**',
-    'https://kaj-erp.firebaseapp.com/**',
-)
-for marker in required_config:
+for marker in (
+    f'project_id = "{EXPECTED_LOCAL_PROJECT_ID}"',
+    "enable_signup = false",
+    "[auth.email]",
+):
     if marker not in config:
-        errors.append(f"missing Supabase Auth deployment setting: {marker}")
-
+        errors.append(f"missing Local Supabase setting: {marker}")
 
 edge_create = ROOT / "supabase" / "functions" / "admin-create-user" / "index.ts"
 edge_manage = ROOT / "supabase" / "functions" / "admin-manage-user" / "index.ts"
 user_admin_service = ROOT / "lib" / "core" / "cloud" / "supabase_user_administration_service.dart"
 for required_file in (edge_create, edge_manage, user_admin_service):
     if not required_file.is_file():
-        errors.append(f"missing internal user-administration component: {required_file.relative_to(ROOT)}")
+        errors.append(
+            f"missing internal user-administration component: {required_file.relative_to(ROOT)}"
+        )
 
 if edge_create.is_file():
     edge_source = edge_create.read_text(encoding="utf-8")
@@ -100,7 +113,9 @@ if edge_manage.is_file():
     if ".limit(1)" in manage_source:
         errors.append("admin-manage-user must not select an arbitrary caller tenant")
     if manage_source.count(".eq('company_id', requestedCompanyId)") < 5:
-        errors.append("admin-manage-user must scope caller, target, mutations, and rollback to the requested tenant")
+        errors.append(
+            "admin-manage-user must scope caller, target, mutations, and rollback to the requested tenant"
+        )
 
 for function_name in ("admin-create-user", "admin-manage-user"):
     marker = f"[functions.{function_name}]\nverify_jwt = true"
@@ -111,22 +126,23 @@ if user_admin_service.is_file():
     user_admin_source = user_admin_service.read_text(encoding="utf-8")
     if "admin-create-user" not in user_admin_source:
         errors.append("Flutter user administration is not connected to admin-create-user")
-    for marker in ("CloudTenantContext.instance", "'company_id': companyId", "isBootstrapReady"):
+    for marker in (
+        "CloudTenantContext.instance",
+        "'company_id': companyId",
+        "isBootstrapReady",
+    ):
         if marker not in user_admin_source:
             errors.append(f"Flutter user administration is missing tenant contract: {marker}")
 
-if re.search(r"https://[^\s\"']+\.supabase\.co/rest/v1", production_text):
-    errors.append("SUPABASE_URL must be the project base URL without /rest/v1")
-
 if errors:
-    print("FAILED production deployment target verification")
+    print("FAILED local-only deployment target verification")
     for error in errors:
         print(f"  - {error}")
     raise SystemExit(1)
 
-print("PASS production deployment target verification")
-print(f"  - runtime config: {production_path.name}")
-print(f"  - Supabase project: {EXPECTED_SUPABASE_REF}")
-print(f"  - Firebase project: {EXPECTED_FIREBASE_PROJECT}")
-print("  - public self-signup is disabled; ERP administrators create users inside the app")
-print("  - only a publishable browser key is packaged")
+print("PASS local-only deployment target verification")
+print(f"  - Supabase API: {EXPECTED_SUPABASE_URL}")
+print(f"  - local project id: {EXPECTED_LOCAL_PROJECT_ID}")
+print("  - browser key is a public Local Supabase anon/publishable key")
+print("  - hosted Supabase endpoints are rejected")
+print("  - ERP administrators remain behind verified tenant-scoped edge functions")

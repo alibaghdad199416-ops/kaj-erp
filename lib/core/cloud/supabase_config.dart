@@ -1,22 +1,13 @@
 class SupabaseConfig {
   SupabaseConfig._();
 
-  /// The only hosted Supabase project used by the current KAJ ERP production
-  /// runtime. Local Supabase CLI development remains available through the
-  /// explicit loopback opt-in below.
-  static const String expectedProductionProjectRef = 'havlqebmnjdcwmpaaqew';
+  static const String _defaultProjectUrl = 'http://127.0.0.1:54321';
+  static const String _defaultPublishableKey = '';
+  static const String _defaultLocalProjectId = 'quality_line_erp_local_dev';
 
-  // Browser-facing project defaults keep local inspection reliable even
-  // when Flutter is launched without --dart-define-from-file. Explicit
-  // dart-defines still override these values. Never place secret/service
-  // role keys here; only the public Supabase project URL/publishable key.
-  static const String _defaultProjectUrl =
-      'https://havlqebmnjdcwmpaaqew.supabase.co';
-  static const String _defaultPublishableKey =
-      'sb_publishable_JfrD4JkzaOkkZDbANocq_g_-MRdyWix';
-
-  /// Supply these values at run/build time. The publishable key is safe for a
-  /// browser client; service-role and secret keys are rejected explicitly.
+  /// Quality Line ERP is intentionally local-Supabase-only in this branch.
+  /// The public key is environment-specific and must come from `supabase status`
+  /// (or an equivalent local launch configuration); it is never committed.
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: _defaultProjectUrl,
@@ -30,18 +21,14 @@ class SupabaseConfig {
     ),
   );
 
-  /// Identifies the local Supabase CLI project and isolates its browser state.
-  /// Supplying this value is also an explicit, narrowly scoped opt-in to a
-  /// loopback backend. Production define files omit it.
   static const String localProjectId = String.fromEnvironment(
     'SUPABASE_LOCAL_PROJECT_ID',
-    defaultValue: '',
+    defaultValue: _defaultLocalProjectId,
   );
 
-  /// Compatibility opt-in retained for older local launch scripts.
   static const bool _explicitAllowLocalDev = bool.fromEnvironment(
     'SUPABASE_ALLOW_LOCAL_DEV',
-    defaultValue: false,
+    defaultValue: true,
   );
 
   static bool get allowLocalDev => resolveLocalDevelopmentOptIn(
@@ -54,9 +41,6 @@ class SupabaseConfig {
     required String localProjectId,
   }) => explicitAllowLocalDev || localProjectId.trim().isNotEmpty;
 
-  /// Project-ref/runtime namespace used to isolate browser auth and tenant
-  /// selections. This prevents an old Supabase project or tenant selection
-  /// from being reused after the runtime backend changes.
   static String get projectRef =>
       projectRefFor(projectUrl: url, localProjectId: localProjectId);
 
@@ -74,14 +58,9 @@ class SupabaseConfig {
     final host = uri?.host.toLowerCase() ?? '';
     if (_isLoopback(host)) {
       final local = localProjectId.trim();
-      return local.isEmpty ? 'quality_line_erp_local_dev' : local;
+      return local.isEmpty ? _defaultLocalProjectId : local;
     }
-    const suffix = '.supabase.co';
-    if (host.endsWith(suffix)) {
-      final ref = host.substring(0, host.length - suffix.length).trim();
-      if (ref.isNotEmpty && !ref.contains('.')) return ref;
-    }
-    return host.isEmpty ? 'unknown_supabase_backend' : host;
+    return host.isEmpty ? 'blocked_non_local_backend' : host;
   }
 
   static String storageNamespaceFor({
@@ -92,7 +71,6 @@ class SupabaseConfig {
     localProjectId: localProjectId,
   ).replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
 
-  /// Compatibility alias used by older scripts in existing deployments.
   static String get anonKey => publishableKey;
 
   static String? validate({
@@ -105,19 +83,7 @@ class SupabaseConfig {
     allowLocalDev: allowLocalDevelopment ?? SupabaseConfig.allowLocalDev,
   );
 
-  /// Runtime validation is stricter than the reusable URL/key validator: any
-  /// hosted build must point to the explicitly approved production project.
-  /// A stale dart-define therefore fails closed instead of silently opening an
-  /// older Supabase project. Explicit loopback development remains supported.
-  static String? validateRuntime() {
-    final configurationError = validate();
-    if (configurationError != null) return configurationError;
-    if (!isLocalTarget() && projectRef != expectedProductionProjectRef) {
-      return 'إعداد Supabase لا يشير إلى قاعدة الإنتاج المعتمدة '
-          '$expectedProductionProjectRef.';
-    }
-    return null;
-  }
+  static String? validateRuntime() => validate();
 
   static String? validateConfiguration({
     required String projectUrl,
@@ -126,73 +92,33 @@ class SupabaseConfig {
   }) {
     final resolvedUrl = projectUrl.trim();
     final resolvedKey = publishableKey.trim();
-
-    // R57_LOCAL_LOOPBACK_CONFIG_FIX
-    // Local Supabase development is intentionally allowed only on loopback.
-    // Hosted Supabase validation below remains unchanged and still requires
-    // the normal hosted URL/security rules.
-    final localUri = Uri.tryParse(resolvedUrl);
-    final localHost = localUri?.host.toLowerCase() ?? '';
-    final isLocalLoopback =
-        localHost == '127.0.0.1' ||
-        localHost == 'localhost' ||
-        localHost.endsWith('.localhost');
-
-    if (isLocalLoopback && allowLocalDev) {
-      final validLocalScheme =
-          localUri != null &&
-          (localUri.scheme == 'http' || localUri.scheme == 'https');
-
-      if (!validLocalScheme || localUri.host.isEmpty) {
-        return 'رابط Supabase المحلي غير صالح.';
-      }
-      if (localUri.path.isNotEmpty && localUri.path != '/') {
-        return 'استخدم رابط Supabase المحلي الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
-      }
-      if (resolvedKey.isEmpty || resolvedKey.contains('YOUR_')) {
-        return 'مفتاح Supabase العام غير مضبوط.';
-      }
-      if (resolvedKey.startsWith('service_role') ||
-          resolvedKey.startsWith('sb_secret_')) {
-        return 'لا تستخدم مفتاحاً سرياً داخل تطبيق الويب. استخدم Publishable/anon key.';
-      }
-      return null;
-    }
-
     final uri = Uri.tryParse(resolvedUrl);
+
     if (uri == null ||
         !uri.hasScheme ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment) {
-      return 'رابط Supabase غير صالح. استخدم رابط المشروع الأساسي عبر HTTPS.';
+      return 'رابط Supabase المحلي غير صالح.';
     }
     if (uri.path.isNotEmpty && uri.path != '/') {
-      return 'استخدم رابط مشروع Supabase الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
+      return 'استخدم رابط Supabase المحلي الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
     }
-    final localTarget = _isLoopback(uri.host);
-    final validLocal =
-        allowLocalDev &&
-        uri.scheme == 'http' &&
-        localTarget &&
-        uri.hasPort &&
-        uri.port > 0;
-    final validHosted =
-        uri.scheme == 'https' &&
-        uri.host.endsWith('.supabase.co') &&
-        !localTarget &&
-        !uri.hasPort;
-    if (!validLocal && !validHosted) {
-      return 'رابط Supabase يجب أن ينتهي بـ .supabase.co.';
+    if (!allowLocalDev ||
+        uri.scheme != 'http' ||
+        !_isLoopback(uri.host) ||
+        !uri.hasPort ||
+        uri.port <= 0) {
+      return 'هذا الإصدار يعمل مع Local Supabase فقط على localhost/127.0.0.1.';
     }
     if (resolvedKey.isEmpty || resolvedKey.contains('YOUR_')) {
-      return 'مفتاح Supabase العام غير مضبوط.';
+      return 'مفتاح Supabase المحلي العام غير مضبوط. استخدم المفتاح العام من supabase status.';
     }
     final normalizedKey = resolvedKey.toLowerCase();
     if (normalizedKey.contains('service_role') ||
         normalizedKey.startsWith('sb_secret_')) {
-      return 'لا تستخدم مفتاحاً سرياً داخل تطبيق الويب. استخدم Publishable/anon key.';
+      return 'لا تستخدم مفتاحاً سرياً داخل تطبيق الويب. استخدم Publishable/anon key المحلي.';
     }
     return null;
   }
@@ -215,7 +141,7 @@ class SupabaseConfig {
       return false;
     }
     final uri = Uri.parse(resolvedUrl);
-    return allowed && uri.scheme == 'http' && _isLoopback(uri.host);
+    return uri.scheme == 'http' && _isLoopback(uri.host);
   }
 
   static String environmentLabel({
@@ -233,8 +159,8 @@ class SupabaseConfig {
             ? 'بيئة تطوير Supabase المحلية'
             : 'Local Supabase Development Environment')
       : (isArabic
-            ? 'اتصال آمن عبر Supabase • استضافة Firebase'
-            : 'Secure Supabase connection • Firebase Hosting');
+            ? 'Local Supabase مطلوب'
+            : 'Local Supabase Required');
 
   static bool _isLoopback(String host) {
     final normalized = host.toLowerCase();

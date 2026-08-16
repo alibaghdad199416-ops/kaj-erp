@@ -17,12 +17,15 @@ class CashboxController extends ChangeNotifier {
 
   final CashboxRepository _repository;
   List<CashTransactionModel> _transactions = [];
+  List<CashTransactionModel> _allTransactions = [];
   List<CashAccountModel> _cashAccounts = [];
   List<AccountModel> _ledgerAccounts = [];
   Map<String, double> _balances = {};
   Map<String, Map<String, double>> _reconciliation = {};
   bool _isLoading = false;
   Future<void>? _refreshInFlight;
+  bool _refreshRequested = false;
+  String _activeSearchQuery = '';
   String? _errorMessage;
   Map<String, double> _usdSummary = const {
     'receipts': 0,
@@ -70,7 +73,7 @@ class CashboxController extends ChangeNotifier {
     try {
       await _repository.saveCashAccount(account);
       AppDataChangeBus.instance.publish('cashbox', operation: 'account_save');
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -95,7 +98,7 @@ class CashboxController extends ChangeNotifier {
         operation: 'account_delete',
         entityId: id,
       );
-      await _refresh();
+      await _refresh(force: true);
     } finally {
       _setLoading(false);
     }
@@ -123,7 +126,7 @@ class CashboxController extends ChangeNotifier {
         notes: notes,
       );
       AppDataChangeBus.instance.publish('cashbox', operation: 'transfer');
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -147,7 +150,7 @@ class CashboxController extends ChangeNotifier {
         'cashbox',
         operation: 'transfer_delete',
       );
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
       _errorMessage = userFacingError(
@@ -166,12 +169,12 @@ class CashboxController extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
-      if (await _repository.voucherNumberExists(transaction.voucherNumber)) {
-        throw StateError('رقم السند مستخدم مسبقًا.');
-      }
+      // PostgreSQL's active-voucher unique index is the race-safe authority.
+      // A preflight getTransactions() duplicated a full cash read and could
+      // still lose a race between the check and the atomic posting RPC.
       await _repository.addTransaction(transaction);
       AppDataChangeBus.instance.publish('cashbox', operation: 'insert');
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -191,19 +194,13 @@ class CashboxController extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
-      if (await _repository.voucherNumberExists(
-        transaction.voucherNumber,
-        excludeId: transaction.id,
-      )) {
-        throw StateError('رقم السند مستخدم في حركة أخرى.');
-      }
       await _repository.updateTransaction(transaction);
       AppDataChangeBus.instance.publish(
         'cashbox',
         operation: 'update',
         entityId: transaction.id,
       );
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -228,29 +225,38 @@ class CashboxController extends ChangeNotifier {
         operation: 'delete',
         entityId: id,
       );
-      await _refresh();
+      await _refresh(force: true);
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<void> searchTransactions(String query) async {
-    _setLoading(true);
-    try {
-      _transactions = await _repository.searchTransactions(query);
-    } finally {
-      _setLoading(false);
-    }
+  Future<void> searchTransactions(String query) {
+    _activeSearchQuery = query.trim().toLowerCase();
+    _applySearch();
+    notifyListeners();
+    return Future<void>.value();
   }
 
-  Future<void> _refresh() {
+  Future<void> _refresh({bool force = false}) {
+    if (force) _refreshRequested = true;
     final active = _refreshInFlight;
     if (active != null) return active;
-    final request = _performRefresh();
+
+    final request = _runRefreshLoop();
     _refreshInFlight = request;
     return request.whenComplete(() {
       if (identical(_refreshInFlight, request)) _refreshInFlight = null;
     });
+  }
+
+  Future<void> _runRefreshLoop() async {
+    var refreshAgain = true;
+    while (refreshAgain) {
+      _refreshRequested = false;
+      await _performRefresh();
+      refreshAgain = _refreshRequested;
+    }
   }
 
   Future<void> _performRefresh() async {
@@ -263,7 +269,8 @@ class CashboxController extends ChangeNotifier {
       _repository.getCurrencySummary('IQD'),
       _repository.getCashLedgerReconciliation(),
     ]);
-    _transactions = results[0] as List<CashTransactionModel>;
+    _allTransactions = results[0] as List<CashTransactionModel>;
+    _applySearch();
     _cashAccounts = results[1] as List<CashAccountModel>;
     _ledgerAccounts = results[2] as List<AccountModel>;
     _balances = results[3] as Map<String, double>;
@@ -271,6 +278,24 @@ class CashboxController extends ChangeNotifier {
     _iqdSummary = results[5] as Map<String, double>;
     _reconciliation = results[6] as Map<String, Map<String, double>>;
     notifyListeners();
+  }
+
+  void _applySearch() {
+    final query = _activeSearchQuery;
+    if (query.isEmpty) {
+      _transactions = List<CashTransactionModel>.of(_allTransactions);
+      return;
+    }
+    _transactions = _allTransactions
+        .where((item) {
+          return item.voucherNumber.toLowerCase().contains(query) ||
+              item.category.toLowerCase().contains(query) ||
+              item.currency.toLowerCase().contains(query) ||
+              item.type.toLowerCase().contains(query) ||
+              (item.partyName ?? '').toLowerCase().contains(query) ||
+              (item.notes ?? '').toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   void _setLoading(bool value) {
