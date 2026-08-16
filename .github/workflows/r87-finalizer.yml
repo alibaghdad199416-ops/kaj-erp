@@ -1,0 +1,257 @@
+name: R87 Isolated Final Audit
+
+on:
+  push:
+    branches:
+      - agent/r87-final-audit-run
+
+permissions:
+  contents: write
+
+jobs:
+  audit-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out target branch
+        uses: actions/checkout@v4
+        with:
+          ref: antigravity/r86-final-audit-20260816
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Assemble and synchronize verifier fix commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: antigravity/r86-final-audit-20260816
+          EXPECTED_BASE: 554f79ca3771a5d7026296ad3eaa45ab07af9864
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import urllib.request
+
+          base = os.environ['EXPECTED_BASE']
+          target = os.environ['TARGET_BRANCH']
+          repo = os.environ['REPOSITORY']
+          token = os.environ['GH_TOKEN']
+
+          blobs = {
+              'tool/verify_r10_windows_flutter_build_cleanup.py': '97859efff6d7c420059c6ccdd5258983031bc0ea',
+              'tool/verify_r11_formatter_semantic_closure.py': '287fa3568de753336ee83cec40e2ab952b541356',
+              'tool/verify_r12_root_validation_closure.py': '589c8f511fa72793668d1cf4465fbd46e6899332',
+              'tool/verify_r13_workspace_package_separation.py': '4f919f24c647dd606bba18359d40555a520f952e',
+              'tool/verify_r14_runtime_rpc_invoice_root_closure.py': '13d0d7e965d15f9d2bc199282bdc5e67a75e615b',
+              'tool/verify_r15_canonical_state_reconciliation.py': 'f53363614001946860e006e4289436cd6936ff2b',
+              'tool/verify_r16_persistent_canonical_state.py': '1000fa37e8aa9f0ea52139820d115bf2a2b7c3d4',
+              'tool/verify_r17_deployment_orchestration.py': '6ee7c0dcdabba6cb60cafeb344d071f81349958c',
+              'tool/verify_r18_formatter_invariant_deployment.py': 'd4cb060ba12375035f8ae275c5e67e92138b0f99',
+              'tool/verify_r19_authoritative_gates.py': '39a3acc8a84ea42fe6cac278a27b4291ae7641e0',
+              'tool/verify_r20_native_cli_deployment.py': '7f665a96d12e2393e319603a2c8c4c01214b63c8',
+              'tool/verify_r21_r16_tombstone_signature_closure.py': 'c0bcdc175b1e2aabd0d8895e52b22196ee8aaf8d',
+              'tool/verify_r22_production_accounting_consolidation.py': '11ec35c35cda6df1835fb1edfebc9e6da3d9f520',
+              'tool/verify_r23_canonical_lifecycle_cash_reconciliation.py': '9778eb200328c0b0f44a0b297f587d6134ddbf28',
+              'tool/verify_r24_runtime_accounting_ui_closure.py': 'fc31e6582e9c71de832ed9237d67e3f4a683e393',
+              'tool/verify_r52_fresh_database_lint_runtime_closure.py': 'cd38da2d8cbe2d1704bc57a7c6ba2042a3729a24',
+              'tool/verify_r6_deployment_closure.py': '56409c3a3ff6ff1391b5ef18fc70b4bbe7987c47',
+              'tool/verify_r71_current_runtime_source.py': 'e7217e578fb27148fd3fdba95232d046de8b311b',
+              'tool/verify_r71_supabase_runtime_isolation.py': 'ab6cd124cf51f5168931a1734f68b0b260c120c0',
+              'tool/verify_r72_dashboard_database_contract.py': '002e689176ce9be82636db3e1aa26862ee81379f',
+              'tool/verify_r73_current_runtime_identity.py': '477a3268bd05bf142d03783c68958eb6228b86ac',
+              'tool/verify_r74_authenticated_tenant_runtime.py': 'e649ca648c1fff590fa35747dcb31fbffa93b6b8',
+              'tool/verify_r75_havl_only_target.py': 'a02bcc017a10d96a5758a6ad050731049c24e3b4',
+              'tool/verify_r76_local_current_database.py': '09078ed75d66a04a630349aab328782ccc1b5d3b',
+              'tool/verify_r77_media_permissions_ui_pdf.py': 'a4aa4a898ef605b150ea2709dc5540b9a219ad80',
+              'tool/verify_r8_release_closure.py': '2611db31e7a5a5b4b5371fdedd37cd127a57c9a3',
+              'tool/verify_v2302_runtime_accounting_root_closure.py': '3503812d9e0c4ba151e07c709cb7d98133bdb789',
+          }
+          r9_path = 'tool/verify_r9_complete_closure.py'
+          expected_paths = sorted([*blobs, r9_path])
+
+          def run(*args):
+              subprocess.run(list(args), check=True)
+
+          def out(*args):
+              return subprocess.check_output(list(args), text=True).strip()
+
+          def blob_sha(data: bytes) -> str:
+              return hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+
+          def fetch_blob(sha: str) -> bytes:
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs/{sha}',
+                  headers={
+                      'Authorization': f'Bearer {token}',
+                      'Accept': 'application/vnd.github+json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                  },
+              )
+              with urllib.request.urlopen(req) as response:
+                  payload = json.load(response)
+              data = base64.b64decode(payload['content'])
+              if blob_sha(data) != sha:
+                  raise SystemExit(f'blob integrity failure: {sha}')
+              return data
+
+          def validate_tree():
+              changed = sorted(out('git', 'diff', '--name-only', f'{base}..HEAD').splitlines())
+              if changed != expected_paths:
+                  raise SystemExit(f'unexpected target diff: {changed}')
+              if any(p.startswith(('lib/', 'supabase/migrations/', '.kilo/')) for p in changed):
+                  raise SystemExit('forbidden non-verifier target change detected')
+              for path, sha in blobs.items():
+                  actual = blob_sha(Path(path).read_bytes())
+                  if actual != sha:
+                      raise SystemExit(f'{path} blob mismatch: {actual} != {sha}')
+              r9 = Path(r9_path).read_bytes()
+              local_sha = b'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f'
+              hosted_sha = b'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7'
+              if local_sha not in r9 or hosted_sha in r9:
+                  raise SystemExit('R9 baseline is not Local-Supabase-only')
+
+          run('git', 'fetch', 'origin', target)
+          remote = out('git', 'rev-parse', 'FETCH_HEAD')
+          current = out('git', 'rev-parse', 'HEAD')
+          if current != remote:
+              run('git', 'reset', '--hard', remote)
+              current = remote
+
+          if current == base:
+              for path, sha in blobs.items():
+                  p = Path(path)
+                  p.parent.mkdir(parents=True, exist_ok=True)
+                  p.write_bytes(fetch_blob(sha))
+              r9 = Path(r9_path)
+              data = r9.read_bytes()
+              old_sha = b'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7'
+              new_sha = b'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f'
+              if data.count(old_sha) != 1:
+                  raise SystemExit(f'R9 old-baseline occurrence count: {data.count(old_sha)}')
+              r9.write_bytes(data.replace(old_sha, new_sha))
+              changed = sorted(out('git', 'diff', '--name-only').splitlines())
+              if changed != expected_paths:
+                  raise SystemExit(f'unexpected assembly diff: {changed}')
+              run('git', 'config', 'user.name', 'github-actions[bot]')
+              run('git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+              run('git', 'add', '--', *expected_paths)
+              run('git', 'commit', '-m', 'fix(verifiers): align historical audits with Local Supabase')
+              validate_tree()
+              for path in expected_paths:
+                  run('python3', path)
+              run('git', 'diff', '--check', f'{base}..HEAD')
+              run('git', 'fetch', 'origin', target)
+              if out('git', 'rev-parse', 'FETCH_HEAD') != base:
+                  raise SystemExit('target moved during verifier assembly; fail closed and rerun')
+              run('git', 'push', 'origin', f'HEAD:{target}')
+          else:
+              if out('git', 'merge-base', base, 'HEAD') != base:
+                  raise SystemExit('target is not a descendant of expected R87 base')
+              validate_tree()
+              for path in expected_paths:
+                  run('python3', path)
+              run('git', 'diff', '--check', f'{base}..HEAD')
+
+          Path('/tmp/r87_code_head').write_text(out('git', 'rev-parse', 'HEAD'))
+          PY
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          flutter pub get
+
+      - name: Create exact final audit HEAD
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --allow-empty -m 'test(r87): final local verifier audit [skip ci]'
+          git rev-parse HEAD > /tmp/r87_audit_head
+
+      - name: Format
+        run: |
+          npm run format
+          git diff --check
+          git diff --exit-code
+
+      - name: Analyze
+        run: npm run analyze
+
+      - name: Full tests
+        run: npm run test
+
+      - name: DB static and regression verifiers
+        run: npm run verify:all
+
+      - name: Web build
+        run: npm run build:web
+
+      - name: Final diff and history audit
+        env:
+          EXPECTED_BASE: 554f79ca3771a5d7026296ad3eaa45ab07af9864
+          TARGET_BRANCH: antigravity/r86-final-audit-20260816
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+
+          base = os.environ['EXPECTED_BASE']
+          expected = sorted([
+              'tool/verify_r10_windows_flutter_build_cleanup.py','tool/verify_r11_formatter_semantic_closure.py',
+              'tool/verify_r12_root_validation_closure.py','tool/verify_r13_workspace_package_separation.py',
+              'tool/verify_r14_runtime_rpc_invoice_root_closure.py','tool/verify_r15_canonical_state_reconciliation.py',
+              'tool/verify_r16_persistent_canonical_state.py','tool/verify_r17_deployment_orchestration.py',
+              'tool/verify_r18_formatter_invariant_deployment.py','tool/verify_r19_authoritative_gates.py',
+              'tool/verify_r20_native_cli_deployment.py','tool/verify_r21_r16_tombstone_signature_closure.py',
+              'tool/verify_r22_production_accounting_consolidation.py','tool/verify_r23_canonical_lifecycle_cash_reconciliation.py',
+              'tool/verify_r24_runtime_accounting_ui_closure.py','tool/verify_r52_fresh_database_lint_runtime_closure.py',
+              'tool/verify_r6_deployment_closure.py','tool/verify_r71_current_runtime_source.py',
+              'tool/verify_r71_supabase_runtime_isolation.py','tool/verify_r72_dashboard_database_contract.py',
+              'tool/verify_r73_current_runtime_identity.py','tool/verify_r74_authenticated_tenant_runtime.py',
+              'tool/verify_r75_havl_only_target.py','tool/verify_r76_local_current_database.py',
+              'tool/verify_r77_media_permissions_ui_pdf.py','tool/verify_r8_release_closure.py',
+              'tool/verify_r9_complete_closure.py','tool/verify_v2302_runtime_accounting_root_closure.py',
+          ])
+          changed = sorted(subprocess.check_output(['git','diff','--name-only',f'{base}..HEAD'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'final changed-file set mismatch: {changed}')
+          if subprocess.check_output(['git','status','--porcelain=v1'], text=True).strip():
+              raise SystemExit('final worktree is not clean')
+          subprocess.run(['git','diff','--check',f'{base}..HEAD'], check=True)
+          audit_head = open('/tmp/r87_audit_head').read().strip()
+          current = subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip()
+          if current != audit_head:
+              raise SystemExit(f'HEAD changed after audit commit: {current} != {audit_head}')
+          print(subprocess.check_output(['git','log','--oneline','--decorate','-5'], text=True))
+          PY
+
+      - name: Push the tested final HEAD without force
+        env:
+          TARGET_BRANCH: antigravity/r86-final-audit-20260816
+        run: |
+          code_head="$(cat /tmp/r87_code_head)"
+          audit_head="$(cat /tmp/r87_audit_head)"
+          test "$(git rev-parse HEAD)" = "$audit_head"
+          git fetch origin "$TARGET_BRANCH"
+          remote_head="$(git rev-parse FETCH_HEAD)"
+          if [ "$remote_head" != "$code_head" ]; then
+            echo "Target moved during final audit: $remote_head != $code_head" >&2
+            exit 1
+          fi
+          git merge-base --is-ancestor "$remote_head" "$audit_head"
+          git push origin "$audit_head:$TARGET_BRANCH"
