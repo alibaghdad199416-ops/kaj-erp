@@ -1,8 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { APIRequestContext, Page } from '@playwright/test';
 
-type SessionPayload = {
+export type SessionPayload = {
   access_token: string;
   refresh_token: string;
   expires_in?: number;
