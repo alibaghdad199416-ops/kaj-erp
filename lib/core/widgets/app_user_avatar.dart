@@ -53,17 +53,31 @@ class AppUserAvatar extends StatelessWidget {
             )
           : null,
     );
+
     final callback = onTap;
     if (callback == null) {
       return Semantics(
+        container: true,
+        excludeSemantics: true,
+        identifier: 'quality-line-user-avatar',
         label: context.l10n.isArabic ? 'صورة المستخدم' : 'User avatar',
         image: true,
         child: avatar,
       );
     }
+
+    final label = context.l10n.isArabic
+        ? 'تعديل الملف الشخصي'
+        : 'Edit profile';
     return Semantics(
-      label: AppTranslation.translate('تعديل الملف الشخصي'),
+      container: true,
+      excludeSemantics: true,
+      identifier: 'quality-line-user-profile-action',
+      label: label,
       button: true,
+      enabled: true,
+      focusable: true,
+      onTap: callback,
       child: InkWell(
         borderRadius: BorderRadius.circular(radius * 2),
         onTap: callback,
