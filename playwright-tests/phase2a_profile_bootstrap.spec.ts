@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { signInLocalUserAndPrimeBrowser } from './helpers/local_supabase_auth';
 
@@ -15,26 +15,31 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-async function enableFlutterSemantics(page: import('@playwright/test').Page): Promise<void> {
+async function enableFlutterSemantics(page: Page): Promise<void> {
   const placeholder = page.locator('flt-semantics-placeholder').first();
   const placeholderCount = await placeholder.count();
   console.log(`[profile-bootstrap] semantics placeholder count=${placeholderCount}`);
   if (placeholderCount > 0) {
-    // Flutter's accessibility placeholder can be intentionally positioned outside
-    // the visual viewport. Invoke its native DOM click so the accessibility tree
-    // is enabled without relying on pointer geometry.
     await placeholder.evaluate((element: HTMLElement) => element.click());
   }
-  await page.waitForTimeout(750);
+  await page.waitForTimeout(500);
 }
 
-async function ariaLabels(page: import('@playwright/test').Page): Promise<string[]> {
+async function ariaLabels(page: Page): Promise<string[]> {
   return page.locator('[aria-label]').evaluateAll((elements) =>
     elements
       .map((element) => element.getAttribute('aria-label'))
       .filter((value): value is string => Boolean(value))
-      .slice(0, 80),
+      .slice(0, 120),
   );
+}
+
+function profileAction(page: Page) {
+  return page
+    .locator(
+      '[aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"], [aria-label="User avatar"], [aria-label="صورة المستخدم"]',
+    )
+    .last();
 }
 
 test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request }) => {
@@ -43,7 +48,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
   const password = requiredEnv('E2E_ADMIN_PASSWORD');
   const appUrl = baseURL ?? 'http://127.0.0.1:8080';
 
-  console.log('[profile-bootstrap] 1/6 obtaining and verifying local Supabase session');
+  console.log('[profile-bootstrap] 1/7 obtaining and verifying local Supabase session');
   const { runtime } = await signInLocalUserAndPrimeBrowser({
     request,
     page,
@@ -51,13 +56,13 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     password,
   });
 
-  console.log('[profile-bootstrap] 2/6 opening protected Flutter settings route');
+  console.log('[profile-bootstrap] 2/7 opening protected Flutter settings route');
   await page.goto(`${appUrl}#/settings`, {
     waitUntil: 'domcontentloaded',
     timeout: 20_000,
   });
 
-  console.log('[profile-bootstrap] 3/6 waiting for Flutter glass pane');
+  console.log('[profile-bootstrap] 3/7 waiting for Flutter glass pane');
   await page.waitForSelector('flt-glass-pane', {
     state: 'attached',
     timeout: 45_000,
@@ -75,45 +80,46 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     'Injected Supabase session disappeared from localStorage',
   ).not.toBeNull();
 
-  console.log('[profile-bootstrap] 4/6 enabling Flutter semantics');
+  console.log('[profile-bootstrap] 4/7 waiting for protected-route session restoration');
+  await expect
+    .poll(
+      () => page.url(),
+      {
+        timeout: 45_000,
+        message: 'Protected route did not finish session restoration',
+      },
+    )
+    .toMatch(/#\/(settings|dashboard)$/);
+  expect(page.url(), 'Persisted session was rejected and redirected to login').not.toContain('#/login');
+  console.log(`[profile-bootstrap] restored url=${page.url()}`);
+
+  console.log('[profile-bootstrap] 5/7 enabling semantics on the restored workspace');
   await enableFlutterSemantics(page);
 
-  console.log('[profile-bootstrap] 5/6 waiting for protected-route session restoration');
-  const profileAction = page
-    .locator(
-      '[aria-label="User avatar"], [aria-label="صورة المستخدم"], [aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"]',
-    )
-    .last();
-
+  console.log('[profile-bootstrap] 6/7 locating semantic profile action');
+  const action = profileAction(page);
   try {
-    await expect(profileAction).toBeVisible({ timeout: 45_000 });
+    await expect(action).toBeVisible({ timeout: 15_000 });
   } catch (error) {
-    const loginFragment = '#/login';
-    const settingsFragment = '#/settings';
-    const dashboardFragment = '#/dashboard';
-    const currentUrl = () => page.url();
     const labels = await ariaLabels(page);
     console.log(
-      `[profile-bootstrap] restore failed url=${currentUrl()} labels=${JSON.stringify(labels)}`,
+      `[profile-bootstrap] profile semantics missing url=${page.url()} labels=${JSON.stringify(labels)}`,
     );
     throw new Error(
-      `Protected-route session restoration did not expose the profile action. ` +
-        `url=${currentUrl()} expected route containing ${settingsFragment} or ${dashboardFragment}, ` +
-        `not ${loginFragment}; aria labels=${JSON.stringify(labels)}; cause=${String(error)}`,
+      `Restored workspace did not expose the semantic profile action. ` +
+        `url=${page.url()}; aria labels=${JSON.stringify(labels)}; cause=${String(error)}`,
     );
   }
 
   const labels = await ariaLabels(page);
-  console.log(`[profile-bootstrap] restored url=${page.url()}`);
   console.log(`[profile-bootstrap] first aria labels=${JSON.stringify(labels)}`);
-
   await page.screenshot({
     path: path.join(artifactDir, '01-workspace.png'),
     fullPage: true,
   });
 
-  console.log('[profile-bootstrap] 6/6 opening and verifying profile dialog');
-  await profileAction.click({ timeout: 10_000 });
+  console.log('[profile-bootstrap] 7/7 opening and verifying profile dialog');
+  await action.click({ timeout: 10_000 });
   const save = page.getByRole('button', {
     name: /^(Save changes|حفظ التغييرات)$/,
   });
