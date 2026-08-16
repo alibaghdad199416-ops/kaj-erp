@@ -1,19 +1,21 @@
 import { test } from '@playwright/test';
 
 /**
- * Runtime adapter for Flutter Web semantics.
+ * Runtime adapter for Flutter Web semantic actions.
  *
- * Flutter rebuilds its accessibility tree independently of the painted UI. A
- * Playwright locator can therefore resolve a valid flt-semantics button and
- * then see that node replaced while actionability waits for stability. The
- * business test must still drive the real browser UI, but Flutter semantic
- * actions are more reliable when dispatched against the currently resolved
- * tappable semantics node, which is the same mechanism used to enable Flutter
- * semantics itself.
+ * The canonical Phase 2B spec already owns Flutter readiness and semantics
+ * activation. Do not weaken those readiness conditions here: accepting a
+ * partially bootstrapped flutter-view before flt-glass-pane/semantics exists
+ * makes role locators disappear even though pixels are already painted.
  *
- * This adapter is intentionally test-only. It does not change application
- * behavior, bypass authentication, call service-role APIs, or replace any
- * backend invariant checks in phase2b_sales_workflow.spec.ts.
+ * Flutter does, however, rebuild accessibility nodes independently of the
+ * painted UI. A Playwright locator can resolve a valid flt-semantics action and
+ * then see that exact node replaced while actionability waits for stability.
+ * This adapter changes only click dispatch for the currently resolved Flutter
+ * semantic action. Ordinary HTML controls still use native Playwright click.
+ *
+ * This is test-only. It does not alter application behavior, bypass auth,
+ * broaden permissions, use service-role APIs, or replace backend invariants.
  */
 
 type DynamicObject = Record<string, unknown>;
@@ -52,9 +54,8 @@ function installFlutterLocatorClickAdapter(page: any): void {
         if (handled) return;
         break;
       } catch {
-        // Flutter may replace the semantic node between resolve/evaluate.
-        // Re-resolve the locator a few times before falling back to native
-        // Playwright actionability for ordinary HTML controls.
+        // Flutter may replace a semantic node between locator resolution and
+        // dispatch. Re-resolve briefly, without weakening page readiness.
         await page.waitForTimeout(125);
       }
     }
@@ -65,52 +66,10 @@ function installFlutterLocatorClickAdapter(page: any): void {
   locatorPrototype.__qualityLineFlutterClickAdapter = true;
 }
 
-function installFlutterReadyFallback(page: any): void {
-  const originalWaitForSelector = page.waitForSelector.bind(page) as DynamicFunction;
-
-  page.waitForSelector = async (
-    selector: string,
-    options?: Record<string, unknown>,
-  ): Promise<unknown> => {
-    if (selector !== 'flt-glass-pane') {
-      return originalWaitForSelector(selector, options);
-    }
-
-    try {
-      return await originalWaitForSelector(selector, {
-        ...options,
-        timeout: Math.min(Number(options?.timeout ?? 45_000), 20_000),
-      });
-    } catch (firstError) {
-      try {
-        return await originalWaitForSelector(
-          'flt-glass-pane, flutter-view, flt-semantics-placeholder, flt-semantics',
-          { state: 'attached', timeout: 25_000 },
-        );
-      } catch {
-        // The fixed-port Flutter web-server can occasionally leave a new
-        // browser context at the pre-engine shell after a previous long test.
-        // One real browser reload is enough to force a fresh engine bootstrap.
-        await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
-        try {
-          return await originalWaitForSelector(
-            'flt-glass-pane, flutter-view, flt-semantics-placeholder, flt-semantics',
-            { state: 'attached', timeout: 60_000 },
-          );
-        } catch {
-          throw firstError;
-        }
-      }
-    }
-  };
-}
-
 test.beforeEach(async ({ page }) => {
   installFlutterLocatorClickAdapter(page);
-  installFlutterReadyFallback(page);
 });
 
-// Use require rather than a static import so the Flutter-aware hook above is
-// registered before the canonical Phase 2B tests are evaluated.
+// Register the adapter before the canonical business lifecycle tests.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 require('./phase2b_sales_workflow.spec');
