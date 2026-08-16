@@ -46,6 +46,7 @@ class AppWorkspaceTopBar extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final dark = brightness == Brightness.dark;
     final title = _routeTitle(context, currentRoute);
+    final profileLabel = ar ? 'تعديل الملف الشخصي' : 'Edit profile';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -151,15 +152,26 @@ class AppWorkspaceTopBar extends StatelessWidget {
                             ? user?.roleName.trim() ?? ''
                             : (ar ? 'مستخدم معتمد' : 'Authorized user')),
                 ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.all(3),
-                child: AppUserAvatar(
-                  radius: 18,
-                  avatarBase64: user?.avatarBase64,
-                  fallbackText:
-                      user?.fullName ?? (ar ? 'مدير النظام' : 'Admin'),
-                  onTap: () => showCurrentUserProfileEditor(context),
+              const SizedBox(width: 6),
+              IconButton(
+                key: const ValueKey('quality-line-user-profile-action'),
+                tooltip: profileLabel,
+                onPressed: () => showCurrentUserProfileEditor(context),
+                style: IconButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                  hoverColor: KajDesignTokens.electricBlue.withValues(alpha: .14),
+                  highlightColor: KajDesignTokens.electricBlue.withValues(alpha: .10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                ),
+                icon: ExcludeSemantics(
+                  child: AppUserAvatar(
+                    radius: 18,
+                    avatarBase64: user?.avatarBase64,
+                    fallbackText:
+                        user?.fullName ?? (ar ? 'مدير النظام' : 'Admin'),
+                  ),
                 ),
               ),
             ],
