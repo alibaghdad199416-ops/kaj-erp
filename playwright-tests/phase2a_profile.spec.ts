@@ -32,7 +32,7 @@ function requiredEnv(name: string): string {
 function normalizeNullableString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim();
-  return normalized.isEmpty ? null : normalized;
+  return normalized.length === 0 ? null : normalized;
 }
 
 type ProfileSnapshot = {
