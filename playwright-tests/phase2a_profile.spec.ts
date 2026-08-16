@@ -13,7 +13,7 @@ import {
   type LocalSupabaseRuntime,
 } from './helpers/local_supabase_auth';
 
-test.setTimeout(240_000);
+test.setTimeout(300_000);
 
 const artifactDir = path.resolve('playwright-artifacts/phase-2a/profile');
 const avatar1 = path.resolve('playwright-tests/fixtures/avatar1.png');
@@ -124,10 +124,24 @@ async function enableFlutterSemantics(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
+async function waitForRestoredWorkspace(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () => page.url(),
+      {
+        timeout: 45_000,
+        message: 'Persisted session did not restore a protected workspace route',
+      },
+    )
+    .toMatch(/#\/(settings|dashboard)$/);
+  expect(page.url(), 'Persisted session was rejected and redirected to login').not.toContain('#/login');
+  await enableFlutterSemantics(page);
+}
+
 function userAvatar(page: Page) {
   return page
     .locator(
-      '[aria-label="User avatar"], [aria-label="صورة المستخدم"], [aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"]',
+      '[aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"], [aria-label="User avatar"], [aria-label="صورة المستخدم"]',
     )
     .last();
 }
@@ -154,9 +168,9 @@ async function openProfile(page: Page): Promise<void> {
   const avatar = userAvatar(page);
   await expect(
     avatar,
-    'Authenticated workspace did not expose a profile action in the active navigation layout.',
-  ).toBeVisible({ timeout: 45_000 });
-  await avatar.click();
+    'Authenticated workspace did not expose a semantic profile action in the active navigation layout.',
+  ).toBeVisible({ timeout: 15_000 });
+  await avatar.click({ timeout: 10_000 });
   await expect(saveChangesButton(page)).toBeVisible({ timeout: 20_000 });
 }
 
@@ -177,7 +191,7 @@ async function saveProfile(page: Page): Promise<void> {
 async function reloadAndOpenProfile(page: Page): Promise<void> {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitForFlutterReady(page);
-  await enableFlutterSemantics(page);
+  await waitForRestoredWorkspace(page);
   await openProfile(page);
 }
 
@@ -215,7 +229,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
     console.log('[profile] 2/8 restore protected route and open profile');
     await page.goto(`${appUrl}#/settings`, { waitUntil: 'domcontentloaded' });
     await waitForFlutterReady(page);
-    await enableFlutterSemantics(page);
+    await waitForRestoredWorkspace(page);
     await openProfile(page);
 
     console.log('[profile] 3/8 add avatar and prove backend persistence');
