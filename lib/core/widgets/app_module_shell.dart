@@ -4,6 +4,7 @@ import 'package:quality_line_erp/core/preferences/app_preferences_controller.dar
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
 import 'app_top_navigation.dart';
+import 'app_top_profile_action.dart';
 import 'app_workspace_top_bar.dart';
 
 /// Application shell with a single continuous module workspace.
@@ -42,7 +43,12 @@ class AppModuleShell extends StatelessWidget {
             if (!usesSideNavigation || compact) {
               return Column(
                 children: <Widget>[
-                  AppTopNavigation(currentRoute: route),
+                  Row(
+                    children: <Widget>[
+                      Expanded(child: AppTopNavigation(currentRoute: route)),
+                      const AppTopProfileAction(),
+                    ],
+                  ),
                   Expanded(child: _WorkspaceCanvas(child: moduleContent)),
                 ],
               );
