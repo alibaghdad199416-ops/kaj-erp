@@ -133,4 +133,77 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'entity toolbar receives finite width for flex filters at normal and short heights',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1280, 820);
+      addTearDown(tester.view.reset);
+
+      var sawUnboundedWidth = false;
+      final page = AppEntityPage(
+        title: 'Bounded toolbar regression',
+        hideHeader: true,
+        actions: <Widget>[
+          FilledButton(onPressed: () {}, child: const Text('Create')),
+        ],
+        toolbar: LayoutBuilder(
+          builder: (context, constraints) {
+            if (!constraints.hasBoundedWidth) sawUnboundedWidth = true;
+            return Row(
+              key: const ValueKey('width-sensitive-toolbar'),
+              children: <Widget>[
+                const Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(hintText: 'Search'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 180,
+                  child: OutlinedButton(
+                    onPressed: () {},
+                    child: const Text('Filter'),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        body: ListView.builder(
+          key: const ValueKey('bounded-filter-body'),
+          itemCount: 20,
+          itemBuilder: (context, index) => ListTile(title: Text('Item $index')),
+        ),
+      );
+
+      await tester.pumpWidget(_host(locale: const Locale('en'), child: page));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(sawUnboundedWidth, isFalse);
+      expect(
+        find.byKey(const ValueKey('module-bounded-toolbar')),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('width-sensitive-toolbar'))).width,
+        greaterThan(0),
+      );
+
+      tester.view.physicalSize = const Size(800, 600);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(tester.takeException(), isNull);
+      expect(sawUnboundedWidth, isFalse);
+      expect(
+        find.byKey(const ValueKey('app-entity-page-short-height-scroll')),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('bounded-filter-body'))).height,
+        greaterThan(0),
+      );
+    },
+  );
 }
