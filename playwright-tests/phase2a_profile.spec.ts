@@ -143,16 +143,16 @@ async function enableFlutterSemantics(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
-async function waitForStableAuthenticatedWorkspace(page: Page): Promise<void> {
+async function waitForStableDashboard(page: Page): Promise<void> {
   await expect
     .poll(
       () => page.url(),
       {
         timeout: 45_000,
-        message: 'Persisted session did not restore a protected workspace route',
+        message: 'Persisted session did not restore the protected dashboard',
       },
     )
-    .toMatch(/#\/(settings|dashboard)$/);
+    .toMatch(/#\/dashboard$/);
 
   let previous = '';
   let stableSamples = 0;
@@ -162,12 +162,12 @@ async function waitForStableAuthenticatedWorkspace(page: Page): Promise<void> {
     if (current.includes('#/login')) {
       throw new Error(`Persisted session was rejected and redirected to login: ${current}`);
     }
-    if (!/#\/(settings|dashboard)$/.test(current)) {
+    if (!/#\/dashboard$/.test(current)) {
       previous = current;
       stableSamples = 0;
     } else if (current === previous) {
       stableSamples += 1;
-      if (stableSamples >= 2) return;
+      if (stableSamples >= 3) return;
     } else {
       previous = current;
       stableSamples = 0;
@@ -175,11 +175,11 @@ async function waitForStableAuthenticatedWorkspace(page: Page): Promise<void> {
     await page.waitForTimeout(750);
   }
 
-  throw new Error(`Authenticated workspace route did not stabilize. Last URL=${page.url()}`);
+  throw new Error(`Authenticated dashboard route did not stabilize. Last URL=${page.url()}`);
 }
 
 async function waitForRestoredWorkspace(page: Page): Promise<void> {
-  await waitForStableAuthenticatedWorkspace(page);
+  await waitForStableDashboard(page);
   await enableFlutterSemantics(page);
 }
 
@@ -213,7 +213,7 @@ async function openProfile(page: Page): Promise<void> {
   const avatar = userAvatar(page);
   await expect(
     avatar,
-    'Authenticated workspace did not expose a semantic profile action in the active navigation layout.',
+    'Authenticated dashboard did not expose a semantic profile action in the active navigation layout.',
   ).toBeVisible({ timeout: 15_000 });
   await avatar.click({ timeout: 10_000 });
   await expect(saveChangesButton(page)).toBeVisible({ timeout: 20_000 });
@@ -272,8 +272,8 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
   });
 
   try {
-    console.log('[profile] 2/8 restore stable protected workspace and open profile');
-    await page.goto(`${appUrl}#/settings`, { waitUntil: 'domcontentloaded' });
+    console.log('[profile] 2/8 restore stable dashboard and open profile');
+    await page.goto(`${appUrl}#/dashboard`, { waitUntil: 'domcontentloaded' });
     await waitForFlutterReady(page);
     await waitForRestoredWorkspace(page);
     await openProfile(page);
