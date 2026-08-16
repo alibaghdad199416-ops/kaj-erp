@@ -8,6 +8,7 @@ import { signInLocalUserAndPrimeBrowser } from './helpers/local_supabase_auth';
 test.setTimeout(90_000);
 
 const artifactDir = path.resolve('playwright-artifacts/phase-2a/profile/bootstrap');
+const profileBuildMarker = 'quality-line-user-profile-action';
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim() ?? '';
@@ -44,11 +45,27 @@ function profileAction(page: Page) {
 
 test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request }) => {
   fs.mkdirSync(artifactDir, { recursive: true });
-  const email = requiredEnv('E2E_ADMIN_EMAIL');
-  const password = requiredEnv('E2E_ADMIN_PASSWORD');
   const appUrl = baseURL ?? 'http://127.0.0.1:8080';
 
-  console.log('[profile-bootstrap] 1/7 obtaining and verifying local Supabase session');
+  console.log('[profile-bootstrap] 1/8 verifying served Flutter build marker');
+  const compiledResponse = await request.get(`${appUrl}/main.dart.js`, {
+    timeout: 20_000,
+  });
+  expect(
+    compiledResponse.ok(),
+    `Unable to read served main.dart.js: HTTP ${compiledResponse.status()}`,
+  ).toBeTruthy();
+  const compiledJs = await compiledResponse.text();
+  expect(
+    compiledJs.includes(profileBuildMarker),
+    `Served Flutter build is stale. Expected marker ${profileBuildMarker} in main.dart.js. Fetch the current branch, rebuild build\\web, and restart/refresh the local server before running E2E.`,
+  ).toBeTruthy();
+  console.log('[profile-bootstrap] served build marker present=true');
+
+  const email = requiredEnv('E2E_ADMIN_EMAIL');
+  const password = requiredEnv('E2E_ADMIN_PASSWORD');
+
+  console.log('[profile-bootstrap] 2/8 obtaining and verifying local Supabase session');
   const { runtime } = await signInLocalUserAndPrimeBrowser({
     request,
     page,
@@ -56,13 +73,13 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     password,
   });
 
-  console.log('[profile-bootstrap] 2/7 opening protected Flutter settings route');
+  console.log('[profile-bootstrap] 3/8 opening protected Flutter settings route');
   await page.goto(`${appUrl}#/settings`, {
     waitUntil: 'domcontentloaded',
     timeout: 20_000,
   });
 
-  console.log('[profile-bootstrap] 3/7 waiting for Flutter glass pane');
+  console.log('[profile-bootstrap] 4/8 waiting for Flutter glass pane');
   await page.waitForSelector('flt-glass-pane', {
     state: 'attached',
     timeout: 45_000,
@@ -80,7 +97,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     'Injected Supabase session disappeared from localStorage',
   ).not.toBeNull();
 
-  console.log('[profile-bootstrap] 4/7 waiting for protected-route session restoration');
+  console.log('[profile-bootstrap] 5/8 waiting for protected-route session restoration');
   await expect
     .poll(
       () => page.url(),
@@ -93,10 +110,10 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
   expect(page.url(), 'Persisted session was rejected and redirected to login').not.toContain('#/login');
   console.log(`[profile-bootstrap] restored url=${page.url()}`);
 
-  console.log('[profile-bootstrap] 5/7 enabling semantics on the restored workspace');
+  console.log('[profile-bootstrap] 6/8 enabling semantics on the restored workspace');
   await enableFlutterSemantics(page);
 
-  console.log('[profile-bootstrap] 6/7 locating semantic profile action');
+  console.log('[profile-bootstrap] 7/8 locating semantic profile action');
   const action = profileAction(page);
   try {
     await expect(action).toBeVisible({ timeout: 15_000 });
@@ -118,7 +135,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     fullPage: true,
   });
 
-  console.log('[profile-bootstrap] 7/7 opening and verifying profile dialog');
+  console.log('[profile-bootstrap] 8/8 opening and verifying profile dialog');
   await action.click({ timeout: 10_000 });
   const save = page.getByRole('button', {
     name: /^(Save changes|حفظ التغييرات)$/,
