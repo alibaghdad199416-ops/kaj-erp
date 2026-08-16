@@ -52,16 +52,16 @@ function profileAction(page: Page) {
     .last();
 }
 
-async function waitForStableAuthenticatedWorkspace(page: Page): Promise<string> {
+async function waitForStableDashboard(page: Page): Promise<string> {
   await expect
     .poll(
       () => page.url(),
       {
         timeout: 45_000,
-        message: 'Protected route did not finish session restoration',
+        message: 'Protected dashboard did not finish session restoration',
       },
     )
-    .toMatch(/#\/(settings|dashboard)$/);
+    .toMatch(/#\/dashboard$/);
 
   let previous = '';
   let stableSamples = 0;
@@ -71,12 +71,12 @@ async function waitForStableAuthenticatedWorkspace(page: Page): Promise<string> 
     if (current.includes('#/login')) {
       throw new Error(`Persisted session was rejected and redirected to login: ${current}`);
     }
-    if (!/#\/(settings|dashboard)$/.test(current)) {
+    if (!/#\/dashboard$/.test(current)) {
       previous = current;
       stableSamples = 0;
     } else if (current === previous) {
       stableSamples += 1;
-      if (stableSamples >= 2) return current;
+      if (stableSamples >= 3) return current;
     } else {
       previous = current;
       stableSamples = 0;
@@ -84,7 +84,7 @@ async function waitForStableAuthenticatedWorkspace(page: Page): Promise<string> 
     await page.waitForTimeout(750);
   }
 
-  throw new Error(`Authenticated workspace route did not stabilize. Last URL=${page.url()}`);
+  throw new Error(`Authenticated dashboard route did not stabilize. Last URL=${page.url()}`);
 }
 
 test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request }) => {
@@ -117,8 +117,8 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     password,
   });
 
-  console.log('[profile-bootstrap] 3/8 opening protected Flutter settings route');
-  await page.goto(`${appUrl}#/settings`, {
+  console.log('[profile-bootstrap] 3/8 opening protected Flutter dashboard route');
+  await page.goto(`${appUrl}#/dashboard`, {
     waitUntil: 'domcontentloaded',
     timeout: 20_000,
   });
@@ -141,11 +141,11 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
     'Injected Supabase session disappeared from localStorage',
   ).not.toBeNull();
 
-  console.log('[profile-bootstrap] 5/8 waiting for stable authenticated workspace');
-  const stableUrl = await waitForStableAuthenticatedWorkspace(page);
+  console.log('[profile-bootstrap] 5/8 waiting for stable authenticated dashboard');
+  const stableUrl = await waitForStableDashboard(page);
   console.log(`[profile-bootstrap] stable authenticated url=${stableUrl}`);
 
-  console.log('[profile-bootstrap] 6/8 enabling semantics on the stable workspace');
+  console.log('[profile-bootstrap] 6/8 enabling semantics on the stable dashboard');
   await enableFlutterSemantics(page);
 
   console.log('[profile-bootstrap] 7/8 locating semantic profile action');
@@ -159,7 +159,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
       `[profile-bootstrap] profile semantics missing url=${page.url()} labels=${JSON.stringify(labels)} buttons=${JSON.stringify(buttons)}`,
     );
     throw new Error(
-      `Stable authenticated workspace did not expose the semantic profile action. ` +
+      `Stable authenticated dashboard did not expose the semantic profile action. ` +
         `url=${page.url()}; aria labels=${JSON.stringify(labels)}; buttons=${JSON.stringify(buttons)}; cause=${String(error)}`,
     );
   }
