@@ -174,7 +174,7 @@ npm run build:web
 **Status:** ✅ OPERATIONAL
 
 **Services Running:**
-- PostgreSQL Database: `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+- PostgreSQL Database: `postgresql://[REDACTED]@127.0.0.1:54322/postgres`
 - REST API: `http://127.0.0.1:54321`
 - Studio: `http://127.0.0.1:54323`
 

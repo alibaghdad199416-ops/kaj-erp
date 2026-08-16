@@ -28,10 +28,12 @@ class AppTopProfileAction extends StatelessWidget {
         width: 54,
         height: 68,
         child: Center(
-          child: Tooltip(
+          child: Semantics(
             key: const ValueKey('quality-line-profile-tooltip-button-v2'),
-            message: profileLabel,
+            label: profileLabel,
+            button: true,
             child: IconButton(
+              tooltip: profileLabel,
               onPressed: () => showCurrentUserProfileEditor(context),
               icon: ExcludeSemantics(
                 child: AppUserAvatar(

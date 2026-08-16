@@ -16,8 +16,8 @@ import {
 test.setTimeout(300_000);
 
 const artifactDir = path.resolve('playwright-artifacts/phase-2a/profile');
-const avatar1 = path.resolve('playwright-tests/fixtures/avatar1.png');
-const avatar2 = path.resolve('playwright-tests/fixtures/avatar2.png');
+const avatar1 = path.resolve('web/icons/Icon-192.png');
+const avatar2 = path.resolve('web/icons/Icon-maskable-192.png');
 const profileBuildMarker = 'quality-line-profile-tooltip-button-v2';
 
 function requiredEnv(name: string): string {
@@ -184,28 +184,29 @@ async function waitForRestoredWorkspace(page: Page): Promise<void> {
 }
 
 function userAvatar(page: Page) {
-  return page
+  const semanticAction = page
     .locator(
       '[aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"], [aria-label="User avatar"], [aria-label="صورة المستخدم"]',
     )
     .last();
+  return semanticAction.locator('[flt-tappable]');
 }
 
 function changePhotoButton(page: Page) {
   return page.getByRole('button', {
-    name: /^(Change photo|تغيير الصورة)$/,
+    name: /^(Change photo|تغيير الصورة)$/i,
   });
 }
 
 function removePhotoButton(page: Page) {
   return page.getByRole('button', {
-    name: /^(Remove photo|إزالة الصورة)$/,
+    name: /^(Remove photo|إزالة الصورة)$/i,
   });
 }
 
 function saveChangesButton(page: Page) {
   return page.getByRole('button', {
-    name: /^(Save changes|حفظ التغييرات)$/,
+    name: /^(Save changes|حفظ التغييرات)$/i,
   });
 }
 

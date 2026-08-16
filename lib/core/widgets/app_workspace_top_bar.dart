@@ -153,15 +153,21 @@ class AppWorkspaceTopBar extends StatelessWidget {
                             : (ar ? 'مستخدم معتمد' : 'Authorized user')),
                 ),
               const SizedBox(width: 6),
-              Tooltip(
+              Semantics(
                 key: const ValueKey('quality-line-profile-tooltip-button-v2'),
-                message: profileLabel,
+                label: profileLabel,
+                button: true,
                 child: IconButton(
+                  tooltip: profileLabel,
                   onPressed: () => showCurrentUserProfileEditor(context),
                   style: IconButton.styleFrom(
                     foregroundColor: Theme.of(context).colorScheme.onSurface,
-                    hoverColor: KajDesignTokens.electricBlue.withValues(alpha: .14),
-                    highlightColor: KajDesignTokens.electricBlue.withValues(alpha: .10),
+                    hoverColor: KajDesignTokens.electricBlue.withValues(
+                      alpha: .14,
+                    ),
+                    highlightColor: KajDesignTokens.electricBlue.withValues(
+                      alpha: .10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(11),
                     ),

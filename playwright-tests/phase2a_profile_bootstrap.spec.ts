@@ -45,11 +45,12 @@ async function buttonDiagnostics(page: Page): Promise<Array<{ label: string | nu
 }
 
 function profileAction(page: Page) {
-  return page
+  const semanticAction = page
     .locator(
       '[aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"], [aria-label="User avatar"], [aria-label="صورة المستخدم"]',
     )
     .last();
+  return semanticAction.locator('[flt-tappable]');
 }
 
 async function waitForStableDashboard(page: Page): Promise<string> {
@@ -174,7 +175,7 @@ test('Phase 2A profile bootstrap diagnostic', async ({ page, baseURL, request })
   console.log('[profile-bootstrap] 8/8 opening and verifying profile dialog');
   await action.click({ timeout: 10_000 });
   const save = page.getByRole('button', {
-    name: /^(Save changes|حفظ التغييرات)$/,
+    name: /^(Save changes|حفظ التغييرات)$/i,
   });
   await expect(save).toBeVisible({ timeout: 15_000 });
   await page.screenshot({

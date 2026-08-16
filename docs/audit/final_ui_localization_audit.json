@@ -1,8 +1,8 @@
 {
-  "dartFiles": 355,
+  "dartFiles": 356,
   "unlocalizedRawUiTextCandidates": 0,
   "runtimeLocalizedAppTextLiterals": 374,
-  "nonDesignSystemColorLiterals": 78,
+  "nonDesignSystemColorLiterals": 79,
   "nonDesignSystemRadiusLiterals": 111,
   "rawUiText": [],
   "runtimeLocalizedAppText": [
@@ -23,7 +23,7 @@
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 256,
+      "line": 273,
       "value": "Ctrl + K"
     },
     {
@@ -1503,22 +1503,22 @@
     },
     {
       "file": "lib/features/settings/access/widgets/permission_guard.dart",
-      "line": 63,
+      "line": 85,
       "value": "غير مصرح"
     },
     {
       "file": "lib/features/settings/access/widgets/permission_guard.dart",
-      "line": 78,
+      "line": 100,
       "value": "ليس لديك صلاحية للوصول إلى هذه الصفحة"
     },
     {
       "file": "lib/features/settings/access/widgets/permission_guard.dart",
-      "line": 84,
+      "line": 106,
       "value": "الصلاحية المطلوبة: ${widget.permission}"
     },
     {
       "file": "lib/features/settings/access/widgets/permission_guard.dart",
-      "line": 98,
+      "line": 120,
       "value": "العودة إلى لوحة التحكم"
     },
     {
@@ -1934,28 +1934,33 @@
       "value": "Color(0xFFFFC857)"
     },
     {
+      "file": "lib/core/widgets/app_top_profile_action.dart",
+      "line": 26,
+      "value": "Color(0xFF050B10)"
+    },
+    {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 307,
+      "line": 324,
       "value": "Color(0xFFD3A42F)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 309,
+      "line": 326,
       "value": "Color(0xFF2EB67D)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 310,
+      "line": 327,
       "value": "Color(0xFFE15A5A)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 488,
+      "line": 505,
       "value": "Color(0xFFE84E4E)"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 490,
+      "line": 507,
       "value": "Color(0xFF071019)"
     },
     {
@@ -2312,57 +2317,57 @@
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 62,
+      "line": 63,
       "value": "14"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 156,
+      "line": 172,
       "value": "11"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 190,
+      "line": 207,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 251,
+      "line": 268,
       "value": "6"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 274,
+      "line": 291,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 280,
+      "line": 297,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 286,
+      "line": 303,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 327,
+      "line": 344,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 334,
+      "line": 351,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 441,
+      "line": 458,
       "value": "10"
     },
     {
       "file": "lib/core/widgets/app_workspace_top_bar.dart",
-      "line": 489,
+      "line": 506,
       "value": "9"
     },
     {

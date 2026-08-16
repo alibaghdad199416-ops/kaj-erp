@@ -66,9 +66,7 @@ class AppUserAvatar extends StatelessWidget {
       );
     }
 
-    final label = context.l10n.isArabic
-        ? 'تعديل الملف الشخصي'
-        : 'Edit profile';
+    final label = context.l10n.isArabic ? 'تعديل الملف الشخصي' : 'Edit profile';
     return Semantics(
       container: true,
       excludeSemantics: true,
