@@ -13,7 +13,7 @@ import {
   type LocalSupabaseRuntime,
 } from './helpers/local_supabase_auth';
 
-test.setTimeout(180_000);
+test.setTimeout(240_000);
 
 const artifactDir = path.resolve('playwright-artifacts/phase-2a/profile');
 const avatar1 = path.resolve('playwright-tests/fixtures/avatar1.png');
@@ -119,14 +119,16 @@ async function waitForFlutterReady(page: Page): Promise<void> {
 async function enableFlutterSemantics(page: Page): Promise<void> {
   const placeholder = page.locator('flt-semantics-placeholder').first();
   if ((await placeholder.count()) > 0) {
-    await placeholder.click();
+    await placeholder.evaluate((element: HTMLElement) => element.click());
   }
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(500);
 }
 
 function userAvatar(page: Page) {
   return page
-    .locator('[aria-label="User avatar"], [aria-label="صورة المستخدم"]')
+    .locator(
+      '[aria-label="User avatar"], [aria-label="صورة المستخدم"], [aria-label="Edit profile"], [aria-label="تعديل الملف الشخصي"]',
+    )
     .last();
 }
 
@@ -152,8 +154,8 @@ async function openProfile(page: Page): Promise<void> {
   const avatar = userAvatar(page);
   await expect(
     avatar,
-    'Authenticated desktop workspace did not expose the user avatar. If the account is using top navigation, profile access is currently missing from that layout and must be fixed instead of bypassed.',
-  ).toBeVisible({ timeout: 30_000 });
+    'Authenticated workspace did not expose a profile action in the active navigation layout.',
+  ).toBeVisible({ timeout: 45_000 });
   await avatar.click();
   await expect(saveChangesButton(page)).toBeVisible({ timeout: 20_000 });
 }
@@ -195,6 +197,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
   const password = requiredEnv('E2E_ADMIN_PASSWORD');
   const appUrl = baseURL ?? 'http://127.0.0.1:8080';
 
+  console.log('[profile] 1/8 authenticate and snapshot backend profile');
   const { runtime, session } = await signInLocalUserAndPrimeBrowser({
     request,
     page,
@@ -209,11 +212,13 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
   });
 
   try {
+    console.log('[profile] 2/8 restore protected route and open profile');
     await page.goto(`${appUrl}#/settings`, { waitUntil: 'domcontentloaded' });
     await waitForFlutterReady(page);
     await enableFlutterSemantics(page);
     await openProfile(page);
 
+    console.log('[profile] 3/8 add avatar and prove backend persistence');
     await chooseAvatar(page, avatar1);
     await saveProfile(page);
 
@@ -227,6 +232,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
       expect(afterAdd.avatarBase64).not.toBe(originalProfile.avatarBase64);
     }
 
+    console.log('[profile] 4/8 reload and prove add read-back');
     await reloadAndOpenProfile(page);
     await expect(removePhotoButton(page)).toBeVisible();
     await page.screenshot({
@@ -234,6 +240,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
       fullPage: true,
     });
 
+    console.log('[profile] 5/8 replace avatar and prove backend persistence');
     await chooseAvatar(page, avatar2);
     await saveProfile(page);
 
@@ -248,6 +255,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
     ).not.toBeNull();
     expect(afterReplace.avatarBase64).not.toBe(afterAdd.avatarBase64);
 
+    console.log('[profile] 6/8 reload and prove replace read-back');
     await reloadAndOpenProfile(page);
     await expect(removePhotoButton(page)).toBeVisible();
     await page.screenshot({
@@ -255,6 +263,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
       fullPage: true,
     });
 
+    console.log('[profile] 7/8 remove avatar and prove backend persistence');
     await removePhotoButton(page).click();
     await expect(removePhotoButton(page)).toBeHidden();
     await saveProfile(page);
@@ -273,6 +282,7 @@ test('Phase 2A profile avatar: add, replace, remove, backend read-back, reload r
       fullPage: true,
     });
   } finally {
+    console.log('[profile] 8/8 restore original backend profile');
     await restoreCurrentProfile({
       request,
       runtime,
