@@ -20,7 +20,7 @@ MaterialApp _app(Widget home) => MaterialApp(
 
 void main() {
   testWidgets(
-    'module content uses full viewport close-only chrome',
+    'module content uses a full viewport without legacy AppBar chrome',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1400, 900);
@@ -39,7 +39,7 @@ void main() {
                   onPressed: () async {
                     result = await showAppFloatingWindow<bool>(
                       context: context,
-                      title: 'عنوان داخلي لا يظهر كرأس نافذة',
+                      title: 'عنوان خارجي لا يظهر كرأس نافذة',
                       maxWidth: 900,
                       maxHeight: 650,
                       builder: (windowContext) => Scaffold(
@@ -97,9 +97,13 @@ void main() {
         find.byKey(const ValueKey('module-window-maximize')),
         findsNothing,
       );
-      expect(find.byType(AppBar), findsOneWidget);
-      expect(find.text('عنوان داخلي لا يظهر كرأس نافذة'), findsNothing);
-      expect(find.text('عنوان AppBar قديم لا يظهر'), findsOneWidget);
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.text('عنوان خارجي لا يظهر كرأس نافذة'), findsNothing);
+      expect(find.text('عنوان AppBar قديم لا يظهر'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('module-inline-actions')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('inline-appbar-action')),
         findsOneWidget,
@@ -123,7 +127,7 @@ void main() {
   );
 
   testWidgets(
-    'AlertDialog title and actions remain full viewport content',
+    'AlertDialog title and actions remain inline full viewport content',
     (tester) async {
       bool? closed;
       await tester.pumpWidget(

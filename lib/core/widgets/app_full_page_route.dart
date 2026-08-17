@@ -9,10 +9,11 @@ import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
 /// Opens operational module content as a true full-viewport workspace.
 ///
-/// The legacy size arguments remain in the API for source compatibility, but
-/// operational workspaces no longer render as centered/resizable boxes. This
-/// keeps modules usable at 100% browser zoom and removes the duplicated outer
-/// window header while preserving close/dirty-state semantics.
+/// Legacy size arguments remain accepted for source compatibility only.
+/// Operational workspaces intentionally fill the available viewport, strip
+/// legacy window/AppBar chrome, and keep only functional module content plus a
+/// compact close control. This makes forms usable at 100% browser zoom without
+/// nested boxes or duplicated modal headers.
 Future<T?> showAppFullPageRoute<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -31,7 +32,7 @@ Future<T?> showAppFullPageRoute<T>({
     barrierDismissible: false,
     barrierLabel: title ?? 'module-workspace',
     barrierColor: Theme.of(context).scaffoldBackgroundColor,
-    transitionDuration: const Duration(milliseconds: 180),
+    transitionDuration: const Duration(milliseconds: 160),
     pageBuilder: (dialogContext, _, _) => _AppFullViewportWorkspace<T>(
       title: title,
       builder: builder,
@@ -155,9 +156,6 @@ class _AppFullViewportWorkspaceState<T>
                     ),
                   ),
                 ),
-                // Keep close access outside the module's own AppBar/action area.
-                // `start` is intentionally opposite Material's usual end-aligned
-                // FAB/action placement in both LTR and RTL layouts.
                 PositionedDirectional(
                   start: 12,
                   bottom: 12,
@@ -184,9 +182,9 @@ class _PremiumWorkspaceTheme extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = Theme.of(context);
     final controlStyle = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(0, 42)),
+      minimumSize: const WidgetStatePropertyAll(Size(0, 44)),
       padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       ),
       textStyle: WidgetStatePropertyAll(
         base.textTheme.labelLarge?.copyWith(
@@ -209,8 +207,8 @@ class _PremiumWorkspaceTheme extends StatelessWidget {
         inputDecorationTheme: base.inputDecorationTheme.copyWith(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 13,
-            vertical: 13,
+            horizontal: 14,
+            vertical: 14,
           ),
         ),
       ),
@@ -220,7 +218,8 @@ class _PremiumWorkspaceTheme extends StatelessWidget {
 }
 
 Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
-  if (child is AppEntityPage || child is Scaffold) return child;
+  if (child is AppEntityPage) return child;
+  if (child is Scaffold) return _scaffoldAsHeaderlessWorkspace(context, child);
 
   if (child is AlertDialog) {
     final actions = child.actions ?? const <Widget>[];
@@ -231,7 +230,7 @@ Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
         children: [
           if (child.title != null)
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 24, 72, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 22, 72, 6),
               child: DefaultTextStyle.merge(
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
@@ -241,20 +240,29 @@ Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
             ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 24, 24),
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 14, 24, 24),
               child: child.content ?? const SizedBox.shrink(),
             ),
           ),
           if (actions.isNotEmpty)
             SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 20),
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: actions,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).dividerColor.withValues(alpha: .45),
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 18),
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: actions,
+                  ),
                 ),
               ),
             ),
@@ -270,6 +278,83 @@ Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
   return SizedBox.expand(child: child);
 }
 
+Widget _scaffoldAsHeaderlessWorkspace(BuildContext context, Scaffold source) {
+  final legacyAppBar = source.appBar;
+  final appBar = legacyAppBar is AppBar ? legacyAppBar : null;
+  final legacyActions = <Widget>[
+    if (appBar?.leading != null) appBar!.leading!,
+    ...?appBar?.actions,
+  ];
+  final bottom = appBar?.bottom;
+
+  Widget body = source.body ?? const SizedBox.shrink();
+  if (bottom != null) {
+    body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SafeArea(bottom: false, child: bottom),
+        Expanded(child: body),
+      ],
+    );
+  }
+
+  final scaffold = Scaffold(
+    key: source.key,
+    body: body,
+    floatingActionButton: source.floatingActionButton,
+    floatingActionButtonLocation: source.floatingActionButtonLocation,
+    floatingActionButtonAnimator: source.floatingActionButtonAnimator,
+    persistentFooterButtons: source.persistentFooterButtons,
+    drawer: source.drawer,
+    onDrawerChanged: source.onDrawerChanged,
+    endDrawer: source.endDrawer,
+    onEndDrawerChanged: source.onEndDrawerChanged,
+    bottomNavigationBar: source.bottomNavigationBar,
+    bottomSheet: source.bottomSheet,
+    backgroundColor: source.backgroundColor,
+    resizeToAvoidBottomInset: source.resizeToAvoidBottomInset,
+    primary: source.primary,
+    drawerDragStartBehavior: source.drawerDragStartBehavior,
+    extendBody: source.extendBody,
+    extendBodyBehindAppBar: false,
+    drawerScrimColor: source.drawerScrimColor,
+    drawerEdgeDragWidth: source.drawerEdgeDragWidth,
+    drawerEnableOpenDragGesture: source.drawerEnableOpenDragGesture,
+    endDrawerEnableOpenDragGesture: source.endDrawerEnableOpenDragGesture,
+    restorationId: source.restorationId,
+  );
+
+  if (legacyActions.isEmpty) return scaffold;
+
+  return Stack(
+    fit: StackFit.expand,
+    children: [
+      Positioned.fill(child: scaffold),
+      PositionedDirectional(
+        top: 12,
+        end: 12,
+        child: SafeArea(
+          minimum: const EdgeInsets.all(4),
+          child: Material(
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: .94),
+            elevation: 1,
+            borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Wrap(
+                key: const ValueKey('module-inline-actions'),
+                spacing: 2,
+                runSpacing: 2,
+                children: legacyActions,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 class _FloatingCloseButton extends StatelessWidget {
   const _FloatingCloseButton({required this.onClose});
 
@@ -278,8 +363,8 @@ class _FloatingCloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).colorScheme.surface.withValues(alpha: .92),
-      elevation: 2,
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: .94),
+      elevation: 1,
       borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
       child: Tooltip(
         message: context.l10n.isArabic ? 'إغلاق' : 'Close',
@@ -288,8 +373,8 @@ class _FloatingCloseButton extends StatelessWidget {
           onTap: () => unawaited(onClose()),
           borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
           child: SizedBox(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             child: Icon(
               Icons.close_rounded,
               size: 21,
