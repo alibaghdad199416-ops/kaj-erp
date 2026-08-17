@@ -7,6 +7,10 @@ Invoke-Step 'dart format' { npm run format }
 Invoke-Step 'R49 complete workspace gates' { npm run verify:all }
 Invoke-Step 'format check' { npm run format:check }
 Invoke-Step 'flutter analyze' { npm run analyze }
-Invoke-Step 'flutter test' { npm run test }
-Invoke-Step 'fresh web release build' { npm run build:web }
+# Tests intentionally exercise the LOCAL DEVELOPMENT runtime contract.
+Invoke-Step 'flutter test (local runtime)' { npm run test }
+# The artifact that can reach Firebase Hosting must always use production defines.
+Invoke-Step 'fresh production web release build' {
+    powershell -NoProfile -ExecutionPolicy Bypass -File tool/build_production_web.ps1
+}
 Write-Host "`nPASS R49 installed-workspace validation" -ForegroundColor Green
