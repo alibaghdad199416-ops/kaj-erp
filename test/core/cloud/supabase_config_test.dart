@@ -63,6 +63,72 @@ void main() {
       );
     });
 
+    test('runtime target is mandatory and never falls back to production', () {
+      expect(
+        SupabaseConfig.validateRuntimeContract(
+          target: '',
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: 'sb_publishable_example',
+          allowLocalDev: false,
+        ),
+        contains('KAJ_BACKEND_TARGET'),
+      );
+      expect(
+        SupabaseConfig.validateRuntimeContract(
+          target: 'staging',
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: 'sb_publishable_example',
+          allowLocalDev: false,
+        ),
+        contains('KAJ_BACKEND_TARGET'),
+      );
+    });
+
+    test('local runtime cannot point to hosted production', () {
+      expect(
+        SupabaseConfig.validateRuntimeContract(
+          target: 'local',
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: 'sb_publishable_example',
+          allowLocalDev: true,
+        ),
+        contains('local'),
+      );
+    });
+
+    test('production runtime cannot point to local Supabase', () {
+      expect(
+        SupabaseConfig.validateRuntimeContract(
+          target: 'production',
+          projectUrl: 'http://127.0.0.1:54321',
+          publishableKey: 'sb_publishable_local_example',
+          allowLocalDev: true,
+        ),
+        isNotNull,
+      );
+    });
+
+    test('explicit local and production runtime contracts are accepted', () {
+      expect(
+        SupabaseConfig.validateRuntimeContract(
+          target: 'local',
+          projectUrl: 'http://127.0.0.1:54321',
+          publishableKey: 'sb_publishable_local_example',
+          allowLocalDev: true,
+        ),
+        isNull,
+      );
+      expect(
+        SupabaseConfig.validateRuntimeContract(
+          target: 'production',
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: 'sb_publishable_example',
+          allowLocalDev: false,
+        ),
+        isNull,
+      );
+    });
+
     test('rejects LAN and arbitrary HTTP targets', () {
       for (final url in <String>[
         'http://192.168.1.20:54321',
