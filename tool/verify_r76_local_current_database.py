@@ -65,7 +65,8 @@ assert "resolveLocalDevelopmentOptIn" in config
 assert "!allowLocalDev" in config and "_isLoopback(uri.host)" in config
 assert expected_local_url in active_defines
 assert ".supabase.co" not in active_defines
-assert "dart_defines.json" in run_production
+assert "dart_defines.production.json" in run_production
+assert "dart_defines.json" not in run_production.replace("dart_defines.production.json", "")
 assert "Existing local business data is intentionally preserved" in seed
 
 for marker in (
@@ -99,3 +100,4 @@ print("  - unexpected migration-history drift fails closed")
 print("  - pending migrations are then applied with --local --include-all")
 print("  - no local db reset and no linked/remote database operation")
 print("  - active dart_defines.json is Local Supabase only")
+print("  - production launcher uses dart_defines.production.json only")
