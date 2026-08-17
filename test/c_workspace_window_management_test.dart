@@ -28,13 +28,11 @@ void main() {
             onPressed: () => showAppFullPageRoute<void>(
               context: context,
               title: 'مسودة فاتورة',
-              builder: (windowContext) => Builder(
-                builder: (scopedContext) => FilledButton(
-                  key: const ValueKey('mark-dirty'),
-                  onPressed: () =>
-                      AppWorkspaceWindowScope.markDirty(scopedContext, true),
-                  child: const Text('تعديل'),
-                ),
+              builder: (windowContext) => FilledButton(
+                key: const ValueKey('mark-dirty'),
+                onPressed: () =>
+                    AppWorkspaceWindowScope.markDirty(windowContext, true),
+                child: const Text('تعديل'),
               ),
             ),
             child: const Text('فتح'),
