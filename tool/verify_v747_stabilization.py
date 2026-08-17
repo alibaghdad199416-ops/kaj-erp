@@ -11,7 +11,12 @@ assert 'widget.cashAccounts' not in payment[payment.index('class _PaymentRowCard
 assert 'watch<AccountingController>()' not in maintenance
 assert 'final expenses =' not in maintenance
 assert 'String? _scrapExpenseAccountId;' not in warehouse
-assert "return _PlainContentAsWindow(closeDock: closeDock, child: child);" in route
+assert 'Desktop workspaces intentionally remain bounded' in route
+assert 'module-workspace-window' in route
+assert '_scaffoldAsHeaderlessWorkspace' in route
+assert 'source.floatingActionButton' in route
+assert '_PlainContentAsWindow' not in route
+assert 'closeDock' not in route
 assert "read_text(encoding='utf-8')" in verify
 assert ('18.9.18+189180' in pub) or ('22.9.8+229008' in pub)
-print('PASS V7.4.7 stabilization: analyzer blockers, UTF-8 verifier, and close fallback repaired')
+print('PASS V7.4.7 stabilization: analyzer blockers, UTF-8 verifier, and bounded workspace fallback repaired')
