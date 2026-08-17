@@ -6,10 +6,10 @@ class SupabaseConfig {
   static const String expectedProductionUrl =
       'https://$expectedProductionProjectRef.supabase.co';
 
-  /// Runtime selection is intentionally explicit. A development build must
-  /// declare `local`; a production build must declare `production`. Missing or
-  /// unknown values fail closed rather than falling back to a hosted project.
-  static const String backendTarget = String.fromEnvironment(
+  /// Production is always explicit. Local development may be inferred only
+  /// from a loopback URL, which cannot cross into a hosted Supabase project.
+  /// Any other missing/unknown target fails closed.
+  static const String _explicitBackendTarget = String.fromEnvironment(
     'KAJ_BACKEND_TARGET',
     defaultValue: '',
   );
@@ -36,6 +36,21 @@ class SupabaseConfig {
     'SUPABASE_ALLOW_LOCAL_DEV',
     defaultValue: false,
   );
+
+  static String get backendTarget => resolveBackendTarget(
+    explicitTarget: _explicitBackendTarget,
+    projectUrl: url,
+  );
+
+  static String resolveBackendTarget({
+    required String explicitTarget,
+    required String projectUrl,
+  }) {
+    final explicit = explicitTarget.trim().toLowerCase();
+    if (explicit.isNotEmpty) return explicit;
+    final host = Uri.tryParse(projectUrl.trim())?.host.toLowerCase() ?? '';
+    return _isLoopback(host) ? 'local' : '';
+  }
 
   static bool get allowLocalDev {
     final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
@@ -112,7 +127,7 @@ class SupabaseConfig {
   }) {
     final normalizedTarget = target.trim().toLowerCase();
     if (normalizedTarget != 'local' && normalizedTarget != 'production') {
-      return 'حدد KAJ_BACKEND_TARGET صراحة إلى local أو production.';
+      return 'حدد KAJ_BACKEND_TARGET للإنتاج، أو استخدم Local Supabase على loopback.';
     }
 
     final configurationError = validateConfiguration(
@@ -231,8 +246,7 @@ class SupabaseConfig {
     }
     final uri = Uri.parse(resolvedUrl);
     return uri.scheme == 'https' &&
-        uri.host.toLowerCase() ==
-            '$expectedProductionProjectRef.supabase.co';
+        uri.host.toLowerCase() == '$expectedProductionProjectRef.supabase.co';
   }
 
   static String environmentLabel({
