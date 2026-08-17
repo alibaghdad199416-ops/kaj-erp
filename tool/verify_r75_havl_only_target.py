@@ -1,77 +1,81 @@
 from pathlib import Path
 import json
-import re
 
 root = Path(__file__).resolve().parents[1]
-expected_local_id = "quality_line_erp_local_dev"
-expected_url = "http://127.0.0.1:54321"
+expected_ref = "havlqebmnjdcwmpaaqew"
+expected_url = f"https://{expected_ref}.supabase.co"
+expected_local_url = "http://127.0.0.1:54321"
 
-# R75's original purpose was to prevent runtime drift to an unapproved backend.
-# The approved backend is now Local Supabase only.
-runtime_files = [
-    root / "dart_defines.json",
-    root / "dart_defines.example.json",
-    root / "lib/core/cloud/supabase_config.dart",
-    root / "tool/run_current_web.ps1",
-    root / "tool/prepare_local_current_database.ps1",
-]
-
-hosted_pattern = re.compile(r"https://[a-z0-9]+\.supabase\.co", re.I)
 errors = []
-seen_local = set()
 
-for path in runtime_files:
+production_path = root / "dart_defines.production.json"
+local_path = root / "dart_defines.json"
+config_path = root / "lib/core/cloud/supabase_config.dart"
+run_production_path = root / "tool/run_production_web.ps1"
+run_local_path = root / "tool/run_current_web.ps1"
+
+for path in (production_path, local_path, config_path, run_production_path, run_local_path):
     if not path.is_file():
         errors.append(f"missing operational runtime file: {path.relative_to(root)}")
-        continue
-    text = path.read_text(encoding="utf-8")
-    if hosted_pattern.search(text):
-        errors.append(f"{path.relative_to(root)} still contains a Hosted Supabase URL")
-    if expected_url in text or expected_local_id in text:
-        seen_local.add(path.relative_to(root).as_posix())
 
-required_markers = {
-    "dart_defines.json": expected_url,
-    "dart_defines.example.json": expected_url,
-    "lib/core/cloud/supabase_config.dart": expected_local_id,
-    "tool/run_current_web.ps1": "LOCAL Supabase",
-    "tool/prepare_local_current_database.ps1": expected_local_id,
-}
-for relative, marker in required_markers.items():
-    source = (root / relative).read_text(encoding="utf-8")
-    if marker not in source:
-        errors.append(f"Local Supabase marker is missing from {relative}: {marker}")
+if production_path.is_file():
+    production = json.loads(production_path.read_text(encoding="utf-8"))
+    key = str(production.get("SUPABASE_PUBLISHABLE_KEY") or "")
+    if production.get("SUPABASE_URL") != expected_url:
+        errors.append("production runtime does not target the approved havl Supabase project")
+    if not key.startswith("sb_publishable_"):
+        errors.append("production runtime does not use a publishable browser key")
+    if "service_role" in key.lower() or key.lower().startswith("sb_secret_"):
+        errors.append("production runtime contains a secret Supabase key")
+    if "/rest/v1" in str(production.get("SUPABASE_URL") or ""):
+        errors.append("production runtime must use the Supabase project base URL")
 
-config = (root / "lib/core/cloud/supabase_config.dart").read_text(encoding="utf-8")
-for marker in (
-    expected_url,
-    expected_local_id,
-    "validateRuntime",
-    "isLocalTarget",
-    "_isLoopback(uri.host)",
-):
-    if marker not in config:
-        errors.append(f"SupabaseConfig is missing local-only guard: {marker}")
-if "expectedProductionProjectRef" in config:
-    errors.append("SupabaseConfig still contains the retired Hosted project guard")
-if ".supabase.co" in config:
-    errors.append("SupabaseConfig still contains a Hosted Supabase endpoint")
+if local_path.is_file():
+    local = json.loads(local_path.read_text(encoding="utf-8"))
+    if local.get("SUPABASE_URL") != expected_local_url:
+        errors.append("dart_defines.json must remain the Local Supabase test baseline")
+
+if config_path.is_file():
+    config = config_path.read_text(encoding="utf-8")
+    for marker in (
+        expected_ref,
+        "expectedProductionUrl",
+        "isHostedProductionTarget",
+        "SUPABASE_ALLOW_LOCAL_DEV",
+        "validateRuntime",
+    ):
+        if marker not in config:
+            errors.append(f"SupabaseConfig is missing separated runtime guard: {marker}")
+
+if run_production_path.is_file():
+    production_runner = run_production_path.read_text(encoding="utf-8")
+    for marker in (expected_ref, "dart_defines.production.json"):
+        if marker not in production_runner:
+            errors.append(f"production launcher is missing target marker: {marker}")
+
+if run_local_path.is_file():
+    local_runner = run_local_path.read_text(encoding="utf-8")
+    if "dart_defines.local.generated.json" not in local_runner:
+        errors.append("local launcher does not use its generated Local Supabase runtime")
 
 package = json.loads((root / "package.json").read_text(encoding="utf-8"))
 scripts = package.get("scripts", {})
-if scripts.get("run:web") != scripts.get("run:web:local"):
-    errors.append("default web launcher is not the Local Supabase launcher")
-if "run_current_web.ps1" not in scripts.get("run:web", ""):
-    errors.append("default web launcher does not use run_current_web.ps1")
+if "run_production_web.ps1" not in scripts.get("run:web", ""):
+    errors.append("default web launcher must use hosted production on non-Docker workstations")
+if "run_current_web.ps1" not in scripts.get("run:web:local", ""):
+    errors.append("explicit Local Supabase launcher is missing")
+if "run_production_web.ps1" not in scripts.get("run:web:production", ""):
+    errors.append("explicit hosted production launcher is missing")
 
 if errors:
-    print("FAIL R75 Local-Supabase-only target verification")
+    print("FAIL R75 approved production target verification")
     for error in errors:
         print(f"  - {error}")
     raise SystemExit(1)
 
-print("PASS R75 Local-Supabase-only target verification")
-print(f"  - only active project id: {expected_local_id}")
-print(f"  - only active API URL: {expected_url}")
-print("  - Hosted Supabase targets are rejected from active runtime paths")
-print("  - default web launcher remains Local Supabase")
+print("PASS R75 approved production target verification")
+print(f"  - production Supabase project: {expected_ref}")
+print(f"  - production API: {expected_url}")
+print(f"  - local test API remains separate: {expected_local_url}")
+print("  - production uses only a publishable browser key")
+print("  - default web launcher is production; Local Supabase remains explicit")
