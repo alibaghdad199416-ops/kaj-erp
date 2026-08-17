@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_brand_motif.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
@@ -29,6 +30,29 @@ class KajCommercialHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppWorkspaceChromeScope.hasTopBarOf(context)) {
+      final commandWidgets = <Widget>[
+        ...metrics.map((metric) => KajCommercialMetric(data: metric)),
+        ...actions,
+      ];
+      if (commandWidgets.isEmpty) return const SizedBox.shrink();
+      return SizedBox(
+        height: 44,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var index = 0; index < commandWidgets.length; index++) ...[
+                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+                commandWidgets[index],
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final effectiveAccent = accent ?? KajDesignTokens.champagneGold;
