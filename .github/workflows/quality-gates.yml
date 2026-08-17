@@ -22,6 +22,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm run verify:delivery
+      - run: python -B tool/verify_supabase_environment_split.py
       - run: python -B tool/verify_r70_crm_runtime.py
       - run: python -B tool/verify_r86_phase2b_sales_readback.py
       - run: npm ci
@@ -33,3 +34,5 @@ jobs:
       - run: npm run analyze
       - run: npm run test
       - run: npm run build:web
+      - name: Build production web artifact with production Supabase defines
+        run: flutter build web --release --no-wasm-dry-run --no-web-resources-cdn --dart-define-from-file=dart_defines.production.json
