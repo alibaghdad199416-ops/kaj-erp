@@ -1,15 +1,20 @@
 from pathlib import Path
+import json
 
 root = Path(__file__).resolve().parents[1]
 migrations = root / "supabase" / "migrations"
 dashboard = (root / "lib/features/dashboard/data/dashboard_repository.dart").read_text(
     encoding="utf-8"
 )
-defines = (root / "dart_defines.json").read_text(encoding="utf-8")
+local_runtime = json.loads((root / "dart_defines.json").read_text(encoding="utf-8"))
+production_runtime = json.loads(
+    (root / "dart_defines.production.json").read_text(encoding="utf-8")
+)
 guarded_push = (root / "tool/guarded_supabase_db_push.py").read_text(encoding="utf-8")
 
-expected_local_id = "quality_line_erp_local_dev"
-expected_url = "http://127.0.0.1:54321"
+expected_local_url = "http://127.0.0.1:54321"
+expected_production_ref = "havlqebmnjdcwmpaaqew"
+expected_production_url = f"https://{expected_production_ref}.supabase.co"
 rpc = "erp_r65_get_authoritative_dashboard_snapshot"
 required = {
     "20260814053406_r65_authoritative_dashboard_snapshot.sql": [
@@ -40,8 +45,15 @@ required = {
     ],
 }
 
-assert expected_url in defines, "runtime does not target Local Supabase"
-assert ".supabase.co" not in defines, "active runtime still targets Hosted Supabase"
+assert local_runtime.get("SUPABASE_URL") == expected_local_url, (
+    "local test baseline does not target Local Supabase"
+)
+assert production_runtime.get("SUPABASE_URL") == expected_production_url, (
+    "production runtime does not target the approved Hosted Supabase project"
+)
+assert str(production_runtime.get("SUPABASE_PUBLISHABLE_KEY") or "").startswith(
+    "sb_publishable_"
+)
 assert rpc in dashboard, "Dashboard repository does not call the authoritative R65 RPC"
 assert "erp_r16_get_authorita" not in dashboard, "legacy R16 Dashboard RPC is still referenced"
 assert "db\", \"push\"" in guarded_push or '"db", "push"' in guarded_push
@@ -65,9 +77,9 @@ assert "20260815150000" in versions
 assert versions.index("20260814053406") < versions.index("20260815150000")
 
 print("PASS R72 authoritative Dashboard database deployment contract")
-print(f"  - Local Supabase project: {expected_local_id}")
-print(f"  - Local Supabase API: {expected_url}")
+print(f"  - production Supabase: {expected_production_url}")
+print(f"  - Local Supabase test baseline: {expected_local_url}")
 print(f"  - runtime RPC: {rpc}")
 print("  - R65 + R65.1/.2/.3/.4 migration chain: present")
-print("  - R72 remote schema postcondition + PostgREST reload: present")
-print("  - guarded chronological Supabase db push: required")
+print("  - R72 schema postcondition + PostgREST reload: present")
+print("  - guarded chronological Supabase db push: required for explicit deployment")
