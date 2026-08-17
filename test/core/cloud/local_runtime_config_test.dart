@@ -7,27 +7,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    'authoritative local runtime define file initializes Supabase',
-    () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      if (SupabaseConfig.localProjectId.isEmpty) {
-        expect(SupabaseConfig.isLocalTarget(), isFalse);
-        return;
-      }
-      expect(SupabaseConfig.url, 'http://127.0.0.1:54321');
-      expect(SupabaseConfig.localProjectId, 'quality_line_erp_local_dev');
-      expect(SupabaseConfig.publishableKey, isNotEmpty);
-      expect(SupabaseConfig.publishableKey, isNot(contains('service_role')));
-      expect(SupabaseConfig.publishableKey, isNot(startsWith('sb_secret_')));
-      expect(SupabaseConfig.allowLocalDev, isTrue);
-      expect(SupabaseConfig.validate(), isNull);
-      expect(SupabaseConfig.isConfigured, isTrue);
-      expect(SupabaseConfig.isLocalTarget(), isTrue);
+  test('authoritative production runtime defines initialize Supabase', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
 
-      final result = await CloudBootstrap.initialize(retry: true);
-      expect(result.supabaseReady, isTrue);
-      expect(Supabase.instance.client, isA<SupabaseClient>());
-    },
-  );
+    expect(SupabaseConfig.url, SupabaseConfig.expectedProductionUrl);
+    expect(
+      SupabaseConfig.projectRef,
+      SupabaseConfig.expectedProductionProjectRef,
+    );
+    expect(SupabaseConfig.publishableKey, startsWith('sb_publishable_'));
+    expect(SupabaseConfig.publishableKey, isNot(contains('service_role')));
+    expect(SupabaseConfig.publishableKey, isNot(startsWith('sb_secret_')));
+    expect(SupabaseConfig.allowLocalDev, isFalse);
+    expect(SupabaseConfig.validate(), isNull);
+    expect(SupabaseConfig.isConfigured, isTrue);
+    expect(SupabaseConfig.isLocalTarget(), isFalse);
+    expect(SupabaseConfig.isHostedProductionTarget(), isTrue);
+
+    final result = await CloudBootstrap.initialize(retry: true);
+    expect(result.supabaseReady, isTrue);
+    expect(Supabase.instance.client, isA<SupabaseClient>());
+  });
 }
