@@ -233,12 +233,12 @@ require(
     (
         "'salesorder'",
         "'purchaseorder'",
-        maintenanceOrder,
+        "maintenanceOrder",
         "'stocktransfer'",
         "'stockscrap'",
         "'inventoryinput'",
-        invoice(
-        partnerPayment,
+        "invoice(",
+        "partnerPayment",
         "'journalentry'",
     ),
     "document nomenclature coverage",
