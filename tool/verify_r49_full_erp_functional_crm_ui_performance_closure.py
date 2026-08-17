@@ -145,8 +145,18 @@ gate('R49 production orchestrator validates workspace and uses the bounded migra
      and 'historical != (COMPAT_VERSION,)' in guarded_push
      and 'validate_exceptional_dry_run' in guarded_push
      and 'deploy_r49_production.ps1' in package.get('scripts',{}).get('deploy:production',''))
-gate('Responsive module windows reflow instead of scaling a fixed canvas', 'FittedBox(' not in route and 'preferred.width.clamp(minimum.width, available.width)' in route and 'current.height + details.delta.dy' in route)
-gate('Workspace AlertDialogs receive bounded responsive content instead of unconditional scroll constraints', 'dialog.scrollable' in route and 'width: double.infinity' in route and 'alignment: AlignmentDirectional.topStart' in route)
+gate('Operational module workspaces stay bounded without scaling a fixed canvas',
+     'FittedBox(' not in route
+     and 'Desktop workspaces intentionally remain bounded' in route
+     and 'availableWidth' in route
+     and 'requestedMinWidth' in route
+     and 'math.min(' in route
+     and 'module-workspace-window' in route)
+gate('Workspace AlertDialogs promote title/actions into the single bounded header',
+     'if (child is AlertDialog)' in route
+     and 'headerActions: child.actions ?? const <Widget>[]' in route
+     and 'child.content ?? const SizedBox.shrink()' in route
+     and 'class _WorkspaceHeader' in route)
 gate('Account codes remain text identifiers without numeric parsing', 'double.tryParse' not in erp_display.split('static String accountCode',1)[1].split('static String number',1)[0] and 'BigInt.parse' in erp_display and 'ErpDisplayFormatter.accountCode(raw)' in account_model)
 gate('Workflow cards visibly separate logistics, accounting, invoice and payment', all(x in workflow_card for x in ('Delivery','Receipt','Not posted','القيد المحاسبي','Accounting entry','accountingOwner','invoiceRemaining','paymentStatus')))
 gate('Sales invoice creation is backend-idempotent under concurrent retry',
