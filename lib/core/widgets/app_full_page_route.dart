@@ -133,35 +133,34 @@ class _AppFullViewportWorkspaceState<T>
       child: Material(
         key: const ValueKey('module-full-page-route'),
         color: Theme.of(context).scaffoldBackgroundColor,
-        child: SafeArea(
-          top: false,
-          bottom: false,
-          child: AppWorkspaceWindowScope(
-            windowId: 0,
-            title: widget.title?.trim() ?? '',
-            close: _close,
-            requestClose: _requestClose,
-            setDirty: _setDirty,
-            isDirty: _dirty,
-            child: _PremiumWorkspaceTheme(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned.fill(
-                    child: RepaintBoundary(
-                      child: _normalizeFullViewportContent(
-                        context,
-                        widget.builder(context),
-                      ),
+        child: AppWorkspaceWindowScope(
+          windowId: 0,
+          title: widget.title?.trim() ?? '',
+          close: _close,
+          requestClose: _requestClose,
+          setDirty: _setDirty,
+          isDirty: _dirty,
+          child: _PremiumWorkspaceTheme(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: _normalizeFullViewportContent(
+                      context,
+                      widget.builder(context),
                     ),
                   ),
-                  PositionedDirectional(
-                    top: 12,
-                    end: 12,
+                ),
+                PositionedDirectional(
+                  top: 12,
+                  end: 12,
+                  child: SafeArea(
+                    minimum: const EdgeInsets.all(4),
                     child: _FloatingCloseButton(onClose: _requestClose),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -215,41 +214,12 @@ class _PremiumWorkspaceTheme extends StatelessWidget {
 }
 
 Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
-  if (child is AppEntityPage) return child;
-
-  if (child is Scaffold) {
-    return Scaffold(
-      key: child.key,
-      appBar: child.appBar,
-      body: child.body,
-      floatingActionButton: child.floatingActionButton,
-      floatingActionButtonLocation: child.floatingActionButtonLocation,
-      floatingActionButtonAnimator: child.floatingActionButtonAnimator,
-      persistentFooterButtons: child.persistentFooterButtons,
-      drawer: child.drawer,
-      onDrawerChanged: child.onDrawerChanged,
-      endDrawer: child.endDrawer,
-      onEndDrawerChanged: child.onEndDrawerChanged,
-      bottomNavigationBar: child.bottomNavigationBar,
-      bottomSheet: child.bottomSheet,
-      backgroundColor: child.backgroundColor,
-      resizeToAvoidBottomInset: child.resizeToAvoidBottomInset,
-      primary: child.primary,
-      drawerDragStartBehavior: child.drawerDragStartBehavior,
-      extendBody: child.extendBody,
-      extendBodyBehindAppBar: child.extendBodyBehindAppBar,
-      drawerScrimColor: child.drawerScrimColor,
-      drawerEdgeDragWidth: child.drawerEdgeDragWidth,
-      drawerEnableOpenDragGesture: child.drawerEnableOpenDragGesture,
-      endDrawerEnableOpenDragGesture: child.endDrawerEnableOpenDragGesture,
-      restorationId: child.restorationId,
-    );
-  }
+  if (child is AppEntityPage || child is Scaffold) return child;
 
   if (child is AlertDialog) {
     final actions = child.actions ?? const <Widget>[];
     return Material(
-      color: child.backgroundColor ?? Colors.transparent,
+      color: child.backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
