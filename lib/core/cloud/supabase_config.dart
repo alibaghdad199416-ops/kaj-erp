@@ -9,9 +9,9 @@ class SupabaseConfig {
   static const String _defaultPublishableKey = '';
   static const String _defaultLocalProjectId = '';
 
-  /// The checked-in runtime targets the intended hosted Supabase project.
-  /// Local Supabase remains available only through the generated local runtime
-  /// file, which opts in explicitly with SUPABASE_ALLOW_LOCAL_DEV=true.
+  /// Production uses dart_defines.production.json. The tracked dart_defines.json
+  /// remains the historical Local Supabase test baseline, and the generated
+  /// local runtime may additionally provide an explicit local project id.
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: _defaultProjectUrl,
@@ -35,10 +35,14 @@ class SupabaseConfig {
     defaultValue: false,
   );
 
-  static bool get allowLocalDev => resolveLocalDevelopmentOptIn(
-    explicitAllowLocalDev: _explicitAllowLocalDev,
-    localProjectId: localProjectId,
-  );
+  static bool get allowLocalDev {
+    final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+    return _isLoopback(host) ||
+        resolveLocalDevelopmentOptIn(
+          explicitAllowLocalDev: _explicitAllowLocalDev,
+          localProjectId: localProjectId,
+        );
+  }
 
   static bool resolveLocalDevelopmentOptIn({
     required bool explicitAllowLocalDev,
@@ -150,7 +154,9 @@ class SupabaseConfig {
     final resolvedUrl = (projectUrl ?? url).trim();
     final resolvedKey = (publishableKey ?? SupabaseConfig.publishableKey)
         .trim();
-    final allowed = allowLocalDevelopment ?? allowLocalDev;
+    final allowed = allowLocalDevelopment ??
+        (_isLoopback(Uri.tryParse(resolvedUrl)?.host.toLowerCase() ?? '') ||
+            allowLocalDev);
     if (validateConfiguration(
           projectUrl: resolvedUrl,
           publishableKey: resolvedKey,
