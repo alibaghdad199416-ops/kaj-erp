@@ -15,9 +15,9 @@ import 'app_workspace_chrome_scope.dart';
 /// The page keeps one continuous business canvas. Headerless embedded modules
 /// deliberately use tighter edge spacing so tabs, filters and business content
 /// remain visually connected instead of appearing as separate stacked boxes.
-/// When [AppModuleShell] already renders its desktop workspace top bar, this
-/// page automatically suppresses the duplicate section title and keeps actions,
-/// statistics and filters in the connected command canvas below that bar.
+/// When the `AppModuleShell` already renders its desktop workspace top bar,
+/// this page automatically suppresses the duplicate section title and keeps
+/// actions, statistics and filters in the connected command canvas below it.
 class AppEntityPage extends StatelessWidget {
   const AppEntityPage({
     super.key,
