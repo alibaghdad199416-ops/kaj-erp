@@ -84,7 +84,7 @@ class AppPillTabBar extends StatelessWidget implements PreferredSizeWidget {
                 color: KajDesignTokens.electricBlue.withValues(alpha: .52),
               ),
             ),
-            indicatorWeight: 0,
+            indicatorWeight: 1,
             labelColor: dark ? Colors.white : scheme.onSurface,
             unselectedLabelColor: scheme.onSurfaceVariant,
             labelPadding: const EdgeInsetsDirectional.only(end: 5),
