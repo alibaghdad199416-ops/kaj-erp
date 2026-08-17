@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// One polished non-wrapping command/metric rail shared by ERP modules.
+/// Polished command/metric rail shared by ERP modules.
+///
+/// Short rails stay single-line and horizontally scrollable. Dense navigation
+/// rails automatically wrap on desktop so every destination remains visible at
+/// 100% browser zoom instead of ending in a clipped, partially visible chip.
 class AppHorizontalStrip extends StatelessWidget {
   const AppHorizontalStrip({
     super.key,
@@ -17,20 +21,32 @@ class AppHorizontalStrip extends StatelessWidget {
   final CrossAxisAlignment alignment;
   final double minControlHeight;
 
+  Widget _item(Widget child) => ConstrainedBox(
+    constraints: BoxConstraints(minHeight: minControlHeight),
+    child: Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: child,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    if (children.length >= 8 && MediaQuery.sizeOf(context).width >= 900) {
+      return Padding(
+        padding: padding,
+        child: Wrap(
+          spacing: spacing,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: children.map(_item).toList(growable: false),
+        ),
+      );
+    }
+
     final spaced = <Widget>[];
     for (var index = 0; index < children.length; index++) {
       if (index > 0) spaced.add(SizedBox(width: spacing));
-      spaced.add(
-        ConstrainedBox(
-          constraints: BoxConstraints(minHeight: minControlHeight),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: children[index],
-          ),
-        ),
-      );
+      spaced.add(_item(children[index]));
     }
 
     return ScrollConfiguration(
