@@ -101,11 +101,14 @@ require(
         "AppWindowCloseButton",
         "module-inline-close",
         "child is AppEntityPage",
-        "showCloseOverlay: false",
-        "scrollbars: false",
-        "overscroll: false",
+        "Desktop workspaces intentionally remain bounded",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "module-workspace-window",
+        "Clip.antiAlias",
     ),
-    "one-line commands and headless module windows",
+    "one-line commands and bounded module workspaces",
 )
 require(
     pills + filter_bar + accounting,
@@ -276,7 +279,7 @@ if errors:
 
 print("PASS V7.3.8 full requirements verification")
 print("  - heavy module tabs are lazy and hidden controllers are not refreshed")
-print("  - command/metric rows stay horizontal and windows are headless")
+print("  - command/metric rows stay horizontal and internal workspaces stay bounded")
 print("  - active workflow documents drive invoice/payment controls")
 print("  - warehouse approval is quantity-only; invoices own accounting/valuation")
 print("  - opportunity, payment, naming and cross-device cache links are verified")
