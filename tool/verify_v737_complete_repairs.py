@@ -182,27 +182,38 @@ require(
     "continuous one-line command/metric workspace",
 )
 
-# Internal module work intentionally uses one visible premium window header and
-# footer. This replaced the old headless-window experiment and prevents clipped
-# controls while keeping the window movable/resizable and consistently closable.
+# R86 replaces the historical movable/resizable window shell with one bounded
+# operational workspace. The route owns the only window header; page-level
+# close/back helpers remain scope-aware without recreating nested window chrome.
 require(
     window + back + entity_page + window_close,
     (
-        "class _PremiumWindowTheme",
-        "class _WindowHeader",
-        "class _WindowFooter",
-        "class _ScaffoldAsWindow",
-        "class _AlertDialogAsWindow",
-        "scaffold.floatingActionButton",
-        "closeDock",
-        "Clip.hardEdge",
+        "Desktop workspaces intentionally remain bounded",
+        "class _PremiumWorkspaceTheme",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "appBar?.actions",
+        "source.floatingActionButton",
+        "if (child is AlertDialog)",
+        "module-workspace-window",
+        "Clip.antiAlias",
         "AppWorkspaceWindowScope.maybeOf(context) != null",
         "AppWindowCloseButton",
     ),
-    "premium movable/resizable internal windows",
+    "bounded integrated internal workspaces",
 )
-if "module-window-control-strip" in window:
-    errors.append("obsolete duplicate module window control strip is still present")
+for forbidden in (
+    "class _PremiumWindowTheme",
+    "class _WindowHeader",
+    "class _WindowFooter",
+    "class _ScaffoldAsWindow",
+    "class _AlertDialogAsWindow",
+    "closeDock",
+    "module-window-control-strip",
+):
+    if forbidden in window:
+        errors.append(f"legacy module-window chrome is still active: {forbidden}")
 
 require(
     firebase + package + web_index,
@@ -249,5 +260,5 @@ print("  - maintenance supports atomic multi-currency payment batches and settle
 print("  - maintenance invoice deletion preserves governed payment/stock separation")
 print("  - lazy module tabs and independent pill navigation remain enforced")
 print("  - continuous command rails replace nested internal module rectangles")
-print("  - premium movable/resizable module windows are the canonical window shell")
+print("  - bounded operational workspaces are the canonical internal window shell")
 print("  - web runtime assets bypass stale service-worker/browser caches")
