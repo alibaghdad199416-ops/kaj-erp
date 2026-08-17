@@ -156,6 +156,7 @@ class _AppFullViewportWorkspaceState<T>
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: _normalizeFullViewportContent(
+                        context,
                         widget.builder(context),
                       ),
                     ),
@@ -219,7 +220,7 @@ class _PremiumWorkspaceTheme extends StatelessWidget {
   }
 }
 
-Widget _normalizeFullViewportContent(Widget child) {
+Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
   if (child is AppEntityPage) return child;
 
   if (child is Scaffold) {
@@ -262,11 +263,9 @@ Widget _normalizeFullViewportContent(Widget child) {
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(24, 24, 72, 8),
               child: DefaultTextStyle.merge(
-                style: Theme.of(child.title!.key?.currentContext ??
-                            _fallbackBuildContext)
-                        .textTheme
-                        .titleLarge ??
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
                 child: child.title!,
               ),
             ),
@@ -300,10 +299,6 @@ Widget _normalizeFullViewportContent(Widget child) {
 
   return SizedBox.expand(child: child);
 }
-
-// Never read at runtime. It only keeps the AlertDialog title fallback expression
-// type-safe without introducing a second shared header.
-BuildContext get _fallbackBuildContext => throw StateError('No fallback context');
 
 class _FloatingCloseButton extends StatelessWidget {
   const _FloatingCloseButton({required this.onClose});
