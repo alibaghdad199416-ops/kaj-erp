@@ -51,6 +51,6 @@ void main() {
     expect(find.text('تغييرات غير محفوظة'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('discard-unsaved-changes')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('module-full-page-route')), findsNothing);
+    expect(find.byKey(const ValueKey('module-workspace-window')), findsNothing);
   });
 }
