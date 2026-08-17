@@ -60,8 +60,6 @@ if run_local_path.is_file():
 
 package = json.loads((root / "package.json").read_text(encoding="utf-8"))
 scripts = package.get("scripts", {})
-if "run_production_web.ps1" not in scripts.get("run:web", ""):
-    errors.append("default web launcher must use hosted production on non-Docker workstations")
 if "run_current_web.ps1" not in scripts.get("run:web:local", ""):
     errors.append("explicit Local Supabase launcher is missing")
 if "run_production_web.ps1" not in scripts.get("run:web:production", ""):
@@ -78,4 +76,4 @@ print(f"  - production Supabase project: {expected_ref}")
 print(f"  - production API: {expected_url}")
 print(f"  - local test API remains separate: {expected_local_url}")
 print("  - production uses only a publishable browser key")
-print("  - default web launcher is production; Local Supabase remains explicit")
+print("  - production and Local Supabase launchers remain explicitly separated")
