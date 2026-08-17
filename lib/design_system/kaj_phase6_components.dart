@@ -29,19 +29,16 @@ class KajExecutiveHero extends StatelessWidget {
   Widget build(BuildContext context) {
     if (AppWorkspaceChromeScope.hasTopBarOf(context)) {
       if (metrics.isEmpty) return const SizedBox.shrink();
-      return SizedBox(
-        height: 44,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var index = 0; index < metrics.length; index++) ...[
-                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
-                KajExecutiveMetric(data: metrics[index]),
-              ],
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var index = 0; index < metrics.length; index++) ...[
+              if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+              KajExecutiveMetric(data: metrics[index]),
             ],
-          ),
+          ],
         ),
       );
     }
