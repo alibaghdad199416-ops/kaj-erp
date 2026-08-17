@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
 /// Unified premium shell for sales, purchases, invoices, payments and approvals.
@@ -24,6 +25,28 @@ class KajCommercialWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final insideOperationalWorkspace =
+        AppWorkspaceWindowScope.maybeOf(context) != null;
+    if (insideOperationalWorkspace) {
+      final functional = <Widget>[
+        ...actions,
+        ...metrics.map((metric) => _MetricTile(data: metric)),
+      ];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (functional.isNotEmpty) ...<Widget>[
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(spacing: 8, runSpacing: 8, children: functional),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Expanded(child: child),
+        ],
+      );
+    }
+
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -196,6 +219,14 @@ class KajCommercialDocumentHeader extends StatelessWidget {
   final Widget? trailing;
   @override
   Widget build(BuildContext context) {
+    if (AppWorkspaceWindowScope.maybeOf(context) != null) {
+      if (trailing == null) return const SizedBox.shrink();
+      return Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: trailing!,
+      );
+    }
+
     final scheme = Theme.of(context).colorScheme;
     return KajShellSurface(
       padding: const EdgeInsets.all(16),

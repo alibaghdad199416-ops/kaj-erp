@@ -11,9 +11,8 @@ import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 ///
 /// Legacy size arguments remain accepted for source compatibility only.
 /// Operational workspaces intentionally fill the available viewport, strip
-/// legacy window/AppBar chrome, and keep only functional module content plus a
-/// compact close control. This makes forms usable at 100% browser zoom without
-/// nested boxes or duplicated modal headers.
+/// legacy window/AppBar and entity-header chrome, and keep only functional
+/// module content plus a compact close control.
 Future<T?> showAppFullPageRoute<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -218,7 +217,26 @@ class _PremiumWorkspaceTheme extends StatelessWidget {
 }
 
 Widget _normalizeFullViewportContent(BuildContext context, Widget child) {
-  if (child is AppEntityPage) return child;
+  if (child is AppEntityPage) {
+    return AppEntityPage(
+      key: child.key,
+      title: child.title,
+      subtitle: child.subtitle,
+      body: child.body,
+      leading: child.leading,
+      actions: child.actions,
+      statistics: child.statistics,
+      toolbar: child.toolbar,
+      sidebar: child.sidebar,
+      showBackButton: false,
+      maxWidth: child.maxWidth,
+      bodyPadding: child.bodyPadding,
+      hideHeader: true,
+      toolbarFramed: child.toolbarFramed,
+      mergeHiddenHeaderActionsAndStatistics:
+          child.mergeHiddenHeaderActionsAndStatistics,
+    );
+  }
   if (child is Scaffold) return _scaffoldAsHeaderlessWorkspace(context, child);
 
   if (child is AlertDialog) {

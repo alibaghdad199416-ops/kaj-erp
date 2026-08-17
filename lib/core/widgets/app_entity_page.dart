@@ -59,7 +59,7 @@ class AppEntityPage extends StatelessWidget {
     final railChildren = <Widget>[
       ...actions,
       ?statistics,
-      if (insideModuleWindow) const AppWindowCloseButton(),
+      if (insideModuleWindow && !hideHeader) const AppWindowCloseButton(),
     ];
 
     final content = SafeArea(

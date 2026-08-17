@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
@@ -29,6 +30,27 @@ class KajRelationshipHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final insideOperationalWorkspace =
+        AppWorkspaceWindowScope.maybeOf(context) != null;
+    if (insideOperationalWorkspace) {
+      final functionalChrome = <Widget>[
+        if (trailing != null) trailing!,
+        if (secondaryAction != null) secondaryAction!,
+        if (primaryAction != null) primaryAction!,
+        ...metrics,
+      ];
+      if (functionalChrome.isEmpty) return const SizedBox.shrink();
+      return Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.end,
+          children: functionalChrome,
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return KajShellSurface(
