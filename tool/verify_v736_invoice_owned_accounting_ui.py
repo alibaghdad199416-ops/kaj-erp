@@ -310,26 +310,37 @@ require(
     "accounting pill sections without ruler frame",
 )
 
-# Internal work now uses one consistent premium movable/resizable window with
-# a clipped frame, visible title header and governed footer/close controls.
-# This supersedes the older headless-window requirement.
+# R86 supersedes the historical movable/resizable window experiment with one
+# bounded operational workspace. The route owns the single header, promotes
+# legacy actions into it and normalizes the body without nested window chrome.
 require(
     window + back,
     (
-        "class _PremiumWindowTheme",
-        "class _WindowHeader",
-        "class _WindowFooter",
-        "class _ScaffoldAsWindow",
-        "class _AlertDialogAsWindow",
-        "scaffold.floatingActionButton",
-        "closeDock",
-        "Clip.hardEdge",
+        "Desktop workspaces intentionally remain bounded",
+        "class _PremiumWorkspaceTheme",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "appBar?.actions",
+        "source.floatingActionButton",
+        "if (child is AlertDialog)",
+        "module-workspace-window",
+        "Clip.antiAlias",
         "AppWorkspaceWindowScope.maybeOf(context) != null",
     ),
-    "premium movable/resizable internal windows",
+    "bounded integrated internal workspaces",
 )
-if "module-window-control-strip" in window:
-    errors.append("obsolete duplicate module window control strip is still present")
+for forbidden in (
+    "class _PremiumWindowTheme",
+    "class _WindowHeader",
+    "class _WindowFooter",
+    "class _ScaffoldAsWindow",
+    "class _AlertDialogAsWindow",
+    "closeDock",
+    "module-window-control-strip",
+):
+    if forbidden in window:
+        errors.append(f"legacy module-window chrome is still active: {forbidden}")
 
 require(
     customer_card + supplier_card,
@@ -403,5 +414,5 @@ print("  - invoice quantities match approved multi-warehouse logistics exactly")
 print("  - IQD/USD revenue and cost-currency journals are separated")
 print("  - invoice cancellation restores journals, FIFO and valuation snapshots")
 print("  - maintenance and opportunities follow the same invoice lifecycle")
-print("  - pill navigation, continuous command rails and premium windows are enforced")
+print("  - pill navigation, continuous command rails and bounded workspaces are enforced")
 print("  - web runtime assets bypass stale service-worker/browser caches")
