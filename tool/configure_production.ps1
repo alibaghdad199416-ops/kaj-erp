@@ -37,10 +37,17 @@ if ([string]$production.SUPABASE_PUBLISHABLE_KEY -match 'sb_secret_|service_role
   throw 'A secret/service-role key must never be used by the Flutter web client.'
 }
 
-if ($local.KAJ_BACKEND_TARGET -ne 'local' -or
-    $local.SUPABASE_URL -ne 'http://127.0.0.1:54321' -or
-    $local.SUPABASE_ALLOW_LOCAL_DEV -ne $true) {
-  throw 'Local runtime baseline is not isolated to Local Supabase.'
+if ($local.SUPABASE_URL -ne 'http://127.0.0.1:54321') {
+  throw 'Local runtime baseline is not isolated to Local Supabase loopback.'
+}
+$localKey = [string]($local.SUPABASE_PUBLISHABLE_KEY ?? $local.SUPABASE_ANON_KEY)
+if ([string]::IsNullOrWhiteSpace($localKey) -or $localKey -match 'sb_secret_|service_role') {
+  throw 'Local runtime must contain a public Supabase key only.'
+}
+$localNames = @($local.PSObject.Properties.Name)
+$unexpectedLocal = @($localNames | Where-Object { $_ -notin @('SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_PUBLISHABLE_KEY') })
+if ($unexpectedLocal.Count -gt 0) {
+  throw "Unexpected local browser runtime keys: $($unexpectedLocal -join ', ')"
 }
 
 Write-Host 'Production runtime configuration is ready.' -ForegroundColor Green
