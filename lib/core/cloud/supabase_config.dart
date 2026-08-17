@@ -158,9 +158,7 @@ class SupabaseConfig {
       ? (isArabic
             ? 'بيئة تطوير Supabase المحلية'
             : 'Local Supabase Development Environment')
-      : (isArabic
-            ? 'Local Supabase مطلوب'
-            : 'Local Supabase Required');
+      : (isArabic ? 'Local Supabase مطلوب' : 'Local Supabase Required');
 
   static bool _isLoopback(String host) {
     final normalized = host.toLowerCase();

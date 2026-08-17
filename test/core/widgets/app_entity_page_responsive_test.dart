@@ -187,7 +187,9 @@ void main() {
         findsOneWidget,
       );
       expect(
-        tester.getSize(find.byKey(const ValueKey('width-sensitive-toolbar'))).width,
+        tester
+            .getSize(find.byKey(const ValueKey('width-sensitive-toolbar')))
+            .width,
         greaterThan(0),
       );
 
@@ -201,7 +203,9 @@ void main() {
         findsOneWidget,
       );
       expect(
-        tester.getSize(find.byKey(const ValueKey('bounded-filter-body'))).height,
+        tester
+            .getSize(find.byKey(const ValueKey('bounded-filter-body')))
+            .height,
         greaterThan(0),
       );
     },

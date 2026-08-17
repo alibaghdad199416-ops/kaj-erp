@@ -20,21 +20,24 @@ void main() {
       }
     });
 
-    test('rejects every hosted Supabase target even with a publishable key', () {
-      for (final url in <String>[
-        'https://example.supabase.co',
-        'https://havlqebmnjdcwmpaaqew.supabase.co',
-      ]) {
-        expect(
-          SupabaseConfig.validateConfiguration(
-            projectUrl: url,
-            publishableKey: 'sb_publishable_example',
-            allowLocalDev: true,
-          ),
-          contains('Local Supabase'),
-        );
-      }
-    });
+    test(
+      'rejects every hosted Supabase target even with a publishable key',
+      () {
+        for (final url in <String>[
+          'https://example.supabase.co',
+          'https://havlqebmnjdcwmpaaqew.supabase.co',
+        ]) {
+          expect(
+            SupabaseConfig.validateConfiguration(
+              projectUrl: url,
+              publishableKey: 'sb_publishable_example',
+              allowLocalDev: true,
+            ),
+            contains('Local Supabase'),
+          );
+        }
+      },
+    );
 
     test('rejects LAN and arbitrary HTTP targets', () {
       for (final url in <String>[
