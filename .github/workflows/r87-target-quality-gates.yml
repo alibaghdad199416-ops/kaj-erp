@@ -1,0 +1,50 @@
+name: R87 Target Quality Gates
+
+on:
+  push:
+    branches:
+      - agent/r87-local-verifier-publish
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f190ac2d3f7bae2541f9b5057484bd25be48be3c
+          fetch-depth: 0
+      - name: Assert exact target HEAD
+        run: |
+          test "$(git rev-parse HEAD)" = "f190ac2d3f7bae2541f9b5057484bd25be48be3c"
+          test "$(git status --porcelain=v1)" = ""
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm run verify:delivery
+      - run: python -B tool/verify_r70_crm_runtime.py
+      - run: python -B tool/verify_r86_phase2b_sales_readback.py
+      - run: npm ci
+      - run: npx playwright test playwright-tests/phase2b_sales_workflow_flutter_runtime.spec.ts --list
+      - run: flutter pub get
+      - run: npm run format
+      - run: git diff --exit-code
+      - run: npm run verify:all
+      - run: npm run format:check
+      - run: npm run analyze
+      - run: npm run test
+      - run: npm run build:web
+      - name: Final clean target assertion
+        run: |
+          git diff --check
+          git diff --exit-code
+          test "$(git status --porcelain=v1)" = ""
