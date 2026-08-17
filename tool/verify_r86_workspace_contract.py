@@ -69,7 +69,7 @@ require(
 require_code(
     entity,
     (
-        "AppWorkspaceChromeScope.hasTopBarOf(context)",
+        "AppWorkspaceChromeScope.hasTopBarOf(",
         "shellHasWorkspaceTopBar && !insideModuleWindow",
         "if (!effectiveHideHeader)",
         "module-command-rail",
@@ -141,7 +141,7 @@ for label, text in (
 ):
     require_code(
         text,
-        ("AppWorkspaceChromeScope.hasTopBarOf(context)",),
+        ("AppWorkspaceChromeScope.hasTopBarOf(",),
         f"{label} workspace awareness",
     )
 
