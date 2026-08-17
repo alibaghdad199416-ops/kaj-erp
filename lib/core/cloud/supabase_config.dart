@@ -1,13 +1,17 @@
 class SupabaseConfig {
   SupabaseConfig._();
 
-  static const String _defaultProjectUrl = 'http://127.0.0.1:54321';
+  static const String expectedProductionProjectRef =
+      'havlqebmnjdcwmpaaqew';
+  static const String expectedProductionUrl =
+      'https://$expectedProductionProjectRef.supabase.co';
+  static const String _defaultProjectUrl = expectedProductionUrl;
   static const String _defaultPublishableKey = '';
-  static const String _defaultLocalProjectId = 'quality_line_erp_local_dev';
+  static const String _defaultLocalProjectId = '';
 
-  /// Quality Line ERP is intentionally local-Supabase-only in this branch.
-  /// The public key is environment-specific and must come from `supabase status`
-  /// (or an equivalent local launch configuration); it is never committed.
+  /// The checked-in runtime targets the intended hosted Supabase project.
+  /// Local Supabase remains available only through the generated local runtime
+  /// file, which opts in explicitly with SUPABASE_ALLOW_LOCAL_DEV=true.
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: _defaultProjectUrl,
@@ -28,7 +32,7 @@ class SupabaseConfig {
 
   static const bool _explicitAllowLocalDev = bool.fromEnvironment(
     'SUPABASE_ALLOW_LOCAL_DEV',
-    defaultValue: true,
+    defaultValue: false,
   );
 
   static bool get allowLocalDev => resolveLocalDevelopmentOptIn(
@@ -58,9 +62,12 @@ class SupabaseConfig {
     final host = uri?.host.toLowerCase() ?? '';
     if (_isLoopback(host)) {
       final local = localProjectId.trim();
-      return local.isEmpty ? _defaultLocalProjectId : local;
+      return local.isEmpty ? 'quality_line_erp_local_dev' : local;
     }
-    return host.isEmpty ? 'blocked_non_local_backend' : host;
+    if (host.endsWith('.supabase.co')) {
+      return host.substring(0, host.length - '.supabase.co'.length);
+    }
+    return host.isEmpty ? 'unconfigured_backend' : host;
   }
 
   static String storageNamespaceFor({
@@ -71,6 +78,7 @@ class SupabaseConfig {
     localProjectId: localProjectId,
   ).replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
 
+  /// Compatibility alias used by older scripts and call sites.
   static String get anonKey => publishableKey;
 
   static String? validate({
@@ -100,25 +108,36 @@ class SupabaseConfig {
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment) {
-      return 'رابط Supabase المحلي غير صالح.';
+      return 'رابط Supabase غير صالح.';
     }
     if (uri.path.isNotEmpty && uri.path != '/') {
-      return 'استخدم رابط Supabase المحلي الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
+      return 'استخدم رابط مشروع Supabase الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
     }
-    if (!allowLocalDev ||
-        uri.scheme != 'http' ||
-        !_isLoopback(uri.host) ||
-        !uri.hasPort ||
-        uri.port <= 0) {
-      return 'هذا الإصدار يعمل مع Local Supabase فقط على localhost/127.0.0.1.';
+
+    final host = uri.host.toLowerCase();
+    if (_isLoopback(host)) {
+      if (!allowLocalDev ||
+          uri.scheme != 'http' ||
+          !uri.hasPort ||
+          uri.port <= 0) {
+        return 'Local Supabase غير مفعّل لهذا التشغيل.';
+      }
+    } else {
+      if (uri.scheme != 'https') {
+        return 'اتصال Hosted Supabase يجب أن يستخدم HTTPS.';
+      }
+      if (host != '$expectedProductionProjectRef.supabase.co') {
+        return 'رابط Hosted Supabase لا يطابق مشروع KAJ ERP المعتمد.';
+      }
     }
+
     if (resolvedKey.isEmpty || resolvedKey.contains('YOUR_')) {
-      return 'مفتاح Supabase المحلي العام غير مضبوط. استخدم المفتاح العام من supabase status.';
+      return 'مفتاح Supabase العام غير مضبوط.';
     }
     final normalizedKey = resolvedKey.toLowerCase();
     if (normalizedKey.contains('service_role') ||
         normalizedKey.startsWith('sb_secret_')) {
-      return 'لا تستخدم مفتاحاً سرياً داخل تطبيق الويب. استخدم Publishable/anon key المحلي.';
+      return 'لا تستخدم مفتاحاً سرياً داخل تطبيق الويب. استخدم Publishable/anon key.';
     }
     return null;
   }
@@ -144,21 +163,50 @@ class SupabaseConfig {
     return uri.scheme == 'http' && _isLoopback(uri.host);
   }
 
+  static bool isHostedProductionTarget({
+    String? projectUrl,
+    String? publishableKey,
+  }) {
+    final resolvedUrl = (projectUrl ?? url).trim();
+    final resolvedKey = (publishableKey ?? SupabaseConfig.publishableKey)
+        .trim();
+    if (validateConfiguration(
+          projectUrl: resolvedUrl,
+          publishableKey: resolvedKey,
+          allowLocalDev: false,
+        ) !=
+        null) {
+      return false;
+    }
+    final uri = Uri.parse(resolvedUrl);
+    return uri.scheme == 'https' &&
+        uri.host.toLowerCase() ==
+            '$expectedProductionProjectRef.supabase.co';
+  }
+
   static String environmentLabel({
     required bool isArabic,
     String? projectUrl,
     String? publishableKey,
     bool? allowLocalDevelopment,
-  }) =>
-      isLocalTarget(
-        projectUrl: projectUrl,
-        publishableKey: publishableKey,
-        allowLocalDevelopment: allowLocalDevelopment,
-      )
-      ? (isArabic
-            ? 'بيئة تطوير Supabase المحلية'
-            : 'Local Supabase Development Environment')
-      : (isArabic ? 'Local Supabase مطلوب' : 'Local Supabase Required');
+  }) {
+    if (isHostedProductionTarget(
+      projectUrl: projectUrl,
+      publishableKey: publishableKey,
+    )) {
+      return isArabic ? 'Supabase الإنتاجي' : 'Production Supabase';
+    }
+    if (isLocalTarget(
+      projectUrl: projectUrl,
+      publishableKey: publishableKey,
+      allowLocalDevelopment: allowLocalDevelopment,
+    )) {
+      return isArabic
+          ? 'بيئة تطوير Supabase المحلية'
+          : 'Local Supabase Development Environment';
+    }
+    return isArabic ? 'إعداد Supabase مطلوب' : 'Supabase Configuration Required';
+  }
 
   static bool _isLoopback(String host) {
     final normalized = host.toLowerCase();
