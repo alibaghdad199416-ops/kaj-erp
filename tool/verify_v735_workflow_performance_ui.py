@@ -28,6 +28,9 @@ migration = read(
 action = read("lib/core/widgets/app_module_action_icon.dart")
 card = read("lib/core/widgets/commercial_workflow_order_card.dart")
 window = read("lib/core/widgets/app_full_page_route.dart")
+module_shell = read("lib/core/widgets/app_module_shell.dart")
+entity_page = read("lib/core/widgets/app_entity_page.dart")
+workspace_scope = read("lib/core/widgets/app_workspace_chrome_scope.dart")
 login = read("lib/features/auth/pages/login_page.dart")
 prefs = read("lib/core/preferences/app_preferences_controller.dart")
 access = read("lib/features/settings/access/controllers/access_controller.dart")
@@ -87,29 +90,72 @@ if re.search(r"class _StageAction[\s\S]{0,900}FilledButton", maintenance_details
 if re.search(r"class _InlineComponentButton[\s\S]{0,900}FilledButton", order_details):
     errors.append("commercial component actions are still wide filled buttons")
 
-# R77 superseded the earlier headless-dialog experiment with one consistent,
-# bounded premium module window. Legacy Dialog/Scaffold bodies are still
-# normalized, but the shared window now owns its header/footer, clipping,
-# movable/resizable behavior and unsaved-change close flow.
+# R86 supersedes the older full-screen/movable-window experiments with one
+# bounded responsive operational workspace. The route owns the single window
+# header, promotes entity/scaffold/dialog actions into it, and normalizes the
+# legacy body without creating a window-inside-window hierarchy.
 require(
     window,
     (
-        "one consistent premium, movable and resizable window",
-        "class _PremiumWindowTheme",
-        "class _WindowHeader",
-        "class _WindowFooter",
-        "class _ScaffoldAsWindow",
-        "...?appBar?.actions",
-        "scaffold.floatingActionButton",
-        "class _AlertDialogAsWindow",
+        "Desktop workspaces intentionally remain bounded",
+        "class _PremiumWorkspaceTheme",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "appBar?.actions",
+        "source.floatingActionButton",
+        "if (child is AlertDialog)",
         "SingleChildScrollView(",
-        "closeDock",
-        "Clip.hardEdge",
+        "module-workspace-window",
+        "Clip.antiAlias",
     ),
-    "premium integrated module window",
+    "bounded integrated module workspace",
 )
-if "module-window-control-strip" in window:
-    errors.append("legacy separate window control strip is still active")
+for forbidden in (
+    "class _PremiumWindowTheme",
+    "class _WindowFooter",
+    "class _ScaffoldAsWindow",
+    "module-window-control-strip",
+):
+    if forbidden in window:
+        errors.append(f"legacy module-window chrome is still active: {forbidden}")
+
+# The desktop AppWorkspaceTopBar is the only module identity header. Entity
+# pages underneath it must keep actions/statistics/toolbars on the same canvas
+# instead of rendering a second hero/header card. Compact/top-navigation layouts
+# remain self-describing because the scope explicitly reports no workspace bar.
+require(
+    workspace_scope,
+    (
+        "class AppWorkspaceChromeScope extends InheritedWidget",
+        "required this.hasWorkspaceTopBar",
+        "static bool hasTopBarOf(BuildContext context)",
+    ),
+    "workspace chrome scope",
+)
+require(
+    module_shell,
+    (
+        "AppWorkspaceTopBar(currentRoute: route)",
+        "AppWorkspaceChromeScope(",
+        "hasWorkspaceTopBar: false",
+        "hasWorkspaceTopBar: true",
+        "_WorkspaceCanvas(child: moduleContent)",
+    ),
+    "single connected module shell",
+)
+require(
+    entity_page,
+    (
+        "AppWorkspaceChromeScope.hasTopBarOf(context)",
+        "final effectiveHideHeader =",
+        "shellHasWorkspaceTopBar && !insideModuleWindow",
+        "if (!effectiveHideHeader)",
+        "module-command-rail",
+        "module-continuous-workspace",
+    ),
+    "automatic duplicate module header suppression",
+)
 
 require(
     login,
@@ -236,4 +282,4 @@ print("  - sales, purchase and maintenance approval chains share robust fallback
 print("  - refresh requests are coalesced and aggregate screens remain lazy")
 print("  - login routes after the first successful authentication click")
 print("  - command actions use one icon-only system accent")
-print("  - module work uses one clipped premium movable/resizable window")
+print("  - module work uses one bounded header and one connected business canvas")
