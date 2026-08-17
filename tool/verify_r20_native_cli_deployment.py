@@ -27,11 +27,11 @@ def read(relative: str) -> str:
 
 
 for relative, digest in {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }.items():
-    need(normalized_text_sha256(ROOT / relative) == digest, f"production configuration changed: {relative}")
+    need(normalized_text_sha256(ROOT / relative) == digest, f"local runtime/hosting baseline changed: {relative}")
 
 scripts = json.loads(read("package.json"))["scripts"]
 need(scripts.get("verify:r20") == "python -B tool/verify_r20_native_cli_deployment.py", "verify:r20 command missing")
@@ -95,4 +95,4 @@ print("  - native process exit codes are authoritative and stderr remains visibl
 print("  - dry-run parsing still rejects every unexpected migration before production push")
 print("  - R14/R15/R16 canonical runtime/state migrations remain the only allowed pending migrations")
 print("  - analyzer/tests/fresh web build remain mandatory before Supabase and Firebase deployment")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

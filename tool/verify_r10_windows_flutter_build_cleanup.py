@@ -25,15 +25,15 @@ def sha(relative: str) -> str:
     return normalized_text_sha256(ROOT / relative)
 
 
-# Production connection/hosting text must stay content-identical to the
-# user-supplied R9 baseline across Git LF/CRLF worktrees.
+# Local runtime/hosting text must stay content-identical to the
+# current Local Supabase baseline across Git LF/CRLF worktrees.
 expected_hashes = {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }
 for relative, expected in expected_hashes.items():
-    need(sha(relative) == expected, f"production configuration changed: {relative}")
+    need(sha(relative) == expected, f"local runtime/hosting baseline changed: {relative}")
 
 permission_codes = read("lib/features/settings/access/models/permission_codes.dart")
 need("static const settingsView = 'settings.view';" in permission_codes,
@@ -151,7 +151,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS R10 Windows/Flutter build cleanup verification")
-print("  - production Supabase/Firebase text is unchanged across LF/CRLF worktrees")
+print("  - Local Supabase/Firebase baseline text is unchanged across LF/CRLF worktrees")
 print("  - settings permission and legacy read-only cards are compile-safe")
 print("  - analyzer warnings reported by the user's Flutter run are removed")
 print("  - cashbox async BuildContext usage is mounted-guarded")

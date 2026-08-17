@@ -17,12 +17,27 @@ premium = read('lib/core/printing/premium_document_theme.dart')
 final_pdf = read('lib/core/printing/kaj_final_pdf_layout.dart')
 identity = read('lib/core/printing/unified_pdf_identity.dart')
 
-assert "expectedProductionProjectRef = 'havlqebmnjdcwmpaaqew'" in config
+assert "quality_line_erp_local_dev" in config
+assert "http://127.0.0.1:54321" in config
+assert "expectedProductionProjectRef" not in config
+assert ".supabase.co" not in config
 assert "functionName: 'admin-manage-user'" in user_service
-assert "functionName: 'admin-update-user-media'" in user_service
+assert "'action': 'update'" in user_service
 assert "identityPayload.remove('avatarBase64')" in user_service
+assert "'avatar_base64': avatarBase64" in user_service
+assert "functionName: 'admin-update-user-media'" not in user_service
 assert "avatar_base64" in user_media and "erp_records" in user_media
 assert "media_payload_too_large" in user_media
+manage_user = read('supabase/functions/admin-manage-user/index.ts')
+for marker in (
+    'users.image.update',
+    'avatar_base64',
+    'media_readback_mismatch',
+    'profile_readback_mismatch',
+    'previousRecord',
+    'ERP user update rollback failed',
+):
+    assert marker in manage_user, marker
 
 for key in ('thumbnailBase64', 'photoBase64', 'photo_base64'):
     assert key in migration, key
@@ -50,8 +65,8 @@ assert 'UnifiedPdfIdentity' in premium and 'UnifiedPdfIdentity' in final_pdf
 assert 'pageMarginHorizontal' in identity and 'tableHeaderFontSize' in identity
 
 print('PASS R77 media / per-user scope / premium UI / unified PDF verification')
-print('Supabase production project: havlqebmnjdcwmpaaqew')
-print('User identity update is separated from avatar media persistence')
+print('Supabase runtime: quality_line_erp_local_dev @ http://127.0.0.1:54321')
+print('User identity and avatar update share one governed Edge boundary with read-back')
 print('Strict image aliases cover partner, car thumbnail and product thumbnail payloads')
 print('Per-module own/all record-scope permissions are seeded without automatic grants')
 print('Module workspace is borderless; command strip and photo picker are normalized')

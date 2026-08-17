@@ -7,12 +7,12 @@ run_production = (root / "tool/run_production_web.ps1").read_text(encoding="utf-
 package = (root / "package.json").read_text(encoding="utf-8")
 config = (root / "lib/core/cloud/supabase_config.dart").read_text(encoding="utf-8")
 supabase_config = (root / "supabase/config.toml").read_text(encoding="utf-8")
-production_defines = (root / "dart_defines.json").read_text(encoding="utf-8")
+active_defines = (root / "dart_defines.json").read_text(encoding="utf-8")
 seed = (root / "supabase/seed.sql").read_text(encoding="utf-8")
 gitignore = (root / ".gitignore").read_text(encoding="utf-8")
 
 expected_local_id = "quality_line_erp_local_dev"
-production_ref = "havlqebmnjdcwmpaaqew"
+expected_local_url = "http://127.0.0.1:54321"
 known_orphans = (
     "20260815044500",
     "20260815055000",
@@ -62,9 +62,9 @@ assert "tracking history only" in prepare
 assert expected_local_id in supabase_config
 assert "localProjectId" in config
 assert "resolveLocalDevelopmentOptIn" in config
-assert "isLocalLoopback && allowLocalDev" in config
-assert production_ref in production_defines
-assert production_ref in run_production
+assert "!allowLocalDev" in config and "_isLoopback(uri.host)" in config
+assert expected_local_url in active_defines
+assert ".supabase.co" not in active_defines
 assert "dart_defines.json" in run_production
 assert "Existing local business data is intentionally preserved" in seed
 
@@ -77,12 +77,11 @@ for marker in (
     assert marker in run_local, marker
 
 assert "--dart-define-from-file=dart_defines.local.generated.json" in run_local
-assert production_ref not in run_local, "default local launcher must not target hosted Supabase"
+assert ".supabase.co" not in run_local, "default local launcher must not target Hosted Supabase"
 
 for marker in (
     '"run:web": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/run_current_web.ps1"',
     '"run:web:local": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/run_current_web.ps1"',
-    '"run:web:production": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/run_production_web.ps1"',
     '"db:local:update": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/prepare_local_current_database.ps1"',
 ):
     assert marker in package, marker
@@ -99,4 +98,4 @@ print("  - seven known orphaned migration-history rows are repaired locally only
 print("  - unexpected migration-history drift fails closed")
 print("  - pending migrations are then applied with --local --include-all")
 print("  - no local db reset and no linked/remote database operation")
-print(f"  - hosted production remains explicit as npm run run:web:production ({production_ref})")
+print("  - active dart_defines.json is Local Supabase only")

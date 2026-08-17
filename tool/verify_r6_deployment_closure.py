@@ -24,12 +24,13 @@ if "import 'dart:convert';" in access:
 
 verify_target = (ROOT / "tool/verify_deployment_target.py").read_text(encoding="utf-8")
 for marker in (
+    'EXPECTED_SUPABASE_URL = "http://127.0.0.1:54321"',
+    'EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"',
     'active_runtime_path = ROOT / "dart_defines.json"',
-    "production_candidate if production_candidate.is_file() else active_runtime_path",
-    "production_text",
+    "Hosted Supabase endpoints are forbidden in the active runtime defines",
 ):
     if marker not in verify_target:
-        errors.append(f"deployment verifier is missing runtime-config fallback marker: {marker}")
+        errors.append(f"deployment verifier is missing Local Supabase contract marker: {marker}")
 
 configure = (ROOT / "tool/configure_production.ps1").read_text(encoding="utf-8")
 if "keeping the existing dart_defines.json unchanged" not in configure:
@@ -54,7 +55,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS R6 deployment/analyzer closure")
-print("- deployment target verifier accepts the existing dart_defines.json without changing it")
-print("- production configurator preserves dart_defines.json when the optional production template is absent")
+print("- deployment target verifier enforces the current Local Supabase runtime contract")
+print("- legacy production configurator cannot overwrite the active local dart_defines.json when its optional template is absent")
 print("- all three analyzer findings from the user run are closed at source")
 print(proc.stdout.rstrip())

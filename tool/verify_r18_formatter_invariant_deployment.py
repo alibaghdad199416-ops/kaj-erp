@@ -26,11 +26,11 @@ def read(relative: str) -> str:
 
 
 for relative, digest in {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }.items():
-    need(normalized_text_sha256(ROOT / relative) == digest, f"production configuration changed: {relative}")
+    need(normalized_text_sha256(ROOT / relative) == digest, f"local runtime/hosting baseline changed: {relative}")
 
 # R18 validates orchestration only. R19 owns the regression guard that forbids
 # reintroducing post-format source identity checks.
@@ -75,4 +75,4 @@ print("  - no post-format Dart source/token fingerprint can create false runtime
 print("  - R16 functional/canonical-state gates remain mandatory")
 print("  - analyzer/tests/fresh web build remain the authoritative Dart runtime gates")
 print("  - production deploy remains workspace-safe and database-before-hosting")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

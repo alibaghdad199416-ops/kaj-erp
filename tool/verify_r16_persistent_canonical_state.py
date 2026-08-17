@@ -95,13 +95,13 @@ if deploy:
          'R16 deployment must apply database before hosting')
 
 expected={
- 'dart_defines.json':'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
+ 'dart_defines.json':'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
  '.firebaserc':'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
  'firebase.json':'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
 for rel,exp in expected.items():
     actual=normalized_text_sha256(ROOT/rel)
-    need(actual==exp,f'production configuration changed: {rel}')
+    need(actual==exp,f'local runtime/hosting baseline changed: {rel}')
 
 if errors:
     print('FAILED R16 persistent canonical state')
@@ -114,4 +114,4 @@ print('  - cashbox journal rebinding requires transaction/header/reference/accou
 print('  - ambiguous/unmatched cash journals are recorded as reconciliation issues instead of being rewritten')
 print('  - deferred reconciliation makes future cash postings converge after journal lines exist')
 print('  - production readiness blocks on persistent deletion conflicts and unresolved canonical reconciliation issues')
-print('  - Supabase/Firebase production configuration hashes are unchanged')
+print('  - Local Supabase/Firebase baseline hashes are unchanged')

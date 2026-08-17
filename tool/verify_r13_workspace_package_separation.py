@@ -24,14 +24,14 @@ def sha(relative: str) -> str:
     return normalized_text_sha256(ROOT / relative)
 
 
-# Production targets must remain untouched.
+# Local runtime/hosting targets must remain pinned to the current baseline.
 expected = {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }
 for relative, digest in expected.items():
-    need(sha(relative) == digest, f"production configuration changed: {relative}")
+    need(sha(relative) == digest, f"local runtime/hosting baseline changed: {relative}")
 
 scripts = json.loads(read("package.json")).get("scripts", {})
 need(scripts.get("verify:preinstall") == "npm run verify:delivery",
@@ -114,7 +114,7 @@ if errors:
 
 print("PASS R13 workspace/package separation")
 print("  - clean delivery is checked before npm/flutter generate workspace artifacts")
-print("  - installed workspace verification allows .dart_tool/node_modules/build metadata")
+print(" - installed workspace verification allows .dart_tool/node_modules/build metadata")
 print("  - package cleanliness remains enforced by verify:package only")
 print("  - fail-fast analyzer/test/web build remain mandatory")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

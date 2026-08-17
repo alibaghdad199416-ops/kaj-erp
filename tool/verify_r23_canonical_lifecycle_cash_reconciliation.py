@@ -40,12 +40,12 @@ def function_body(sql: str, name: str) -> str:
     return m.group(1) if m else ""
 
 for relative, digest in {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }.items():
     need(normalized_text_sha256(ROOT / relative) == digest,
-         f"production configuration changed: {relative}")
+         f"local runtime/hosting baseline changed: {relative}")
 
 migration_dir = ROOT / "supabase/migrations"
 for name in MIGRATIONS:
@@ -168,4 +168,4 @@ print("  - cashbox ledger aliases converge on the current account and reconcilia
 print("  - historical rebinding uses transaction/transfer identity; amount is validation only")
 print("  - live reconciliation uses SKIP LOCKED and reports deferred rows instead of blocking Production")
 print("  - R22 direct purchase/sales accounting ownership remains intact")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

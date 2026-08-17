@@ -128,13 +128,13 @@ if deploy:
          'R15 deployment does not apply database before hosting')
 
 expected={
- 'dart_defines.json':'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
+ 'dart_defines.json':'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
  '.firebaserc':'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
  'firebase.json':'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
 for rel,exp in expected.items():
     actual=normalized_text_sha256(ROOT/rel)
-    need(actual==exp,f'production configuration changed: {rel}')
+    need(actual==exp,f'local runtime/hosting baseline changed: {rel}')
 
 if errors:
     print('FAILED R15 canonical-state reconciliation')
@@ -148,4 +148,4 @@ print('  - obsolete capitalization accounts cannot reactivate; contaminated purc
 print('  - deleted/stale cashbox edits cannot revive or overwrite current definitions')
 print('  - cashbox opening balance and cash-side journals follow the current cashbox ledger binding continuously')
 print('  - production readiness exposes canonical data health and reconciliation drift')
-print('  - Supabase/Firebase production configuration hashes are unchanged')
+print('  - Local Supabase/Firebase baseline hashes are unchanged')

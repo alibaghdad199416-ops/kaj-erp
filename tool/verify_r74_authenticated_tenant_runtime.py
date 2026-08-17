@@ -9,7 +9,8 @@ web_index = (root / "web/index.html").read_text(encoding="utf-8")
 web_version = (root / "web/version.json").read_text(encoding="utf-8")
 migration = (root / "supabase/migrations/20260815180000_r74_authenticated_tenant_runtime_identity.sql").read_text(encoding="utf-8")
 
-expected_project = "havlqebmnjdcwmpaaqew"
+expected_local_id = "quality_line_erp_local_dev"
+expected_url = "http://127.0.0.1:54321"
 expected_token = "r74-authenticated-tenant-runtime-20260815"
 
 for marker in (
@@ -48,14 +49,17 @@ for marker in (
 ):
     assert marker in migration, marker
 
-assert expected_project in (root / "dart_defines.json").read_text(encoding="utf-8")
+defines = (root / "dart_defines.json").read_text(encoding="utf-8")
+assert expected_url in defines
+assert ".supabase.co" not in defines
 assert expected_token in release
 assert expected_token in web_index
 assert expected_token in web_version
 assert '"databaseContract": "R74"' in web_version
 
 print("PASS R74 authenticated tenant runtime isolation")
-print(f"  - Supabase project: {expected_project}")
+print(f"  - Local Supabase project: {expected_local_id}")
+print(f"  - Local Supabase API: {expected_url}")
 print("  - persisted Auth session is verified against the current backend")
 print("  - tenant cache is project + Auth-user scoped")
 print("  - stale project-only tenant cache is invalidated")

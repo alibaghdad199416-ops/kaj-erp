@@ -12,11 +12,11 @@ def need(cond,msg):
 def sha(rel): return normalized_text_sha256(ROOT/rel)
 
 expected={
- 'dart_defines.json':'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
+ 'dart_defines.json':'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
  '.firebaserc':'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
  'firebase.json':'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
-for f,h in expected.items(): need(sha(f)==h,f'{f} changed from the user supplied production configuration')
+for f,h in expected.items(): need(sha(f)==h,f'{f} changed from the current Local Supabase/Firebase baseline')
 
 catalog=read('lib/features/settings/access/models/field_permission_catalog.dart')
 controller=read('lib/features/settings/access/controllers/access_controller.dart')
@@ -488,7 +488,7 @@ if errors:
     for e in errors: print('  -',e)
     sys.exit(1)
 print('PASS R9 complete closure')
-print('- production Supabase/Firebase configuration hashes unchanged')
+print('- Local Supabase/Firebase baseline hashes unchanged')
 print('- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes')
 print('- legacy invoice tabs no longer bypass authoritative order workflows')
 print('- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns')
