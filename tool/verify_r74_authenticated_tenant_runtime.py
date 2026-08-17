@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 root = Path(__file__).resolve().parents[1]
 bootstrap = (root / "lib/core/cloud/cloud_bootstrap.dart").read_text(encoding="utf-8")
@@ -8,9 +9,14 @@ release = (root / "lib/core/release/app_release_info.dart").read_text(encoding="
 web_index = (root / "web/index.html").read_text(encoding="utf-8")
 web_version = (root / "web/version.json").read_text(encoding="utf-8")
 migration = (root / "supabase/migrations/20260815180000_r74_authenticated_tenant_runtime_identity.sql").read_text(encoding="utf-8")
+local_runtime = json.loads((root / "dart_defines.json").read_text(encoding="utf-8"))
+production_runtime = json.loads(
+    (root / "dart_defines.production.json").read_text(encoding="utf-8")
+)
 
-expected_local_id = "quality_line_erp_local_dev"
-expected_url = "http://127.0.0.1:54321"
+expected_local_url = "http://127.0.0.1:54321"
+expected_production_ref = "havlqebmnjdcwmpaaqew"
+expected_production_url = f"https://{expected_production_ref}.supabase.co"
 expected_token = "r74-authenticated-tenant-runtime-20260815"
 
 for marker in (
@@ -49,18 +55,20 @@ for marker in (
 ):
     assert marker in migration, marker
 
-defines = (root / "dart_defines.json").read_text(encoding="utf-8")
-assert expected_url in defines
-assert ".supabase.co" not in defines
+assert local_runtime.get("SUPABASE_URL") == expected_local_url
+assert production_runtime.get("SUPABASE_URL") == expected_production_url
+assert str(production_runtime.get("SUPABASE_PUBLISHABLE_KEY") or "").startswith(
+    "sb_publishable_"
+)
 assert expected_token in release
 assert expected_token in web_index
 assert expected_token in web_version
 assert '"databaseContract": "R74"' in web_version
 
 print("PASS R74 authenticated tenant runtime isolation")
-print(f"  - Local Supabase project: {expected_local_id}")
-print(f"  - Local Supabase API: {expected_url}")
-print("  - persisted Auth session is verified against the current backend")
+print(f"  - production Supabase: {expected_production_url}")
+print(f"  - Local Supabase test baseline: {expected_local_url}")
+print("  - persisted Auth session is verified against the selected backend")
 print("  - tenant cache is project + Auth-user scoped")
 print("  - stale project-only tenant cache is invalidated")
 print("  - database attests auth user + company through erp_r74_runtime_identity")
