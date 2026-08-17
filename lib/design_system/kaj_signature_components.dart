@@ -36,19 +36,16 @@ class KajSignaturePageHero extends StatelessWidget {
         ?trailing,
       ];
       if (commandWidgets.isEmpty) return const SizedBox.shrink();
-      return SizedBox(
-        height: 44,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var index = 0; index < commandWidgets.length; index++) ...[
-                if (index > 0) const SizedBox(width: 8),
-                commandWidgets[index],
-              ],
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var index = 0; index < commandWidgets.length; index++) ...[
+              if (index > 0) const SizedBox(width: 8),
+              commandWidgets[index],
             ],
-          ),
+          ],
         ),
       );
     }
