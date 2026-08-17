@@ -18,45 +18,47 @@ Widget localizedApp(Widget home) => MaterialApp(
 );
 
 void main() {
-  testWidgets('module work opens as a full page without taskbar controls', (
-    tester,
-  ) async {
-    bool? result;
-    await tester.pumpWidget(
-      localizedApp(
-        Builder(
-          builder: (context) => FilledButton(
-            key: const ValueKey('open-page'),
-            onPressed: () async {
-              result = await showAppFullPageRoute<bool>(
-                context: context,
-                title: 'تحرير المخزون',
-                builder: (pageContext) => FilledButton(
-                  key: const ValueKey('save-page'),
-                  onPressed: () =>
-                      AppWorkspaceWindowScope.closeCurrent(pageContext, true),
-                  child: const Text('حفظ'),
-                ),
-              );
-            },
-            child: const Text('فتح'),
+  testWidgets(
+    'module work opens in one operational window without taskbar controls',
+    (tester) async {
+      bool? result;
+      await tester.pumpWidget(
+        localizedApp(
+          Builder(
+            builder: (context) => FilledButton(
+              key: const ValueKey('open-page'),
+              onPressed: () async {
+                result = await showAppFullPageRoute<bool>(
+                  context: context,
+                  title: 'تحرير المخزون',
+                  builder: (pageContext) => FilledButton(
+                    key: const ValueKey('save-page'),
+                    onPressed: () =>
+                        AppWorkspaceWindowScope.closeCurrent(pageContext, true),
+                    child: const Text('حفظ'),
+                  ),
+                );
+              },
+              child: const Text('فتح'),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('open-page')));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('module-full-page-route')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('workspace-minimize')), findsNothing);
-    expect(find.byKey(const ValueKey('workspace-maximize')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('open-page')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('module-workspace-window')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('module-page-close')), findsOneWidget);
+      expect(find.byKey(const ValueKey('workspace-minimize')), findsNothing);
+      expect(find.byKey(const ValueKey('workspace-maximize')), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('save-page')));
-    await tester.pumpAndSettle();
-    expect(result, isTrue);
-  });
+      await tester.tap(find.byKey(const ValueKey('save-page')));
+      await tester.pumpAndSettle();
+      expect(result, isTrue);
+    },
+  );
 }

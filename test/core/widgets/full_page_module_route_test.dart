@@ -20,7 +20,7 @@ MaterialApp _app(Widget home) => MaterialApp(
 
 void main() {
   testWidgets(
-    'module content uses a full viewport without legacy AppBar chrome',
+    'module content uses one bounded operational window without legacy AppBar chrome',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1400, 900);
@@ -39,7 +39,7 @@ void main() {
                   onPressed: () async {
                     result = await showAppFloatingWindow<bool>(
                       context: context,
-                      title: 'عنوان خارجي لا يظهر كرأس نافذة',
+                      title: 'عنوان النافذة',
                       maxWidth: 900,
                       maxHeight: 650,
                       builder: (windowContext) => Scaffold(
@@ -79,7 +79,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('open-module-window')));
       await tester.pumpAndSettle();
 
-      final panel = find.byKey(const ValueKey('module-full-page-route'));
+      final panel = find.byKey(const ValueKey('module-workspace-window'));
       expect(panel, findsOneWidget);
       expect(
         find.byKey(const ValueKey('module-window-move-surface')),
@@ -98,12 +98,8 @@ void main() {
         findsNothing,
       );
       expect(find.byType(AppBar), findsNothing);
-      expect(find.text('عنوان خارجي لا يظهر كرأس نافذة'), findsNothing);
+      expect(find.text('عنوان النافذة'), findsOneWidget);
       expect(find.text('عنوان AppBar قديم لا يظهر'), findsNothing);
-      expect(
-        find.byKey(const ValueKey('module-inline-actions')),
-        findsOneWidget,
-      );
       expect(
         find.byKey(const ValueKey('inline-appbar-action')),
         findsOneWidget,
@@ -111,9 +107,12 @@ void main() {
 
       final size = tester.getSize(panel);
       final topLeft = tester.getTopLeft(panel);
-      expect(size.width, 1400);
-      expect(size.height, 900);
-      expect(topLeft, Offset.zero);
+      expect(size.width, lessThan(1400));
+      expect(size.height, lessThan(900));
+      expect(size.width, greaterThanOrEqualTo(760));
+      expect(size.height, greaterThanOrEqualTo(520));
+      expect(topLeft.dx, greaterThan(0));
+      expect(topLeft.dy, greaterThan(0));
 
       await tester.tap(find.byKey(const ValueKey('inline-appbar-action')));
       await tester.pump();
@@ -127,7 +126,7 @@ void main() {
   );
 
   testWidgets(
-    'AlertDialog title and actions remain inline full viewport content',
+    'AlertDialog title and actions are promoted into the single window header',
     (tester) async {
       bool? closed;
       await tester.pumpWidget(
@@ -163,6 +162,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsNothing);
+      expect(
+        find.byKey(const ValueKey('module-workspace-window')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('module-page-close')), findsOneWidget);
       expect(find.text('بيانات المستخدم'), findsOneWidget);
       expect(find.text('محتوى النافذة'), findsOneWidget);
@@ -170,7 +173,7 @@ void main() {
           .getTopLeft(find.byKey(const ValueKey('legacy-dialog-save')))
           .dy;
       final contentTop = tester.getTopLeft(find.text('محتوى النافذة')).dy;
-      expect(actionTop, greaterThan(contentTop));
+      expect(actionTop, lessThan(contentTop));
 
       await tester.tap(find.byKey(const ValueKey('legacy-dialog-save')));
       await tester.pumpAndSettle();
