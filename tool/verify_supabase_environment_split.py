@@ -39,14 +39,12 @@ def json_file(path: str) -> dict:
 local = json_file("dart_defines.json")
 production = json_file("dart_defines.production.json")
 
-if local.get("KAJ_BACKEND_TARGET") != "local":
-    errors.append("local defines must declare KAJ_BACKEND_TARGET=local")
+if set(local) - {"SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY"}:
+    errors.append("local browser defines must contain public Supabase values only")
 if local.get("SUPABASE_URL") != LOCAL_URL:
     errors.append("local defines must use loopback Supabase only")
-if local.get("SUPABASE_ALLOW_LOCAL_DEV") is not True:
-    errors.append("local defines must explicitly enable local development")
-if local.get("SUPABASE_LOCAL_PROJECT_ID") != LOCAL_ID:
-    errors.append("local defines project id is incorrect")
+if not str(local.get("SUPABASE_PUBLISHABLE_KEY") or local.get("SUPABASE_ANON_KEY") or ""):
+    errors.append("local public Supabase key is missing")
 
 if production.get("KAJ_BACKEND_TARGET") != "production":
     errors.append("production defines must declare KAJ_BACKEND_TARGET=production")
@@ -83,11 +81,15 @@ runtime = text("lib/core/cloud/supabase_config.dart")
 for marker in (
     "KAJ_BACKEND_TARGET",
     "defaultValue: ''",
+    "resolveBackendTarget",
+    "return _isLoopback(host) ? 'local' : '';",
     "validateRuntimeContract",
     FINAL_REF,
 ):
     if marker not in runtime:
         errors.append(f"runtime fail-closed contract missing: {marker}")
+if "return _isLoopback(host) ? 'local' : 'production';" in runtime:
+    errors.append("runtime must never infer production from a hosted URL")
 
 bootstrap = text("tool/bootstrap_local_supabase.ps1")
 for marker in (LOCAL_URL, LOCAL_ID, "Assert-LocalOnlyUrl", "supabase start"):
@@ -167,7 +169,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS strict Local/Production Supabase environment split")
-print(f"  LOCAL      -> {LOCAL_URL}")
-print(f"  PRODUCTION -> {FINAL_URL}")
+print(f"  LOCAL      -> {LOCAL_URL} (loopback-only inference)")
+print(f"  PRODUCTION -> {FINAL_URL} (explicit target required)")
 print("  Firebase   -> Hosting only (kaj-erp)")
 print("  Linked DB pushes -> final production ref only")
