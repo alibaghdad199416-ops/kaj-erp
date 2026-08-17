@@ -146,15 +146,21 @@ class _AppFullViewportWorkspaceState<T>
               children: [
                 Positioned.fill(
                   child: RepaintBoundary(
-                    child: _normalizeFullViewportContent(
-                      context,
-                      widget.builder(context),
+                    child: Builder(
+                      builder: (workspaceContext) =>
+                          _normalizeFullViewportContent(
+                            workspaceContext,
+                            widget.builder(workspaceContext),
+                          ),
                     ),
                   ),
                 ),
+                // Keep close access outside the module's own AppBar/action area.
+                // `start` is intentionally opposite Material's usual end-aligned
+                // FAB/action placement in both LTR and RTL layouts.
                 PositionedDirectional(
-                  top: 12,
-                  end: 12,
+                  start: 12,
+                  bottom: 12,
                   child: SafeArea(
                     minimum: const EdgeInsets.all(4),
                     child: _FloatingCloseButton(onClose: _requestClose),
