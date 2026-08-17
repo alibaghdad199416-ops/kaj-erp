@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 from urllib.parse import urlparse
 
 
@@ -13,9 +14,45 @@ CONFIG = ROOT / "supabase" / "config.toml"
 SQL_TEST = ROOT / "supabase" / "tests" / "verify_r86_complete_linked_financial_deletion.sql"
 EXPECTED_PROJECT_ID = "quality_line_erp_local_dev"
 PASS_MARKER = "R86 complete linked financial deletion PASS"
+ORIGIN_MARKER = "set local session_replication_role=origin;"
+
+# The R86 SQL deliberately inserts legacy-shaped cash rows while triggers are
+# disabled so deletion can be exercised against historical payment envelopes.
+# Once origin triggers are restored, R68 stamps those rows and the current cash
+# currency guard correctly requires a live cashAccountId. Keep that runtime
+# invariant enabled: make the local regression fixture valid instead of
+# suppressing the trigger/validator.
+CASH_ACCOUNT_FIXTURE = """
+-- R86 runner-local cash integrity fixture. Everything remains inside the SQL
+-- test transaction and is rolled back by the test's final ROLLBACK.
+insert into public.erp_cash_accounts(company_id,id,data) values
+(
+  '86000000-0000-4000-8000-000000000010','r86-cashbox-usd',
+  jsonb_build_object(
+    'id','r86-cashbox-usd','name','R86 Local USD Cashbox',
+    'currency','USD','isActive',true
+  )
+),(
+  '86000000-0000-4000-8000-000000000010','r86-cashbox-iqd',
+  jsonb_build_object(
+    'id','r86-cashbox-iqd','name','R86 Local IQD Cashbox',
+    'currency','IQD','isActive',true
+  )
+);
+
+update public.erp_cash_transactions
+set data=data||jsonb_build_object(
+  'cashAccountId',case upper(coalesce(data->>'currency',''))
+    when 'IQD' then 'r86-cashbox-iqd'
+    else 'r86-cashbox-usd'
+  end
+)
+where company_id='86000000-0000-4000-8000-000000000010'
+  and id like 'r86-%';
+""".strip()
 
 
-def fail(message: str, output: str | None = None) -> "NoReturn":
+def fail(message: str, output: str | None = None) -> NoReturn:
     if output:
         print(output.rstrip(), file=sys.stderr)
     raise SystemExit(f"FAIL: {message}")
@@ -34,6 +71,24 @@ def parse_status_env(output: str) -> dict[str, str]:
         if match:
             values[match.group(1)] = match.group(2)
     return values
+
+
+def regression_sql() -> bytes:
+    sql = SQL_TEST.read_text(encoding="utf-8")
+    marker_count = sql.count(ORIGIN_MARKER)
+    if marker_count != 1:
+        fail(
+            "unexpected R86 SQL trigger-boundary count: "
+            f"expected 1, found {marker_count}"
+        )
+    if "set local session_replication_role=replica;" not in sql:
+        fail("R86 SQL no longer declares its fixture-only replica phase")
+    augmented = sql.replace(
+        ORIGIN_MARKER,
+        f"{CASH_ACCOUNT_FIXTURE}\n\n{ORIGIN_MARKER}",
+        1,
+    )
+    return augmented.encode("utf-8")
 
 
 def main() -> int:
@@ -110,7 +165,7 @@ def main() -> int:
             )
         db_container = candidates[0]
 
-    sql = SQL_TEST.read_bytes()
+    sql = regression_sql()
     result = subprocess.run(
         [
             docker,
