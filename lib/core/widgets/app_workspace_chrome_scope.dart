@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 
 /// Describes which application-shell chrome already owns the current module.
 ///
-/// Desktop side-navigation layouts render [AppWorkspaceTopBar] above the
+/// Desktop side-navigation layouts render the `AppWorkspaceTopBar` above the
 /// business canvas. Descendants can use this scope to avoid rendering a second
 /// module title/header while keeping compact/mobile layouts self-describing.
 class AppWorkspaceChromeScope extends InheritedWidget {
