@@ -132,13 +132,17 @@ def main() -> None:
         "lib/core/widgets/app_entity_page.dart",
         "module-command-rail",
         "module-continuous-workspace",
+        "mergeHiddenHeaderActionsAndStatistics",
     )
     require(
         "lib/core/widgets/app_full_page_route.dart",
-        "_PremiumWindowTheme",
-        "_WindowHeader",
-        "_WindowFooter",
-        "Clip.hardEdge",
+        "Desktop workspaces intentionally remain bounded",
+        "_PremiumWorkspaceTheme",
+        "_WorkspaceHeader",
+        "_WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "module-workspace-window",
+        "Clip.antiAlias",
     )
 
     require(
@@ -170,6 +174,7 @@ def main() -> None:
     print("  - report Excel preserves selected Arabic/English language + relation index")
     print("  - accounting PDF/Excel follow active application language")
     print("  - generic PDF uses the unified Quality Line identity and company branding")
+    print("  - bounded integrated workspaces remain the canonical internal UI shell")
     print("  - local launcher verifies source before migration/run")
     print(f"  - local project remains isolated: {EXPECTED_LOCAL_PROJECT_ID} @ {EXPECTED_LOCAL_URL}")
 
