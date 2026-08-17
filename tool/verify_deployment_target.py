@@ -48,14 +48,12 @@ production_path = ROOT / "dart_defines.production.json"
 local_text, local_runtime = read_json(local_path, "local runtime")
 production_text, production_runtime = read_json(production_path, "production runtime")
 
-if local_runtime.get("KAJ_BACKEND_TARGET") != "local":
-    errors.append("dart_defines.json must explicitly declare KAJ_BACKEND_TARGET=local")
+local_allowed = {"SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY"}
+local_extra = set(local_runtime) - local_allowed
+if local_extra:
+    errors.append(f"local browser config has unexpected keys: {sorted(local_extra)}")
 if local_runtime.get("SUPABASE_URL") != EXPECTED_LOCAL_URL:
-    errors.append("dart_defines.json must target Local Supabase only")
-if local_runtime.get("SUPABASE_ALLOW_LOCAL_DEV") is not True:
-    errors.append("local runtime must explicitly allow Local Supabase")
-if local_runtime.get("SUPABASE_LOCAL_PROJECT_ID") != EXPECTED_LOCAL_PROJECT_ID:
-    errors.append("local runtime project id is missing or incorrect")
+    errors.append("dart_defines.json must target Local Supabase loopback only")
 reject_secret(public_key(local_runtime), "local runtime")
 if re.search(r"https://[^\s\"']+\.supabase\.co", local_text, re.I):
     errors.append("local runtime must not contain any Hosted Supabase URL")
@@ -79,6 +77,8 @@ config_source = (ROOT / "lib" / "core" / "cloud" / "supabase_config.dart").read_
 for required in (
     EXPECTED_SUPABASE_REF,
     "KAJ_BACKEND_TARGET",
+    "resolveBackendTarget",
+    "return _isLoopback(host) ? 'local' : '';",
     "validateRuntimeContract",
     "defaultValue: ''",
     "SUPABASE_ALLOW_LOCAL_DEV",
@@ -91,6 +91,8 @@ for required in (
         errors.append(f"SupabaseConfig is missing runtime contract: {required}")
 if "_defaultProjectUrl = expectedProductionUrl" in config_source:
     errors.append("SupabaseConfig must not silently default to production")
+if "return _isLoopback(host) ? 'local' : 'production';" in config_source:
+    errors.append("SupabaseConfig must never infer production from a hosted URL")
 
 config = (ROOT / "supabase" / "config.toml").read_text(encoding="utf-8")
 for marker in (
@@ -265,8 +267,8 @@ if errors:
     raise SystemExit(1)
 
 print("PASS strict Supabase runtime separation")
-print(f"  - Local development: {EXPECTED_LOCAL_URL} only")
-print(f"  - Production: {EXPECTED_SUPABASE_URL} only")
+print(f"  - Local development: {EXPECTED_LOCAL_URL} only (loopback-only inference)")
+print(f"  - Production: {EXPECTED_SUPABASE_URL} only (explicit target required)")
 print(f"  - Firebase Hosting only: {EXPECTED_FIREBASE_PROJECT}")
-print("  - Missing/unknown runtime target fails closed")
+print("  - Hosted targets never receive an implicit runtime target")
 print("  - Local Auth bootstrap is loopback guarded")
