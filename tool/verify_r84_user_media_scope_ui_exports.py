@@ -139,14 +139,17 @@ def main() -> None:
         "lib/core/widgets/app_entity_page.dart",
         "module-command-rail",
         "module-continuous-workspace",
-        "Only the module identity header is framed",
+        "mergeHiddenHeaderActionsAndStatistics",
     )
     require(
         "lib/core/widgets/app_full_page_route.dart",
-        "_PremiumWindowTheme",
-        "_WindowHeader",
-        "_WindowFooter",
-        "Clip.hardEdge",
+        "Desktop workspaces intentionally remain bounded",
+        "_PremiumWorkspaceTheme",
+        "_WorkspaceHeader",
+        "_WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "module-workspace-window",
+        "Clip.antiAlias",
     )
     require(
         "lib/core/printing/unified_pdf_document.dart",
@@ -190,7 +193,7 @@ def main() -> None:
     print("  - every scoped module exposes records.own and records.all")
     print("  - PostgreSQL list/detail/write/RLS boundaries enforce record scope")
     print("  - CRM opportunities use the scoped PostgreSQL list RPC")
-    print("  - module workspace/windows and PDF/Excel identity remain unified")
+    print("  - bounded module workspaces and PDF/Excel identity remain unified")
     print(f"  - local project isolation remains {EXPECTED_LOCAL_PROJECT_ID} @ {EXPECTED_LOCAL_URL}")
 
 
