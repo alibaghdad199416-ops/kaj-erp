@@ -1,18 +1,18 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
-import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
-/// Opens module work in one consistent premium, movable and resizable window.
-/// Every legacy Dialog/AlertDialog/Scaffold is normalized into the same header,
-/// content viewport and command footer so controls cannot escape the window.
+/// Opens operational module content as a true full-viewport workspace.
+///
+/// The legacy size arguments remain in the API for source compatibility, but
+/// operational workspaces no longer render as centered/resizable boxes. This
+/// keeps modules usable at 100% browser zoom and removes the duplicated outer
+/// window header while preserving close/dirty-state semantics.
 Future<T?> showAppFullPageRoute<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -24,19 +24,18 @@ Future<T?> showAppFullPageRoute<T>({
   double minHeight = 380,
 }) {
   FocusManager.instance.primaryFocus?.unfocus();
+
   return showGeneralDialog<T>(
     context: context,
     useRootNavigator: true,
     barrierDismissible: false,
-    barrierLabel: title ?? 'module-window',
-    barrierColor: Colors.black.withValues(alpha: .68),
-    transitionDuration: const Duration(milliseconds: 210),
-    pageBuilder: (dialogContext, _, _) => _AppResizableModuleWindow<T>(
+    barrierLabel: title ?? 'module-workspace',
+    barrierColor: Theme.of(context).scaffoldBackgroundColor,
+    transitionDuration: const Duration(milliseconds: 180),
+    pageBuilder: (dialogContext, _, _) => _AppFullViewportWorkspace<T>(
       title: title,
       builder: builder,
       barrierDismissible: barrierDismissible,
-      preferredSize: Size(maxWidth, maxHeight),
-      minimumSize: Size(minWidth, minHeight),
     ),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
@@ -44,43 +43,31 @@ Future<T?> showAppFullPageRoute<T>({
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       );
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: .97, end: 1).animate(curved),
-          child: child,
-        ),
-      );
+      return FadeTransition(opacity: curved, child: child);
     },
   );
 }
 
-class _AppResizableModuleWindow<T> extends StatefulWidget {
-  const _AppResizableModuleWindow({
+class _AppFullViewportWorkspace<T> extends StatefulWidget {
+  const _AppFullViewportWorkspace({
     required this.title,
     required this.builder,
     required this.barrierDismissible,
-    required this.preferredSize,
-    required this.minimumSize,
   });
 
   final String? title;
   final WidgetBuilder builder;
   final bool barrierDismissible;
-  final Size preferredSize;
-  final Size minimumSize;
 
   @override
-  State<_AppResizableModuleWindow<T>> createState() =>
-      _AppResizableModuleWindowState<T>();
+  State<_AppFullViewportWorkspace<T>> createState() =>
+      _AppFullViewportWorkspaceState<T>();
 }
 
-class _AppResizableModuleWindowState<T>
-    extends State<_AppResizableModuleWindow<T>> {
+class _AppFullViewportWorkspaceState<T>
+    extends State<_AppFullViewportWorkspace<T>> {
   bool _dirty = false;
   bool _closing = false;
-  Size? _customSize;
-  Offset _windowOffset = Offset.zero;
 
   void _setDirty(bool value) {
     if (!mounted || _dirty == value) return;
@@ -95,33 +82,34 @@ class _AppResizableModuleWindowState<T>
 
   Future<bool> _requestClose() async {
     if (!mounted || _closing) return false;
+
     if (_dirty) {
       final accepted =
           await showDialog<bool>(
             context: context,
             useRootNavigator: true,
             builder: (dialogContext) => AlertDialog(
-              title: AppText(
+              title: Text(
                 context.l10n.isArabic
                     ? 'تغييرات غير محفوظة'
                     : 'Unsaved changes',
               ),
-              content: AppText(
+              content: Text(
                 context.l10n.isArabic
-                    ? 'توجد بيانات غير محفوظة. هل تريد إغلاق النافذة دون حفظ؟'
-                    : 'There are unsaved changes. Close this window without saving?',
+                    ? 'توجد بيانات غير محفوظة. هل تريد إغلاق الشاشة دون حفظ؟'
+                    : 'There are unsaved changes. Close this screen without saving?',
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: AppText(
+                  child: Text(
                     context.l10n.isArabic ? 'متابعة التحرير' : 'Keep editing',
                   ),
                 ),
                 FilledButton(
                   key: const ValueKey('discard-unsaved-changes'),
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: AppText(
+                  child: Text(
                     context.l10n.isArabic
                         ? 'إغلاق دون حفظ'
                         : 'Close without saving',
@@ -133,35 +121,9 @@ class _AppResizableModuleWindowState<T>
           false;
       if (!accepted || !mounted) return false;
     }
+
     _close();
     return true;
-  }
-
-  void _resizeFromCorner(DragUpdateDetails details) {
-    if (!mounted) return;
-    setState(() {
-      final current = _customSize ?? widget.preferredSize;
-      _customSize = Size(
-        math.max(widget.minimumSize.width, current.width + details.delta.dx),
-        math.max(widget.minimumSize.height, current.height + details.delta.dy),
-      );
-    });
-  }
-
-  void _moveWindow(DragUpdateDetails details, Size viewport, Size size) {
-    if (!mounted) return;
-    final halfFreeWidth = math.max(0.0, (viewport.width - size.width) / 2);
-    final halfFreeHeight = math.max(0.0, (viewport.height - size.height) / 2);
-    setState(() {
-      _windowOffset = Offset(
-        (_windowOffset.dx + details.delta.dx)
-            .clamp(-halfFreeWidth, halfFreeWidth)
-            .toDouble(),
-        (_windowOffset.dy + details.delta.dy)
-            .clamp(-halfFreeHeight, halfFreeHeight)
-            .toDouble(),
-      );
-    });
   }
 
   Future<void> _handleSystemBack(bool didPop, dynamic result) async {
@@ -175,113 +137,47 @@ class _AppResizableModuleWindowState<T>
       canPop: false,
       onPopInvokedWithResult: _handleSystemBack,
       child: Material(
-        type: MaterialType.transparency,
-        child: LayoutBuilder(
-          builder: (context, viewport) {
-            final horizontalMargin = viewport.maxWidth < 720 ? 8.0 : 24.0;
-            final verticalMargin = viewport.maxHeight < 620 ? 8.0 : 20.0;
-            final available = Size(
-              math.max(280.0, viewport.maxWidth - horizontalMargin * 2),
-              math.max(240.0, viewport.maxHeight - verticalMargin * 2),
-            );
-            final minimum = Size(
-              math.min(widget.minimumSize.width, available.width),
-              math.min(widget.minimumSize.height, available.height),
-            );
-            final preferred = _customSize ?? widget.preferredSize;
-            final size = Size(
-              preferred.width.clamp(minimum.width, available.width).toDouble(),
-              preferred.height
-                  .clamp(minimum.height, available.height)
-                  .toDouble(),
-            );
-            final closeDock = _CloseAndMoveDock(
-              onClose: _requestClose,
-              onMove: (details) => _moveWindow(
-                details,
-                Size(viewport.maxWidth, viewport.maxHeight),
-                size,
-              ),
-            );
-
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: widget.barrierDismissible
-                        ? () => unawaited(_requestClose())
-                        : null,
-                    child: const SizedBox.expand(),
-                  ),
-                ),
-                Center(
-                  child: Transform.translate(
-                    offset: _windowOffset,
-                    child: SizedBox(
-                      width: size.width,
-                      height: size.height,
-                      child: AppWorkspaceWindowScope(
-                        windowId: 0,
-                        title: widget.title?.trim() ?? '',
-                        close: _close,
-                        requestClose: _requestClose,
-                        setDirty: _setDirty,
-                        isDirty: _dirty,
-                        child: KajShellSurface(
-                          key: const ValueKey('module-full-page-route'),
-                          padding: EdgeInsets.zero,
-                          radius: KajDesignTokens.radiusLg,
-                          emphasized: true,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              KajDesignTokens.radiusLg,
-                            ),
-                            clipBehavior: Clip.hardEdge,
-                            child: _PremiumWindowTheme(
-                              child: Stack(
-                                clipBehavior: Clip.hardEdge,
-                                children: [
-                                  Positioned.fill(
-                                    child: RepaintBoundary(
-                                      child: _WindowContentNavigator<T>(
-                                        builder: (contentContext) =>
-                                            _normalizeContent(
-                                              widget.builder(contentContext),
-                                              closeDock: closeDock,
-                                            ),
-                                        onRootPopped: _close,
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 0,
-                                    bottom: 0,
-                                    child: _InvisibleResizeCorner(
-                                      onPanUpdate: _resizeFromCorner,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+        key: const ValueKey('module-full-page-route'),
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: AppWorkspaceWindowScope(
+            windowId: 0,
+            title: widget.title?.trim() ?? '',
+            close: _close,
+            requestClose: _requestClose,
+            setDirty: _setDirty,
+            isDirty: _dirty,
+            child: _PremiumWorkspaceTheme(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: _normalizeFullViewportContent(
+                        widget.builder(context),
                       ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                  PositionedDirectional(
+                    top: 12,
+                    end: 12,
+                    child: _FloatingCloseButton(onClose: _requestClose),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _PremiumWindowTheme extends StatelessWidget {
-  const _PremiumWindowTheme({required this.child});
+class _PremiumWorkspaceTheme extends StatelessWidget {
+  const _PremiumWorkspaceTheme({required this.child});
+
   final Widget child;
 
   @override
@@ -304,6 +200,7 @@ class _PremiumWindowTheme extends StatelessWidget {
         ),
       ),
     );
+
     return Theme(
       data: base.copyWith(
         filledButtonTheme: FilledButtonThemeData(style: controlStyle),
@@ -322,315 +219,120 @@ class _PremiumWindowTheme extends StatelessWidget {
   }
 }
 
-Widget _normalizeContent(Widget child, {required Widget closeDock}) {
-  if (child is AppEntityPage) {
-    return _PlainContentAsWindow(
-      closeDock: closeDock,
-      showCloseOverlay: false,
-      child: child,
+Widget _normalizeFullViewportContent(Widget child) {
+  if (child is AppEntityPage) return child;
+
+  if (child is Scaffold) {
+    return Scaffold(
+      key: child.key,
+      appBar: child.appBar,
+      body: child.body,
+      floatingActionButton: child.floatingActionButton,
+      floatingActionButtonLocation: child.floatingActionButtonLocation,
+      floatingActionButtonAnimator: child.floatingActionButtonAnimator,
+      persistentFooterButtons: child.persistentFooterButtons,
+      drawer: child.drawer,
+      onDrawerChanged: child.onDrawerChanged,
+      endDrawer: child.endDrawer,
+      onEndDrawerChanged: child.onEndDrawerChanged,
+      bottomNavigationBar: child.bottomNavigationBar,
+      bottomSheet: child.bottomSheet,
+      backgroundColor: child.backgroundColor,
+      resizeToAvoidBottomInset: child.resizeToAvoidBottomInset,
+      primary: child.primary,
+      drawerDragStartBehavior: child.drawerDragStartBehavior,
+      extendBody: child.extendBody,
+      extendBodyBehindAppBar: child.extendBodyBehindAppBar,
+      drawerScrimColor: child.drawerScrimColor,
+      drawerEdgeDragWidth: child.drawerEdgeDragWidth,
+      drawerEnableOpenDragGesture: child.drawerEnableOpenDragGesture,
+      endDrawerEnableOpenDragGesture: child.endDrawerEnableOpenDragGesture,
+      restorationId: child.restorationId,
     );
   }
+
   if (child is AlertDialog) {
-    return _AlertDialogAsWindow(dialog: child, closeDock: closeDock);
+    final actions = child.actions ?? const <Widget>[];
+    return Material(
+      color: child.backgroundColor ?? Colors.transparent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (child.title != null)
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 24, 72, 8),
+              child: DefaultTextStyle.merge(
+                style: Theme.of(child.title!.key?.currentContext ??
+                            _fallbackBuildContext)
+                        .textTheme
+                        .titleLarge ??
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                child: child.title!,
+              ),
+            ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 24, 24),
+              child: child.content ?? const SizedBox.shrink(),
+            ),
+          ),
+          if (actions.isNotEmpty)
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 24, 20),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: actions,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
-  if (child is Scaffold) {
-    return _ScaffoldAsWindow(scaffold: child, closeDock: closeDock);
-  }
+
   if (child is Dialog && child.child != null) {
-    return _PlainContentAsWindow(closeDock: closeDock, child: child.child!);
+    return SizedBox.expand(child: child.child!);
   }
-  return _PlainContentAsWindow(closeDock: closeDock, child: child);
+
+  return SizedBox.expand(child: child);
 }
 
-class _WindowContentNavigator<T> extends StatelessWidget {
-  const _WindowContentNavigator({
-    required this.builder,
-    required this.onRootPopped,
-  });
+// Never read at runtime. It only keeps the AlertDialog title fallback expression
+// type-safe without introducing a second shared header.
+BuildContext get _fallbackBuildContext => throw StateError('No fallback context');
 
-  final WidgetBuilder builder;
-  final ValueChanged<T?> onRootPopped;
-
-  @override
-  Widget build(BuildContext context) => HeroControllerScope.none(
-    child: Navigator(
-      key: const ValueKey('module-window-content-navigator'),
-      onGenerateInitialRoutes: (_, _) => <Route<dynamic>>[
-        PageRouteBuilder<dynamic>(
-          settings: const RouteSettings(name: 'module-window-guard'),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-          pageBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
-        _WindowContentRoute<T>(builder: builder, onPopped: onRootPopped),
-      ],
-      onGenerateRoute: (_) => null,
-    ),
-  );
-}
-
-class _WindowContentRoute<T> extends PageRouteBuilder<T> {
-  _WindowContentRoute({required WidgetBuilder builder, required this.onPopped})
-    : super(
-        settings: const RouteSettings(name: 'module-window-content'),
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-        pageBuilder: (context, _, _) =>
-            FocusTraversalGroup(child: Builder(builder: builder)),
-      );
-
-  final ValueChanged<T?> onPopped;
-  bool _reported = false;
-
-  @override
-  bool didPop(T? result) {
-    final popped = super.didPop(result);
-    if (popped && !_reported) {
-      _reported = true;
-      scheduleMicrotask(() => onPopped(result));
-    }
-    return popped;
-  }
-}
-
-class _CloseAndMoveDock extends StatelessWidget {
-  const _CloseAndMoveDock({required this.onClose, required this.onMove});
+class _FloatingCloseButton extends StatelessWidget {
+  const _FloatingCloseButton({required this.onClose});
 
   final Future<bool> Function() onClose;
-  final GestureDragUpdateCallback onMove;
 
   @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.move,
-    child: GestureDetector(
-      key: const ValueKey('module-window-move-surface'),
-      behavior: HitTestBehavior.opaque,
-      onPanUpdate: onMove,
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: .92),
+      elevation: 2,
+      borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
       child: Tooltip(
         message: context.l10n.isArabic ? 'إغلاق' : 'Close',
         child: InkWell(
           key: const ValueKey('module-page-close'),
           onTap: () => unawaited(onClose()),
           borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
-              color: KajDesignTokens.electricBlue.withValues(alpha: .10),
-              border: Border.all(
-                color: KajDesignTokens.electricBlue.withValues(alpha: .52),
-              ),
-            ),
+          child: SizedBox(
+            width: 42,
+            height: 42,
             child: Icon(
               Icons.close_rounded,
-              size: 20,
-              color: KajDesignTokens.electricBlue,
+              size: 21,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
       ),
-    ),
-  );
-}
-
-class _WindowHeader extends StatelessWidget {
-  const _WindowHeader({
-    required this.title,
-    required this.closeDock,
-    this.actions,
-  });
-  final Widget? title;
-  final Widget closeDock;
-  final List<Widget>? actions;
-
-  @override
-  Widget build(BuildContext context) {
-    final values = actions ?? const <Widget>[];
-    return Container(
-      constraints: const BoxConstraints(minHeight: 62),
-      padding: const EdgeInsetsDirectional.fromSTEB(18, 10, 12, 10),
-      decoration: BoxDecoration(
-        gradient: KajDesignTokens.surfaceGradient(Theme.of(context).brightness),
-        border: Border(
-          bottom: BorderSide(
-            color: KajDesignTokens.border(Theme.of(context).brightness),
-          ),
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: title == null
-                ? const SizedBox.shrink()
-                : DefaultTextStyle.merge(
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -.25,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    child: title!,
-                  ),
-          ),
-          if (values.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            Flexible(flex: 2, child: AppHorizontalStrip(children: values)),
-          ],
-          const SizedBox(width: 10),
-          closeDock,
-        ],
-      ),
     );
   }
-}
-
-class _WindowFooter extends StatelessWidget {
-  const _WindowFooter({required this.actions});
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    if (actions.isEmpty) return const SizedBox.shrink();
-    return Container(
-      constraints: const BoxConstraints(minHeight: 64),
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 16, 10),
-      decoration: BoxDecoration(
-        color: KajDesignTokens.raisedSurface(Theme.of(context).brightness),
-        border: Border(
-          top: BorderSide(
-            color: KajDesignTokens.border(Theme.of(context).brightness),
-          ),
-        ),
-      ),
-      child: Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: AppHorizontalStrip(
-          spacing: 8,
-          children: Directionality.of(context) == TextDirection.rtl
-              ? actions.reversed.toList(growable: false)
-              : actions,
-        ),
-      ),
-    );
-  }
-}
-
-class _ScaffoldAsWindow extends StatelessWidget {
-  const _ScaffoldAsWindow({required this.scaffold, required this.closeDock});
-  final Scaffold scaffold;
-  final Widget closeDock;
-
-  @override
-  Widget build(BuildContext context) {
-    final appBar = scaffold.appBar is AppBar
-        ? scaffold.appBar! as AppBar
-        : null;
-    final actions = <Widget>[
-      ...?appBar?.actions,
-      if (scaffold.floatingActionButton != null) scaffold.floatingActionButton!,
-    ];
-    final bottom = appBar?.bottom;
-    final footerActions = scaffold.persistentFooterButtons;
-    final backgroundColor =
-        scaffold.backgroundColor ?? Theme.of(context).colorScheme.surface;
-    return ColoredBox(
-      color: backgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _WindowHeader(
-            title: appBar?.title,
-            closeDock: closeDock,
-            actions: actions,
-          ),
-          if (bottom != null)
-            SizedBox(height: bottom.preferredSize.height, child: bottom),
-          Expanded(
-            child: ClipRect(child: scaffold.body ?? const SizedBox.shrink()),
-          ),
-          if (footerActions != null && footerActions.isNotEmpty)
-            _WindowFooter(actions: footerActions),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertDialogAsWindow extends StatelessWidget {
-  const _AlertDialogAsWindow({required this.dialog, required this.closeDock});
-  final AlertDialog dialog;
-  final Widget closeDock;
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = dialog.actions ?? const <Widget>[];
-    final content = dialog.content ?? const SizedBox.shrink();
-    return ColoredBox(
-      color: Theme.of(context).colorScheme.surface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _WindowHeader(
-            title: dialog.title,
-            closeDock: closeDock,
-            actions: actions,
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-              child: ClipRect(
-                child: dialog.scrollable
-                    ? SingleChildScrollView(child: content)
-                    : Align(
-                        alignment: AlignmentDirectional.topStart,
-                        child: SizedBox(width: double.infinity, child: content),
-                      ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlainContentAsWindow extends StatelessWidget {
-  const _PlainContentAsWindow({
-    required this.closeDock,
-    required this.child,
-    this.showCloseOverlay = true,
-  });
-
-  final Widget closeDock;
-  final Widget child;
-  final bool showCloseOverlay;
-
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: Theme.of(context).colorScheme.surface,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        if (showCloseOverlay) _WindowHeader(title: null, closeDock: closeDock),
-        Expanded(child: ClipRect(child: child)),
-      ],
-    ),
-  );
-}
-
-class _InvisibleResizeCorner extends StatelessWidget {
-  const _InvisibleResizeCorner({required this.onPanUpdate});
-  final GestureDragUpdateCallback onPanUpdate;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.resizeDownRight,
-    child: GestureDetector(
-      key: const ValueKey('module-window-resize-corner'),
-      behavior: HitTestBehavior.translucent,
-      onPanUpdate: onPanUpdate,
-      child: const SizedBox(width: 24, height: 24),
-    ),
-  );
 }
