@@ -147,8 +147,8 @@ insert into public.erp_journal_lines(company_id,id,data) values
 ('86000000-0000-4000-8000-000000000010','r86-purchase-line-b',jsonb_build_object('entryId','r86-purchase-journal-delete','debit',0,'credit',300));
 
 -- -------------------------------------------------------------------------
--- Maintenance: two independent payments. Delete one and recalculate from the
--- surviving amount_in_order_currency row.
+-- Maintenance fully-paid state: two independent payments. Delete one and
+-- recalculate from the surviving amount_in_order_currency row.
 -- -------------------------------------------------------------------------
 insert into public.erp_maintenance_orders(
   id,company_id,order_number,car_id,car_name,is_sold_car,pricing_type,
@@ -158,6 +158,11 @@ insert into public.erp_maintenance_orders(
   '86000000-0000-4000-8000-000000000010','R86-MO-001',
   '86000000-0000-4000-8000-000000000401','R86 Vehicle',true,'paid',
   'completed','paid',500,500,'USD',1
+),(
+  '86000000-0000-4000-8000-000000000302',
+  '86000000-0000-4000-8000-000000000010','R86-MO-002',
+  '86000000-0000-4000-8000-000000000402','R86 Partial Vehicle',true,'paid',
+  'approved','invoice_approved',500,300,'USD',1
 );
 
 insert into public.erp_maintenance_payments(
@@ -185,6 +190,28 @@ insert into public.erp_maintenance_payments(
     'cashTransactionId','r86-maint-cash-keep',
     'journalEntryId','r86-maint-journal-keep','invoiceAmount',200
   )
+),(
+  '86000000-0000-4000-8000-000000001303',
+  '86000000-0000-4000-8000-000000000010',
+  '86000000-0000-4000-8000-000000000302',150000,'IQD',1500,100,
+  'r86-maint-partial-cash-delete','r86-maint-partial-journal-delete',
+  'r86-maint-partial-key-delete','partial',
+  jsonb_build_object(
+    'paymentId','86000000-0000-4000-8000-000000001303',
+    'cashTransactionId','r86-maint-partial-cash-delete',
+    'journalEntryId','r86-maint-partial-journal-delete','invoiceAmount',100
+  )
+),(
+  '86000000-0000-4000-8000-000000001304',
+  '86000000-0000-4000-8000-000000000010',
+  '86000000-0000-4000-8000-000000000302',300000,'IQD',1500,200,
+  'r86-maint-partial-cash-keep','r86-maint-partial-journal-keep',
+  'r86-maint-partial-key-keep','partial',
+  jsonb_build_object(
+    'paymentId','86000000-0000-4000-8000-000000001304',
+    'cashTransactionId','r86-maint-partial-cash-keep',
+    'journalEntryId','r86-maint-partial-journal-keep','invoiceAmount',200
+  )
 );
 
 insert into public.erp_cash_transactions(company_id,id,data) values
@@ -197,6 +224,16 @@ insert into public.erp_cash_transactions(company_id,id,data) values
   'id','r86-maint-cash-keep','voucherNumber','R86-MC-KEEP','type','receipt','amount',200,'currency','USD',
   'referenceType','maintenance_payment','referenceId','86000000-0000-4000-8000-000000001302',
   'maintenanceOrderId','86000000-0000-4000-8000-000000000301','journalEntryId','r86-maint-journal-keep'
+)),
+('86000000-0000-4000-8000-000000000010','r86-maint-partial-cash-delete',jsonb_build_object(
+  'id','r86-maint-partial-cash-delete','voucherNumber','R86-MP-DEL','type','receipt','amount',150000,'currency','IQD',
+  'referenceType','maintenance_payment','referenceId','86000000-0000-4000-8000-000000001303',
+  'maintenanceOrderId','86000000-0000-4000-8000-000000000302','journalEntryId','r86-maint-partial-journal-delete'
+)),
+('86000000-0000-4000-8000-000000000010','r86-maint-partial-cash-keep',jsonb_build_object(
+  'id','r86-maint-partial-cash-keep','voucherNumber','R86-MP-KEEP','type','receipt','amount',300000,'currency','IQD',
+  'referenceType','maintenance_payment','referenceId','86000000-0000-4000-8000-000000001304',
+  'maintenanceOrderId','86000000-0000-4000-8000-000000000302','journalEntryId','r86-maint-partial-journal-keep'
 ));
 insert into public.erp_journal_entries(company_id,id,data) values
 ('86000000-0000-4000-8000-000000000010','r86-maint-journal-delete',jsonb_build_object(
@@ -204,11 +241,19 @@ insert into public.erp_journal_entries(company_id,id,data) values
 )),
 ('86000000-0000-4000-8000-000000000010','r86-maint-journal-keep',jsonb_build_object(
   'entryNumber','R86-MJ-KEEP','referenceType','maintenance_payment','referenceId','86000000-0000-4000-8000-000000001302','status','posted'
+)),
+('86000000-0000-4000-8000-000000000010','r86-maint-partial-journal-delete',jsonb_build_object(
+  'entryNumber','R86-MP-J-DEL','referenceType','maintenance_payment','referenceId','86000000-0000-4000-8000-000000001303','status','posted'
+)),
+('86000000-0000-4000-8000-000000000010','r86-maint-partial-journal-keep',jsonb_build_object(
+  'entryNumber','R86-MP-J-KEEP','referenceType','maintenance_payment','referenceId','86000000-0000-4000-8000-000000001304','status','posted'
 ));
 insert into public.erp_journal_lines(company_id,id,data) values
 ('86000000-0000-4000-8000-000000000010','r86-maint-line-delete-a',jsonb_build_object('entryId','r86-maint-journal-delete')),
 ('86000000-0000-4000-8000-000000000010','r86-maint-line-delete-b',jsonb_build_object('entryId','r86-maint-journal-delete')),
-('86000000-0000-4000-8000-000000000010','r86-maint-line-keep-a',jsonb_build_object('entryId','r86-maint-journal-keep'));
+('86000000-0000-4000-8000-000000000010','r86-maint-line-keep-a',jsonb_build_object('entryId','r86-maint-journal-keep')),
+('86000000-0000-4000-8000-000000000010','r86-maint-partial-line-delete-a',jsonb_build_object('entryId','r86-maint-partial-journal-delete')),
+('86000000-0000-4000-8000-000000000010','r86-maint-partial-line-keep-a',jsonb_build_object('entryId','r86-maint-partial-journal-keep'));
 
 -- -------------------------------------------------------------------------
 -- FX invoice payment: settlement cash/journal + transfer + two transfer cash
@@ -469,13 +514,14 @@ begin
 end
 $r86_purchase$;
 
--- 3) Maintenance payment deletion.
+-- 3a) Fully-paid maintenance order: deleting one payment must downgrade the
+-- order from paid/completed to invoice_approved/approved using the survivor.
 select public.erp_delete_cloud_cash_transaction(
   '86000000-0000-4000-8000-000000000010',
   'r86-maint-cash-delete'
 );
 
-do $r86_maintenance$
+do $r86_maintenance_full$
 declare o public.erp_maintenance_orders%rowtype;
 begin
   select * into o from public.erp_maintenance_orders
@@ -496,7 +542,38 @@ begin
     raise exception 'r86_maintenance_financial_group_scope_failed';
   end if;
 end
-$r86_maintenance$;
+$r86_maintenance_full$;
+
+-- 3b) Already-partial maintenance order: deleting one payment must preserve
+-- the partial state and reconcile from amount_in_order_currency, not raw IQD.
+select public.erp_delete_cloud_cash_transaction(
+  '86000000-0000-4000-8000-000000000010',
+  'r86-maint-partial-cash-delete'
+);
+
+do $r86_maintenance_partial$
+declare o public.erp_maintenance_orders%rowtype;
+begin
+  select * into o from public.erp_maintenance_orders
+  where id='86000000-0000-4000-8000-000000000302';
+  if o.id is null or o.is_deleted then
+    raise exception 'r86_maintenance_partial_business_document_deleted';
+  end if;
+  if o.paid_amount<>200 or o.workflow_stage<>'invoice_approved' or o.status<>'approved' then
+    raise exception 'r86_maintenance_partial_reconciliation_failed:paid=% stage=% status=%',o.paid_amount,o.workflow_stage,o.status;
+  end if;
+  if not (select is_deleted from public.erp_maintenance_payments where id='86000000-0000-4000-8000-000000001303')
+     or (select is_deleted from public.erp_maintenance_payments where id='86000000-0000-4000-8000-000000001304') then
+    raise exception 'r86_maintenance_partial_payment_scope_failed';
+  end if;
+  if not (select is_deleted from public.erp_cash_transactions where id='r86-maint-partial-cash-delete')
+     or not (select is_deleted from public.erp_journal_entries where id='r86-maint-partial-journal-delete')
+     or (select is_deleted from public.erp_cash_transactions where id='r86-maint-partial-cash-keep')
+     or (select is_deleted from public.erp_journal_entries where id='r86-maint-partial-journal-keep') then
+    raise exception 'r86_maintenance_partial_financial_group_scope_failed';
+  end if;
+end
+$r86_maintenance_partial$;
 
 -- 4) FX operation deletion from one cash-transfer leg.
 select public.erp_delete_cloud_cash_transaction(
