@@ -5,41 +5,45 @@ root = Path(__file__).resolve().parents[1]
 config = (root / "lib/core/cloud/supabase_config.dart").read_text(encoding="utf-8")
 bootstrap = (root / "lib/core/cloud/cloud_bootstrap.dart").read_text(encoding="utf-8")
 tenant = (root / "lib/core/cloud/cloud_tenant_context.dart").read_text(encoding="utf-8")
-defines = (root / "dart_defines.json").read_text(encoding="utf-8")
+local_defines = (root / "dart_defines.json").read_text(encoding="utf-8")
+production_defines = (root / "dart_defines.production.json").read_text(encoding="utf-8")
 package = json.loads((root / "package.json").read_text(encoding="utf-8"))
 
 expected_local_id = "quality_line_erp_local_dev"
-expected_url = "http://127.0.0.1:54321"
+expected_local_url = "http://127.0.0.1:54321"
+expected_production_ref = "havlqebmnjdcwmpaaqew"
+expected_production_url = f"https://{expected_production_ref}.supabase.co"
 
-for source_name, source in {
-    "supabase_config.dart": config,
-    "dart_defines.json": defines,
-}.items():
-    assert ".supabase.co" not in source, f"{source_name} still permits Hosted Supabase"
-    assert "havlqebmnjdcwmpaaqew" not in source, f"{source_name} still embeds the retired Hosted project"
+local_runtime = json.loads(local_defines)
+production_runtime = json.loads(production_defines)
+assert local_runtime.get("SUPABASE_URL") == expected_local_url
+assert production_runtime.get("SUPABASE_URL") == expected_production_url
+assert str(production_runtime.get("SUPABASE_PUBLISHABLE_KEY") or "").startswith("sb_publishable_")
+assert "/rest/v1" not in str(production_runtime.get("SUPABASE_URL") or "")
 
-assert expected_url in config
-assert expected_url in defines
-assert expected_local_id in config
-assert "browserStorageNamespace" in config
-assert "authPersistSessionKey" in config
-assert "projectRefFor" in config
-assert "storageNamespaceFor" in config
-assert "validateRuntime" in config
+for marker in (
+    expected_production_ref,
+    "expectedProductionUrl",
+    expected_local_id,
+    "browserStorageNamespace",
+    "authPersistSessionKey",
+    "projectRefFor",
+    "storageNamespaceFor",
+    "validateRuntime",
+    "isHostedProductionTarget",
+    "isLocalTarget",
+    "SUPABASE_ALLOW_LOCAL_DEV",
+):
+    assert marker in config, marker
 assert "isConfigured => validateRuntime() == null" in config
-assert "_isLoopback(uri.host)" in config
-assert "Local Supabase فقط" in config
-assert "expectedProductionProjectRef" not in config
 
 # Auth must never fall back to an ambiguous/default browser key. Bootstrap and
-# tenant cache remain backend-scoped even though the only allowed backend is local.
+# tenant cache remain backend-scoped across both production and local runtimes.
 assert "SharedPreferencesLocalStorage" in bootstrap
 assert "SupabaseConfig.authPersistSessionKey" in bootstrap
-assert "if (!isLoopback)" not in bootstrap
 assert "return const FlutterAuthClientOptions();" not in bootstrap
 assert "Supabase bootstrap target: ${SupabaseConfig.projectRef}" in bootstrap
 assert "SupabaseConfig.validateRuntime()" in bootstrap
-assert "SupabaseConfig.validate() == null" not in bootstrap
 assert "Supabase runtime configuration rejected" in bootstrap
 
 assert "SupabaseConfig.browserStorageNamespace" in tenant
@@ -50,14 +54,14 @@ assert "preferences.remove(_scopedKey(_companyUuidKey))" in tenant
 assert "preferences.setString(_scopedKey(_companyKey)" in tenant
 
 scripts = package.get("scripts", {})
-assert scripts.get("run:web") == scripts.get("run:web:local")
-assert "run_current_web.ps1" in scripts.get("run:web", "")
-assert "run_production_web.ps1" not in scripts.get("run:web", "")
+assert "run_production_web.ps1" in scripts.get("run:web", "")
+assert "run_current_web.ps1" in scripts.get("run:web:local", "")
+assert "run_production_web.ps1" in scripts.get("run:web:production", "")
 
-print("PASS R71 Local Supabase runtime/auth/tenant isolation")
-print(f"  - required local project: {expected_local_id}")
-print(f"  - required API: {expected_url}")
-print("  - Hosted Supabase is rejected by active runtime configuration")
-print("  - auth storage remains backend-scoped")
-print("  - tenant cache remains backend-scoped")
+print("PASS R71 Supabase runtime/auth/tenant isolation")
+print(f"  - production project: {expected_production_ref}")
+print(f"  - production API: {expected_production_url}")
+print(f"  - Local Supabase development API: {expected_local_url}")
+print("  - auth storage is backend-scoped")
+print("  - tenant cache is backend-scoped")
 print("  - legacy unscoped tenant cache is discarded")
