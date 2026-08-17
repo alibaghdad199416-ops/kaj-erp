@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Static regression verifier for the R86 connected workspace contract."""
 from pathlib import Path
+from verification_text import contains_code
 
 ROOT = Path(__file__).resolve().parents[1]
 errors: list[str] = []
@@ -16,6 +17,12 @@ def read(relative: str) -> str:
 
 def require(text: str, needles: tuple[str, ...], label: str) -> None:
     missing = [needle for needle in needles if needle not in text]
+    if missing:
+        errors.append(f"{label}: missing {', '.join(missing)}")
+
+
+def require_code(text: str, needles: tuple[str, ...], label: str) -> None:
+    missing = [needle for needle in needles if not contains_code(text, needle)]
     if missing:
         errors.append(f"{label}: missing {', '.join(missing)}")
 
@@ -59,7 +66,7 @@ require(
     ),
     "module shell ownership",
 )
-require(
+require_code(
     entity,
     (
         "AppWorkspaceChromeScope.hasTopBarOf(context)",
@@ -132,7 +139,7 @@ for label, text in (
     ("executive hero", phase6),
     ("signature hero", signature),
 ):
-    require(
+    require_code(
         text,
         ("AppWorkspaceChromeScope.hasTopBarOf(context)",),
         f"{label} workspace awareness",
