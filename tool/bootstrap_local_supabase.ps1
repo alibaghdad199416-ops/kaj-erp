@@ -10,6 +10,7 @@ $ExpectedProjectId = "quality_line_erp_local_dev"
 $CompanyId = "11111111-1111-4111-8111-111111111111"
 $BranchId = "22222222-2222-4222-8222-222222222222"
 $Npx = (Get-Command npx.cmd -ErrorAction Stop).Source
+$Docker = (Get-Command docker.exe -ErrorAction Stop).Source
 
 function Assert-LocalOnlyUrl([string]$Url) {
   $uri = [Uri]$Url
@@ -50,6 +51,33 @@ function Invoke-LocalSupabase {
   foreach ($line in $output) { Write-Host ([string]$line) }
 }
 
+function Invoke-LocalDocker {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [switch]$Capture
+  )
+
+  $previousPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $output = @(& $Docker @Arguments 2>&1)
+    $code = [int]$LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousPreference
+  }
+
+  if ($code -ne 0) {
+    foreach ($line in $output) { Write-Host ([string]$line) }
+    throw "Docker command failed: docker $($Arguments -join ' ') (exit $code)"
+  }
+
+  if ($Capture) {
+    return @($output | ForEach-Object { [string]$_ })
+  }
+
+  foreach ($line in $output) { Write-Host ([string]$line) }
+}
+
 function Get-LocalServiceRoleKey {
   $statusLines = Invoke-LocalSupabase -Arguments @("status", "-o", "env") -Capture
   $status = ($statusLines -join "`n")
@@ -78,6 +106,75 @@ function Invoke-LocalJsonRequest {
     $params.Body = ($Body | ConvertTo-Json -Depth 8 -Compress)
   }
   return Invoke-RestMethod @params
+}
+
+function Invoke-LocalMembershipBootstrap {
+  param(
+    [Parameter(Mandatory = $true)][string]$UserId,
+    [Parameter(Mandatory = $true)][string]$UserEmail
+  )
+
+  if ($UserId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$') {
+    throw "Local Auth returned an invalid user UUID: $UserId"
+  }
+
+  # Service-role REST access is intentionally not assumed for tenant identity
+  # tables. The historical schema grants service_role EXECUTE on bootstrap RPCs
+  # but not necessarily table privileges on profiles/company_memberships.
+  # This LOCAL-ONLY bootstrap therefore writes the two deterministic seed rows
+  # through the local Postgres container as postgres, without changing grants,
+  # RLS, migrations, or any hosted project.
+  $expectedDbContainer = "supabase_db_$ExpectedProjectId"
+  $containers = Invoke-LocalDocker -Arguments @("ps", "--format", "{{.Names}}") -Capture
+  $dbContainer = @($containers | Where-Object { $_.Trim() -eq $expectedDbContainer } | Select-Object -First 1)
+  if ($dbContainer.Count -eq 0) {
+    throw "Expected local Supabase database container '$expectedDbContainer' is not running."
+  }
+
+  $emailSql = $UserEmail.ToLowerInvariant().Replace("'", "''")
+  $sql = @"
+insert into public.profiles(id, full_name, is_active, updated_at)
+values ('$UserId'::uuid, 'KAJ Local Developer', true, now())
+on conflict (id) do update
+set full_name = excluded.full_name,
+    is_active = true,
+    updated_at = now();
+
+insert into public.company_memberships(
+  company_id, user_id, user_uid, user_email, local_user_id,
+  default_branch_id, role_code, is_system_admin, is_active, updated_at
+) values (
+  '$CompanyId'::uuid,
+  '$UserId'::uuid,
+  '$UserId',
+  '$emailSql',
+  'kaj-local-dev',
+  '$BranchId'::uuid,
+  'owner',
+  true,
+  true,
+  now()
+)
+on conflict (company_id, user_id) do update
+set user_uid = excluded.user_uid,
+    user_email = excluded.user_email,
+    local_user_id = excluded.local_user_id,
+    default_branch_id = excluded.default_branch_id,
+    role_code = excluded.role_code,
+    is_system_admin = true,
+    is_active = true,
+    updated_at = now();
+"@
+
+  Invoke-LocalDocker -Arguments @(
+    "exec",
+    $expectedDbContainer,
+    "psql",
+    "-U", "postgres",
+    "-d", "postgres",
+    "-v", "ON_ERROR_STOP=1",
+    "-c", $sql
+  )
 }
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -132,29 +229,7 @@ try {
   if (-not $user.id) { throw "Local Auth user creation returned no user id." }
   $userId = [string]$user.id
 
-  $upsertHeaders = @{
-    apikey = $serviceRoleKey
-    Authorization = "Bearer $serviceRoleKey"
-    Prefer = "resolution=merge-duplicates,return=representation"
-  }
-
-  Invoke-LocalJsonRequest -Method "POST" -Uri "$ApiUrl/rest/v1/profiles?on_conflict=id" -Headers $upsertHeaders -Body @{
-    id = $userId
-    full_name = "KAJ Local Developer"
-    is_active = $true
-  } | Out-Null
-
-  Invoke-LocalJsonRequest -Method "POST" -Uri "$ApiUrl/rest/v1/company_memberships?on_conflict=company_id,user_id" -Headers $upsertHeaders -Body @{
-    company_id = $CompanyId
-    user_id = $userId
-    user_uid = $userId
-    user_email = $Email.ToLowerInvariant()
-    local_user_id = "kaj-local-dev"
-    default_branch_id = $BranchId
-    role_code = "owner"
-    is_system_admin = $true
-    is_active = $true
-  } | Out-Null
+  Invoke-LocalMembershipBootstrap -UserId $userId -UserEmail $Email
 
   Write-Host "Local Supabase is ready." -ForegroundColor Green
   Write-Host "API: $ApiUrl"
