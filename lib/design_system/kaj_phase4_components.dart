@@ -27,19 +27,16 @@ class KajPartnerHero extends StatelessWidget {
   Widget build(BuildContext context) {
     if (AppWorkspaceChromeScope.hasTopBarOf(context)) {
       if (actions.isEmpty) return const SizedBox.shrink();
-      return SizedBox(
-        height: 40,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var index = 0; index < actions.length; index++) ...[
-                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
-                actions[index],
-              ],
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var index = 0; index < actions.length; index++) ...[
+              if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+              actions[index],
             ],
-          ),
+          ],
         ),
       );
     }
