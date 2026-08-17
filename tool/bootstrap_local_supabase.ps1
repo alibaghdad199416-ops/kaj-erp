@@ -9,6 +9,7 @@ $ApiUrl = "http://127.0.0.1:54321"
 $ExpectedProjectId = "quality_line_erp_local_dev"
 $CompanyId = "11111111-1111-4111-8111-111111111111"
 $BranchId = "22222222-2222-4222-8222-222222222222"
+$Npx = (Get-Command npx.cmd -ErrorAction Stop).Source
 
 function Assert-LocalOnlyUrl([string]$Url) {
   $uri = [Uri]$Url
@@ -17,8 +18,41 @@ function Assert-LocalOnlyUrl([string]$Url) {
   }
 }
 
+function Invoke-LocalSupabase {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [switch]$Capture
+  )
+
+  # Windows PowerShell 5.1 can wrap native stderr as NativeCommandError when
+  # ErrorActionPreference=Stop. Supabase writes informational status lines such
+  # as "Stopped services: [...]" to stderr even when the command exits 0.
+  # Judge native CLI success by LASTEXITCODE and keep the global fail-closed
+  # PowerShell preference for actual script/cmdlet failures.
+  $previousPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $output = @(& $Npx --no-install supabase @Arguments 2>&1)
+    $code = [int]$LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousPreference
+  }
+
+  if ($code -ne 0) {
+    foreach ($line in $output) { Write-Host ([string]$line) }
+    throw "Supabase command failed: supabase $($Arguments -join ' ') (exit $code)"
+  }
+
+  if ($Capture) {
+    return @($output | ForEach-Object { [string]$_ })
+  }
+
+  foreach ($line in $output) { Write-Host ([string]$line) }
+}
+
 function Get-LocalServiceRoleKey {
-  $status = (& npx --yes supabase status -o env 2>&1 | Out-String)
+  $statusLines = Invoke-LocalSupabase -Arguments @("status", "-o", "env") -Capture
+  $status = ($statusLines -join "`n")
   $match = [regex]::Match($status, '(?m)^SERVICE_ROLE_KEY="?([^"\r\n]+)"?$')
   if (-not $match.Success) {
     throw "Could not read the local SERVICE_ROLE_KEY from 'supabase status -o env'."
@@ -61,12 +95,10 @@ try {
     throw "Hosted Supabase reference found in local config.toml. Refusing to continue."
   }
 
-  & npx --yes supabase start
-  if ($LASTEXITCODE -ne 0) { throw "supabase start failed" }
+  Invoke-LocalSupabase -Arguments @("start")
 
   if ($ResetDatabase) {
-    & npx --yes supabase db reset --local
-    if ($LASTEXITCODE -ne 0) { throw "supabase db reset --local failed" }
+    Invoke-LocalSupabase -Arguments @("db", "reset", "--local")
   }
 
   Assert-LocalOnlyUrl $ApiUrl
@@ -128,7 +160,7 @@ try {
   Write-Host "API: $ApiUrl"
   Write-Host "Auth user: $Email"
   Write-Host "Local-only password: $Password"
-  Write-Host "Run Flutter with: flutter run -d chrome --web-port 5000 --dart-define-from-file=dart_defines.json"
+  Write-Host "Run KAJ with: npm run run:web:local"
   Write-Host "No hosted Supabase project was contacted by this bootstrap script."
 }
 finally {
