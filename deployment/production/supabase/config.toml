@@ -1,0 +1,38 @@
+# KAJ ERP hosted Supabase configuration-as-code.
+# This file is intentionally separated from supabase/config.toml, which is
+# reserved exclusively for the local development stack.
+project_id = "havlqebmnjdcwmpaaqew"
+
+[auth]
+enabled = true
+site_url = "https://kaj-erp.web.app"
+additional_redirect_urls = ["https://kaj-erp.web.app/**", "https://kaj-erp.firebaseapp.com/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+minimum_password_length = 8
+
+[auth.email]
+# Existing users and trusted admin-created users may authenticate by email.
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+# Firebase is Hosting-only for this ERP and is never an authentication provider.
+[auth.third_party.firebase]
+enabled = false
+
+[auth.oauth_server]
+enabled = false
+allow_dynamic_registration = false
