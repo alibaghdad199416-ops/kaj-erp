@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_brand_motif.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
@@ -29,6 +30,29 @@ class KajSignaturePageHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppWorkspaceChromeScope.hasTopBarOf(context)) {
+      final commandWidgets = <Widget>[
+        ...metrics.map((item) => KajSignatureMetric(data: item)),
+        ?trailing,
+      ];
+      if (commandWidgets.isEmpty) return const SizedBox.shrink();
+      return SizedBox(
+        height: 44,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var index = 0; index < commandWidgets.length; index++) ...[
+                if (index > 0) const SizedBox(width: 8),
+                commandWidgets[index],
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     final brightness = Theme.of(context).brightness;
     final dark = brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF101619);
