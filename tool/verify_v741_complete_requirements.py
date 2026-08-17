@@ -57,13 +57,17 @@ def has_details_invoice_fallback(text: str) -> bool:
     return False
 
 
+route = read("lib/core/widgets/app_full_page_route.dart")
 checks = {
     "version": contains_code(read("pubspec.yaml"), "version: 22.9.8+229008"),
     "migration": (root / "supabase/migrations/20260806053000_v741_final_workflow_accounting_fx_ui.sql").exists(),
-    "responsive reflow without canvas scaling": (
-        "FittedBox(" not in read("lib/core/widgets/app_full_page_route.dart")
-        and "preferred.width.clamp(minimum.width, available.width)" in read("lib/core/widgets/app_full_page_route.dart")
-        and "preferred.height" in read("lib/core/widgets/app_full_page_route.dart")
+    "bounded responsive workspace without canvas scaling": (
+        "FittedBox(" not in route
+        and "Desktop workspaces intentionally remain bounded" in route
+        and "availableWidth" in route
+        and "requestedMinWidth" in route
+        and "math.min(" in route
+        and "module-workspace-window" in route
     ),
     "integrated close": "AppWindowCloseButton" in read("lib/core/widgets/app_entity_page.dart"),
     "sales invoice fallback": has_sales_invoice_fallback(read("lib/features/sales/workflow/pages/sales_workflow_page.dart")),
