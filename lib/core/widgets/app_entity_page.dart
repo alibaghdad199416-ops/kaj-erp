@@ -8,12 +8,16 @@ import 'app_back_button.dart';
 import 'app_horizontal_strip.dart';
 import 'app_page_lifecycle_scope.dart';
 import 'app_window_close_button.dart';
+import 'app_workspace_chrome_scope.dart';
 
 /// Shared ERP workspace layout.
 ///
 /// The page keeps one continuous business canvas. Headerless embedded modules
 /// deliberately use tighter edge spacing so tabs, filters and business content
 /// remain visually connected instead of appearing as separate stacked boxes.
+/// When [AppModuleShell] already renders its desktop workspace top bar, this
+/// page automatically suppresses the duplicate section title and keeps actions,
+/// statistics and filters in the connected command canvas below that bar.
 class AppEntityPage extends StatelessWidget {
   const AppEntityPage({
     super.key,
@@ -54,12 +58,16 @@ class AppEntityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final insideModuleWindow = AppWorkspaceWindowScope.maybeOf(context) != null;
+    final shellHasWorkspaceTopBar = AppWorkspaceChromeScope.hasTopBarOf(context);
+    final effectiveHideHeader =
+        hideHeader || (shellHasWorkspaceTopBar && !insideModuleWindow);
     final effectiveShowBackButton = showBackButton && !insideModuleWindow;
     final effectiveToolbar = toolbar;
     final railChildren = <Widget>[
       ...actions,
       ?statistics,
-      if (insideModuleWindow && !hideHeader) const AppWindowCloseButton(),
+      if (insideModuleWindow && !effectiveHideHeader)
+        const AppWindowCloseButton(),
     ];
 
     final content = SafeArea(
@@ -79,13 +87,13 @@ class AppEntityPage extends StatelessWidget {
                     bodyPadding ??
                     EdgeInsetsDirectional.fromSTEB(
                       horizontal,
-                      hideHeader ? 4 : 14,
+                      effectiveHideHeader ? 4 : 14,
                       horizontal,
                       compact ? 12 : 16,
                     );
 
                 final chrome = <Widget>[
-                  if (!hideHeader)
+                  if (!effectiveHideHeader)
                     KajSectionHeader(
                       title: title,
                       subtitle: subtitle,
@@ -100,7 +108,7 @@ class AppEntityPage extends StatelessWidget {
                     ),
                   if (railChildren.isNotEmpty) ...<Widget>[
                     SizedBox(
-                      height: hideHeader
+                      height: effectiveHideHeader
                           ? KajDesignTokens.space4
                           : KajDesignTokens.space10,
                     ),
@@ -112,7 +120,7 @@ class AppEntityPage extends StatelessWidget {
                   ],
                   if (effectiveToolbar != null) ...<Widget>[
                     SizedBox(
-                      height: hideHeader
+                      height: effectiveHideHeader
                           ? KajDesignTokens.space8
                           : KajDesignTokens.space10,
                     ),
@@ -126,7 +134,7 @@ class AppEntityPage extends StatelessWidget {
                 final bodySpacing = SizedBox(
                   height: chrome.isEmpty
                       ? 0
-                      : hideHeader
+                      : effectiveHideHeader
                       ? KajDesignTokens.space8
                       : KajDesignTokens.space10,
                 );
