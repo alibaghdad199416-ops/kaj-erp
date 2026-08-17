@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
@@ -32,7 +33,8 @@ class KajRelationshipHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final insideOperationalWorkspace =
         AppWorkspaceWindowScope.maybeOf(context) != null;
-    if (insideOperationalWorkspace) {
+    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
+    if (insideOperationalWorkspace || shellOwnsModuleIdentity) {
       final functionalChrome = <Widget>[
         ?trailing,
         ?secondaryAction,
