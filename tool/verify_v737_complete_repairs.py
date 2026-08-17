@@ -153,7 +153,8 @@ if (
 require(
     pill_tabs,
     (
-        "no surrounding segmented-control rectangle",
+        "indicatorSize: TabBarIndicatorSize.tab",
+        "indicator: BoxDecoration(",
         "dividerColor: Colors.transparent",
         "borderRadius: BorderRadius.circular(999)",
         "isScrollable: true",
@@ -167,19 +168,20 @@ require(
 )
 
 # The current module architecture intentionally supersedes the historical
-# nested inline-metric rectangle. A module has one identity header, one
-# horizontally scrollable command/metric rail and one continuous body.
+# nested inline-metric rectangle. Assert implementation markers rather than
+# comments that may change independently from the workspace contract.
 require(
     entity_page + horizontal_strip,
     (
-        "Only the module identity header is framed",
+        "mergeHiddenHeaderActionsAndStatistics",
         "module-command-rail",
         "module-continuous-workspace",
         "AppHorizontalStrip",
         "scrollDirection: Axis.horizontal",
         "SingleChildScrollView(",
+        "ConstrainedBox(",
     ),
-    "continuous one-line command/metric workspace",
+    "continuous command/metric workspace",
 )
 
 # R86 replaces the historical movable/resizable window shell with one bounded
@@ -231,12 +233,12 @@ require(
     (
         "'salesorder'",
         "'purchaseorder'",
-        "maintenanceOrder",
+        maintenanceOrder,
         "'stocktransfer'",
         "'stockscrap'",
         "'inventoryinput'",
-        "invoice(",
-        "partnerPayment",
+        invoice(
+        partnerPayment,
         "'journalentry'",
     ),
     "document nomenclature coverage",
