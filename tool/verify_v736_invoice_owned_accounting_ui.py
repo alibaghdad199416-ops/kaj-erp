@@ -260,7 +260,8 @@ require(
 require(
     pill_tabs,
     (
-        "no surrounding segmented-control rectangle",
+        "indicatorSize: TabBarIndicatorSize.tab",
+        "indicator: BoxDecoration(",
         "dividerColor: Colors.transparent",
         "borderRadius: BorderRadius.circular(999)",
         "isScrollable: true",
@@ -274,9 +275,8 @@ for arabic_label in ("السيارات", "العملاء", "أوامر البي�
         errors.append(f"module pill tab integration: missing localized label {arabic_label!r}")
 
 # R78+ intentionally replaced the old nested inline-metric container with one
-# continuous module workspace: a single horizontal command rail followed by the
-# unboxed business body. Keep this verifier aligned with the current premium
-# architecture instead of requiring removed internal rectangles/classes.
+# continuous module workspace: a connected command/metric rail followed by the
+# unboxed business body. Assert implementation markers rather than comments.
 require(
     entity_page + horizontal_strip,
     (
@@ -286,9 +286,9 @@ require(
         "AppHorizontalStrip",
         "scrollDirection: Axis.horizontal",
         "SingleChildScrollView(",
-        "Only the module identity header is framed",
+        "ConstrainedBox(",
     ),
-    "continuous one-line command/metric workspace",
+    "continuous command/metric workspace",
 )
 require(
     product_page + car_page + maintenance_page + accounting_page + customer_stats,
