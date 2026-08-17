@@ -31,7 +31,7 @@ def contains_all(path: str, values) -> None:
 def assert_local_runtime(path: str) -> None:
     source = text(path)
     assert ".supabase.co" not in source, f"{path} still permits Hosted Supabase"
-    assert "havlqebmnjdcwmpaaqew" not in source, f"{path} still embeds the old Hosted project ref"
+    assert "https://" not in source, f"{path} still embeds a Hosted endpoint"
 
 
 def main() -> None:
@@ -163,13 +163,21 @@ def main() -> None:
         },
     )
 
+    # R78's local-development closure now follows the separated environment
+    # contract. The shared Dart validator is intentionally aware of both Local
+    # and Production, while actual Local values live only in the checked-in
+    # local defines and Supabase CLI config.
     contains_all(
         "lib/core/cloud/supabase_config.dart",
-        {EXPECTED_LOCAL_PROJECT_ID, EXPECTED_LOCAL_URL, "validateRuntime", "browserStorageNamespace"},
+        {EXPECTED_LOCAL_PROJECT_ID, "validateRuntime", "browserStorageNamespace", "resolveBackendTarget"},
     )
     contains_all("dart_defines.json", {EXPECTED_LOCAL_URL, "SUPABASE_ANON_KEY"})
-    assert_local_runtime("lib/core/cloud/supabase_config.dart")
+    contains_all(
+        "supabase/config.toml",
+        {f'project_id = "{EXPECTED_LOCAL_PROJECT_ID}"', 'site_url = "http://127.0.0.1:5000"'},
+    )
     assert_local_runtime("dart_defines.json")
+    assert_local_runtime("supabase/config.toml")
 
     print("PASS R78 complete requirements closure")
     print("  - granular user/media/report permissions: PostgreSQL + Edge + typed client constants")
