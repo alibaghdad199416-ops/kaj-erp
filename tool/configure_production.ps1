@@ -40,7 +40,14 @@ if ([string]$production.SUPABASE_PUBLISHABLE_KEY -match 'sb_secret_|service_role
 if ($local.SUPABASE_URL -ne 'http://127.0.0.1:54321') {
   throw 'Local runtime baseline is not isolated to Local Supabase loopback.'
 }
-$localKey = [string]($local.SUPABASE_PUBLISHABLE_KEY ?? $local.SUPABASE_ANON_KEY)
+$localKey = ''
+if ($null -ne $local.PSObject.Properties['SUPABASE_PUBLISHABLE_KEY']) {
+  $localKey = [string]$local.SUPABASE_PUBLISHABLE_KEY
+}
+if ([string]::IsNullOrWhiteSpace($localKey) -and
+    $null -ne $local.PSObject.Properties['SUPABASE_ANON_KEY']) {
+  $localKey = [string]$local.SUPABASE_ANON_KEY
+}
 if ([string]::IsNullOrWhiteSpace($localKey) -or $localKey -match 'sb_secret_|service_role') {
   throw 'Local runtime must contain a public Supabase key only.'
 }
