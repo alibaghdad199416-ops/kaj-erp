@@ -95,6 +95,15 @@ policy = "per_worker"
 inspector_port = 8083
 deno_version = 2
 
+[functions.admin-create-user]
+verify_jwt = true
+
+[functions.admin-manage-user]
+verify_jwt = true
+
+[functions.admin-update-user-media]
+verify_jwt = true
+
 # The ERP does not depend on local Logflare/analytics. Keep the development
 # stack focused on Postgres, Auth, Storage, Realtime, PostgREST/RPC and Studio.
 [analytics]
