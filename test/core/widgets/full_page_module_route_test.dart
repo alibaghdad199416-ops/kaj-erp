@@ -20,7 +20,7 @@ MaterialApp _app(Widget home) => MaterialApp(
 
 void main() {
   testWidgets(
-    'module content has close-only chrome and remains movable and resizable',
+    'module content uses full viewport close-only chrome',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1400, 900);
@@ -80,16 +80,15 @@ void main() {
       await tester.pumpAndSettle();
 
       final panel = find.byKey(const ValueKey('module-full-page-route'));
-      final moveSurface = find.byKey(
-        const ValueKey('module-window-move-surface'),
-      );
-      final resizeCorner = find.byKey(
-        const ValueKey('module-window-resize-corner'),
-      );
-
       expect(panel, findsOneWidget);
-      expect(moveSurface, findsOneWidget);
-      expect(resizeCorner, findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('module-window-move-surface')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('module-window-resize-corner')),
+        findsNothing,
+      );
       expect(find.byKey(const ValueKey('module-page-close')), findsOneWidget);
       expect(find.byKey(const ValueKey('module-page-back')), findsNothing);
       expect(find.byKey(const ValueKey('module-window-shrink')), findsNothing);
@@ -98,7 +97,7 @@ void main() {
         find.byKey(const ValueKey('module-window-maximize')),
         findsNothing,
       );
-      expect(find.byType(AppBar), findsNothing);
+      expect(find.byType(AppBar), findsOneWidget);
       expect(find.text('عنوان داخلي لا يظهر كرأس نافذة'), findsNothing);
       expect(find.text('عنوان AppBar قديم لا يظهر'), findsOneWidget);
       expect(
@@ -106,24 +105,11 @@ void main() {
         findsOneWidget,
       );
 
-      final initialSize = tester.getSize(panel);
-      final initialTopLeft = tester.getTopLeft(panel);
-      expect(initialSize.width, lessThan(1400));
-      expect(initialSize.height, lessThan(900));
-
-      await tester.drag(resizeCorner, const Offset(70, 45));
-      await tester.pump();
-      final resized = tester.getSize(panel);
-      final resizedTopLeft = tester.getTopLeft(panel);
-      expect(resized.width, greaterThan(initialSize.width));
-      expect(resized.height, greaterThan(initialSize.height));
-
-      await tester.drag(moveSurface, const Offset(60, 35));
-      await tester.pump();
-      final movedTopLeft = tester.getTopLeft(panel);
-      expect(movedTopLeft.dx, greaterThan(resizedTopLeft.dx));
-      expect(movedTopLeft.dy, greaterThan(resizedTopLeft.dy));
-      expect(movedTopLeft.dx, isNot(equals(initialTopLeft.dx)));
+      final size = tester.getSize(panel);
+      final topLeft = tester.getTopLeft(panel);
+      expect(size.width, 1400);
+      expect(size.height, 900);
+      expect(topLeft, Offset.zero);
 
       await tester.tap(find.byKey(const ValueKey('inline-appbar-action')));
       await tester.pump();
@@ -137,7 +123,7 @@ void main() {
   );
 
   testWidgets(
-    'AlertDialog title and actions remain content, not window chrome',
+    'AlertDialog title and actions remain full viewport content',
     (tester) async {
       bool? closed;
       await tester.pumpWidget(
@@ -180,7 +166,7 @@ void main() {
           .getTopLeft(find.byKey(const ValueKey('legacy-dialog-save')))
           .dy;
       final contentTop = tester.getTopLeft(find.text('محتوى النافذة')).dy;
-      expect(actionTop, lessThan(contentTop));
+      expect(actionTop, greaterThan(contentTop));
 
       await tester.tap(find.byKey(const ValueKey('legacy-dialog-save')));
       await tester.pumpAndSettle();
