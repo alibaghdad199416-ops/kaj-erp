@@ -153,7 +153,7 @@ require(
 require_code(
     entity_page,
     (
-        "AppWorkspaceChromeScope.hasTopBarOf(context)",
+        "AppWorkspaceChromeScope.hasTopBarOf(",
         "final effectiveHideHeader =",
         "shellHasWorkspaceTopBar && !insideModuleWindow",
         "if (!effectiveHideHeader)",
