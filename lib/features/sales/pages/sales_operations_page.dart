@@ -13,33 +13,33 @@ class SalesOperationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String tr(String value) => AppTranslation.translateForLocale(
-      value,
-      Localizations.localeOf(context).languageCode,
-    );
+    final ar = context.l10n.isArabic;
+    String t(String arabic, String english) => ar ? arabic : english;
+
     return DefaultTabController(
       initialIndex: initialIndex.clamp(0, 1).toInt(),
       length: 2,
       child: KajCommercialWorkspace(
-        title: tr('مركز المبيعات'),
-        subtitle: tr(
+        title: t('مركز المبيعات', 'Sales center'),
+        subtitle: t(
           'أوامر البيع والتجهيز والفوترة والتحصيل والطباعة ضمن مسار تجاري موحد.',
+          'Sales orders, warehouse fulfillment, invoicing, collection and printing in one unified commercial workflow.',
         ),
         icon: Icons.point_of_sale_rounded,
         metrics: <KajCommercialWorkspaceMetric>[
           KajCommercialWorkspaceMetric(
-            label: tr('المسار'),
-            value: tr('بيع'),
+            label: t('المسار', 'Workflow'),
+            value: t('بيع', 'Sales'),
             icon: Icons.trending_up_rounded,
           ),
           KajCommercialWorkspaceMetric(
-            label: tr('التجهيز'),
-            value: tr('مخزني'),
+            label: t('التجهيز', 'Fulfillment'),
+            value: t('مخزني', 'Warehouse'),
             icon: Icons.inventory_2_outlined,
           ),
           KajCommercialWorkspaceMetric(
-            label: tr('الفوترة'),
-            value: tr('مترابطة'),
+            label: t('الفوترة', 'Invoicing'),
+            value: t('مترابطة', 'Linked'),
             icon: Icons.request_quote_outlined,
           ),
         ],
@@ -48,11 +48,14 @@ class SalesOperationsPage extends StatelessWidget {
           children: <Widget>[
             AppPillTabBar(
               tabs: <AppPillTab>[
-                AppPillTab(tr('أوامر البيع'), Icons.edit_note_rounded),
-                AppPillTab(tr('الفواتير القديمة'), Icons.point_of_sale_rounded),
+                AppPillTab(t('أوامر البيع', 'Sales orders'), Icons.edit_note_rounded),
+                AppPillTab(
+                  t('الفواتير القديمة', 'Legacy invoices'),
+                  Icons.point_of_sale_rounded,
+                ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             const Expanded(
               child: AppLazyTabView(
                 children: <Widget>[SalesWorkflowPage(), SalesPage()],

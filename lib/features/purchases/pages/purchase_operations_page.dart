@@ -13,33 +13,33 @@ class PurchaseOperationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String tr(String value) => AppTranslation.translateForLocale(
-      value,
-      Localizations.localeOf(context).languageCode,
-    );
+    final ar = context.l10n.isArabic;
+    String t(String arabic, String english) => ar ? arabic : english;
+
     return DefaultTabController(
       initialIndex: initialIndex.clamp(0, 1).toInt(),
       length: 2,
       child: KajCommercialWorkspace(
-        title: tr('مركز المشتريات'),
-        subtitle: tr(
+        title: t('مركز المشتريات', 'Purchase center'),
+        subtitle: t(
           'أوامر الشراء والاستلام والفوترة والدفع والطباعة ضمن مسار تجاري موحد.',
+          'Purchase orders, warehouse receiving, invoicing, payment and printing in one unified commercial workflow.',
         ),
         icon: Icons.shopping_cart_checkout_rounded,
         metrics: <KajCommercialWorkspaceMetric>[
           KajCommercialWorkspaceMetric(
-            label: tr('المسار'),
-            value: tr('شراء'),
+            label: t('المسار', 'Workflow'),
+            value: t('شراء', 'Purchasing'),
             icon: Icons.shopping_bag_outlined,
           ),
           KajCommercialWorkspaceMetric(
-            label: tr('الاستلام'),
-            value: tr('مخزني'),
+            label: t('الاستلام', 'Receiving'),
+            value: t('مخزني', 'Warehouse'),
             icon: Icons.move_to_inbox_outlined,
           ),
           KajCommercialWorkspaceMetric(
-            label: tr('الدفع'),
-            value: tr('مترابط'),
+            label: t('الدفع', 'Payment'),
+            value: t('مترابط', 'Linked'),
             icon: Icons.account_balance_wallet_outlined,
           ),
         ],
@@ -48,11 +48,17 @@ class PurchaseOperationsPage extends StatelessWidget {
           children: <Widget>[
             AppPillTabBar(
               tabs: <AppPillTab>[
-                AppPillTab(tr('أوامر الشراء'), Icons.edit_note_rounded),
-                AppPillTab(tr('الفواتير القديمة'), Icons.receipt_long_rounded),
+                AppPillTab(
+                  t('أوامر الشراء', 'Purchase orders'),
+                  Icons.edit_note_rounded,
+                ),
+                AppPillTab(
+                  t('الفواتير القديمة', 'Legacy invoices'),
+                  Icons.receipt_long_rounded,
+                ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             const Expanded(
               child: AppLazyTabView(
                 children: <Widget>[PurchaseWorkflowPage(), PurchasesPage()],

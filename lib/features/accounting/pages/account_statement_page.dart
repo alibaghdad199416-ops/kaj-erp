@@ -7,6 +7,7 @@ import 'package:quality_line_erp/features/accounting/controllers/accounting_cont
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 import 'package:quality_line_erp/features/accounting/models/account_statement_result.dart';
 import 'package:quality_line_erp/design_system/kaj_finance_stage7_components.dart';
+import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
 class AccountStatementPage extends StatefulWidget {
   const AccountStatementPage({super.key});
@@ -29,15 +30,11 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked == null || !mounted) {
-      return;
-    }
+    if (picked == null || !mounted) return;
     setState(() {
       if (isFrom) {
         _fromDate = picked;
-        if (_toDate.isBefore(_fromDate)) {
-          _toDate = picked;
-        }
+        if (_toDate.isBefore(_fromDate)) _toDate = picked;
       } else {
         _toDate = picked;
       }
@@ -78,12 +75,12 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
       textDirection: Directionality.of(context),
       child: Scaffold(
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
           children: [
             _buildHeader(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _buildFilters(controller.accounts),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (_statementFuture == null)
               const _EmptyStatement()
             else
@@ -103,19 +100,19 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
                   }
                   if (snapshot.hasError) {
                     return Card(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: AppText(
-                          'تعذر تحميل كشف الحساب: ${snapshot.error}',
+                          context.l10n.isArabic
+                              ? 'تعذر تحميل كشف الحساب: ${snapshot.error}'
+                              : 'Unable to load the account statement: ${snapshot.error}',
                         ),
                       ),
                     );
                   }
                   final result = snapshot.data;
-                  if (result == null) {
-                    return const _EmptyStatement();
-                  }
+                  if (result == null) return const _EmptyStatement();
                   return _buildStatement(result);
                 },
               ),
@@ -126,35 +123,47 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
+    final ar = context.l10n.isArabic;
+    final scheme = Theme.of(context).colorScheme;
+    return KajShellSurface(
+      emphasized: true,
+      padding: const EdgeInsets.all(16),
+      child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: Colors.white,
-            child: Icon(Icons.receipt_long_outlined, color: Colors.black),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.receipt_long_outlined,
+              color: scheme.onPrimaryContainer,
+              size: 21,
+            ),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppText(
-                  'كشف حساب تفصيلي',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
+                  ar ? 'كشف حساب تفصيلي' : 'Detailed account statement',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 3),
                 AppText(
-                  'عرض الحركات والمدين والدائن والرصيد المتحرك خلال فترة محددة.',
-                  style: TextStyle(color: Colors.white70),
+                  ar
+                      ? 'عرض الحركات والمدين والدائن والرصيد المتحرك خلال فترة محددة.'
+                      : 'Review movements, debit, credit and running balance for a selected period.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -165,9 +174,10 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
   }
 
   Widget _buildFilters(List<AccountModel> accounts) {
+    final ar = context.l10n.isArabic;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 760;
@@ -175,9 +185,9 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
               DropdownButtonFormField<AccountModel>(
                 initialValue: _selectedAccount,
                 decoration: InputDecoration(
-                  labelText: AppTranslation.translate('الحساب'),
-                  prefixIcon: Icon(Icons.account_balance_outlined),
-                  border: OutlineInputBorder(),
+                  labelText: ar ? 'الحساب' : 'Account',
+                  prefixIcon: const Icon(Icons.account_balance_outlined),
+                  border: const OutlineInputBorder(),
                 ),
                 isExpanded: true,
                 items: accounts
@@ -197,24 +207,20 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
                 },
               ),
               _dateField(
-                label: 'من تاريخ',
+                label: ar ? 'من تاريخ' : 'From date',
                 value: _fromDate,
                 onTap: () => _pickDate(isFrom: true),
               ),
               _dateField(
-                label: 'إلى تاريخ',
+                label: ar ? 'إلى تاريخ' : 'To date',
                 value: _toDate,
                 onTap: () => _pickDate(isFrom: false),
               ),
               FilledButton.icon(
                 onPressed: _loadStatement,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  minimumSize: const Size.fromHeight(56),
-                ),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                 icon: const Icon(Icons.search),
-                label: const AppText('عرض الكشف'),
+                label: AppText(ar ? 'عرض الكشف' : 'View statement'),
               ),
             ];
 
@@ -223,11 +229,11 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(flex: 2, child: fields[0]),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(child: fields[1]),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(child: fields[2]),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   SizedBox(width: 150, child: fields[3]),
                 ],
               );
@@ -237,7 +243,7 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
               children: [
                 for (var index = 0; index < fields.length; index++) ...[
                   fields[index],
-                  if (index != fields.length - 1) const SizedBox(height: 12),
+                  if (index != fields.length - 1) const SizedBox(height: 10),
                 ],
               ],
             );
@@ -254,10 +260,10 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(10),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: AppTranslation.translate(label),
+          labelText: label,
           prefixIcon: const Icon(Icons.calendar_month_outlined),
           border: const OutlineInputBorder(),
         ),
@@ -272,37 +278,40 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
     final totalDebit = lines.fold<double>(0, (sum, line) => sum + line.debit);
     final totalCredit = lines.fold<double>(0, (sum, line) => sum + line.credit);
     final closingBalance = result.closingBalance;
+    final ar = context.l10n.isArabic;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: 10,
+          runSpacing: 10,
           children: [
-            _summaryCard('عدد الحركات', lines.length.toString()),
+            _summaryCard(ar ? 'عدد الحركات' : 'Movements', lines.length.toString()),
             _summaryCard(
-              'رصيد أول المدة',
+              ar ? 'رصيد أول المدة' : 'Opening balance',
               '${_formatAmount(result.openingBalance, account.currency)} ${account.currency}',
             ),
             _summaryCard(
-              'إجمالي المدين',
+              ar ? 'إجمالي المدين' : 'Total debit',
               _formatAmount(totalDebit, account.currency),
             ),
             _summaryCard(
-              'إجمالي الدائن',
+              ar ? 'إجمالي الدائن' : 'Total credit',
               _formatAmount(totalCredit, account.currency),
             ),
             _summaryCard(
-              'الرصيد الختامي',
+              ar ? 'الرصيد الختامي' : 'Closing balance',
               '${_formatAmount(closingBalance, account.currency)} ${account.currency}',
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         if (lines.isEmpty)
-          const _EmptyStatement(
-            message: 'لا توجد حركات لهذا الحساب خلال الفترة المحددة.',
+          _EmptyStatement(
+            message: ar
+                ? 'لا توجد حركات لهذا الحساب خلال الفترة المحددة.'
+                : 'There are no movements for this account in the selected period.',
           )
         else
           Card(
@@ -310,14 +319,14 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                columns: const [
-                  DataColumn(label: AppText('التاريخ')),
-                  DataColumn(label: AppText('رقم القيد')),
-                  DataColumn(label: AppText('البيان')),
-                  DataColumn(label: AppText('مدين'), numeric: true),
-                  DataColumn(label: AppText('دائن'), numeric: true),
-                  DataColumn(label: AppText('الرصيد'), numeric: true),
-                  DataColumn(label: AppText('العملة')),
+                columns: [
+                  DataColumn(label: AppText(ar ? 'التاريخ' : 'Date')),
+                  DataColumn(label: AppText(ar ? 'رقم القيد' : 'Entry no.')),
+                  DataColumn(label: AppText(ar ? 'البيان' : 'Description')),
+                  DataColumn(label: AppText(ar ? 'مدين' : 'Debit'), numeric: true),
+                  DataColumn(label: AppText(ar ? 'دائن' : 'Credit'), numeric: true),
+                  DataColumn(label: AppText(ar ? 'الرصيد' : 'Balance'), numeric: true),
+                  DataColumn(label: AppText(ar ? 'العملة' : 'Currency')),
                 ],
                 rows: lines
                     .map(
@@ -334,17 +343,9 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
                               ),
                             ),
                           ),
-                          DataCell(
-                            AppText(_formatAmount(line.debit, line.currency)),
-                          ),
-                          DataCell(
-                            AppText(_formatAmount(line.credit, line.currency)),
-                          ),
-                          DataCell(
-                            AppText(
-                              _formatAmount(line.runningBalance, line.currency),
-                            ),
-                          ),
+                          DataCell(AppText(_formatAmount(line.debit, line.currency))),
+                          DataCell(AppText(_formatAmount(line.credit, line.currency))),
+                          DataCell(AppText(_formatAmount(line.runningBalance, line.currency))),
                           DataCell(AppText(line.currency)),
                         ],
                       ),
@@ -371,17 +372,16 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.grey, fontSize: 10.5),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 3),
               AppText(
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -396,9 +396,8 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
     return '$day/$month/${value.year}';
   }
 
-  String _formatAmount(double value, String currency) {
-    return MoneyFormatter.format(value, currency: currency);
-  }
+  String _formatAmount(double value, String currency) =>
+      MoneyFormatter.format(value, currency: currency);
 }
 
 class _EmptyStatement extends StatelessWidget {
@@ -410,21 +409,26 @@ class _EmptyStatement extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveMessage = context.l10n.isArabic
+        ? message
+        : message == 'اختر الحساب والفترة ثم اضغط على عرض الكشف.'
+        ? 'Select an account and period, then choose View statement.'
+        : message;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(50),
+        padding: const EdgeInsets.all(36),
         child: Column(
           children: [
             Icon(
               Icons.receipt_long_outlined,
-              size: 64,
-              color: Colors.grey.shade500,
+              size: 52,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             AppText(
-              message,
+              effectiveMessage,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade700),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
