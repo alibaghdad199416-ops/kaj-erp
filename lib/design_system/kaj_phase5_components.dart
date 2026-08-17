@@ -36,19 +36,16 @@ class KajCommercialHero extends StatelessWidget {
         ...actions,
       ];
       if (commandWidgets.isEmpty) return const SizedBox.shrink();
-      return SizedBox(
-        height: 44,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var index = 0; index < commandWidgets.length; index++) ...[
-                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
-                commandWidgets[index],
-              ],
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var index = 0; index < commandWidgets.length; index++) ...[
+              if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+              commandWidgets[index],
             ],
-          ),
+          ],
         ),
       );
     }
