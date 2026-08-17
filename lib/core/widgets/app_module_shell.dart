@@ -5,6 +5,7 @@ import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
 import 'app_top_navigation.dart';
 import 'app_top_profile_action.dart';
+import 'app_workspace_chrome_scope.dart';
 import 'app_workspace_top_bar.dart';
 
 /// Application shell with a single continuous module workspace.
@@ -48,7 +49,12 @@ class AppModuleShell extends StatelessWidget {
                       const AppTopProfileAction(),
                     ],
                   ),
-                  Expanded(child: _WorkspaceCanvas(child: moduleContent)),
+                  Expanded(
+                    child: AppWorkspaceChromeScope(
+                      hasWorkspaceTopBar: false,
+                      child: _WorkspaceCanvas(child: moduleContent),
+                    ),
+                  ),
                 ],
               );
             }
@@ -64,7 +70,12 @@ class AppModuleShell extends StatelessWidget {
                   child: Column(
                     children: <Widget>[
                       AppWorkspaceTopBar(currentRoute: route),
-                      Expanded(child: _WorkspaceCanvas(child: moduleContent)),
+                      Expanded(
+                        child: AppWorkspaceChromeScope(
+                          hasWorkspaceTopBar: true,
+                          child: _WorkspaceCanvas(child: moduleContent),
+                        ),
+                      ),
                     ],
                   ),
                 ),
