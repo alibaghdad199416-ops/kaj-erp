@@ -35,7 +35,6 @@ Future<T?> showAppFullPageRoute<T>({
     pageBuilder: (dialogContext, _, _) => _AppFullViewportWorkspace<T>(
       title: title,
       builder: builder,
-      barrierDismissible: barrierDismissible,
     ),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
@@ -49,15 +48,10 @@ Future<T?> showAppFullPageRoute<T>({
 }
 
 class _AppFullViewportWorkspace<T> extends StatefulWidget {
-  const _AppFullViewportWorkspace({
-    required this.title,
-    required this.builder,
-    required this.barrierDismissible,
-  });
+  const _AppFullViewportWorkspace({required this.title, required this.builder});
 
   final String? title;
   final WidgetBuilder builder;
-  final bool barrierDismissible;
 
   @override
   State<_AppFullViewportWorkspace<T>> createState() =>
