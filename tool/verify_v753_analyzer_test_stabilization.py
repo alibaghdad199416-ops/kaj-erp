@@ -6,7 +6,9 @@ release=(root/'lib/core/release/app_release_info.dart').read_text(encoding='utf-
 pub=(root/'pubspec.yaml').read_text(encoding='utf-8')
 assert "_field(detail.$1" not in order, 'undefined _field call remains'
 assert "_premiumField(detail.$1" in order, 'premium detail field mapping missing'
-assert "find.text('عنوان AppBar قديم لا يظهر'), findsOneWidget" in test, 'full-page header test not aligned with unified header'
+assert "find.text('عنوان AppBar قديم لا يظهر'), findsNothing" in test, 'bounded workspace test must suppress legacy AppBar title'
+assert "ValueKey('module-workspace-window')" in test, 'bounded workspace test key missing'
+assert "ValueKey('inline-appbar-action')" in test, 'promoted AppBar action coverage missing'
 assert ('version: 18.9.23+189230' in pub) or ('version: 22.9.8+229008' in pub)
 assert ("static const String version = '18.9.23';" in release) or ("static const String version = '22.9.8';" in release)
-print('PASS V7.5.3 analyzer and full-page window test stabilization')
+print('PASS V7.5.3 analyzer and bounded workspace test stabilization')
