@@ -32,9 +32,55 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import hashlib
+          import os
+          import subprocess
 
-          path = Path('tool/verify_r9_complete_closure.py')
-          data = path.read_bytes()
+          base = os.environ['BASE']
+          r9 = 'tool/verify_r9_complete_closure.py'
+          expected_shas = {
+              'tool/verify_r10_windows_flutter_build_cleanup.py':'dc85207c4fb5ac90290743bf61c0d1b1e0ed477a',
+              'tool/verify_r11_formatter_semantic_closure.py':'80a266d3f15cede56263e51395766b8967475e77',
+              'tool/verify_r12_root_validation_closure.py':'7f7a9ddd205dfa00f754fdb6832621852b5c1adf',
+              'tool/verify_r13_workspace_package_separation.py':'9ce8a920bd55d95348dfd744264082c8fab3e20c',
+              'tool/verify_r14_runtime_rpc_invoice_root_closure.py':'db56b63946aa5050378d34bd0afd8be0a55bb413',
+              'tool/verify_r15_canonical_state_reconciliation.py':'ec169e5c6d8ae9221a7ec3a1588448b752def545',
+              'tool/verify_r16_persistent_canonical_state.py':'1e324ee5c710af1d32acb03503a5a9db1054e3b1',
+              'tool/verify_r17_deployment_orchestration.py':'184ee3daf6978d4d0091f443ee2bf9190f8129c2',
+              'tool/verify_r18_formatter_invariant_deployment.py':'b187e736a7025bd92405554b945fa7ada5a68faf',
+              'tool/verify_r19_authoritative_gates.py':'27e50d6aa99349c085dc90204df8c10a35eba493',
+              'tool/verify_r20_native_cli_deployment.py':'d43b57c73565633d7ceafe762c1526cd982deb23',
+              'tool/verify_r21_r16_tombstone_signature_closure.py':'8bc8a42ba24e8759f605f54cdbd44e2e21441a94',
+              'tool/verify_r22_production_accounting_consolidation.py':'57d54d84635f1d26acc827a3312545c502c41a7e',
+              'tool/verify_r23_canonical_lifecycle_cash_reconciliation.py':'d78e474a2b65164ebe3157b2e8e3d909e988a2ce',
+              'tool/verify_r24_runtime_accounting_ui_closure.py':'cc79b9f13def26b026d5a53a166d8355e34ddf22',
+              'tool/verify_r52_fresh_database_lint_runtime_closure.py':'002985d20c7a18372d9aafbd1248d12361a44bb7',
+              'tool/verify_r6_deployment_closure.py':'366c98d51fb2ed764d981a7b14c99ef068d3e47b',
+              'tool/verify_r71_current_runtime_source.py':'08d7aebdb2861e36727d0f3a9d406ac24500ef0a',
+              'tool/verify_r71_supabase_runtime_isolation.py':'03485e35f37d780d7066996a670c8de78728e8cb',
+              'tool/verify_r72_dashboard_database_contract.py':'3dcced85aa2756059e9e71434906f76d5cab4e9c',
+              'tool/verify_r73_current_runtime_identity.py':'7a02795a4dedb98278e73c24ee0379734cc77fe6',
+              'tool/verify_r74_authenticated_tenant_runtime.py':'5a51d6214f5ad8fb60fbad03545fc9c2819bab2d',
+              'tool/verify_r75_havl_only_target.py':'549c3965a7f5c96a2c80a34192d4f4dff0d506f3',
+              'tool/verify_r76_local_current_database.py':'f328e1ec243d1aba51ce0cbcb781f7cea99f3c7d',
+              'tool/verify_r77_media_permissions_ui_pdf.py':'0f02cda1a463445e3f7485a787192d8ff93c8faf',
+              'tool/verify_r8_release_closure.py':'9b2b2a748e21736eb8a87ac4878946441fde7a33',
+              r9:'4aae2053e83c8f341943e04bff83fdf659e54819',
+              'tool/verify_v2302_runtime_accounting_root_closure.py':'01035625d6c061878e04d8906e2403aa55f26dee',
+          }
+          expected = sorted(expected_shas)
+          candidate_expected = sorted(p for p in expected if p != r9)
+          candidate_changed = sorted(subprocess.check_output(['git','diff','--name-only',f'{base}..HEAD'], text=True).splitlines())
+          if candidate_changed != candidate_expected:
+              raise SystemExit(f'immutable candidate mismatch: {candidate_changed}')
+
+          # The Windows git archive materialized verifier text as CRLF. GitHub stores
+          # these source blobs as LF; normalize only newlines before making the final commit.
+          for p in candidate_expected:
+              path = Path(p)
+              path.write_bytes(path.read_bytes().replace(b'\r\n', b'\n'))
+
+          path = Path(r9)
+          data = path.read_bytes().replace(b'\r\n', b'\n')
           replacements = [
               (b'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
                b'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f'),
@@ -48,51 +94,20 @@ jobs:
               if count != 1:
                   raise SystemExit(f'R9 replacement count for {old!r}: {count}')
               data = data.replace(old, new)
-          blob = hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
-          expected = 'a387c2390a173643f312307caec1b046fa0a2582'
-          if blob != expected:
-              raise SystemExit(f'R9 blob mismatch: {blob} != {expected}')
           path.write_bytes(data)
-          PY
-          git reset --soft "$BASE"
-          git add tool/verify_r9_complete_closure.py
-          python3 - <<'PY'
-          import subprocess
-          expected = sorted([
-              'tool/verify_r10_windows_flutter_build_cleanup.py',
-              'tool/verify_r11_formatter_semantic_closure.py',
-              'tool/verify_r12_root_validation_closure.py',
-              'tool/verify_r13_workspace_package_separation.py',
-              'tool/verify_r14_runtime_rpc_invoice_root_closure.py',
-              'tool/verify_r15_canonical_state_reconciliation.py',
-              'tool/verify_r16_persistent_canonical_state.py',
-              'tool/verify_r17_deployment_orchestration.py',
-              'tool/verify_r18_formatter_invariant_deployment.py',
-              'tool/verify_r19_authoritative_gates.py',
-              'tool/verify_r20_native_cli_deployment.py',
-              'tool/verify_r21_r16_tombstone_signature_closure.py',
-              'tool/verify_r22_production_accounting_consolidation.py',
-              'tool/verify_r23_canonical_lifecycle_cash_reconciliation.py',
-              'tool/verify_r24_runtime_accounting_ui_closure.py',
-              'tool/verify_r52_fresh_database_lint_runtime_closure.py',
-              'tool/verify_r6_deployment_closure.py',
-              'tool/verify_r71_current_runtime_source.py',
-              'tool/verify_r71_supabase_runtime_isolation.py',
-              'tool/verify_r72_dashboard_database_contract.py',
-              'tool/verify_r73_current_runtime_identity.py',
-              'tool/verify_r74_authenticated_tenant_runtime.py',
-              'tool/verify_r75_havl_only_target.py',
-              'tool/verify_r76_local_current_database.py',
-              'tool/verify_r77_media_permissions_ui_pdf.py',
-              'tool/verify_r8_release_closure.py',
-              'tool/verify_r9_complete_closure.py',
-              'tool/verify_v2302_runtime_accounting_root_closure.py',
-          ])
+
+          subprocess.run(['git','reset','--soft',base], check=True)
+          subprocess.run(['git','add','--',*expected], check=True)
           changed = sorted(subprocess.check_output(['git','diff','--cached','--name-only'], text=True).splitlines())
           if changed != expected:
               raise SystemExit(f'candidate changed-file mismatch: {changed}')
           if any(p.startswith(('lib/','supabase/migrations/','.kilo/','.github/')) for p in changed):
               raise SystemExit('forbidden candidate path detected')
+          for p, expected_sha in expected_shas.items():
+              data = Path(p).read_bytes()
+              actual = hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+              if actual != expected_sha:
+                  raise SystemExit(f'{p} blob mismatch: {actual} != {expected_sha}')
           subprocess.run(['git','diff','--cached','--check'], check=True)
           PY
           git config user.name 'github-actions[bot]'
@@ -144,8 +159,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import subprocess, hashlib
-          from pathlib import Path
+          import subprocess
           base = '554f79ca3771a5d7026296ad3eaa45ab07af9864'
           expected = sorted([
               'tool/verify_r10_windows_flutter_build_cleanup.py','tool/verify_r11_formatter_semantic_closure.py',
@@ -170,10 +184,13 @@ jobs:
               raise SystemExit('final history is not a single commit')
           if subprocess.check_output(['git','rev-parse','HEAD^'], text=True).strip() != base:
               raise SystemExit('final commit parent mismatch')
-          data = Path('tool/verify_r9_complete_closure.py').read_bytes()
-          blob = hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
-          if blob != 'a387c2390a173643f312307caec1b046fa0a2582':
-              raise SystemExit(f'final R9 blob mismatch: {blob}')
+          numstat = subprocess.check_output(['git','diff','--numstat',f'{base}..HEAD'], text=True)
+          add = delete = 0
+          for line in numstat.splitlines():
+              a,d,_ = line.split('\t',2)
+              add += int(a); delete += int(d)
+          if (add, delete) != (194, 161):
+              raise SystemExit(f'unexpected final diff size: +{add}/-{delete}')
           subprocess.run(['git','diff','--check',f'{base}..HEAD'], check=True)
           status = subprocess.check_output(['git','status','--porcelain=v1'], text=True).strip()
           if status:
