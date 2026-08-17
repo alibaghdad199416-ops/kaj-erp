@@ -72,37 +72,26 @@ jobs:
           candidate_changed = sorted(subprocess.check_output(['git','diff','--name-only',f'{base}..HEAD'], text=True).splitlines())
           if candidate_changed != candidate_expected:
               raise SystemExit(f'immutable candidate mismatch: {candidate_changed}')
-
-          # The Windows git archive materialized verifier text as CRLF. GitHub stores
-          # these source blobs as LF; normalize only newlines before making the final commit.
           for p in candidate_expected:
               path = Path(p)
               path.write_bytes(path.read_bytes().replace(b'\r\n', b'\n'))
-
           path = Path(r9)
           data = path.read_bytes().replace(b'\r\n', b'\n')
           replacements = [
-              (b'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
-               b'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f'),
-              (b'changed from the user supplied production configuration',
-               b'changed from the current Local Supabase/Firebase baseline'),
-              (b'production Supabase/Firebase configuration hashes unchanged',
-               b'Local Supabase/Firebase baseline hashes unchanged'),
+              (b'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7', b'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f'),
+              (b'changed from the user supplied production configuration', b'changed from the current Local Supabase/Firebase baseline'),
+              (b'production Supabase/Firebase configuration hashes unchanged', b'Local Supabase/Firebase baseline hashes unchanged'),
           ]
           for old, new in replacements:
-              count = data.count(old)
-              if count != 1:
-                  raise SystemExit(f'R9 replacement count for {old!r}: {count}')
+              if data.count(old) != 1:
+                  raise SystemExit(f'R9 replacement count for {old!r}: {data.count(old)}')
               data = data.replace(old, new)
           path.write_bytes(data)
-
           subprocess.run(['git','reset','--soft',base], check=True)
           subprocess.run(['git','add','--',*expected], check=True)
           changed = sorted(subprocess.check_output(['git','diff','--cached','--name-only'], text=True).splitlines())
           if changed != expected:
               raise SystemExit(f'candidate changed-file mismatch: {changed}')
-          if any(p.startswith(('lib/','supabase/migrations/','.kilo/','.github/')) for p in changed):
-              raise SystemExit('forbidden candidate path detected')
           for p, expected_sha in expected_shas.items():
               data = Path(p).read_bytes()
               actual = hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
@@ -114,7 +103,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix(verifiers): align historical audits with Local Supabase'
           test "$(git rev-parse HEAD^)" = "$BASE"
-          test "$(git rev-list --count "$BASE"..HEAD)" = "1"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -133,6 +121,25 @@ jobs:
         run: |
           npm ci
           flutter pub get
+
+      - name: Apply deterministic Flutter formatting closure
+        run: |
+          set -euo pipefail
+          npm run format
+          python3 - <<'PY'
+          import subprocess
+          expected = sorted([
+              'lib/core/cloud/supabase_config.dart',
+              'test/core/cloud/supabase_config_test.dart',
+              'test/core/widgets/app_entity_page_responsive_test.dart',
+          ])
+          changed = sorted(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected formatter diff: {changed}')
+          subprocess.run(['git','diff','--check'], check=True)
+          PY
+          git add lib/core/cloud/supabase_config.dart test/core/cloud/supabase_config_test.dart test/core/widgets/app_entity_page_responsive_test.dart
+          git commit -m 'style: normalize Flutter formatting'
 
       - name: Format final HEAD
         run: |
@@ -162,6 +169,9 @@ jobs:
           import subprocess
           base = '554f79ca3771a5d7026296ad3eaa45ab07af9864'
           expected = sorted([
+              'lib/core/cloud/supabase_config.dart',
+              'test/core/cloud/supabase_config_test.dart',
+              'test/core/widgets/app_entity_page_responsive_test.dart',
               'tool/verify_r10_windows_flutter_build_cleanup.py','tool/verify_r11_formatter_semantic_closure.py',
               'tool/verify_r12_root_validation_closure.py','tool/verify_r13_workspace_package_separation.py',
               'tool/verify_r14_runtime_rpc_invoice_root_closure.py','tool/verify_r15_canonical_state_reconciliation.py',
@@ -180,24 +190,22 @@ jobs:
           changed = sorted(subprocess.check_output(['git','diff','--name-only',f'{base}..HEAD'], text=True).splitlines())
           if changed != expected:
               raise SystemExit(f'final changed-file mismatch: {changed}')
-          if subprocess.check_output(['git','rev-list','--count',f'{base}..HEAD'], text=True).strip() != '1':
-              raise SystemExit('final history is not a single commit')
-          if subprocess.check_output(['git','rev-parse','HEAD^'], text=True).strip() != base:
-              raise SystemExit('final commit parent mismatch')
-          numstat = subprocess.check_output(['git','diff','--numstat',f'{base}..HEAD'], text=True)
-          add = delete = 0
-          for line in numstat.splitlines():
-              a,d,_ = line.split('\t',2)
-              add += int(a); delete += int(d)
-          if (add, delete) != (194, 161):
-              raise SystemExit(f'unexpected final diff size: +{add}/-{delete}')
+          if any(p.startswith(('supabase/migrations/','.kilo/','.github/')) for p in changed):
+              raise SystemExit('forbidden final path detected')
+          if subprocess.check_output(['git','rev-list','--count',f'{base}..HEAD'], text=True).strip() != '2':
+              raise SystemExit('final history is not the expected two commits')
+          if subprocess.check_output(['git','rev-parse','HEAD~2'], text=True).strip() != base:
+              raise SystemExit('final history base mismatch')
+          subjects = subprocess.check_output(['git','log','--format=%s','-2'], text=True).splitlines()
+          if subjects != ['style: normalize Flutter formatting','fix(verifiers): align historical audits with Local Supabase']:
+              raise SystemExit(f'unexpected final commit subjects: {subjects}')
           subprocess.run(['git','diff','--check',f'{base}..HEAD'], check=True)
           status = subprocess.check_output(['git','status','--porcelain=v1'], text=True).strip()
           if status:
               raise SystemExit(f'final worktree is dirty: {status}')
           PY
           python3 -B tool/verify_deployment_target.py
-          git log --oneline --decorate -3
+          git log --oneline --decorate -4
 
       - name: Push tested final HEAD
         env:
