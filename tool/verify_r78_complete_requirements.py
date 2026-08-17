@@ -142,10 +142,25 @@ def main() -> None:
         contains_all(path, {"unified_pdf_document.dart", "UnifiedPdfDocument"})
     contains_all(generic_pdf, {"company_settings", "companyName", "logo"})
 
-    contains_all(entity_page, {"module-command-rail", "module-continuous-workspace"})
+    contains_all(
+        entity_page,
+        {
+            "module-command-rail",
+            "module-continuous-workspace",
+            "mergeHiddenHeaderActionsAndStatistics",
+        },
+    )
     contains_all(
         window_route,
-        {"_PremiumWindowTheme", "_WindowHeader", "_WindowFooter", "Clip.hardEdge"},
+        {
+            "Desktop workspaces intentionally remain bounded",
+            "_PremiumWorkspaceTheme",
+            "_WorkspaceHeader",
+            "_WorkspacePresentation",
+            "_scaffoldAsHeaderlessWorkspace",
+            "module-workspace-window",
+            "Clip.antiAlias",
+        },
     )
 
     contains_all(
@@ -162,7 +177,7 @@ def main() -> None:
     print("  - report details: contextual/audit/financial gates enforced")
     print("  - exports: Arabic/English PDF + Excel + relation index share one data pipeline")
     print("  - PDF identity: unified header/table/footer with company branding fallback")
-    print("  - UI: continuous module workspace + clipped premium module windows")
+    print("  - UI: continuous module workspace + bounded integrated operational windows")
     print(f"  - local project isolation: {EXPECTED_LOCAL_PROJECT_ID} @ {EXPECTED_LOCAL_URL}")
 
 
