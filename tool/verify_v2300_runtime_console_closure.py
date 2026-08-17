@@ -198,8 +198,16 @@ need("..['authProvider'] = 'supabase'" in audit_repo,
 need('KajDesignTokens.electricBlue' in splash and 'KajDesignTokens.electricBlue' in login,
      'launch/login blue branding missing')
 need('_startupFuture!' not in startup, 'startup coordinator retains nullable future force-unwrap')
-need('if ($ReconfigureRuntime)' in deploy and 'Using the existing dart_defines.json unchanged.' in deploy,
-     'production deploy still reconfigures runtime connection values by default')
+production_runtime_safe = (
+    "$ProductionDefines = 'dart_defines.production.json'" in deploy
+    and 'Assert-ProductionRuntime' in deploy
+    and 'if ($ReconfigureRuntime)' in deploy
+    and 'tool\\configure_production.ps1' in deploy
+    and 'build_production_web.ps1' in deploy
+    and "if ($runtime.KAJ_BACKEND_TARGET -ne 'production')" in deploy
+)
+need(production_runtime_safe,
+     'production deploy does not preserve the separated, explicit production runtime contract')
 
 # Precision contract.
 def max_decimal_digits(source):
