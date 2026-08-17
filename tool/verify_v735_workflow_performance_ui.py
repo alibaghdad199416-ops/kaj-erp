@@ -22,6 +22,12 @@ def require(text: str, needles: tuple[str, ...], label: str) -> None:
         errors.append(f"{label}: missing {', '.join(missing)}")
 
 
+def require_code(text: str, needles: tuple[str, ...], label: str) -> None:
+    missing = [needle for needle in needles if not contains_code(text, needle)]
+    if missing:
+        errors.append(f"{label}: missing {', '.join(missing)}")
+
+
 migration = read(
     "supabase/migrations/20260805030000_v735_workflow_approval_performance_login_ui.sql"
 )
@@ -144,7 +150,7 @@ require(
     ),
     "single connected module shell",
 )
-require(
+require_code(
     entity_page,
     (
         "AppWorkspaceChromeScope.hasTopBarOf(context)",
