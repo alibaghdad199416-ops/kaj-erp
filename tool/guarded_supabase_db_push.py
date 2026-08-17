@@ -21,6 +21,7 @@ COMPAT_VERSION = "20260809124735"
 # later R57 migration here incorrectly rejects restored databases whose valid
 # history ends before the newer R57 work (for example 20260811191823).
 EXISTING_DATABASE_FLOOR = "20260809124736"
+EXPECTED_LINKED_PROJECT_REF = "havlqebmnjdcwmpaaqew"
 MIGRATION_PATTERN = re.compile(r"(20\d{12}_[A-Za-z0-9_]+\.sql)")
 
 
@@ -213,7 +214,13 @@ class SupabaseRunner:
             raise GuardError("Supabase migration history JSON has an invalid shape")
         return classify_history(rows)
 
-    def db_push(self, *, dry_run: bool, include_all: bool, yes: bool) -> subprocess.CompletedProcess[str]:
+    def db_push(
+        self,
+        *,
+        dry_run: bool,
+        include_all: bool,
+        yes: bool,
+    ) -> subprocess.CompletedProcess[str]:
         args = ["db", "push", *self.target_args]
         if dry_run:
             args.append("--dry-run")
@@ -237,6 +244,21 @@ def find_supabase_executable(explicit: str | None, root: Path) -> str:
     if discovered:
         return discovered
     raise GuardError("Supabase CLI executable was not found")
+
+
+def assert_expected_linked_project(root: Path) -> None:
+    ref_file = root / "supabase" / ".temp" / "project-ref"
+    if not ref_file.is_file():
+        raise GuardError(
+            "Linked Supabase project is not established. Run 'supabase link --project-ref "
+            f"{EXPECTED_LINKED_PROJECT_REF}' first."
+        )
+    linked = ref_file.read_text(encoding="utf-8").strip()
+    if linked != EXPECTED_LINKED_PROJECT_REF:
+        raise GuardError(
+            "Refusing linked database operation: repository is linked to "
+            f"'{linked}', expected '{EXPECTED_LINKED_PROJECT_REF}'."
+        )
 
 
 def execute_guarded_push(
@@ -304,6 +326,8 @@ def main() -> int:
     migrations_dir = root / "supabase" / "migrations"
     if not migrations_dir.is_dir():
         raise GuardError(f"Migration directory not found: {migrations_dir}")
+    if args.linked:
+        assert_expected_linked_project(root)
     target_args = ["--linked"] if args.linked else ["--db-url", args.db_url]
     executable = find_supabase_executable(args.supabase_bin, root)
     runner = SupabaseRunner(executable, target_args, root)
