@@ -34,9 +34,9 @@ class KajRelationshipHero extends StatelessWidget {
         AppWorkspaceWindowScope.maybeOf(context) != null;
     if (insideOperationalWorkspace) {
       final functionalChrome = <Widget>[
-        if (trailing != null) trailing!,
-        if (secondaryAction != null) secondaryAction!,
-        if (primaryAction != null) primaryAction!,
+        ?trailing,
+        ?secondaryAction,
+        ?primaryAction,
         ...metrics,
       ];
       if (functionalChrome.isEmpty) return const SizedBox.shrink();
@@ -125,10 +125,7 @@ class KajRelationshipHero extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             alignment: WrapAlignment.end,
-            children: [
-              if (secondaryAction != null) secondaryAction!,
-              if (primaryAction != null) primaryAction!,
-            ],
+            children: [?secondaryAction, ?primaryAction],
           );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -214,7 +211,7 @@ class KajRelationshipSection extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
           const SizedBox(height: 14),
