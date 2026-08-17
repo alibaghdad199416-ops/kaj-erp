@@ -103,13 +103,25 @@ forbid(
 )
 require(
     workspace_dialog,
-    ("maxWidth = 1180", "maxHeight = 800", "minWidth = 760", "minHeight = 500"),
-    "workspace dialog bounds",
+    (
+        "double maxWidth = 1180",
+        "double maxHeight = 820",
+        "showAppFloatingWindow<T>(",
+        "maxWidth: maxWidth",
+        "maxHeight: maxHeight",
+    ),
+    "workspace dialog delegates bounded size",
 )
 require(
     floating_window,
-    ("maxWidth = 1040", "maxHeight = 760", "minWidth = 720", "minHeight = 460"),
-    "floating workspace bounds",
+    (
+        "double maxWidth = 1080",
+        "double maxHeight = 780",
+        "showAppFullPageRoute<T>(",
+        "maxWidth: maxWidth",
+        "maxHeight: maxHeight",
+    ),
+    "floating workspace delegates central bounds",
 )
 
 for label, text in (
