@@ -5,29 +5,31 @@ class SupabaseConfig {
       'havlqebmnjdcwmpaaqew';
   static const String expectedProductionUrl =
       'https://$expectedProductionProjectRef.supabase.co';
-  static const String _defaultProjectUrl = expectedProductionUrl;
-  static const String _defaultPublishableKey = '';
-  static const String _defaultLocalProjectId = '';
 
-  /// Production uses dart_defines.production.json. The tracked dart_defines.json
-  /// remains the historical Local Supabase test baseline, and the generated
-  /// local runtime may additionally provide an explicit local project id.
+  /// Runtime selection is intentionally explicit. A development build must
+  /// declare `local`; a production build must declare `production`. Missing or
+  /// unknown values fail closed rather than falling back to a hosted project.
+  static const String backendTarget = String.fromEnvironment(
+    'KAJ_BACKEND_TARGET',
+    defaultValue: '',
+  );
+
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: _defaultProjectUrl,
+    defaultValue: '',
   );
 
   static const String publishableKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
     defaultValue: String.fromEnvironment(
       'SUPABASE_ANON_KEY',
-      defaultValue: _defaultPublishableKey,
+      defaultValue: '',
     ),
   );
 
   static const String localProjectId = String.fromEnvironment(
     'SUPABASE_LOCAL_PROJECT_ID',
-    defaultValue: _defaultLocalProjectId,
+    defaultValue: '',
   );
 
   static const bool _explicitAllowLocalDev = bool.fromEnvironment(
@@ -95,7 +97,50 @@ class SupabaseConfig {
     allowLocalDev: allowLocalDevelopment ?? SupabaseConfig.allowLocalDev,
   );
 
-  static String? validateRuntime() => validate();
+  static String? validateRuntime() => validateRuntimeContract(
+    target: backendTarget,
+    projectUrl: url,
+    publishableKey: publishableKey,
+    allowLocalDev: allowLocalDev,
+  );
+
+  static String? validateRuntimeContract({
+    required String target,
+    required String projectUrl,
+    required String publishableKey,
+    required bool allowLocalDev,
+  }) {
+    final normalizedTarget = target.trim().toLowerCase();
+    if (normalizedTarget != 'local' && normalizedTarget != 'production') {
+      return 'حدد KAJ_BACKEND_TARGET صراحة إلى local أو production.';
+    }
+
+    final configurationError = validateConfiguration(
+      projectUrl: projectUrl,
+      publishableKey: publishableKey,
+      allowLocalDev: allowLocalDev,
+    );
+    if (configurationError != null) return configurationError;
+
+    final uri = Uri.parse(projectUrl.trim());
+    final host = uri.host.toLowerCase();
+    if (normalizedTarget == 'local') {
+      if (!_isLoopback(host) || uri.scheme != 'http' || !allowLocalDev) {
+        return 'هدف local يجب أن يستخدم Local Supabase فقط.';
+      }
+      return null;
+    }
+
+    if (_isLoopback(host) ||
+        uri.scheme != 'https' ||
+        host != '$expectedProductionProjectRef.supabase.co') {
+      return 'هدف production يجب أن يستخدم مشروع KAJ ERP الإنتاجي فقط.';
+    }
+    if (allowLocalDev) {
+      return 'لا يمكن تفعيل Local Supabase داخل هدف production.';
+    }
+    return null;
+  }
 
   static String? validateConfiguration({
     required String projectUrl,
