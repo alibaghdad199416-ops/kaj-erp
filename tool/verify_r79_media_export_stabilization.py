@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"
 EXPECTED_LOCAL_URL = "http://127.0.0.1:54321"
+EXPECTED_PRODUCTION_REF = "havlqebmnjdcwmpaaqew"
 
 
 def read(path: str) -> str:
@@ -21,7 +22,7 @@ def require(path: str, *markers: str) -> str:
 def assert_local_runtime(path: str) -> None:
     source = read(path)
     assert ".supabase.co" not in source, f"{path} still permits Hosted Supabase"
-    assert "havlqebmnjdcwmpaaqew" not in source, f"{path} still embeds the old Hosted project ref"
+    assert EXPECTED_PRODUCTION_REF not in source, f"{path} still embeds the Hosted production ref"
 
 
 def main() -> None:
@@ -145,16 +146,21 @@ def main() -> None:
         "Clip.antiAlias",
     )
 
+    # SupabaseConfig is now the shared fail-closed validator for both local and
+    # production. Local runtime values live in dart_defines.json/config.toml;
+    # the shared validator must know the one allowed production project.
     require(
         "lib/core/cloud/supabase_config.dart",
         EXPECTED_LOCAL_PROJECT_ID,
-        EXPECTED_LOCAL_URL,
+        EXPECTED_PRODUCTION_REF,
         "validateRuntime",
         "browserStorageNamespace",
+        "KAJ_BACKEND_TARGET",
     )
     require("dart_defines.json", EXPECTED_LOCAL_URL, "SUPABASE_ANON_KEY")
-    assert_local_runtime("lib/core/cloud/supabase_config.dart")
+    require("supabase/config.toml", EXPECTED_LOCAL_PROJECT_ID)
     assert_local_runtime("dart_defines.json")
+    assert_local_runtime("supabase/config.toml")
 
     launcher = require(
         "tool/run_current_web.ps1",
