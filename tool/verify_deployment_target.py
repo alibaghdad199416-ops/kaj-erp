@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the local-only Supabase runtime and R87 authority boundaries."""
+"""Verify production Supabase/Firebase targets and R87 authority boundaries."""
 from __future__ import annotations
 
 import json
@@ -7,45 +7,73 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_SUPABASE_URL = "http://127.0.0.1:54321"
+EXPECTED_SUPABASE_REF = "havlqebmnjdcwmpaaqew"
+EXPECTED_SUPABASE_URL = f"https://{EXPECTED_SUPABASE_REF}.supabase.co"
 EXPECTED_LOCAL_PROJECT_ID = "quality_line_erp_local_dev"
 EXPECTED_FIREBASE_PROJECT = "kaj-erp"
 
 errors: list[str] = []
 
-active_runtime_path = ROOT / "dart_defines.json"
-try:
-    runtime_text = active_runtime_path.read_text(encoding="utf-8")
-    runtime = json.loads(runtime_text)
-except Exception as error:  # noqa: BLE001
-    errors.append(f"invalid local Dart defines ({active_runtime_path.name}): {error}")
-    runtime_text = ""
-    runtime = {}
 
-if runtime.get("SUPABASE_URL") != EXPECTED_SUPABASE_URL:
-    errors.append("SUPABASE_URL must point to the Local Supabase loopback API")
-key = str(runtime.get("SUPABASE_PUBLISHABLE_KEY") or runtime.get("SUPABASE_ANON_KEY") or "")
-if not key:
-    errors.append("tracked local runtime must contain the public Local Supabase anon/publishable key")
-if any(marker in key.lower() for marker in ("sb_secret_", "service_role")):
-    errors.append("a secret/service-role key must never be packaged for the web client")
-if re.search(r"https://[^\s\"']+\.supabase\.co", runtime_text, re.I):
-    errors.append("Hosted Supabase endpoints are forbidden in the active runtime defines")
+def read_json(path: Path, label: str) -> tuple[str, dict]:
+    try:
+        text = path.read_text(encoding="utf-8")
+        value = json.loads(text)
+        if not isinstance(value, dict):
+            raise TypeError("root must be a JSON object")
+        return text, value
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"invalid {label} ({path.name}): {error}")
+        return "", {}
+
+
+def verify_browser_runtime(path: Path, label: str) -> None:
+    text, runtime = read_json(path, label)
+    if runtime.get("SUPABASE_URL") != EXPECTED_SUPABASE_URL:
+        errors.append(
+            f"{label} SUPABASE_URL must match the intended hosted project base URL"
+        )
+    key = str(
+        runtime.get("SUPABASE_PUBLISHABLE_KEY")
+        or runtime.get("SUPABASE_ANON_KEY")
+        or ""
+    )
+    if not key.startswith("sb_publishable_"):
+        errors.append(f"{label} client key must be an sb_publishable_ key")
+    if any(marker in key.lower() for marker in ("sb_secret_", "service_role")):
+        errors.append(
+            f"{label} must never package a secret/service-role Supabase key"
+        )
+    if re.search(r"https://[^\s\"']+\.supabase\.co/rest/v1", text, re.I):
+        errors.append(f"{label} SUPABASE_URL must not include /rest/v1")
+
+
+active_runtime_path = ROOT / "dart_defines.json"
+production_path = ROOT / "dart_defines.production.json"
+if not active_runtime_path.is_file():
+    errors.append("dart_defines.json is missing")
+else:
+    verify_browser_runtime(active_runtime_path, "active runtime")
+if not production_path.is_file():
+    errors.append("dart_defines.production.json is missing")
+else:
+    verify_browser_runtime(production_path, "production runtime")
 
 config_source = (ROOT / "lib" / "core" / "cloud" / "supabase_config.dart").read_text(
     encoding="utf-8"
 )
-for forbidden in (".supabase.co'", "expectedProductionProjectRef"):
-    if forbidden in config_source:
-        errors.append(f"SupabaseConfig still contains hosted-runtime behavior: {forbidden}")
 for required in (
-    "http://127.0.0.1:54321",
-    EXPECTED_LOCAL_PROJECT_ID,
-    "Local Supabase فقط",
-    "_isLoopback(uri.host)",
+    EXPECTED_SUPABASE_REF,
+    "expectedProductionUrl",
+    "SUPABASE_ALLOW_LOCAL_DEV",
+    "isHostedProductionTarget",
+    "_isLoopback(host)",
+    "sb_secret_",
 ):
     if required not in config_source:
-        errors.append(f"SupabaseConfig is missing local-only runtime contract: {required}")
+        errors.append(f"SupabaseConfig is missing runtime contract: {required}")
+if "/rest/v1" not in config_source:
+    errors.append("SupabaseConfig must reject REST endpoint URLs explicitly")
 
 firebaserc = json.loads((ROOT / ".firebaserc").read_text(encoding="utf-8"))
 projects = firebaserc.get("projects", {})
@@ -55,17 +83,24 @@ if projects.get("production") != EXPECTED_FIREBASE_PROJECT:
     errors.append("Firebase production alias is not kaj-erp")
 
 firebase = json.loads((ROOT / "firebase.json").read_text(encoding="utf-8"))
-if firebase.get("hosting", {}).get("public") != "build/web":
+hosting = firebase.get("hosting", {})
+if hosting.get("public") != "build/web":
     errors.append("Firebase Hosting must publish build/web")
+firebase_text = (ROOT / "firebase.json").read_text(encoding="utf-8")
+if "https://*.supabase.co" not in firebase_text or "wss://*.supabase.co" not in firebase_text:
+    errors.append("Firebase CSP must allow Supabase HTTPS and Realtime connections")
 
 config = (ROOT / "supabase" / "config.toml").read_text(encoding="utf-8")
 for marker in (
     f'project_id = "{EXPECTED_LOCAL_PROJECT_ID}"',
+    'site_url = "https://kaj-erp.web.app"',
     "enable_signup = false",
     "[auth.email]",
+    "https://kaj-erp.web.app/**",
+    "https://kaj-erp.firebaseapp.com/**",
 ):
     if marker not in config:
-        errors.append(f"missing Local Supabase setting: {marker}")
+        errors.append(f"missing Supabase deployment/local-development setting: {marker}")
 
 edge_create = ROOT / "supabase" / "functions" / "admin-create-user" / "index.ts"
 edge_manage = ROOT / "supabase" / "functions" / "admin-manage-user" / "index.ts"
@@ -134,8 +169,7 @@ if user_admin_service.is_file():
         if marker not in user_admin_source:
             errors.append(f"Flutter user administration is missing tenant contract: {marker}")
 
-# R87 regression contracts belong in Python verifiers, never source-reading
-# Flutter tests. These checks prove the effective forward migrations keep the
+# R87 regression contracts prove the effective forward migrations keep the
 # delegated authority and R84 record-scope closures wired to live read models.
 authority_path = ROOT / "supabase" / "migrations" / "20260816235500_r87_final_authority_local_runtime_closure.sql"
 inventory_path = ROOT / "supabase" / "migrations" / "20260816235600_r87_inventory_car_scope_closure.sql"
@@ -183,16 +217,16 @@ if cashbox_path.is_file():
             errors.append(f"cashbox duplicate full-read regression returned: {forbidden}")
 
 if errors:
-    print("FAILED local-only deployment target verification")
+    print("FAILED production deployment target verification")
     for error in errors:
         print(f"  - {error}")
     raise SystemExit(1)
 
-print("PASS local-only deployment target verification")
+print("PASS production deployment target verification")
+print(f"  - Supabase project: {EXPECTED_SUPABASE_REF}")
 print(f"  - Supabase API: {EXPECTED_SUPABASE_URL}")
-print(f"  - local project id: {EXPECTED_LOCAL_PROJECT_ID}")
-print("  - browser key is a public Local Supabase anon/publishable key")
-print("  - hosted Supabase endpoints are rejected")
-print("  - delegated permission grants stay within caller authority")
-print("  - composite R84 record scopes cover partner, vehicle, inventory, and cash reads")
-print("  - ERP administrators remain behind verified tenant-scoped edge functions")
+print(f"  - Firebase project: {EXPECTED_FIREBASE_PROJECT}")
+print("  - active and production runtime files package only a publishable key")
+print("  - Local Supabase remains an explicit generated development runtime")
+print("  - public self-signup remains disabled; ERP administrators manage users")
+print("  - delegated permission grants remain tenant- and authority-scoped")
