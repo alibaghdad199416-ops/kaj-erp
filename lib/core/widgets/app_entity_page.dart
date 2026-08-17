@@ -11,10 +11,9 @@ import 'app_window_close_button.dart';
 
 /// Shared ERP workspace layout.
 ///
-/// Only the module identity header is framed. Compact actions and statistics
-/// occupy a horizontal command rail, while width-sensitive filters/toolbars stay
-/// in the normal bounded page flow. The business body remains a continuous,
-/// unboxed workspace without nested large cards.
+/// The page keeps one continuous business canvas. Headerless embedded modules
+/// deliberately use tighter edge spacing so tabs, filters and business content
+/// remain visually connected instead of appearing as separate stacked boxes.
 class AppEntityPage extends StatelessWidget {
   const AppEntityPage({
     super.key,
@@ -73,12 +72,16 @@ class AppEntityPage extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 720;
+                final horizontal = compact
+                    ? AppSizes.compactScreenPadding
+                    : 16.0;
                 final padding =
                     bodyPadding ??
-                    EdgeInsets.all(
-                      compact
-                          ? AppSizes.compactScreenPadding
-                          : AppSizes.screenPadding,
+                    EdgeInsetsDirectional.fromSTEB(
+                      horizontal,
+                      hideHeader ? 4 : 14,
+                      horizontal,
+                      compact ? 12 : 16,
                     );
 
                 final chrome = <Widget>[
@@ -98,8 +101,8 @@ class AppEntityPage extends StatelessWidget {
                   if (railChildren.isNotEmpty) ...<Widget>[
                     SizedBox(
                       height: hideHeader
-                          ? KajDesignTokens.space8
-                          : KajDesignTokens.space12,
+                          ? KajDesignTokens.space4
+                          : KajDesignTokens.space10,
                     ),
                     AppHorizontalStrip(
                       key: const ValueKey('module-command-rail'),
@@ -109,9 +112,9 @@ class AppEntityPage extends StatelessWidget {
                   ],
                   if (effectiveToolbar != null) ...<Widget>[
                     SizedBox(
-                      height: hideHeader && railChildren.isEmpty
+                      height: hideHeader
                           ? KajDesignTokens.space8
-                          : KajDesignTokens.space12,
+                          : KajDesignTokens.space10,
                     ),
                     KeyedSubtree(
                       key: const ValueKey('module-bounded-toolbar'),
@@ -121,7 +124,11 @@ class AppEntityPage extends StatelessWidget {
                 ];
 
                 final bodySpacing = SizedBox(
-                  height: chrome.isEmpty ? 0 : KajDesignTokens.space12,
+                  height: chrome.isEmpty
+                      ? 0
+                      : hideHeader
+                      ? KajDesignTokens.space8
+                      : KajDesignTokens.space10,
                 );
 
                 final bodyPanel = ClipRect(
@@ -129,7 +136,7 @@ class AppEntityPage extends StatelessWidget {
                   child: body,
                 );
 
-                final shortHeight = constraints.maxHeight < 720;
+                final shortHeight = constraints.maxHeight < 680;
 
                 return Padding(
                   padding: padding,

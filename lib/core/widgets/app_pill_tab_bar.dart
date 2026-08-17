@@ -3,17 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
-/// V4 pill-only module selector used by inventory, partners, sales and
-/// purchases.
+/// Compact, horizontally scrollable module selector shared across ERP screens.
 ///
-/// There is deliberately no surrounding segmented-control rectangle and no
-/// underline. Every module is represented by one independent oval button so
-/// the navigation remains light, even and horizontally scrollable.
+/// The bar deliberately owns its complete vertical extent so it can be placed
+/// inside AppBar.bottom, page toolbars, and full-screen workspaces without
+/// RenderFlex overflow at 100% browser zoom.
 class AppPillTabBar extends StatelessWidget implements PreferredSizeWidget {
   const AppPillTabBar({
     super.key,
     required this.tabs,
-    this.padding = const EdgeInsetsDirectional.fromSTEB(12, 7, 12, 7),
+    this.padding = const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 4),
     this.controller,
   });
 
@@ -22,7 +21,7 @@ class AppPillTabBar extends StatelessWidget implements PreferredSizeWidget {
   final TabController? controller;
 
   @override
-  Size get preferredSize => const Size.fromHeight(52);
+  Size get preferredSize => const Size.fromHeight(44);
 
   @override
   Widget build(BuildContext context) {
@@ -31,16 +30,13 @@ class AppPillTabBar extends StatelessWidget implements PreferredSizeWidget {
     final effectiveController =
         controller ?? DefaultTabController.maybeOf(context);
 
-    // Never let TabBar attach to a missing or unrelated inherited controller.
-    // In release web builds Flutter's internal _TabBarState can otherwise reach
-    // a nullable selected index and throw `Null check operator used on a null value`.
     if (tabs.isEmpty ||
         effectiveController == null ||
         effectiveController.length != tabs.length) {
       return Padding(
         padding: padding,
         child: SizedBox(
-          height: 40,
+          height: 36,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -63,7 +59,7 @@ class AppPillTabBar extends StatelessWidget implements PreferredSizeWidget {
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: SizedBox(
-          height: 40,
+          height: 36,
           child: TabBar(
             controller: effectiveController,
             isScrollable: true,
@@ -71,60 +67,53 @@ class AppPillTabBar extends StatelessWidget implements PreferredSizeWidget {
             dividerColor: Colors.transparent,
             indicatorSize: TabBarIndicatorSize.tab,
             indicatorPadding: const EdgeInsets.symmetric(
-              horizontal: 2,
-              vertical: 3,
+              horizontal: 1,
+              vertical: 2,
             ),
             indicator: BoxDecoration(
               gradient: LinearGradient(
                 begin: AlignmentDirectional.topStart,
                 end: AlignmentDirectional.bottomEnd,
                 colors: <Color>[
-                  KajDesignTokens.electricBlue.withValues(alpha: .30),
-                  KajDesignTokens.electricBlue.withValues(alpha: .12),
+                  KajDesignTokens.electricBlue.withValues(alpha: .24),
+                  KajDesignTokens.electricBlue.withValues(alpha: .09),
                 ],
               ),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: KajDesignTokens.electricBlue.withValues(alpha: .58),
+                color: KajDesignTokens.electricBlue.withValues(alpha: .52),
               ),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: KajDesignTokens.electricBlue.withValues(alpha: .10),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ],
             ),
             indicatorWeight: 0,
             labelColor: dark ? Colors.white : scheme.onSurface,
             unselectedLabelColor: scheme.onSurfaceVariant,
-            labelPadding: const EdgeInsetsDirectional.only(end: 6),
+            labelPadding: const EdgeInsetsDirectional.only(end: 5),
             overlayColor: const WidgetStatePropertyAll(Colors.transparent),
             tabs: tabs
                 .map(
                   (tab) => Tab(
-                    height: 34,
+                    height: 32,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 11),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(999),
                         color: scheme.surfaceContainerHighest.withValues(
-                          alpha: dark ? .20 : .38,
+                          alpha: dark ? .18 : .34,
                         ),
                         border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: .46),
+                          color: scheme.outlineVariant.withValues(alpha: .42),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(tab.icon, size: 15),
+                          Icon(tab.icon, size: 16),
                           const SizedBox(width: 7),
                           AppText(
                             tab.label,
                             maxLines: 1,
                             style: const TextStyle(
-                              fontSize: 9.8,
+                              fontSize: 11.2,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -157,22 +146,22 @@ class _StaticPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 11),
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: scheme.surfaceContainerHighest.withValues(alpha: .38),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .46)),
+        color: scheme.surfaceContainerHighest.withValues(alpha: .34),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .42)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(tab.icon, size: 15),
+          Icon(tab.icon, size: 16),
           const SizedBox(width: 7),
           AppText(
             tab.label,
             maxLines: 1,
-            style: const TextStyle(fontSize: 9.8, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w800),
           ),
         ],
       ),

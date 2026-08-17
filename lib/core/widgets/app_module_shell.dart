@@ -9,10 +9,9 @@ import 'app_workspace_top_bar.dart';
 
 /// Application shell with a single continuous module workspace.
 ///
-/// Only the upper module/navigation bar owns a framed visual surface. The body
-/// is deliberately borderless so pages no longer render inside a second large
-/// rectangle/card. Individual business controls may still use their own small
-/// semantic surfaces where needed.
+/// Only the upper module/navigation bar owns framed shell chrome. The business
+/// area stays borderless and uses a restrained gutter so desktop screens can
+/// use their full width at 100% browser zoom.
 class AppModuleShell extends StatelessWidget {
   const AppModuleShell({super.key, required this.route, required this.child});
 
@@ -100,7 +99,7 @@ class _WorkspaceCanvas extends StatelessWidget {
     return ColoredBox(
       color: KajDesignTokens.workspace(brightness),
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 14, 14),
+        padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 10, 10),
         child: child,
       ),
     );

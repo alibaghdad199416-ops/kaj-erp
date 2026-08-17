@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
+import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
 class KajAdminMetricData {
   const KajAdminMetricData({
@@ -42,29 +43,9 @@ class KajAdminWorkspace extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
-              colors: <Color>[
-                scheme.surfaceContainerHighest.withValues(alpha: .92),
-                scheme.surface.withValues(alpha: .98),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(KajDesignTokens.radiusXl),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: .7),
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: scheme.shadow.withValues(alpha: .08),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
+        KajShellSurface(
+          emphasized: true,
+          padding: const EdgeInsets.all(16),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 760;
@@ -72,31 +53,38 @@ class KajAdminWorkspace extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(
-                        KajDesignTokens.radiusLg,
+                        KajDesignTokens.radiusMd,
                       ),
                     ),
-                    child: Icon(icon, color: scheme.onPrimaryContainer),
+                    child: Icon(
+                      icon,
+                      color: scheme.onPrimaryContainer,
+                      size: 21,
+                    ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         AppText(
                           title,
-                          style: theme.textTheme.headlineSmall?.copyWith(
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 3),
                         AppText(
                           subtitle,
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 12.6,
+                            height: 1.4,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -111,7 +99,7 @@ class KajAdminWorkspace extends StatelessWidget {
                   if (compact) ...<Widget>[
                     heading,
                     if (actions.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       Wrap(spacing: 8, runSpacing: 8, children: actions),
                     ],
                   ] else
@@ -120,16 +108,16 @@ class KajAdminWorkspace extends StatelessWidget {
                       children: <Widget>[
                         Expanded(child: heading),
                         if (actions.isNotEmpty) ...<Widget>[
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 14),
                           Wrap(spacing: 8, runSpacing: 8, children: actions),
                         ],
                       ],
                     ),
                   if (metrics.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: metrics
                           .map((metric) => _KajAdminMetric(data: metric))
                           .toList(growable: false),
@@ -140,7 +128,7 @@ class KajAdminWorkspace extends StatelessWidget {
             },
           ),
         ),
-        if (child != null) ...<Widget>[const SizedBox(height: 14), child!],
+        if (child != null) ...<Widget>[const SizedBox(height: 10), child!],
       ],
     );
   }
@@ -155,20 +143,20 @@ class _KajAdminMetric extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final accent = data.accent ?? scheme.primary;
     return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 170, maxWidth: 245),
+      constraints: const BoxConstraints(minWidth: 155, maxWidth: 225),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: scheme.surface.withValues(alpha: .75),
-          borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
+          color: scheme.surface.withValues(alpha: .72),
+          borderRadius: BorderRadius.circular(KajDesignTokens.radiusMd),
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: .65),
+            color: scheme.outlineVariant.withValues(alpha: .58),
           ),
         ),
         child: Row(
           children: <Widget>[
-            Icon(data.icon, size: 20, color: accent),
-            const SizedBox(width: 9),
+            Icon(data.icon, size: 18, color: accent),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,13 +165,16 @@ class _KajAdminMetric extends StatelessWidget {
                     data.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
+                  const SizedBox(height: 1),
                   AppText(
                     data.value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -217,8 +208,8 @@ class KajAdminSection extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(KajDesignTokens.radiusXl),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .7)),
+        borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -240,7 +231,7 @@ class KajAdminSection extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
           ],
           child,
         ],
@@ -283,19 +274,19 @@ class KajAdminState extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: Padding(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               if (kind == KajAdminStateKind.loading)
                 const SizedBox(
-                  width: 38,
-                  height: 38,
-                  child: CircularProgressIndicator(strokeWidth: 3),
+                  width: 34,
+                  height: 34,
+                  child: CircularProgressIndicator(strokeWidth: 2.8),
                 )
               else
-                Icon(icon, size: 44, color: color),
-              const SizedBox(height: 14),
+                Icon(icon, size: 40, color: color),
+              const SizedBox(height: 12),
               AppText(
                 title,
                 textAlign: TextAlign.center,
@@ -303,7 +294,7 @@ class KajAdminState extends StatelessWidget {
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 6),
               AppText(
                 message,
                 textAlign: TextAlign.center,
@@ -312,7 +303,7 @@ class KajAdminState extends StatelessWidget {
                 ),
               ),
               if (onAction != null && actionLabel != null) ...<Widget>[
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: onAction,
                   icon: const Icon(Icons.refresh),
