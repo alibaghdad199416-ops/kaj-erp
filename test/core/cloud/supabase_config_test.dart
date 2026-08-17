@@ -2,8 +2,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quality_line_erp/core/cloud/supabase_config.dart';
 
 void main() {
-  group('SupabaseConfig local-only runtime', () {
-    test('accepts explicit loopback targets with a public local key', () {
+  group('SupabaseConfig hosted production and local development runtime', () {
+    test('accepts only the intended hosted production project', () {
+      expect(
+        SupabaseConfig.validateConfiguration(
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: 'sb_publishable_example',
+          allowLocalDev: false,
+        ),
+        isNull,
+      );
+      expect(
+        SupabaseConfig.isHostedProductionTarget(
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: 'sb_publishable_example',
+        ),
+        isTrue,
+      );
+      expect(
+        SupabaseConfig.projectRefFor(
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+        ),
+        SupabaseConfig.expectedProductionProjectRef,
+      );
+    });
+
+    test('rejects arbitrary hosted Supabase projects', () {
+      expect(
+        SupabaseConfig.validateConfiguration(
+          projectUrl: 'https://example.supabase.co',
+          publishableKey: 'sb_publishable_example',
+          allowLocalDev: false,
+        ),
+        contains('KAJ ERP'),
+      );
+    });
+
+    test('accepts explicit loopback targets only when local dev is enabled', () {
       for (final url in <String>[
         'http://127.0.0.1:54321',
         'http://localhost:54321',
@@ -18,26 +53,15 @@ void main() {
           isNull,
         );
       }
+      expect(
+        SupabaseConfig.validateConfiguration(
+          projectUrl: 'http://127.0.0.1:54321',
+          publishableKey: 'sb_publishable_local_example',
+          allowLocalDev: false,
+        ),
+        contains('Local Supabase'),
+      );
     });
-
-    test(
-      'rejects every hosted Supabase target even with a publishable key',
-      () {
-        for (final url in <String>[
-          'https://example.supabase.co',
-          'https://havlqebmnjdcwmpaaqew.supabase.co',
-        ]) {
-          expect(
-            SupabaseConfig.validateConfiguration(
-              projectUrl: url,
-              publishableKey: 'sb_publishable_example',
-              allowLocalDev: true,
-            ),
-            contains('Local Supabase'),
-          );
-        }
-      },
-    );
 
     test('rejects LAN and arbitrary HTTP targets', () {
       for (final url in <String>[
@@ -50,48 +74,42 @@ void main() {
             publishableKey: 'sb_publishable_local_example',
             allowLocalDev: true,
           ),
-          contains('Local Supabase'),
+          isNotNull,
         );
       }
     });
 
-    test('rejects loopback when local development is disabled', () {
+    test('rejects REST endpoint URLs', () {
+      for (final url in <String>[
+        '${SupabaseConfig.expectedProductionUrl}/rest/v1/',
+        'http://localhost:54321/rest/v1',
+      ]) {
+        expect(
+          SupabaseConfig.validateConfiguration(
+            projectUrl: url,
+            publishableKey: 'sb_publishable_example',
+            allowLocalDev: true,
+          ),
+          contains('/rest/v1'),
+        );
+      }
+    });
+
+    test('requires a public browser key and rejects secrets', () {
       expect(
         SupabaseConfig.validateConfiguration(
-          projectUrl: 'http://127.0.0.1:54321',
-          publishableKey: 'sb_publishable_local_example',
+          projectUrl: SupabaseConfig.expectedProductionUrl,
+          publishableKey: '',
           allowLocalDev: false,
         ),
-        contains('Local Supabase'),
-      );
-    });
-
-    test('rejects REST paths on local targets', () {
-      expect(
-        SupabaseConfig.validateConfiguration(
-          projectUrl: 'http://localhost:54321/rest/v1',
-          publishableKey: 'sb_publishable_local_example',
-          allowLocalDev: true,
-        ),
-        contains('/rest/v1'),
-      );
-    });
-
-    test('requires a local browser key and rejects secrets', () {
-      expect(
-        SupabaseConfig.validateConfiguration(
-          projectUrl: 'http://localhost:54321',
-          publishableKey: '',
-          allowLocalDev: true,
-        ),
-        contains('supabase status'),
+        contains('غير مضبوط'),
       );
       for (final key in <String>['service_role_example', 'sb_secret_example']) {
         expect(
           SupabaseConfig.validateConfiguration(
-            projectUrl: 'http://localhost:54321',
+            projectUrl: SupabaseConfig.expectedProductionUrl,
             publishableKey: key,
-            allowLocalDev: true,
+            allowLocalDev: false,
           ),
           contains('مفتاحاً سرياً'),
         );
@@ -115,15 +133,15 @@ void main() {
       );
     });
 
-    test('presentation never labels a rejected target as production', () {
+    test('presentation labels production and local targets explicitly', () {
       expect(
         SupabaseConfig.environmentLabel(
           isArabic: false,
-          projectUrl: 'https://example.supabase.co',
+          projectUrl: SupabaseConfig.expectedProductionUrl,
           publishableKey: 'sb_publishable_example',
-          allowLocalDevelopment: true,
+          allowLocalDevelopment: false,
         ),
-        'Local Supabase Required',
+        'Production Supabase',
       );
       expect(
         SupabaseConfig.environmentLabel(
