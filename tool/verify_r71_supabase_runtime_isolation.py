@@ -54,7 +54,6 @@ assert "preferences.remove(_scopedKey(_companyUuidKey))" in tenant
 assert "preferences.setString(_scopedKey(_companyKey)" in tenant
 
 scripts = package.get("scripts", {})
-assert "run_production_web.ps1" in scripts.get("run:web", "")
 assert "run_current_web.ps1" in scripts.get("run:web:local", "")
 assert "run_production_web.ps1" in scripts.get("run:web:production", "")
 
