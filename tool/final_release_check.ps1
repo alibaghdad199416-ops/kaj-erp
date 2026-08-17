@@ -20,6 +20,6 @@ Invoke-Checked 'flutter clean'
 Invoke-Checked 'flutter pub get'
 Invoke-Checked 'npm run verify:final'
 Invoke-Checked 'flutter analyze --fatal-infos --fatal-warnings'
-Invoke-Checked 'flutter test'
+Invoke-Checked 'npm run test'
 Invoke-Checked 'npm run build:web'
 Write-Host "`nFINAL RELEASE CHECK PASSED" -ForegroundColor Green
