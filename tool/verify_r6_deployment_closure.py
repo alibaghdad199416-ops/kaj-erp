@@ -27,8 +27,10 @@ for marker in (
     'EXPECTED_LOCAL_URL = "http://127.0.0.1:54321"',
     'EXPECTED_SUPABASE_REF = "havlqebmnjdcwmpaaqew"',
     'production_path = ROOT / "dart_defines.production.json"',
-    'dart_defines.json must remain the Local Supabase test baseline',
+    'dart_defines.json must target Local Supabase loopback only',
+    'production runtime must explicitly declare KAJ_BACKEND_TARGET=production',
     'production SUPABASE_URL must match the intended project base URL',
+    'return _isLoopback(host) ? \'local\' : \'\';',
 ):
     if marker not in verify_target:
         errors.append(f"deployment verifier is missing separated runtime contract marker: {marker}")
@@ -63,8 +65,8 @@ if errors:
     raise SystemExit(1)
 
 print("PASS R6 deployment/analyzer closure")
-print("- deployment verifier separates the Local Supabase test baseline from hosted production")
-print("- production configuration targets only havlqebmnjdcwmpaaqew with a publishable browser key")
+print("- local loopback may infer local; hosted URLs never infer production")
+print("- production configuration targets only havlqebmnjdcwmpaaqew with an explicit target")
 print("- production configuration never overwrites dart_defines.json")
 print("- all three analyzer findings from the user run remain closed at source")
 print(proc.stdout.rstrip())
