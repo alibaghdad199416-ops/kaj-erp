@@ -44,11 +44,17 @@ class KajRelationshipHero extends StatelessWidget {
       if (functionalChrome.isEmpty) return const SizedBox.shrink();
       return Align(
         alignment: AlignmentDirectional.centerEnd,
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.end,
-          children: functionalChrome,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var index = 0; index < functionalChrome.length; index++) ...[
+                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+                functionalChrome[index],
+              ],
+            ],
+          ),
         ),
       );
     }
