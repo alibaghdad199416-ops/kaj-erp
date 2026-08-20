@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -21,18 +23,28 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - run: npm ci
+      - run: flutter pub get
       - run: npm run verify:delivery
       - run: python -B tool/verify_supabase_environment_split.py
       - run: python -B tool/verify_r70_crm_runtime.py
       - run: python -B tool/verify_r86_phase2b_sales_readback.py
-      - run: npm ci
       - run: npx playwright test playwright-tests/phase2b_sales_workflow_flutter_runtime.spec.ts --list
-      - run: flutter pub get
-      - run: npm run format
-      - run: npm run verify:all
       - run: npm run format:check
+      - run: npm run verify:all
+      - run: python -B tool/verify_r88_phase11.py
+      - run: python -B tool/verify_r89_phase11_completion.py
+      - run: python -B tool/verify_r90_phase11_final_acceptance.py
+      - run: python -B tool/verify_r91_phase11_material_issue_acceptance.py
+      - run: python -B tool/verify_r92_comprehensive_module_audit.py
+      - run: python -B tool/verify_r93_final_closure.py
       - run: npm run analyze
       - run: npm run test
+      - name: Start LOCAL Supabase
+        run: npx supabase start
+      - name: Run R89-R92 LOCAL PostgreSQL runtime gates
+        run: python -B tool/run_r89_r92_local_runtime_tests.py
       - run: npm run build:web
-      - name: Build production web artifact with production Supabase defines
-        run: flutter build web --release --no-wasm-dry-run --no-web-resources-cdn --dart-define-from-file=dart_defines.production.json
+      - name: Stop LOCAL Supabase
+        if: always()
+        run: npx supabase stop --no-backup
