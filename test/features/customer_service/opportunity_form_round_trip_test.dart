@@ -68,6 +68,12 @@ class _UsersNotLoadedAccessController extends _AllowedAccessController {
 class _SeededCustomersController extends CustomersController {
   @override
   List<CustomerModel> get customers => const [_customer];
+
+  @override
+  bool get hasLoaded => true;
+
+  @override
+  Future<void> loadCustomers({bool force = false}) async {}
 }
 
 class _CapturingOpportunitiesController extends OpportunitiesController {

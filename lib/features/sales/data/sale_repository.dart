@@ -82,7 +82,7 @@ class SaleRepository {
 
   Future<void> deleteSale(String id) async {
     await _client.rpc(
-      'erp_delete_cloud_sale',
+      'erp_r92_delete_cloud_sale',
       params: {'p_company_id': _companyId, 'p_sale_id': id},
     );
   }

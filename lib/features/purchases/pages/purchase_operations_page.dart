@@ -8,8 +8,13 @@ import 'package:quality_line_erp/features/purchases/pages/purchase_workflow_page
 import 'purchases_page.dart';
 
 class PurchaseOperationsPage extends StatelessWidget {
-  const PurchaseOperationsPage({super.key, this.initialIndex = 0});
+  const PurchaseOperationsPage({
+    super.key,
+    this.initialIndex = 0,
+    this.initialOrderId,
+  });
   final int initialIndex;
+  final String? initialOrderId;
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +64,12 @@ class PurchaseOperationsPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            const Expanded(
+            Expanded(
               child: AppLazyTabView(
-                children: <Widget>[PurchaseWorkflowPage(), PurchasesPage()],
+                children: <Widget>[
+                  PurchaseWorkflowPage(initialOrderId: initialOrderId),
+                  const PurchasesPage(),
+                ],
               ),
             ),
           ],

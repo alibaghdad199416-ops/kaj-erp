@@ -55,12 +55,20 @@ assert not violations, '\n'.join(violations)
 
 # Current transfer call chain must route through operational-date validation to the hardened V5 posting.
 repo = read('lib/features/accounting/cashbox/repositories/cashbox_repository.dart')
+r90 = read('supabase/migrations/20260820113000_r90_phase11_final_acceptance_closure.sql')
 r9_finance = read('supabase/migrations/20260807240000_r9_finance_read_write_field_enforcement.sql')
 v2300 = read('supabase/migrations/20260807180000_v2300_atomic_workflow_enterprise_audit.sql')
 v5 = read('supabase/migrations/20260806193000_v755_fx_transfer_unique_vouchers_auth_preferences.sql')
 r22 = read('supabase/migrations/20260808043000_r22_production_accounting_consolidation.sql')
 assert "'p_transfer_date': transferDate.toUtc().toIso8601String()" in repo
-if "'erp_r22_transfer_cloud_cash'" in repo:
+if "'erp_r90_transfer_cloud_cash'" in repo:
+    assert 'create or replace function public.erp_r90_transfer_cloud_cash' in r90
+    assert 'return public.erp_r22_transfer_cloud_cash(' in r90
+    assert "p_company_id,'cashbox','transfer','accounting.update'" in r90
+    assert 'create or replace function public.erp_r22_transfer_cloud_cash' in r22
+    assert "erp_validate_operational_date(p_company_id,'accounting',p_transfer_date)" in r22
+    assert 'erp_v762_assert_posted_journal_balanced' in r22
+elif "'erp_r22_transfer_cloud_cash'" in repo:
     assert 'create or replace function public.erp_r22_transfer_cloud_cash' in r22
     assert "erp_validate_operational_date(p_company_id,'accounting',p_transfer_date)" in r22
     assert "'cashTransactionId'" in r22 and "'cashAccountId'" in r22

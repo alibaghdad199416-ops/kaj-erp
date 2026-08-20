@@ -11,9 +11,11 @@ import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
 import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';
+import 'package:quality_line_erp/features/business_partners/customers/controllers/customers_controller.dart';
 import 'package:quality_line_erp/features/customer_service/controllers/opportunities_controller.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 import 'package:quality_line_erp/features/customer_service/widgets/opportunity_card.dart';
@@ -43,7 +45,10 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<OpportunitiesController>().loadOpportunities();
+      await Future.wait<void>([
+        context.read<OpportunitiesController>().loadOpportunities(),
+        context.read<CustomersController>().loadCustomers(),
+      ]);
     });
   }
 
@@ -230,83 +235,144 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     final access = context.watch<AccessController>();
     final items = _visibleItems(controller.opportunities);
     final scheme = Theme.of(context).colorScheme;
+    final shellOwnsIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
+    final canCreate = access.hasPermission('customer_service.create');
+    final canViewReports = access.hasPermission('reports.view');
+    final canExport =
+        access.hasPermission('customer_service.view') &&
+        access.hasPermission('reports.export');
+
+    final newOpportunity = canCreate
+        ? FilledButton.icon(
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            ),
+            onPressed: _add,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: AppText(t('فرصة جديدة', 'New opportunity')),
+          )
+        : null;
+
+    final secondaryActions = <Widget>[
+      if (canViewReports)
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          ),
+          onPressed: () => showAppModuleDialog<void>(
+            context: context,
+            title: t(
+              'تقارير خدمة العملاء والفرص',
+              'Customer service and opportunity reports',
+            ),
+            maxWidth: 1180,
+            maxHeight: 820,
+            builder: (_) => const ReportsPage(initialModule: 'opportunities'),
+          ),
+          icon: const Icon(Icons.summarize_outlined, size: 17),
+          label: AppText(t('تقرير تنفيذي', 'Executive report')),
+        ),
+      if (canExport) ...[
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+          ),
+          onPressed: items.isEmpty
+              ? null
+              : () => _exportOpportunitiesExcel(items),
+          icon: const Icon(Icons.table_view_outlined, size: 17),
+          label: const AppText('Excel'),
+        ),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+          ),
+          onPressed: items.isEmpty
+              ? null
+              : () => _exportOpportunitiesPdf(items),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
+          label: const AppText('PDF'),
+        ),
+      ],
+    ];
+
+    final actions = Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      alignment: WrapAlignment.end,
+      children: <Widget>[...secondaryActions, ?newOpportunity],
+    );
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 16, 22, 22),
+          padding: EdgeInsets.fromLTRB(22, shellOwnsIdentity ? 8 : 16, 22, 18),
           child: Column(
             children: [
-              KajRelationshipHero(
-                eyebrow: t(
-                  'تطوير الأعمال وتجربة العميل',
-                  'CUSTOMER EXPERIENCE & GROWTH',
-                ),
-                title: t(
-                  'مركز الفرص التجارية',
-                  'Commercial opportunity center',
-                ),
-                subtitle: t(
-                  'حوّل الاهتمام الأولي إلى علاقة تجارية قابلة للقياس، مع متابعة المصدر والمالك والقيمة وموعد التواصل والارتباط بأمر البيع.',
-                  'Turn first interest into a measurable commercial relationship with source, owner, value, follow-up, and sales-order linkage in one premium workspace.',
-                ),
-                icon: Icons.auto_graph_rounded,
-                primaryAction: access.hasPermission('customer_service.create')
-                    ? FilledButton.icon(
-                        onPressed: _add,
-                        icon: const Icon(Icons.add_rounded),
-                        label: AppText(t('فرصة جديدة', 'New opportunity')),
-                      )
-                    : null,
-                secondaryAction:
-                    (access.hasPermission('reports.view') ||
-                        (access.hasPermission('customer_service.view') &&
-                            access.hasPermission('reports.export')))
-                    ? Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          if (access.hasPermission('reports.view'))
-                            OutlinedButton.icon(
-                              onPressed: () => showAppModuleDialog<void>(
-                                context: context,
-                                title: t(
-                                  'تقارير خدمة العملاء والفرص',
-                                  'Customer service and opportunity reports',
-                                ),
-                                maxWidth: 1180,
-                                maxHeight: 820,
-                                builder: (_) => const ReportsPage(
-                                  initialModule: 'opportunities',
-                                ),
-                              ),
-                              icon: const Icon(Icons.summarize_outlined),
-                              label: AppText(
-                                t('تقرير تنفيذي', 'Executive report'),
-                              ),
-                            ),
-                          if (access.hasPermission('customer_service.view') &&
-                              access.hasPermission('reports.export')) ...[
-                            OutlinedButton.icon(
-                              onPressed: items.isEmpty
-                                  ? null
-                                  : () => _exportOpportunitiesExcel(items),
-                              icon: const Icon(Icons.table_view_outlined),
-                              label: const AppText('Excel'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: items.isEmpty
-                                  ? null
-                                  : () => _exportOpportunitiesPdf(items),
-                              icon: const Icon(Icons.picture_as_pdf_outlined),
-                              label: const AppText('PDF'),
+              if (shellOwnsIdentity)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stacked = constraints.maxWidth < 1080;
+                    if (stacked) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _StatisticsStrip(controller: controller),
+                          if (actions.children.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: AlignmentDirectional.centerEnd,
+                              child: actions,
                             ),
                           ],
                         ],
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 12),
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _StatisticsStrip(controller: controller),
+                        ),
+                        if (actions.children.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          actions,
+                        ],
+                      ],
+                    );
+                  },
+                )
+              else ...[
+                KajRelationshipHero(
+                  eyebrow: t(
+                    'تطوير الأعمال وتجربة العميل',
+                    'CUSTOMER EXPERIENCE & GROWTH',
+                  ),
+                  title: t(
+                    'مركز الفرص التجارية',
+                    'Commercial opportunity center',
+                  ),
+                  subtitle: t(
+                    'حوّل الاهتمام الأولي إلى علاقة تجارية قابلة للقياس، مع متابعة المصدر والمالك والقيمة وموعد التواصل والارتباط بأمر البيع.',
+                    'Turn first interest into a measurable commercial relationship with source, owner, value, follow-up, and sales-order linkage in one premium workspace.',
+                  ),
+                  icon: Icons.auto_graph_rounded,
+                  primaryAction: newOpportunity,
+                  secondaryAction: secondaryActions.isEmpty
+                      ? null
+                      : Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: secondaryActions,
+                        ),
+                ),
+                const SizedBox(height: 10),
+                _StatisticsStrip(controller: controller),
+              ],
+              const SizedBox(height: 9),
               KajWorkflowStepper(
                 currentIndex: controller.opportunities.isEmpty
                     ? -1
@@ -326,85 +392,85 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
                   t('أمر البيع', 'Sales order'),
                 ],
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                        suffixIcon: _searchController.text.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {});
-                                },
-                                icon: const Icon(Icons.close_rounded, size: 18),
-                              ),
-                        hintText: t(
-                          'البحث برقم الفرصة أو العميل أو أمر البيع أو أمر الصيانة',
-                          'Search by opportunity, customer, sales order, or maintenance order',
-                        ),
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(14)),
-                        ),
+              const SizedBox(height: 9),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final search = TextField(
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      suffixIcon: _searchController.text.isEmpty
+                          ? null
+                          : IconButton(
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {});
+                              },
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                            ),
+                      hintText: t(
+                        'البحث برقم الفرصة أو العميل أو أمر البيع أو أمر الصيانة',
+                        'Search by opportunity, customer, sales order, or maintenance order',
+                      ),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  );
+                  final filters = Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _filterChip(null, t('الكل', 'All')),
+                      _filterChip(
+                        OpportunityStatus.pending,
+                        t('قيد الانتظار', 'Pending'),
+                      ),
+                      _filterChip(OpportunityStatus.won, t('رابحة', 'Won')),
+                      _filterChip(OpportunityStatus.lost, t('خاسرة', 'Lost')),
+                    ],
+                  );
+                  final results = Chip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(Icons.filter_list_rounded, size: 16),
+                    label: AppText(
+                      '${t('النتائج', 'Results')}: ${items.length}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  );
+
+                  if (constraints.maxWidth < 980) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Wrap(
-                            spacing: 7,
-                            runSpacing: 7,
-                            children: [
-                              _filterChip(null, t('الكل', 'All')),
-                              _filterChip(
-                                OpportunityStatus.pending,
-                                t('قيد الانتظار', 'Pending'),
-                              ),
-                              _filterChip(
-                                OpportunityStatus.won,
-                                t('رابحة', 'Won'),
-                              ),
-                              _filterChip(
-                                OpportunityStatus.lost,
-                                t('خاسرة', 'Lost'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Chip(
-                          visualDensity: VisualDensity.compact,
-                          avatar: const Icon(
-                            Icons.filter_list_rounded,
-                            size: 16,
-                          ),
-                          label: AppText(
-                            '${t('النتائج', 'Results')}: ${items.length}',
-                            style: const TextStyle(fontSize: 11),
-                          ),
+                        search,
+                        const SizedBox(height: 7),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: filters),
+                            const SizedBox(width: 7),
+                            results,
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                ),
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: search),
+                      const SizedBox(width: 8),
+                      filters,
+                      const SizedBox(width: 7),
+                      results,
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 14),
-              _StatisticsStrip(controller: controller),
-              const SizedBox(height: 14),
+              const SizedBox(height: 9),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: controller.loadOpportunities,
@@ -413,27 +479,38 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
                       : items.isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(top: 48),
                           children: [
-                            const SizedBox(height: 120),
-                            Icon(
-                              Icons.support_agent_outlined,
-                              size: 54,
-                              color: scheme.outline,
-                            ),
-                            const SizedBox(height: 12),
                             Center(
-                              child: AppText(
-                                t(
-                                  'لا توجد فرص مطابقة للبحث والفلاتر',
-                                  'No opportunities match the search and filters',
-                                ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.support_agent_outlined,
+                                    size: 38,
+                                    color: scheme.outline,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  AppText(
+                                    t(
+                                      'لا توجد فرص مطابقة للبحث والفلاتر',
+                                      'No opportunities match the search and filters',
+                                    ),
+                                    style: TextStyle(
+                                      color: scheme.onSurfaceVariant,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         )
-                      : ListView.builder(
+                      : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: 4),
                           itemCount: items.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final opportunity = items[index];
                             return OpportunityCard(
@@ -471,6 +548,8 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
     if (!await PermissionAction.require(context, 'customer_service.create'))
       return;
     if (!mounted) return;
+    await context.read<CustomersController>().loadCustomers();
+    if (!mounted) return;
     await showAppWorkspaceDialog<void>(
       context: context,
       title: t('إضافة فرصة', 'Add opportunity'),
@@ -482,6 +561,8 @@ class _CustomerServicePageState extends State<CustomerServicePage> {
   Future<void> _edit(OpportunityModel opportunity) async {
     if (!await PermissionAction.require(context, 'customer_service.update'))
       return;
+    if (!mounted) return;
+    await context.read<CustomersController>().loadCustomers();
     if (!mounted) return;
     await showAppWorkspaceDialog<void>(
       context: context,

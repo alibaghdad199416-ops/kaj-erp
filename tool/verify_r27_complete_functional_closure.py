@@ -6,7 +6,7 @@ checks['r27 migration exists']=(ROOT/'supabase/migrations/20260808162000_r27_com
 sql=text('supabase/migrations/20260808162000_r27_complete_functional_closure.sql')
 checks['r27 postgrest command']='erp_r27_cloud_command' in sql and "notify pgrst,'reload schema'" in sql
 checks['canonical cashbox read save']='erp_r27_list_cash_accounts' in sql and 'erp_r27_save_cash_account' in sql
-checks['cashbox repo r27']=all(any(v in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for v in pair) for pair in (('erp_r27_list_cash_accounts','erp_r28_list_cash_accounts','erp_r42_list_cash_accounts'),('erp_r27_save_cash_account','erp_r28_save_cash_account','erp_r42_save_cash_account')))
+checks['cashbox repo r27']=all(any(v in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for v in pair) for pair in (('erp_r27_list_cash_accounts','erp_r28_list_cash_accounts','erp_r42_list_cash_accounts','erp_r90_list_cash_accounts'),('erp_r27_save_cash_account','erp_r28_save_cash_account','erp_r42_save_cash_account','erp_r90_save_cash_account')))
 checks['movement log dedicated rpc']=any(v in text('lib/features/inventory/data/inventory_repository.dart') for v in ('erp_r27_inventory_movement_log','erp_r28_inventory_movement_log'))
 checks['immutable removeWhere removed']="movements.removeWhere" not in text('lib/features/inventory/data/inventory_repository.dart')
 checks['movement source destination']='sourceName' in text('lib/features/inventory/models/inventory_movement_model.dart') and 'destinationName' in text('lib/features/inventory/models/inventory_movement_model.dart')
@@ -21,7 +21,7 @@ checks['car overflow fixed']=(
     and '? 2' in cars_page
 )
 inventory_page=text('lib/features/inventory/pages/inventory_page.dart')
-checks['product card overflow fixed']='mainAxisExtent:' in inventory_page and 'columns == 3' in inventory_page and 'columns == 2' in inventory_page
+checks['product card overflow fixed']='mainAxisExtent:' in inventory_page and ('columns >= 3' in inventory_page or 'columns == 3' in inventory_page) and 'columns == 2' in inventory_page
 pdf_support=text('lib/core/printing/pdf_text_support.dart')
 checks['bundled pdf font safety']=(
     'assets/fonts/NotoNaskhArabic-Regular.ttf' in pdf_support and

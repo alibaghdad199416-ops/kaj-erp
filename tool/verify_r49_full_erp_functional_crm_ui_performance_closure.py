@@ -26,6 +26,7 @@ r49identity=read('supabase/migrations/20260810060000_r49_product_identity_accoun
 r49permissions=read('supabase/migrations/20260810070000_r49_permission_scope_integrity.sql')
 r49delivery=read('supabase/migrations/20260810080000_r49_independent_delivery_search_traceability.sql')
 r49focused=read('supabase/migrations/20260810090000_r49_focused_final_permission_runtime_closure.sql')
+r92=read('supabase/migrations/20260820133000_r92_comprehensive_module_audit.sql')
 r49finance=read('supabase/migrations/20260810100000_r49_financial_subledger_currency_integrity.sql')
 r49profit=read('supabase/migrations/20260810110000_r49_accounting_profit_installment_surface_closure.sql')
 r65dashboard=read('supabase/migrations/20260814053406_r65_authoritative_dashboard_snapshot.sql')
@@ -458,24 +459,21 @@ gate('Focused R49 migration keeps historical commercial implementations internal
      and 'erp_approve_cloud_purchase_order' in r49focused
      and r49focused.count('grant execute on function public.erp_r49_') >= 8)
 
-gate('Inventory CRUD, receipt and transfers use granular backend permissions instead of role-only master-data access',
+gate('Inventory CRUD and transfers use granular backend permissions while receipt/sale stock changes remain workflow-approval owned',
      all(name in inventory_repo for name in (
        'erp_r49_create_inventory_product','erp_r49_update_inventory_product',
-       'erp_r49_adjust_product_opening_balance','erp_r49_receive_inventory_stock',
+       'erp_r49_adjust_product_opening_balance',
        'erp_r49_transfer_inventory_stock','erp_r49_transfer_inventory_stock_batch',
        'erp_r49_create_car_warehouse_transfer'))
+     and 'erp_r49_receive_inventory_stock' not in inventory_repo
+     and 'erp_sell_inventory_stock' not in inventory_repo
      and all(name in read('lib/features/inventory/cars/data/car_warehouse_transfer_repository.dart') for name in (
        'erp_r49_create_car_warehouse_transfer_batch','erp_r49_create_car_warehouse_transfer',
        'erp_r49_edit_car_warehouse_transfer','erp_r49_reverse_car_warehouse_transfer'))
      and all(code in r49focused for code in (
-       "'inventory.create'","'inventory.update'","'inventory.adjust'","'inventory.receive'","'inventory.transfer'"))
-     and "qualityline.r49_master_permission" in r49focused
-     and 'erp_cloud_user_has_permission' in r49focused
-     and 'revoke execute on function public.erp_create_inventory_product' in r49focused
-     and 'revoke execute on function public.erp_receive_inventory_stock' in r49focused
-     and 'revoke execute on function public.erp_v2300_transfer_inventory_stock_batch' in r49focused
-     and 'revoke execute on function public.erp_v2300_create_car_warehouse_transfer' in r49focused)
-
+       "'inventory.create'","'inventory.update'","'inventory.adjust'","'inventory.transfer'"))
+     and 'revoke all on function public.erp_r49_receive_inventory_stock' in r92
+     and 'revoke all on function public.erp_sell_inventory_stock' in r92)
 gate('Cloud listWhere filters canonical records server-side instead of downloading whole tables',
      "'erp_r49_list_cloud_master_where'" in read('lib/core/cloud/cloud_master_data_service.dart')
      and 'final rows = await list(table);' not in read('lib/core/cloud/cloud_master_data_service.dart')

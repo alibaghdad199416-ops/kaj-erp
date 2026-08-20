@@ -20,7 +20,11 @@ need('canonical cashbox list/save', 'erp_r28_list_cash_accounts' in main_sql and
 need('cashbox asset currency validation', "v_ledger_type<>'asset'" in main_sql and "v_ledger_currency not in (v_currency,'MULTI')" in main_sql)
 need('cashbox duplicate ledger rejected', 'cashbox_ledger_account_already_bound' in main_sql)
 need('cashbox row timestamp authoritative', "'_cloudUpdatedAt', ca.updated_at" in main_sql and '_cloudUpdatedAt' in cash_model)
-need('cashbox repo r28-or-later endpoints', (('erp_r28_list_cash_accounts' in repo and 'erp_r28_save_cash_account' in repo) or ('erp_r42_list_cash_accounts' in repo and 'erp_r42_save_cash_account' in repo)) and 'erp_r28_list_cash_transactions' in repo)
+need('cashbox repo r28-or-later endpoints', (
+    ('erp_r28_list_cash_accounts' in repo and 'erp_r28_save_cash_account' in repo) or
+    ('erp_r42_list_cash_accounts' in repo and 'erp_r42_save_cash_account' in repo) or
+    ('erp_r90_list_cash_accounts' in repo and 'erp_r90_save_cash_account' in repo)
+) and 'erp_r28_list_cash_transactions' in repo)
 need('cash transaction real row dates', 'erp_r28_list_cash_transactions' in main_sql and "'createdAt',ct.created_at" in main_sql and 'transactionDate' in main_sql)
 display_formatter=text('lib/core/utils/erp_display_formatter.dart')
 need('account codes are text identifiers',
@@ -30,9 +34,10 @@ need('account codes are text identifiers',
 need('dedicated movement rpc', 'erp_r28_inventory_movement_log' in main_sql and 'erp_r28_inventory_movement_log' in movement_repo)
 need('movement table export pdf excel', 'ExcelExportService' in movement_page and 'PdfExportService' in movement_page and 'sourceName' in movement_page and 'destinationName' in movement_page)
 need('commercial details enriched rpc', 'erp_r28_get_commercial_order_complete_details' in main_sql and 'approvedBy' in main_sql and 'sourceName' in main_sql and 'destinationName' in main_sql)
-need('frontend commercial details r28',
+need('frontend commercial details r28-or-later',
      'erp_r28_get_commercial_order_complete_details' in details_repo or
-     'erp_r62_get_commercial_order_snapshot' in details_repo)
+     'erp_r62_get_commercial_order_snapshot' in details_repo or
+     'erp_r89_get_commercial_order_snapshot' in details_repo)
 pdf_web=text('lib/core/exporting/pdf_print_service_web.dart')
 binary_web=text('lib/core/exporting/binary_download_service_web.dart')
 download_lifecycle=text('lib/core/exporting/browser_download_lifecycle.dart')

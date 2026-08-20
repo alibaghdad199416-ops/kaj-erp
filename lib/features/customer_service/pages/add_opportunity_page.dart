@@ -100,23 +100,31 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
     _carId = o?.carId;
     _carName = o?.carName;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final access = context.read<AccessController>();
-      final customers = context.read<CustomersController>().customers;
-      unawaited(_loadVehicleOptions());
-      final customerMatches = o?.customerId == null
-          ? <CustomerModel>[]
-          : customers.where((c) => c.id == o!.customerId).toList();
-      if (mounted) {
-        setState(() {
-          final assignedMatches = access.users.where(
-            (u) => u.id == _assignedUserId,
-          );
-          if (assignedMatches.isNotEmpty) {
-            _assignedUserName = assignedMatches.first.fullName;
-          }
-          _customer = customerMatches.isEmpty ? null : customerMatches.first;
-        });
+      unawaited(_initializeDependencies(o));
+    });
+  }
+
+  Future<void> _initializeDependencies(OpportunityModel? opportunity) async {
+    final customersController = context.read<CustomersController>();
+    await Future.wait<void>([
+      customersController.loadCustomers(),
+      _loadVehicleOptions(),
+    ]);
+    if (!mounted) return;
+    final access = context.read<AccessController>();
+    final customerMatches = opportunity?.customerId == null
+        ? <CustomerModel>[]
+        : customersController.customers
+              .where((customer) => customer.id == opportunity!.customerId)
+              .toList(growable: false);
+    setState(() {
+      final assignedMatches = access.users.where(
+        (user) => user.id == _assignedUserId,
+      );
+      if (assignedMatches.isNotEmpty) {
+        _assignedUserName = assignedMatches.first.fullName;
       }
+      _customer = customerMatches.isEmpty ? null : customerMatches.first;
     });
   }
 

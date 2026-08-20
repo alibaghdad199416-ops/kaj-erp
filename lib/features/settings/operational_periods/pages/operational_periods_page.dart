@@ -230,7 +230,7 @@ class _OperationalPeriodsPageState extends State<OperationalPeriodsPage> {
             )
           else if (_items.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(40),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               child: Center(
                 child: AppText(
                   context.l10n.isArabic

@@ -85,10 +85,10 @@ require(
         "class AppLazyTabView",
         "IndexedStack",
         "AppLazyTabView",
-        "CarsPage()",
+        "CarsPage(initialCarId: initialCarId)",
         "CustomersPage()",
-        "SalesWorkflowPage()",
-        "PurchaseWorkflowPage()",
+        "SalesWorkflowPage(initialOrderId: initialOrderId)",
+        "PurchaseWorkflowPage(initialOrderId: initialOrderId)",
     ),
     "lazy module loading",
 )
@@ -110,13 +110,18 @@ require(
     ),
     "one-line commands and bounded module workspaces",
 )
+# The accounting workspace now owns its section strip directly (R86+) instead
+# of wrapping the pills in AppHorizontalStrip. Keep the contract on actual
+# behavior: scrollable pill navigation, stadium filter geometry, and the
+# accounting ChoiceChip section rail.
 require(
     pills + filter_bar + accounting,
     (
         "borderRadius: BorderRadius.circular(999)",
         "dividerColor: Colors.transparent",
         "shape: const StadiumBorder()",
-        "AppHorizontalStrip",
+        "scrollDirection: Axis.horizontal",
+        "ChoiceChip(",
         "إدخال محاسبي جديد",
     ),
     "pill-only navigation",

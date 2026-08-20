@@ -37,7 +37,7 @@ class CustomerCard extends StatelessWidget {
       accent: scheme.primary,
       onTap: onView ?? onEdit,
       child: Padding(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(5),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -45,8 +45,8 @@ class CustomerCard extends StatelessWidget {
               'photo',
               ClipOval(
                 child: SizedBox(
-                  width: 46,
-                  height: 46,
+                  width: 42,
+                  height: 42,
                   child: _photoBytes == null
                       ? ColoredBox(
                           color: scheme.primary.withValues(alpha: .08),
@@ -68,7 +68,7 @@ class CustomerCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,12 +80,12 @@ class CustomerCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: PartnerStatusBadge(
@@ -93,10 +93,10 @@ class CustomerCard extends StatelessWidget {
                       color: scheme.primary,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Wrap(
                     spacing: 6,
-                    runSpacing: 5,
+                    runSpacing: 4,
                     children: [
                       _visible(
                         'phone',
@@ -128,7 +128,7 @@ class CustomerCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,

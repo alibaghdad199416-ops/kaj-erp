@@ -133,7 +133,9 @@ class _EditCarPageState extends State<EditCarPage> {
       child: Scaffold(
         appBar: AppBar(
           leading: const AppBackButton(),
-          title: const AppText('تعديل السيارة'),
+          title: AppText(
+            context.l10n.isArabic ? 'تعديل السيارة' : 'Edit vehicle',
+          ),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -367,7 +369,7 @@ class _EditCarPageState extends State<EditCarPage> {
   }
 
   bool _validateAccountingAssignments() {
-    final accounts = context.read<AccountingController>().accounts;
+    final accounts = context.read<AccountingController>().postableAccounts;
     AccountModel? accountById(String? id) {
       if (id == null || id.isEmpty) return null;
       for (final account in accounts) {

@@ -146,7 +146,7 @@ void main() {
     expect(dialog, contains('await _repository.getOrderSnapshot(_order.id)'));
     expect(dialog, isNot(contains('Future.wait<Object>')));
     expect(dialog, isNot(contains('_loadDetailsRich')));
-    expect(repository, contains("'erp_r64_get_maintenance_order_snapshot'"));
+    expect(repository, contains("'erp_r90_get_maintenance_order_snapshot'"));
     expect(migration, contains('erp_r57_maintenance_cost_reconciliation'));
     expect(migration, contains('erp_r57_maintenance_material_issue_state'));
     expect(migration, contains('erp_r9_get_cloud_maintenance_order_lines'));

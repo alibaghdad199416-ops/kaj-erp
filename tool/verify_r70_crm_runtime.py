@@ -161,7 +161,8 @@ require(card, "'maintenance.delete'", "Opportunity Maintenance delete permission
 require(card, "onCancel: !linkedOrder.isCancelled", "Opportunity Maintenance modal cancel callback")
 require(maintenance_repository, "erp_r67_cancel_maintenance_order", "Maintenance repository cancel RPC")
 require(maintenance_dialog, "await widget.onCancel?.call();", "Maintenance dialog cancel callback")
-require(maintenance_dialog, "await _loadDetails();", "Maintenance dialog authoritative reload")
+require(maintenance_dialog, "await _reloadDetails();", "Maintenance dialog authoritative reload")
+require(maintenance_dialog, "_isOrderDraft ? _loadDraftCoreLines() : _loadDetails()", "Maintenance dialog draft-aware authoritative reload")
 
 # Fix 3: Opportunity <-> Maintenance is persisted/read from canonical DB state,
 # visible on the Opportunity card, and reopenable after save/update/cancel.

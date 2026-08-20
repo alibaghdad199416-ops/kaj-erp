@@ -19,14 +19,22 @@ import 'package:quality_line_erp/design_system/kaj_finance_stage7_components.dar
 import 'package:quality_line_erp/features/accounting/cashbox/controllers/cashbox_controller.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_account_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_model.dart';
-import 'package:quality_line_erp/features/accounting/cashbox/widgets/cash_transaction_card.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/services/cash_voucher_pdf_service.dart';
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 import 'add_cash_transaction_page.dart';
 import 'cash_account_form.dart';
 
 class CashboxPage extends StatefulWidget {
-  const CashboxPage({super.key});
+  const CashboxPage({
+    super.key,
+    this.embedded = false,
+    this.continuous = false,
+    this.initialCashboxId,
+  });
+
+  final bool embedded;
+  final bool continuous;
+  final String? initialCashboxId;
 
   @override
   State<CashboxPage> createState() => _CashboxPageState();
@@ -42,118 +50,79 @@ class _CashboxPageState extends State<CashboxPage> {
         child: child,
       );
 
-  final _searchController = TextEditingController();
-  String _filter = 'all';
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<CashboxController>().loadTransactions();
+      if (!mounted) return;
+      final controller = context.read<CashboxController>();
+      await controller.loadTransactions();
+      if (!mounted) return;
+      final id = widget.initialCashboxId?.trim();
+      if (id == null || id.isEmpty) return;
+      CashAccountModel? target;
+      for (final account in controller.cashAccounts) {
+        if (account.id == id) {
+          target = account;
+          break;
+        }
+      }
+      if (target != null) await _openCashboxDetail(target, controller);
     });
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final content = Consumer<CashboxController>(
+      builder: (context, controller, _) {
+        if (controller.isLoading && controller.cashAccounts.isEmpty) {
+          return Center(
+            child: KajFinanceState(
+              icon: Icons.sync_rounded,
+              title: context.l10n.isArabic
+                  ? 'جارٍ مزامنة الصناديق'
+                  : 'Synchronizing cashboxes',
+              message: context.l10n.isArabic
+                  ? 'يتم تحميل الصناديق والأرصدة المرتبطة.'
+                  : 'Loading cashboxes and linked balances.',
+            ),
+          );
+        }
+        if (controller.errorMessage != null &&
+            controller.cashAccounts.isEmpty) {
+          return Center(
+            child: _message(Icons.error_outline, controller.errorMessage!),
+          );
+        }
+
+        final body = ListView(
+          shrinkWrap: widget.continuous,
+          physics: widget.continuous
+              ? const NeverScrollableScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(),
+          padding: widget.embedded
+              ? const EdgeInsets.fromLTRB(0, 0, 0, 24)
+              : const EdgeInsets.all(16),
+          children: <Widget>[
+            if (!widget.embedded) ...[_header(), const SizedBox(height: 16)],
+            _cashAccounts(controller),
+          ],
+        );
+        return RefreshIndicator(
+          onRefresh: controller.loadTransactions,
+          child: body,
+        );
+      },
+    );
+
     return Directionality(
       textDirection: Directionality.of(context),
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Consumer<CashboxController>(
-          builder: (context, controller, _) {
-            final transactions = controller.transactions.where((item) {
-              return _filter == 'all' || item.type == _filter;
-            }).toList();
-
-            return RefreshIndicator(
-              onRefresh: controller.loadTransactions,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                children: [
-                  _header(),
-                  const SizedBox(height: 16),
-                  _cashAccounts(controller),
-                  const SizedBox(height: 16),
-                  _stats(controller),
-                  const SizedBox(height: 16),
-                  _actions(),
-                  const SizedBox(height: 16),
-                  _filters(controller),
-                  const SizedBox(height: 16),
-                  if (controller.isLoading && controller.transactions.isEmpty)
-                    KajFinanceState(
-                      icon: Icons.sync_rounded,
-                      title: context.l10n.isArabic
-                          ? 'جارٍ مزامنة الصناديق'
-                          : 'Synchronizing cashboxes',
-                      message: context.l10n.isArabic
-                          ? 'يتم تحميل الحركات والأرصدة المرتبطة.'
-                          : 'Loading linked transactions and balances.',
-                    )
-                  else if (controller.errorMessage != null &&
-                      controller.transactions.isEmpty)
-                    _message(Icons.error_outline, controller.errorMessage!)
-                  else if (transactions.isEmpty)
-                    KajFinanceState(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: context.l10n.isArabic
-                          ? 'لا توجد حركات مطابقة'
-                          : 'No matching transactions',
-                      message: context.l10n.isArabic
-                          ? 'غيّر الفلاتر أو أنشئ سندًا ماليًا جديدًا.'
-                          : 'Adjust the filters or create a new financial voucher.',
-                    )
-                  else
-                    ...transactions.map(
-                      (transaction) => CashTransactionCard(
-                        transaction: transaction,
-                        onView: () => _showDetails(transaction),
-                        onPrint: () async {
-                          String? cashAccountName;
-                          for (final account in controller.cashAccounts) {
-                            if (account.id == transaction.cashAccountId) {
-                              cashAccountName = account.name;
-                              break;
-                            }
-                          }
-                          String? counterAccountName;
-                          for (final account in controller.ledgerAccounts) {
-                            if (account.id == transaction.counterAccountId) {
-                              counterAccountName =
-                                  '${account.code} — ${account.name}';
-                              break;
-                            }
-                          }
-                          await const CashVoucherPdfService().printVoucher(
-                            transaction,
-                            arabic: context.l10n.isArabic,
-                            cashAccountName: cashAccountName,
-                            counterAccountName: counterAccountName,
-                            journalEntryNumber: transaction.journalEntryId,
-                          );
-                        },
-                        onEdit: () => _openEdit(transaction),
-                        onDelete:
-                            PermissionAction.allowed(
-                              context,
-                              'accounting.delete',
-                            )
-                            ? () => _delete(transaction)
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+      child: widget.embedded
+          ? content
+          : Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: content,
+            ),
     );
   }
 
@@ -236,20 +205,27 @@ class _CashboxPageState extends State<CashboxPage> {
       '${value.year}/${value.month.toString().padLeft(2, '0')}/${value.day.toString().padLeft(2, '0')}';
 
   String _documentPaymentMethod(String value) {
+    final ar = context.l10n.isArabic;
     switch (value) {
       case 'bank_transfer':
-        return 'تحويل مصرفي';
+        return ar ? 'تحويل مصرفي' : 'Bank transfer';
       case 'card':
-        return 'بطاقة';
+        return ar ? 'بطاقة' : 'Card';
       case 'cheque':
-        return 'صك';
+        return ar ? 'صك' : 'Cheque';
       default:
-        return 'نقدي';
+        return ar ? 'نقدي' : 'Cash';
     }
   }
 
   Widget _header() {
     final isArabic = context.l10n.isArabic;
+    final access = context.read<AccessController>();
+    final canTransfer = access.canPerformAction(
+      'cashbox',
+      'transfer',
+      legacyPermission: 'accounting.update',
+    );
     return KajFinanceSection(
       title: isArabic
           ? 'الصناديق والحسابات النقدية'
@@ -258,44 +234,59 @@ class _CashboxPageState extends State<CashboxPage> {
           ? 'إدارة سندات القبض والصرف والتحويلات متعددة العملات.'
           : 'Manage receipts, payments and multi-currency transfers.',
       icon: Icons.account_balance_wallet_outlined,
+      trailing: canTransfer
+          ? IconButton(
+              tooltip: isArabic
+                  ? 'تحويل بين الصناديق'
+                  : 'Transfer between cashboxes',
+              onPressed: _openTransfer,
+              icon: const Icon(Icons.swap_horiz_rounded),
+            )
+          : null,
       child: const SizedBox.shrink(),
     );
   }
 
+  // Retained for compact embedded finance surfaces.
+  // ignore: unused_element
   Widget _stats(CashboxController controller) {
     final usd = controller.usdSummary;
     final iqd = controller.iqdSummary;
+    final ar = context.l10n.isArabic;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth >= 900
-            ? (constraints.maxWidth - 36) / 4
-            : constraints.maxWidth >= 520
-            ? (constraints.maxWidth - 12) / 2
-            : constraints.maxWidth;
+        const gap = 10.0;
+        const minWidth = 210.0;
+        final columns = ((constraints.maxWidth + gap) / (minWidth + gap))
+            .floor()
+            .clamp(1, 4);
+        final width = (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+
         return Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: gap,
+          runSpacing: gap,
           children: [
             _stat(
-              'رصيد USD',
+              ar ? 'رصيد USD' : 'USD balance',
               MoneyFormatter.format(usd['balance'] ?? 0, currency: 'USD'),
-              Icons.attach_money,
+              Icons.attach_money_rounded,
               width,
             ),
             _stat(
-              'مقبوضات USD',
+              ar ? 'مقبوضات USD' : 'USD receipts',
               MoneyFormatter.format(usd['receipts'] ?? 0, currency: 'USD'),
               Icons.south_west_rounded,
               width,
             ),
             _stat(
-              'رصيد IQD',
+              ar ? 'رصيد IQD' : 'IQD balance',
               MoneyFormatter.format(iqd['balance'] ?? 0, currency: 'IQD'),
               Icons.payments_outlined,
               width,
             ),
             _stat(
-              'مصروفات IQD',
+              ar ? 'مصروفات IQD' : 'IQD payments',
               MoneyFormatter.format(iqd['payments'] ?? 0, currency: 'IQD'),
               Icons.north_east_rounded,
               width,
@@ -307,157 +298,57 @@ class _CashboxPageState extends State<CashboxPage> {
   }
 
   Widget _stat(String title, String value, IconData icon, double width) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: width,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(16),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 62),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: .72),
+          ),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppText(
-                      title,
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                    const SizedBox(height: 4),
-                    AppText(
-                      value,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _actions() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final receipt = FilledButton.icon(
-          onPressed: () => _openAdd('receipt'),
-          icon: const Icon(Icons.south_west_rounded),
-          label: const AppText('سند قبض'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.green.shade700,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 40),
-          ),
-        );
-        final payment = FilledButton.icon(
-          onPressed: () => _openAdd('payment'),
-          icon: const Icon(Icons.north_east_rounded),
-          label: const AppText('سند صرف'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.red.shade700,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 40),
-          ),
-        );
-        final transfer = FilledButton.icon(
-          onPressed: _openTransfer,
-          icon: const Icon(Icons.swap_horiz_rounded),
-          label: const AppText(
-            '\u062a\u062d\u0648\u064a\u0644 \u0628\u064a\u0646 \u0627\u0644\u0635\u0646\u0627\u062f\u064a\u0642',
-          ),
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
-        );
-        if (constraints.maxWidth >= 780) {
-          return Row(
-            children: [
-              Expanded(child: receipt),
-              const SizedBox(width: 12),
-              Expanded(child: payment),
-              const SizedBox(width: 12),
-              Expanded(child: transfer),
-            ],
-          );
-        }
-        return Column(
+        child: Row(
           children: [
-            receipt,
-            const SizedBox(height: 12),
-            payment,
-            const SizedBox(height: 12),
-            transfer,
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _filters(CashboxController controller) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final search = TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: AppTranslation.translate('بحث'),
-                hintText: AppTranslation.translate(
-                  'رقم السند، التصنيف، الجهة أو الملاحظات',
-                ),
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(10),
               ),
-              onChanged: controller.searchTransactions,
-            );
-            final filter = DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: _filter,
-              decoration: InputDecoration(
-                labelText: AppTranslation.translate('نوع الحركة'),
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'all', child: AppText('الكل')),
-                DropdownMenuItem(
-                  value: 'receipt',
-                  child: AppText('سندات القبض'),
-                ),
-                DropdownMenuItem(
-                  value: 'payment',
-                  child: AppText('سندات الصرف'),
-                ),
-              ],
-              onChanged: (value) => setState(() => _filter = value ?? 'all'),
-            );
-            if (constraints.maxWidth >= 700) {
-              return Row(
+              child: Icon(icon, size: 18, color: scheme.primary),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 2, child: search),
-                  const SizedBox(width: 12),
-                  Expanded(child: filter),
+                  AppText(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  AppText(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
-              );
-            }
-            return Column(
-              children: [search, const SizedBox(height: 12), filter],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -465,11 +356,12 @@ class _CashboxPageState extends State<CashboxPage> {
 
   Widget _message(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.all(60),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 64, color: Colors.grey),
-          const SizedBox(height: 14),
+          Icon(icon, size: 36, color: Colors.grey),
+          const SizedBox(height: 8),
           AppText(text, textAlign: TextAlign.center),
         ],
       ),
@@ -477,7 +369,11 @@ class _CashboxPageState extends State<CashboxPage> {
   }
 
   Future<void> _openTransfer() async {
-    if (!await PermissionAction.require(context, 'accounting.update')) return;
+    if (!await _requireCashboxAction(
+      'transfer',
+      legacyPermission: 'accounting.update',
+    ))
+      return;
     if (!mounted) return;
     final controller = context.read<CashboxController>();
     final ar = context.l10n.isArabic;
@@ -891,22 +787,73 @@ class _CashboxPageState extends State<CashboxPage> {
 
   String? _positiveAmount(String? value) {
     final number = double.tryParse((value ?? '').replaceAll(',', ''));
-    return number == null || number <= 0 ? 'أدخل قيمة أكبر من صفر' : null;
+    if (number != null && number > 0) return null;
+    return context.l10n.isArabic
+        ? 'أدخل قيمة أكبر من صفر'
+        : 'Enter a value greater than zero';
   }
 
-  Future<void> _openAdd(String type) async {
+  Future<void> _openAdd(String type, {String? cashAccountId}) async {
+    final legacyPermission = type == 'receipt'
+        ? 'cashbox.receipt'
+        : 'cashbox.payment';
+    if (!await _requireCashboxAction(
+      type,
+      legacyPermission: legacyPermission,
+    )) {
+      return;
+    }
+    if (!mounted) return;
     final result = await showAppModuleDialog<bool>(
       context: context,
       title: type == 'receipt' ? 'إضافة سند قبض' : 'إضافة سند صرف',
       windowKey: 'cashbox:add:$type',
-      builder: (_) => AddCashTransactionPage(initialType: type),
+      builder: (_) => AddCashTransactionPage(
+        initialType: type,
+        initialCashAccountId: cashAccountId,
+      ),
     );
     if (mounted && result == true) {
       await context.read<CashboxController>().loadTransactions();
     }
   }
 
+  Future<bool> _requireCashboxAction(
+    String action, {
+    required String legacyPermission,
+  }) async {
+    final access = context.read<AccessController>();
+    if (access.canPerformAction(
+      'cashbox',
+      action,
+      legacyPermission: legacyPermission,
+    )) {
+      return true;
+    }
+    await access.recordDeniedAccess('cashbox.$action');
+    if (!mounted) return false;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: AppText(
+            context.l10n.isArabic
+                ? 'ليس لديك صلاحية لتنفيذ هذه العملية.'
+                : 'You do not have permission to perform this action.',
+          ),
+        ),
+      );
+    return false;
+  }
+
   Future<void> _openEdit(CashTransactionModel transaction) async {
+    if (!await _requireCashboxAction(
+      'transaction.edit',
+      legacyPermission: 'accounting.update',
+    )) {
+      return;
+    }
+    if (!mounted) return;
     final result = await showAppModuleDialog<bool>(
       context: context,
       title: 'تعديل حركة صندوق',
@@ -919,7 +866,12 @@ class _CashboxPageState extends State<CashboxPage> {
   }
 
   Future<void> _delete(CashTransactionModel transaction) async {
-    if (!await PermissionAction.require(context, 'accounting.delete')) return;
+    if (!await _requireCashboxAction(
+      'transaction.delete',
+      legacyPermission: 'accounting.delete',
+    )) {
+      return;
+    }
     if (!mounted) return;
     final confirmed = await showAppConfirmDialog(
       context,
@@ -944,145 +896,816 @@ class _CashboxPageState extends State<CashboxPage> {
   }
 
   Widget _cashAccounts(CashboxController controller) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.account_balance_wallet_outlined),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: AppText(
-                    'الصناديق النقدية وأرصدتها',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: () => _editCashAccount(null),
-                  icon: const Icon(Icons.add),
-                  label: const AppText('صندوق جديد'),
-                ),
-              ],
+    final scheme = Theme.of(context).colorScheme;
+    final ar = context.l10n.isArabic;
+
+    Widget accountCard(CashAccountModel account, double itemWidth) {
+      final reconciliation = controller.reconciliation[account.id];
+      final subledger =
+          reconciliation?['subledger'] ??
+          (controller.balances[account.id] ?? account.openingBalance);
+      final ledger = reconciliation?['ledger'] ?? 0;
+      final difference = reconciliation?['difference'] ?? 0;
+      final isReconciled = difference.abs() <= 0.01;
+      final balance = controller.balances[account.id] ?? account.openingBalance;
+      final accountTransactions = controller.transactions
+          .where((transaction) => transaction.cashAccountId == account.id)
+          .toList(growable: false);
+      final cashIn = accountTransactions
+          .where((transaction) => transaction.isReceipt)
+          .fold<double>(0, (sum, transaction) => sum + transaction.amount);
+      final cashOut = accountTransactions
+          .where((transaction) => transaction.isPayment)
+          .fold<double>(0, (sum, transaction) => sum + transaction.amount);
+      final access = context.read<AccessController>();
+      final canViewReconciliation = access.canViewField(
+        'cashbox',
+        'reconciliation',
+        viewPermission: 'accounting.view',
+      );
+      final canViewAmount = access.canViewField(
+        'cashbox',
+        'amount',
+        viewPermission: 'accounting.view',
+      );
+      final canViewCurrency = access.canViewField(
+        'cashbox',
+        'currency',
+        viewPermission: 'accounting.view',
+      );
+      final canEditAccount = access.canPerformAction(
+        'cashbox',
+        'account.edit',
+        legacyPermission: 'accounting.update',
+      );
+
+      return SizedBox(
+        width: itemWidth,
+        child: Material(
+          color: scheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(13),
+            side: BorderSide(
+              color: !canViewReconciliation || isReconciled
+                  ? scheme.outlineVariant.withValues(alpha: .72)
+                  : scheme.error.withValues(alpha: .35),
             ),
-            const SizedBox(height: 12),
-            if (controller.cashAccounts.isEmpty)
-              const AppText('لا توجد صناديق نقدية معرفة.')
-            else
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: controller.cashAccounts.map((account) {
-                  final reconciliation = controller.reconciliation[account.id];
-                  final subledger =
-                      reconciliation?['subledger'] ??
-                      (controller.balances[account.id] ??
-                          account.openingBalance);
-                  final ledger = reconciliation?['ledger'] ?? 0;
-                  final difference = reconciliation?['difference'] ?? 0;
-                  final isReconciled = difference.abs() <= 0.01;
-                  return SizedBox(
-                    width: 320,
-                    child: ListTile(
-                      tileColor: Theme.of(context).cardColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => _openCashboxDetail(account, controller),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 9),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: .08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          account.type == 'bank'
+                              ? Icons.account_balance_outlined
+                              : Icons.account_balance_wallet_outlined,
+                          size: 18,
+                          color: scheme.primary,
+                        ),
                       ),
-                      leading: Icon(
-                        account.type == 'bank'
-                            ? Icons.account_balance_outlined
-                            : Icons.payments_outlined,
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: FieldPermissionVisibility(
+                          resource: 'cashbox',
+                          field: 'name',
+                          viewPermission: 'accounting.view',
+                          child: AppText(
+                            account.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        ),
                       ),
-                      title: FieldPermissionVisibility(
+                      FieldPermissionVisibility(
                         resource: 'cashbox',
-                        field: 'name',
+                        field: 'isActive',
                         viewPermission: 'accounting.view',
-                        child: AppText(account.name),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: account.isActive
+                                ? Colors.green.withValues(alpha: .09)
+                                : scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: AppText(
+                            account.isActive
+                                ? (ar ? 'فعال' : 'Active')
+                                : (ar ? 'غير فعال' : 'Inactive'),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: account.isActive
+                                      ? Colors.green.shade700
+                                      : scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FieldPermissionVisibility(
-                            resource: 'cashbox',
-                            field: 'balance',
-                            viewPermission: 'accounting.view',
-                            child: AppText(
-                              '${MoneyFormatter.format(controller.balances[account.id] ?? account.openingBalance, currency: account.currency)} ${account.currency}${account.isActive ? '' : ' — غير فعال'}',
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          FieldPermissionVisibility(
-                            resource: 'cashbox',
-                            field: 'reconciliationDifference',
-                            viewPermission: 'accounting.view',
-                            child: AppText(
-                              isReconciled
-                                  ? 'مطابق مع دفتر الأستاذ'
-                                  : 'فرق مع دفتر الأستاذ: ${MoneyFormatter.format(difference, currency: account.currency)} ${account.currency}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isReconciled
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
-                                fontWeight: FontWeight.w600,
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: FieldPermissionVisibility(
+                          resource: 'cashbox',
+                          field: 'balance',
+                          viewPermission: 'accounting.view',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (canViewCurrency)
+                                AppText(
+                                  account.currency.toUpperCase(),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              if (canViewCurrency) const SizedBox(height: 1),
+                              AppText(
+                                MoneyFormatter.format(
+                                  balance,
+                                  currency: canViewCurrency
+                                      ? account.currency
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w900),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                      onTap:
-                          context.read<AccessController>().canViewField(
-                            'cashbox',
-                            'reconciliation',
-                            viewPermission: 'accounting.view',
-                          )
-                          ? () => _showReconciliationDetails(
-                              accountName: account.name,
-                              currency: account.currency,
-                              subledger: subledger,
-                              ledger: ledger,
-                              difference: difference,
-                            )
-                          : null,
-                      trailing: Wrap(
-                        spacing: 2,
-                        children: [
-                          FieldPermissionVisibility(
-                            resource: 'cashbox',
-                            field: 'reconciliation',
-                            viewPermission: 'accounting.view',
-                            child: IconButton(
-                              tooltip: AppTranslation.translate(
-                                'تفاصيل المطابقة',
-                              ),
-                              icon: const Icon(Icons.balance_outlined),
-                              onPressed: () => _showReconciliationDetails(
-                                accountName: account.name,
-                                currency: account.currency,
-                                subledger: subledger,
-                                ledger: ledger,
-                                difference: difference,
-                              ),
-                            ),
+                      FieldPermissionVisibility(
+                        resource: 'cashbox',
+                        field: 'reconciliation',
+                        viewPermission: 'accounting.view',
+                        child: IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: ar
+                              ? 'تفاصيل المطابقة'
+                              : 'Reconciliation details',
+                          icon: const Icon(Icons.balance_outlined, size: 18),
+                          onPressed: () => _showReconciliationDetails(
+                            accountName: account.name,
+                            currency: account.currency,
+                            subledger: subledger,
+                            ledger: ledger,
+                            difference: difference,
                           ),
-                          IconButton(
-                            tooltip: AppTranslation.translate('تعديل الصندوق'),
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _editCashAccount(account),
-                          ),
-                        ],
+                        ),
                       ),
+                      if (canEditAccount)
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: ar ? 'تعديل الصندوق' : 'Edit cash account',
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          onPressed: () => _editCashAccount(account),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (canViewAmount)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: <Widget>[
+                        _cashboxMetric(
+                          ar ? 'إجمالي الداخل' : 'Total Cash In',
+                          cashIn,
+                          canViewCurrency ? account.currency : '',
+                          Icons.south_west_rounded,
+                        ),
+                        _cashboxMetric(
+                          ar ? 'إجمالي الخارج' : 'Total Cash Out',
+                          cashOut,
+                          canViewCurrency ? account.currency : '',
+                          Icons.north_east_rounded,
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
+                  if (canViewAmount) const SizedBox(height: 8),
+                  if (canViewAmount) _cashboxTrend(accountTransactions),
+                  const SizedBox(height: 6),
+                  FieldPermissionVisibility(
+                    resource: 'cashbox',
+                    field: 'reconciliationDifference',
+                    viewPermission: 'accounting.view',
+                    child: Row(
+                      children: [
+                        Icon(
+                          isReconciled
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.warning_amber_rounded,
+                          size: 15,
+                          color: isReconciled
+                              ? Colors.green.shade700
+                              : scheme.error,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: AppText(
+                            isReconciled
+                                ? (ar
+                                      ? 'مطابق مع دفتر الأستاذ'
+                                      : 'Reconciled with general ledger')
+                                : (ar
+                                      ? 'فرق: ${MoneyFormatter.format(difference, currency: account.currency)} ${account.currency}'
+                                      : 'Difference: ${MoneyFormatter.format(difference, currency: account.currency)} ${account.currency}'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: isReconciled
+                                      ? Colors.green.shade700
+                                      : scheme.error,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 18,
+              color: scheme.primary,
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: AppText(
+                ar ? 'الصناديق النقدية' : 'Cash accounts',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            if (context.read<AccessController>().canPerformAction(
+              'cashbox',
+              'account.create',
+              legacyPermission: 'accounting.create',
+            ))
+              FilledButton.icon(
+                onPressed: () => _editCashAccount(null),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  minimumSize: const Size(0, 36),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                icon: const Icon(Icons.add, size: 17),
+                label: AppText(ar ? 'صندوق جديد' : 'New cash account'),
               ),
           ],
         ),
+        const SizedBox(height: 8),
+        if (controller.cashAccounts.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: AppText(
+              ar
+                  ? 'لا توجد صناديق نقدية معرفة.'
+                  : 'No cash accounts have been defined.',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 10.0;
+              const minWidth = 280.0;
+              final columns = ((constraints.maxWidth + gap) / (minWidth + gap))
+                  .floor()
+                  .clamp(1, 4);
+              final itemWidth =
+                  (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: controller.cashAccounts
+                    .map((account) => accountCard(account, itemWidth))
+                    .toList(growable: false),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _cashboxMetric(
+    String label,
+    double amount,
+    String currency,
+    IconData icon,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: .38),
+        borderRadius: BorderRadius.circular(10),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 5),
+          AppText(
+            '$label: ${MoneyFormatter.format(amount, currency: currency)} $currency',
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cashboxTrend(List<CashTransactionModel> transactions) {
+    final scheme = Theme.of(context).colorScheme;
+    final ordered = List<CashTransactionModel>.of(transactions)
+      ..sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
+    final recent = ordered.length <= 10
+        ? ordered
+        : ordered.sublist(ordered.length - 10);
+    final maxValue = recent.fold<double>(
+      0,
+      (value, item) => item.amount > value ? item.amount : value,
+    );
+    return SizedBox(
+      height: 28,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: recent.isEmpty
+            ? <Widget>[
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+              ]
+            : recent
+                  .map(
+                    (item) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                        child: Container(
+                          height: maxValue <= 0
+                              ? 2
+                              : (4 + (20 * item.amount / maxValue)),
+                          decoration: BoxDecoration(
+                            color:
+                                (item.isReceipt ? scheme.primary : scheme.error)
+                                    .withValues(alpha: .7),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+      ),
+    );
+  }
+
+  Future<void> _openCashboxDetail(
+    CashAccountModel account,
+    CashboxController controller,
+  ) async {
+    if (!await _requireCashboxAction(
+      'transaction.view',
+      legacyPermission: 'accounting.view',
+    )) {
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        settings: RouteSettings(name: '/accounting/cashboxes/${account.id}'),
+        builder: (detailContext) {
+          final detailAccess = detailContext.read<AccessController>();
+          final canViewName = detailAccess.canViewField(
+            'cashbox',
+            'name',
+            viewPermission: 'accounting.view',
+          );
+          final canViewCurrency = detailAccess.canViewField(
+            'cashbox',
+            'currency',
+            viewPermission: 'accounting.view',
+          );
+          final titleParts = <String>[
+            if (canViewName && account.name.trim().isNotEmpty) account.name,
+            if (canViewCurrency && account.currency.trim().isNotEmpty)
+              account.currency,
+          ];
+          return Scaffold(
+            appBar: AppBar(
+              title: Row(
+                children: <Widget>[
+                  const Icon(Icons.account_balance_wallet_outlined),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppText(
+                      titleParts.isEmpty
+                          ? (detailContext.l10n.isArabic
+                                ? 'تفاصيل الصندوق'
+                                : 'Cashbox Details')
+                          : titleParts.join(' • '),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Consumer<CashboxController>(
+                  builder: (context, current, _) =>
+                      _cashboxDetailBody(account, current),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _cashboxDetailBody(
+    CashAccountModel account,
+    CashboxController controller,
+  ) {
+    final ar = context.l10n.isArabic;
+    final access = context.read<AccessController>();
+    final canViewAmount = access.canViewField(
+      'cashbox',
+      'amount',
+      viewPermission: 'accounting.view',
+    );
+    final canViewBalance = access.canViewField(
+      'cashbox',
+      'balance',
+      viewPermission: 'accounting.view',
+    );
+    final canViewCurrency = access.canViewField(
+      'cashbox',
+      'currency',
+      viewPermission: 'accounting.view',
+    );
+    final canReceive = access.canPerformAction(
+      'cashbox',
+      'receipt',
+      legacyPermission: 'cashbox.receipt',
+    );
+    final canPay = access.canPerformAction(
+      'cashbox',
+      'payment',
+      legacyPermission: 'cashbox.payment',
+    );
+    final canEditAccount = access.canPerformAction(
+      'cashbox',
+      'account.edit',
+      legacyPermission: 'accounting.update',
+    );
+    final canPrintTransaction = access.canPerformAction(
+      'cashbox',
+      'transaction.print',
+      legacyPermission: 'accounting.view',
+    );
+    final transactions =
+        controller.transactions
+            .where((transaction) => transaction.cashAccountId == account.id)
+            .toList(growable: false)
+          ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+    final cashIn = transactions
+        .where((transaction) => transaction.isReceipt)
+        .fold<double>(0, (sum, transaction) => sum + transaction.amount);
+    final cashOut = transactions
+        .where((transaction) => transaction.isPayment)
+        .fold<double>(0, (sum, transaction) => sum + transaction.amount);
+    final balance = controller.balances[account.id] ?? account.openingBalance;
+
+    String counterName(CashTransactionModel transaction) {
+      for (final ledger in controller.ledgerAccounts) {
+        if (ledger.id == transaction.counterAccountId) {
+          return '${ledger.code} — ${ledger.name}';
+        }
+      }
+      return transaction.counterAccountId ?? '—';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: <Widget>[
+            if (canViewAmount)
+              _cashboxMetric(
+                ar ? 'إجمالي الداخل' : 'Total Cash In',
+                cashIn,
+                canViewCurrency ? account.currency : '',
+                Icons.south_west_rounded,
+              ),
+            if (canViewAmount)
+              _cashboxMetric(
+                ar ? 'إجمالي الخارج' : 'Total Cash Out',
+                cashOut,
+                canViewCurrency ? account.currency : '',
+                Icons.north_east_rounded,
+              ),
+            if (canViewBalance)
+              _cashboxMetric(
+                ar ? 'الرصيد الحالي' : 'Current Balance',
+                balance,
+                canViewCurrency ? account.currency : '',
+                Icons.account_balance_wallet_outlined,
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: <Widget>[
+            if (canReceive)
+              FilledButton.icon(
+                onPressed: () => _openAdd('receipt', cashAccountId: account.id),
+                icon: const Icon(Icons.south_west_rounded, size: 17),
+                label: AppText(ar ? 'سند قبض' : 'Cash In'),
+              ),
+            if (canPay)
+              OutlinedButton.icon(
+                onPressed: () => _openAdd('payment', cashAccountId: account.id),
+                icon: const Icon(Icons.north_east_rounded, size: 17),
+                label: AppText(ar ? 'سند صرف' : 'Cash Out'),
+              ),
+            if (canEditAccount)
+              OutlinedButton.icon(
+                onPressed: () => _editCashAccount(account),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                label: AppText(ar ? 'تعديل الصندوق' : 'Edit Cashbox'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: transactions.isEmpty
+              ? Center(
+                  child: KajFinanceState(
+                    icon: Icons.receipt_long_outlined,
+                    title: ar
+                        ? 'لا توجد حركات لهذا الصندوق'
+                        : 'No transactions for this cashbox',
+                    message: ar
+                        ? 'أنشئ سند قبض أو صرف من هذا الصندوق.'
+                        : 'Create a cash-in or cash-out voucher for this cashbox.',
+                  ),
+                )
+              : Scrollbar(
+                  child: SingleChildScrollView(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: <DataColumn>[
+                          DataColumn(
+                            label: AppText(ar ? 'المرجع' : 'Reference'),
+                          ),
+                          DataColumn(
+                            label: AppText(
+                              ar ? 'التاريخ والوقت' : 'Date / time',
+                            ),
+                          ),
+                          DataColumn(
+                            label: AppText(ar ? 'داخل/خارج' : 'In / Out'),
+                          ),
+                          DataColumn(label: AppText(ar ? 'المبلغ' : 'Amount')),
+                          DataColumn(
+                            label: AppText(ar ? 'العملة' : 'Currency'),
+                          ),
+                          DataColumn(
+                            label: AppText(
+                              ar ? 'الحساب المقابل' : 'Counter account',
+                            ),
+                          ),
+                          DataColumn(
+                            label: AppText(
+                              ar ? 'المستند المرتبط' : 'Related document',
+                            ),
+                          ),
+                          DataColumn(label: AppText(ar ? 'المستخدم' : 'User')),
+                          DataColumn(
+                            label: AppText(ar ? 'الملاحظات' : 'Notes'),
+                          ),
+                          DataColumn(label: AppText(ar ? 'الحالة' : 'Status')),
+                          DataColumn(
+                            label: AppText(ar ? 'الإجراءات' : 'Actions'),
+                          ),
+                        ],
+                        rows: transactions
+                            .map((transaction) {
+                              final canEdit = access.canPerformAction(
+                                'cashbox',
+                                'transaction.edit',
+                                legacyPermission: 'accounting.update',
+                              );
+                              final canDelete = access.canPerformAction(
+                                'cashbox',
+                                'transaction.delete',
+                                legacyPermission: 'accounting.delete',
+                              );
+                              return DataRow(
+                                cells: <DataCell>[
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'documentNumber',
+                                      AppText(transaction.voucherNumber),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'operationalDate',
+                                      AppText(
+                                        DateFormat('yyyy-MM-dd HH:mm').format(
+                                          transaction.transactionDate.toLocal(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'transactionType',
+                                      AppText(
+                                        transaction.isReceipt
+                                            ? (ar ? 'داخل' : 'In')
+                                            : (ar ? 'خارج' : 'Out'),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'amount',
+                                      AppText(
+                                        MoneyFormatter.format(
+                                          transaction.amount,
+                                          currency: transaction.currency,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'currency',
+                                      AppText(transaction.currency),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'counterAccount',
+                                      AppText(counterName(transaction)),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'reference',
+                                      AppText(
+                                        '${transaction.referenceType ?? '—'} • ${transaction.referenceId ?? '—'}',
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'performedBy',
+                                      AppText(transaction.performedBy ?? '—'),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'notes',
+                                      AppText(transaction.notes ?? '—'),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    _securedCashboxField(
+                                      'transactionStatus',
+                                      AppText(ar ? 'معتمد' : 'Posted'),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Wrap(
+                                      spacing: 2,
+                                      children: <Widget>[
+                                        IconButton(
+                                          tooltip: ar ? 'عرض' : 'View',
+                                          onPressed: () =>
+                                              _showDetails(transaction),
+                                          icon: const Icon(
+                                            Icons.visibility_outlined,
+                                            size: 18,
+                                          ),
+                                        ),
+                                        if (canPrintTransaction)
+                                          IconButton(
+                                            tooltip: ar ? 'طباعة' : 'Print',
+                                            onPressed: () async {
+                                              await const CashVoucherPdfService()
+                                                  .printVoucher(
+                                                    transaction,
+                                                    arabic: ar,
+                                                    cashAccountName:
+                                                        account.name,
+                                                    counterAccountName:
+                                                        counterName(
+                                                          transaction,
+                                                        ),
+                                                    journalEntryNumber:
+                                                        transaction
+                                                            .journalEntryId,
+                                                  );
+                                            },
+                                            icon: const Icon(
+                                              Icons.print_outlined,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        if (canEdit)
+                                          IconButton(
+                                            tooltip: ar ? 'تعديل' : 'Edit',
+                                            onPressed: () =>
+                                                _openEdit(transaction),
+                                            icon: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 18,
+                                            ),
+                                          ),
+                                        if (canDelete)
+                                          IconButton(
+                                            tooltip: ar ? 'حذف' : 'Delete',
+                                            onPressed: () =>
+                                                _delete(transaction),
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              size: 18,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            })
+                            .toList(growable: false),
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 

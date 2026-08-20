@@ -22,7 +22,7 @@ class CashboxRepository {
 
   Future<List<CashAccountModel>> getCashAccounts() async {
     final raw = await _client.rpc(
-      'erp_r42_list_cash_accounts',
+      'erp_r90_list_cash_accounts',
       params: {'p_company_id': _companyId},
     );
     final rows = (raw as List)
@@ -56,21 +56,21 @@ class CashboxRepository {
   Future<void> saveCashAccount(CashAccountModel account) async {
     account.validate();
     await _client.rpc(
-      'erp_r42_save_cash_account',
+      'erp_r90_save_cash_account',
       params: {'p_company_id': _companyId, 'p_account': account.toCloudMap()},
     );
   }
 
   Future<void> deleteCashAccount(String id) async {
     await _client.rpc(
-      'erp_delete_cloud_cash_account',
+      'erp_r90_delete_cash_account',
       params: {'p_company_id': _companyId, 'p_cash_account_id': id},
     );
   }
 
   Future<Map<String, double>> getCashAccountBalances() async {
     final result = await _client.rpc(
-      'erp_r22_cloud_cash_account_balances',
+      'erp_r90_cash_account_balances',
       params: {'p_company_id': _companyId},
     );
     final rows = List<Map<String, dynamic>>.from(
@@ -84,7 +84,7 @@ class CashboxRepository {
 
   Future<Map<String, Map<String, double>>> getCashLedgerReconciliation() async {
     final result = await _client.rpc(
-      'erp_r22_cloud_cash_ledger_reconciliation',
+      'erp_r90_cash_ledger_reconciliation',
       params: {'p_company_id': _companyId},
     );
     final rows = List<Map<String, dynamic>>.from(
@@ -137,7 +137,7 @@ class CashboxRepository {
       );
     }
     await _client.rpc(
-      'erp_r22_transfer_cloud_cash',
+      'erp_r90_transfer_cloud_cash',
       params: {
         'p_company_id': _companyId,
         'p_from_cash_account_id': fromAccountId,
@@ -156,7 +156,7 @@ class CashboxRepository {
       throw ArgumentError('مرجع التحويل مطلوب.');
     }
     await _client.rpc(
-      'erp_delete_cloud_cash_transfer',
+      'erp_r90_delete_cash_transfer',
       params: {'p_company_id': _companyId, 'p_transfer_id': transferId.trim()},
     );
   }
@@ -164,7 +164,7 @@ class CashboxRepository {
   Future<void> addTransaction(CashTransactionModel transaction) async {
     _validate(transaction);
     await _client.rpc(
-      'erp_r22_post_cloud_cash_transaction',
+      'erp_r90_post_cash_transaction',
       params: {
         'p_company_id': _companyId,
         'p_transaction': transaction.toCloudMap(),
@@ -176,7 +176,7 @@ class CashboxRepository {
   Future<void> updateTransaction(CashTransactionModel transaction) async {
     _validate(transaction);
     await _client.rpc(
-      'erp_r22_post_cloud_cash_transaction',
+      'erp_r90_post_cash_transaction',
       params: {
         'p_company_id': _companyId,
         'p_transaction': transaction.toCloudMap(),
@@ -187,7 +187,7 @@ class CashboxRepository {
 
   Future<void> deleteTransaction(String id) async {
     await _client.rpc(
-      'erp_delete_cloud_cash_transaction',
+      'erp_r90_delete_cash_transaction',
       params: {'p_company_id': _companyId, 'p_transaction_id': id},
     );
   }

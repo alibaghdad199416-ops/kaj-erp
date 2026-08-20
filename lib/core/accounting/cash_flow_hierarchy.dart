@@ -129,15 +129,6 @@ class CashFlowHierarchy {
       if (cashOut > 0) {
         _insert(outRoots, row, CashFlowEntry(row: row, amount: cashOut));
       }
-      if (cashIn <= 0 && cashOut <= 0) {
-        final debit = _number(row['debit']);
-        final credit = _number(row['credit']);
-        if (debit > 0) {
-          _insert(inRoots, row, CashFlowEntry(row: row, amount: debit));
-        } else if (credit > 0) {
-          _insert(outRoots, row, CashFlowEntry(row: row, amount: credit));
-        }
-      }
     }
 
     List<CashFlowAccountNode> ordered(Map<String, CashFlowAccountNode> roots) {

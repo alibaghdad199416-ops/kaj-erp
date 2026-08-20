@@ -40,7 +40,7 @@ class SupplierCard extends StatelessWidget {
       accent: statusColor,
       onTap: onView ?? onEdit,
       child: Padding(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(5),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -48,8 +48,8 @@ class SupplierCard extends StatelessWidget {
               'photo',
               ClipOval(
                 child: SizedBox(
-                  width: 46,
-                  height: 46,
+                  width: 42,
+                  height: 42,
                   child: _photoBytes == null
                       ? ColoredBox(
                           color: scheme.secondary.withValues(alpha: .08),
@@ -71,7 +71,7 @@ class SupplierCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,12 +83,12 @@ class SupplierCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: _visible(
@@ -101,10 +101,10 @@ class SupplierCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Wrap(
                     spacing: 6,
-                    runSpacing: 5,
+                    runSpacing: 4,
                     children: [
                       _visible(
                         'companyName',
@@ -136,7 +136,7 @@ class SupplierCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,

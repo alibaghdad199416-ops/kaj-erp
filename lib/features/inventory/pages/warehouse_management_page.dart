@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/design_system/kaj_inventory_stage4_components.dart';
 
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
+import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,8 +13,8 @@ import 'package:quality_line_erp/features/inventory/controllers/inventory_contro
 import 'package:quality_line_erp/features/accounting/controllers/accounting_controller.dart';
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 import 'package:quality_line_erp/features/inventory/models/warehouse_model.dart';
-import 'package:quality_line_erp/design_system/kaj_inventory_components.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
+import 'package:quality_line_erp/features/settings/controllers/settings_controller.dart';
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 
 class WarehouseManagementPage extends StatefulWidget {
@@ -32,7 +33,11 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<InventoryController>().loadInventory();
+      await Future.wait<void>([
+        context.read<InventoryController>().loadInventory(),
+        context.read<SettingsController>().ensureBranchesLoaded(),
+        context.read<AccountingController>().ensureAccountsLoaded(),
+      ]);
     });
   }
 
@@ -43,6 +48,11 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
   }
 
   Future<void> _openEditor([WarehouseModel? warehouse]) async {
+    final permission = warehouse == null
+        ? 'warehouses.create'
+        : 'warehouses.update';
+    if (!await PermissionAction.require(context, permission)) return;
+    if (!mounted) return;
     final result = await showAppWorkspaceDialogBuilder<WarehouseModel>(
       context: context,
       builder: (_) => WarehouseEditor(warehouse: warehouse),
@@ -81,6 +91,8 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
   }
 
   Future<void> _delete(WarehouseModel warehouse) async {
+    if (!await PermissionAction.require(context, 'warehouses.delete')) return;
+    if (!mounted) return;
     final accepted = await showAppConfirmDialog(
       context,
       title: 'حذف المخزن',
@@ -127,55 +139,33 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
           ].any((value) => value?.toLowerCase().contains(query) ?? false);
         })
         .toList(growable: false);
+    final activeCount = controller.allWarehouses
+        .where((item) => item.isActive)
+        .length;
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 12, 12),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          KajInventoryActionBar(
-            title: context.l10n.isArabic
-                ? 'إدارة المخازن'
-                : 'Warehouse management',
-            subtitle: context.l10n.isArabic
-                ? 'إدارة مواقع التخزين والفروع وحالة كل مخزن ضمن مساحة موحدة.'
-                : 'Manage storage locations, branches and warehouse availability in one workspace.',
-            icon: Icons.warehouse_rounded,
-            actions: <Widget>[
-              FilledButton.icon(
-                onPressed: () => _openEditor(),
-                icon: const Icon(Icons.add_business_rounded),
-                label: AppText(
-                  context.l10n.isArabic ? 'إضافة مخزن' : 'Add warehouse',
-                ),
-              ),
-            ],
-            metrics: <Widget>[
-              KajInventoryMetricPill(
-                label: context.l10n.isArabic
-                    ? 'إجمالي المخازن'
-                    : 'Total warehouses',
-                value: '${controller.allWarehouses.length}',
-                icon: Icons.warehouse_outlined,
-              ),
-              KajInventoryMetricPill(
-                label: context.l10n.isArabic ? 'الفعالة' : 'Active',
-                value:
-                    '${controller.allWarehouses.where((item) => item.isActive).length}',
-                icon: Icons.verified_outlined,
-                accent: const Color(0xFF16A36A),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
               final search = TextField(
                 controller: _search,
                 decoration: InputDecoration(
-                  labelText: AppTranslation.translate(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
+                  ),
+                  hintText: AppTranslation.translate(
                     'بحث في جميع بيانات المخازن',
                   ),
-                  prefixIcon: const Icon(Icons.search_rounded),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 19),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 38,
+                    minHeight: 36,
+                  ),
                   border: const OutlineInputBorder(),
                 ),
                 onChanged: (_) => setState(() {}),
@@ -183,34 +173,95 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
               final inactive = FilterChip(
                 selected: _showInactive,
                 onSelected: (value) => setState(() => _showInactive = value),
-                avatar: const Icon(Icons.visibility_outlined, size: 18),
+                visualDensity: VisualDensity.compact,
+                avatar: const Icon(Icons.visibility_outlined, size: 16),
                 label: AppText(
                   context.l10n.isArabic ? 'إظهار غير الفعال' : 'Show inactive',
+                  style: const TextStyle(fontSize: 11),
                 ),
               );
-              if (constraints.maxWidth < 680) {
+              final totalMetric = _WarehouseMetricChip(
+                label: context.l10n.isArabic ? 'المخازن' : 'Warehouses',
+                value: '${controller.allWarehouses.length}',
+                icon: Icons.warehouse_outlined,
+              );
+              final activeMetric = _WarehouseMetricChip(
+                label: context.l10n.isArabic ? 'الفعالة' : 'Active',
+                value: '$activeCount',
+                icon: Icons.verified_outlined,
+                tone: const Color(0xFF16A36A),
+              );
+              final addButton = FilledButton.icon(
+                onPressed: () => _openEditor(),
+                icon: const Icon(Icons.add_business_rounded, size: 16),
+                label: AppText(
+                  context.l10n.isArabic ? 'إضافة مخزن' : 'Add warehouse',
+                ),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              );
+
+              if (constraints.maxWidth >= 980) {
+                return Row(
+                  children: [
+                    Expanded(child: search),
+                    const SizedBox(width: 8),
+                    inactive,
+                    const SizedBox(width: 7),
+                    totalMetric,
+                    const SizedBox(width: 7),
+                    activeMetric,
+                    const SizedBox(width: 8),
+                    addButton,
+                  ],
+                );
+              }
+
+              if (constraints.maxWidth >= 620) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    search,
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: inactive,
+                    Row(
+                      children: [
+                        Expanded(child: search),
+                        const SizedBox(width: 8),
+                        addButton,
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [inactive, totalMetric, activeMetric],
                     ),
                   ],
                 );
               }
-              return Row(
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(child: search),
-                  const SizedBox(width: 12),
-                  inactive,
+                  search,
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [inactive, totalMetric, activeMetric, addButton],
+                  ),
                 ],
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Expanded(
             child: controller.isLoading && controller.allWarehouses.isEmpty
                 ? const KajInventoryLoadingState()
@@ -224,17 +275,21 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
                   )
                 : LayoutBuilder(
                     builder: (context, constraints) {
-                      final count = constraints.maxWidth >= 1180
-                          ? 3
-                          : constraints.maxWidth >= 720
-                          ? 2
-                          : 1;
+                      const gap = 10.0;
+                      const minimumCardWidth = 285.0;
+                      final count =
+                          ((constraints.maxWidth + gap) /
+                                  (minimumCardWidth + gap))
+                              .floor()
+                              .clamp(1, 4)
+                              .toInt();
                       return GridView.builder(
+                        padding: EdgeInsets.zero,
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: count,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          mainAxisExtent: 142,
+                          mainAxisSpacing: gap,
+                          crossAxisSpacing: gap,
+                          mainAxisExtent: 124,
                         ),
                         itemCount: rows.length,
                         itemBuilder: (_, index) => _WarehouseCard(
@@ -267,6 +322,7 @@ class _WarehouseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(8),
@@ -278,29 +334,30 @@ class _WarehouseCard extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: scheme.primaryContainer,
                   foregroundColor: scheme.onPrimaryContainer,
-                  radius: 16,
-                  child: const Icon(Icons.warehouse_rounded, size: 17),
+                  radius: 14,
+                  child: const Icon(Icons.warehouse_rounded, size: 15),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: AppText(
                     warehouse.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
+                const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
+                    horizontal: 6,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: warehouse.isActive
-                        ? Colors.green.withValues(alpha: .13)
+                        ? Colors.green.withValues(alpha: .12)
                         : scheme.errorContainer,
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -309,7 +366,7 @@ class _WarehouseCard extends StatelessWidget {
                         ? (context.l10n.isArabic ? 'فعال' : 'Active')
                         : (context.l10n.isArabic ? 'غير فعال' : 'Inactive'),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w800,
                       color: warehouse.isActive
                           ? Colors.green.shade800
@@ -319,64 +376,136 @@ class _WarehouseCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Divider(height: 8),
-            _line(
-              context.l10n.isArabic ? 'رمز المخزن' : 'Warehouse code',
-              warehouse.code,
-            ),
-            _line(
-              context.l10n.isArabic ? 'العنوان' : 'Address',
-              warehouse.address,
-            ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined),
-                    label: AppText(context.l10n.isArabic ? 'تعديل' : 'Edit'),
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
+                  child: _WarehouseDetail(
+                    label: context.l10n.isArabic ? 'الرمز' : 'Code',
+                    value: warehouse.code,
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: onDelete,
-                  color: scheme.error,
-                  tooltip: AppTranslation.translate('حذف'),
-                  icon: const Icon(Icons.delete_outline),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: _WarehouseDetail(
+                    label: context.l10n.isArabic ? 'العنوان' : 'Address',
+                    value: warehouse.address,
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 5),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: AppText(
+                      context.l10n.isArabic ? 'تعديل' : 'Edit',
+                      style: const TextStyle(fontSize: 10.5),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      minimumSize: const Size(0, 30),
+                      padding: const EdgeInsets.symmetric(horizontal: 9),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: onDelete,
+                    color: scheme.error,
+                    tooltip: AppTranslation.translate('حذف'),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 30,
+                      height: 30,
+                    ),
+                    padding: EdgeInsets.zero,
+                    iconSize: 17,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _line(String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 105,
-          child: AppText(
-            label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
+class _WarehouseDetail extends StatelessWidget {
+  const _WarehouseDetail({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      AppText(
+        label,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: Theme.of(context).colorScheme.outline,
         ),
-        Expanded(
-          child: AppSelectableText(
-            value.trim().isEmpty ? '—' : value,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    ),
+      ),
+      const SizedBox(height: 1),
+      AppText(
+        value.trim().isEmpty ? '—' : value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+      ),
+    ],
   );
+}
+
+class _WarehouseMetricChip extends StatelessWidget {
+  const _WarehouseMetricChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.tone,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color? tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tone ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          AppText(
+            '$label: $value',
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class WarehouseEditor extends StatefulWidget {
@@ -403,7 +532,7 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
   );
   late final TextEditingController _code;
   late final TextEditingController _name;
-  late final TextEditingController _branch;
+  String? _branchId;
   late final TextEditingController _address;
   late final TextEditingController _notes;
   late bool _active;
@@ -417,7 +546,7 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
     final value = widget.warehouse;
     _code = TextEditingController(text: value?.code ?? '');
     _name = TextEditingController(text: value?.name ?? '');
-    _branch = TextEditingController(text: value?.branchId ?? '');
+    _branchId = value?.branchId;
     _address = TextEditingController(text: value?.address ?? '');
     _notes = TextEditingController(text: value?.notes ?? '');
     _active = value?.isActive ?? true;
@@ -430,7 +559,6 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
   void dispose() {
     _code.dispose();
     _name.dispose();
-    _branch.dispose();
     _address.dispose();
     _notes.dispose();
     super.dispose();
@@ -438,7 +566,11 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: AppText(widget.warehouse == null ? 'إضافة مخزن' : 'تعديل المخزن'),
+    title: AppText(
+      context.l10n.isArabic
+          ? (widget.warehouse == null ? 'إضافة مخزن' : 'تعديل المخزن')
+          : (widget.warehouse == null ? 'Add warehouse' : 'Edit warehouse'),
+    ),
     content: SizedBox(
       width: AppResponsive.dialogWidth(context, 560),
       child: Form(
@@ -448,7 +580,57 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
             children: [
               _field(_name, 'اسم المخزن', field: 'name', isRequired: true),
               _field(_code, 'رمز المخزن', field: 'code', isRequired: true),
-              _field(_branch, 'الفرع', field: 'branchId'),
+              _securedField(
+                'branchId',
+                Builder(
+                  builder: (context) {
+                    final branches = context
+                        .watch<SettingsController>()
+                        .branches
+                        .where(
+                          (branch) => branch.isActive || branch.id == _branchId,
+                        )
+                        .toList(growable: false);
+                    final safeBranchId = branches.any(
+                      (branch) => branch.id == _branchId,
+                    )
+                        ? _branchId
+                        : null;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: DropdownButtonFormField<String?>(
+                        isExpanded: true,
+                        initialValue: safeBranchId,
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('الفرع'),
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: <DropdownMenuItem<String?>>[
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: AppText(
+                              context.l10n.isArabic
+                                  ? 'بدون فرع محدد'
+                                  : 'No specific branch',
+                            ),
+                          ),
+                          ...branches.map(
+                            (branch) => DropdownMenuItem<String?>(
+                              value: branch.id,
+                              child: AppText(
+                                '${branch.code} — ${branch.name}${branch.isActive ? '' : (context.l10n.isArabic ? ' (غير فعال)' : ' (Inactive)')}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) => setState(() => _branchId = value),
+                      ),
+                    );
+                  },
+                ),
+              ),
               _field(_address, 'عنوان المخزن', field: 'address'),
               _securedField(
                 'warehouseType',
@@ -479,7 +661,7 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
                   builder: (context) {
                     final accounts = context
                         .watch<AccountingController>()
-                        .accounts;
+                        .postableAccounts;
                     final expenseAccounts = accounts
                         .where((a) => a.type == 'expense' && a.isActive)
                         .toList();
@@ -574,7 +756,7 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
                 SwitchListTile(
                   value: _active,
                   onChanged: (value) => setState(() => _active = value),
-                  title: const AppText('المخزن فعال'),
+                  title: AppText(context.l10n.isArabic ? 'المخزن فعال' : 'Warehouse active'),
                 ),
               ),
             ],
@@ -584,13 +766,13 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
     ),
     actions: [
       TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const AppText('إلغاء'),
+        onPressed: () => AppWorkspaceWindowScope.closeCurrent(context),
+        child: AppText(context.l10n.isArabic ? 'إلغاء' : 'Cancel'),
       ),
       FilledButton.icon(
         onPressed: _save,
         icon: const Icon(Icons.save_outlined),
-        label: const AppText('حفظ'),
+        label: AppText(context.l10n.isArabic ? 'حفظ' : 'Save'),
       ),
     ],
   );
@@ -624,18 +806,18 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final old = widget.warehouse;
-    Navigator.pop(
+    AppWorkspaceWindowScope.closeCurrent(
       context,
       WarehouseModel(
         id: old?.id ?? const Uuid().v4(),
         code: _code.text.trim(),
         name: _name.text.trim(),
-        branchId: _branch.text.trim().isEmpty ? null : _branch.text.trim(),
+        branchId: _branchId,
         address: _address.text.trim(),
         notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
         isActive: _active,
         warehouseType: _warehouseType,
-        inventoryAccountId: null,
+        inventoryAccountId: old?.inventoryAccountId,
         scrapExpenseAccountId: _warehouseType == 'scrap_consumption'
             ? (_scrapExpenseIqdAccountId ?? _scrapExpenseUsdAccountId)
             : null,

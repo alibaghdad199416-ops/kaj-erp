@@ -5,6 +5,7 @@ import 'package:quality_line_erp/core/printing/legacy_commercial_document_pdf_se
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 
 import 'package:quality_line_erp/core/widgets/incremental_list_view.dart';
+import 'package:quality_line_erp/core/widgets/legacy_commercial_archive_toolbar.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_phase5_components.dart';
@@ -160,7 +161,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
     return Directionality(
       textDirection: Directionality.of(context),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
         child: Column(
           children: [
             KajCommercialHero(
@@ -202,36 +203,50 @@ class _PurchasesPageState extends State<PurchasesPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.history_outlined),
-                title: const AppText('سجل الفواتير القديمة'),
-                subtitle: const AppText(
-                  'هذا السجل للعرض والطباعة فقط. إنشاء وتعديل المشتريات يتم من تبويب أوامر الشراء لضمان الاستلام والفوترة والقيود والمدفوعات المترابطة.',
-                ),
+            const SizedBox(height: 7),
+            LegacyCommercialArchiveToolbar(
+              title: AppTranslation.translate('سجل الفواتير القديمة'),
+              message: AppTranslation.translate(
+                'هذا السجل للعرض والطباعة فقط. إنشاء وتعديل المشتريات يتم من تبويب أوامر الشراء لضمان الاستلام والفوترة والقيود والمدفوعات المترابطة.',
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: AppTranslation.translate(
-                  'بحث برقم الفاتورة أو المورد',
-                ),
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+              searchHint: AppTranslation.translate(
+                'بحث برقم الفاتورة أو المورد',
               ),
-              onChanged: controller.searchPurchases,
+              searchController: _searchController,
+              onSearchChanged: controller.searchPurchases,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 6),
             Expanded(
               child: controller.isLoading && controller.purchases.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : controller.purchases.isEmpty
-                  ? Center(
-                      child: AppText(
-                        AppTranslation.translate('لا توجد فواتير مشتريات'),
+                  ? Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 48),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 30,
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                            const SizedBox(height: 6),
+                            AppText(
+                              AppTranslation.translate(
+                                'لا توجد فواتير مشتريات',
+                              ),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : IncrementalListView(

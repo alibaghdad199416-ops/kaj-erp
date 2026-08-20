@@ -6,6 +6,7 @@ import 'package:quality_line_erp/core/widgets/incremental_list_view.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/printing/legacy_commercial_document_pdf_service.dart';
+import 'package:quality_line_erp/core/widgets/legacy_commercial_archive_toolbar.dart';
 
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/features/inventory/cars/controllers/cars_controller.dart';
@@ -14,8 +15,6 @@ import 'package:quality_line_erp/features/business_partners/customers/controller
 import 'package:quality_line_erp/features/sales/controllers/sales_controller.dart';
 import 'package:quality_line_erp/features/sales/models/sale_model.dart';
 import 'package:quality_line_erp/features/sales/widgets/sale_card.dart';
-import 'package:quality_line_erp/features/sales/widgets/sales_search.dart';
-import 'package:quality_line_erp/features/sales/widgets/sales_statistics.dart';
 
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
@@ -89,7 +88,7 @@ class _SalesPageState extends State<SalesPage> {
         body: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 7),
               child: KajCommercialHero(
                 title: AppTranslation.translate('مركز المبيعات'),
                 subtitle: AppTranslation.translate(
@@ -130,40 +129,51 @@ class _SalesPageState extends State<SalesPage> {
                 ],
               ),
             ),
-            Card(
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: const ListTile(
-                leading: Icon(Icons.history_outlined),
-                title: AppText('سجل الفواتير القديمة'),
-                subtitle: AppText(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+              child: LegacyCommercialArchiveToolbar(
+                title: AppTranslation.translate('سجل الفواتير القديمة'),
+                message: AppTranslation.translate(
                   'هذا السجل للعرض والطباعة فقط. إنشاء وتعديل المبيعات يتم من تبويب أوامر البيع لضمان التجهيز والفوترة وCOGS والإيراد والتحصيل المترابط.',
                 ),
+                searchHint: AppTranslation.translate(
+                  'ابحث برقم الفاتورة أو السيارة...',
+                ),
+                searchController: _searchController,
+                onSearchChanged: (value) => setState(() => _search = value),
               ),
-            ),
-            SalesStatistics(
-              totalSales: controller.totalSales,
-              revenueByCurrency: controller.revenueByCurrency,
-              paidByCurrency: controller.paidByCurrency,
-              remainingByCurrency: controller.remainingByCurrency,
-            ),
-            SalesSearch(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _search = value;
-                });
-              },
             ),
             Expanded(
               child: sales.isEmpty
-                  ? Center(
-                      child: AppText(
-                        AppTranslation.translate('لا توجد مبيعات'),
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ? Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 48),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 30,
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                            const SizedBox(height: 6),
+                            AppText(
+                              AppTranslation.translate('لا توجد مبيعات'),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : IncrementalListView(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                       itemCount: sales.length,
                       itemBuilder: (context, index) {
                         final sale = sales[index];

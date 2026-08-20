@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import 'package:quality_line_erp/app/route_names.dart';
 import 'package:quality_line_erp/core/documents/document_nomenclature.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/printing/maintenance_document_pdf_service.dart';
+import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
 import 'package:quality_line_erp/core/widgets/app_module_action_icon.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
@@ -17,6 +20,7 @@ import 'package:quality_line_erp/design_system/kaj_relationship_stage5_component
 import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_cost_reconciliation.dart';
+import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 
 class MaintenanceOrderDetailsDialog extends StatefulWidget {
@@ -65,12 +69,36 @@ class _MaintenanceOrderDetailsDialogState
   late MaintenanceOrderModel _order;
   List<MaintenanceLineModel> _lines = const <MaintenanceLineModel>[];
   MaintenanceCostReconciliation? _costs;
+  List<Map<String, Object?>> _payments = const <Map<String, Object?>>[];
   bool _loading = true;
   bool _busy = false;
   String? _error;
+  String? _loadWarning;
 
   bool get _arabic => context.l10n.isArabic;
   String _bi(String arabic, String english) => _arabic ? arabic : english;
+
+  bool _canAction(String action, {String legacy = 'maintenance.approve'}) =>
+      context.read<AccessController>().canPerformAction(
+        'maintenance',
+        action,
+        legacyPermission: legacy,
+      );
+
+  String? get _nextPermissionAction => switch (_order.workflowStage) {
+    'order_draft' => 'order.approve',
+    'order_approved' => 'material_issue.create',
+    'stock_issue_draft' => 'material_issue.approve',
+    'stock_issue_approved' =>
+      _order.pricingType == 'paid' ? 'invoice.create' : 'order.approve',
+    'invoice_draft' => 'invoice.approve',
+    _ => null,
+  };
+
+  bool get _canAdvanceWithPermission {
+    final action = _nextPermissionAction;
+    return _canAdvance && action != null && _canAction(action);
+  }
 
   static const List<String> _stages = <String>[
     'order_draft',
@@ -108,33 +136,104 @@ class _MaintenanceOrderDetailsDialogState
       _loading = false;
       return;
     }
-    // Normal entry points load the authoritative bounded reconciliation RPC.
-    // Callers that already resolved core lines (for example the historical
-    // vehicle service card) remain fully renderable without another backend
-    // round trip; optional analytics must never blank persisted details.
+    // A persisted order draft has no downstream stock/invoice state yet.
+    // Render the authoritative order row immediately and load only its core
+    // lines; reconciliation remains a post-draft concern. This prevents an
+    // optional downstream snapshot from blanking a valid draft.
+    if (_isOrderDraft) {
+      _loading = false;
+      unawaited(_loadDraftCoreLines());
+      return;
+    }
+    // Later workflow stages load the bounded authoritative snapshot.
     unawaited(_loadDetails());
+  }
+
+  bool get _isOrderDraft =>
+      const <String>{'draft', 'order_draft'}.contains(_order.workflowStage);
+
+  Future<void> _reloadDetails() =>
+      _isOrderDraft ? _loadDraftCoreLines() : _loadDetails();
+
+  Future<void> _loadDraftCoreLines() async {
+    try {
+      final lines = await _repository.getOrderLines(_order.id);
+      if (!mounted) return;
+      setState(() {
+        _lines = lines;
+        _loading = false;
+        _error = null;
+        _loadWarning = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        // The order row passed from the governed list is already persisted
+        // core data. A line-read failure must remain visible and retryable,
+        // never replace the whole draft with a blank workspace.
+        _loading = false;
+        _error = null;
+        _loadWarning = userFacingError(
+          error,
+          isArabic: _arabic,
+          arabicFallback:
+              'تم فتح مسودة الصيانة، لكن تعذر تحميل بعض البنود. حدّث المسودة لإعادة المحاولة.',
+          englishFallback:
+              'The maintenance draft was opened, but some lines could not be loaded. Refresh the draft to retry.',
+        );
+      });
+    }
   }
 
   Future<void> _loadDetails() async {
     try {
       final snapshot = await _repository.getOrderSnapshot(_order.id);
+      List<Map<String, Object?>> payments = const <Map<String, Object?>>[];
+      try {
+        payments = await _repository.getMaintenancePayments(_order.id);
+      } catch (_) {
+        payments = const <Map<String, Object?>>[];
+      }
       if (!mounted) return;
       setState(() {
         _order = snapshot.order;
         _lines = snapshot.lines;
         _costs = snapshot.reconciliation;
+        _payments = payments;
         _loading = false;
         _error = null;
+        _loadWarning = null;
       });
-    } catch (error) {
+      return;
+    } catch (snapshotError) {
+      // A draft is still a valid persisted document even if optional snapshot
+      // analytics fail. Fall back to the core lines/reconciliation calls so a
+      // nullable relation or analytics RPC can never blank the whole page.
+      List<MaintenanceLineModel>? fallbackLines;
+      MaintenanceCostReconciliation? fallbackCosts;
+      try {
+        fallbackLines = await _repository.getOrderLines(_order.id);
+      } catch (_) {
+        fallbackLines = null;
+      }
+      try {
+        fallbackCosts = await _repository.getCostReconciliation(_order.id);
+      } catch (_) {
+        fallbackCosts = null;
+      }
       if (!mounted) return;
       setState(() {
+        if (fallbackLines != null) _lines = fallbackLines;
+        if (fallbackCosts != null) _costs = fallbackCosts;
         _loading = false;
-        _error = userFacingError(
-          error,
+        _error = null;
+        _loadWarning = userFacingError(
+          snapshotError,
           isArabic: _arabic,
-          arabicFallback: 'تعذر تحميل لقطة أمر الصيانة.',
-          englishFallback: 'Unable to load the maintenance order snapshot.',
+          arabicFallback:
+              'تم فتح أمر الصيانة بالبيانات الأساسية، لكن تعذر تحميل بعض بيانات التحليل الإضافية.',
+          englishFallback:
+              'The maintenance order was opened with its core data, but some optional analytics could not be loaded.',
         );
       });
     }
@@ -195,11 +294,13 @@ class _MaintenanceOrderDetailsDialogState
     }
   }
 
-  Future<void> _issueMaterial(Map<String, Object?> line) async {
-    if (_busy) return;
+  Future<void> _draftMaterial(Map<String, Object?> line) async {
+    if (_busy || !_canAction('material_issue.create')) return;
     final partId = line['lineId']?.toString() ?? '';
     final remaining = (line['remainingQuantity'] as num?)?.toDouble() ?? 0;
-    if (partId.isEmpty || remaining <= 0) return;
+    final drafted = (line['draftedQuantity'] as num?)?.toDouble() ?? 0;
+    final availableToDraft = (remaining - drafted).clamp(0, remaining);
+    if (partId.isEmpty || availableToDraft <= 0) return;
     setState(() => _busy = true);
     try {
       final options = await _repository.getIssueWarehouseOptions(partId);
@@ -207,13 +308,13 @@ class _MaintenanceOrderDetailsDialogState
       if (options.isEmpty)
         throw StateError('maintenance_issue_no_available_warehouse');
       var warehouseId = options.first['warehouse_id']?.toString() ?? '';
-      final quantity = TextEditingController(text: remaining.toString());
+      final quantity = TextEditingController(text: availableToDraft.toString());
       final accepted = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: AppText(
-              _bi('صرف مواد الصيانة', 'Issue maintenance material'),
+              _bi('إضافة مادة لمسودة الصرف', 'Add material to issue draft'),
             ),
             content: SizedBox(
               width: 430,
@@ -247,8 +348,8 @@ class _MaintenanceOrderDetailsDialogState
                     ),
                     decoration: InputDecoration(
                       labelText: _bi(
-                        'الكمية (المتبقي $remaining)',
-                        'Quantity (remaining $remaining)',
+                        'الكمية المتاحة للمسودة ($availableToDraft)',
+                        'Quantity available to draft ($availableToDraft)',
                       ),
                     ),
                   ),
@@ -262,7 +363,7 @@ class _MaintenanceOrderDetailsDialogState
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: AppText(_bi('تنفيذ الصرف', 'Execute issue')),
+                child: AppText(_bi('إضافة إلى المسودة', 'Add to draft')),
               ),
             ],
           ),
@@ -270,20 +371,20 @@ class _MaintenanceOrderDetailsDialogState
       );
       if (accepted != true) return;
       final amount = double.tryParse(quantity.text.trim()) ?? 0;
-      await _repository.issueMaterial(
+      await _repository.saveMaterialIssueDraftLine(
         orderId: _order.id,
         partId: partId,
         warehouseId: warehouseId,
         quantity: amount,
       );
-      await _loadDetails();
+      await _reloadDetails();
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: AppText(
               _bi(
-                'تم صرف الكمية وتحديث FIFO.',
-                'Quantity issued and FIFO updated.',
+                'تم حفظ الكمية في مسودة الصرف. لم يتغير المخزون؛ سيحدث الصرف عند التصديق فقط.',
+                'Quantity saved to the issue draft. Inventory is unchanged and will move only on approval.',
               ),
             ),
           ),
@@ -297,8 +398,9 @@ class _MaintenanceOrderDetailsDialogState
               userFacingError(
                 error,
                 isArabic: _arabic,
-                arabicFallback: 'تعذر صرف مادة الصيانة.',
-                englishFallback: 'Unable to issue maintenance material.',
+                arabicFallback: 'تعذر حفظ مادة في مسودة الصرف.',
+                englishFallback:
+                    'Unable to save the maintenance issue draft line.',
               ),
             ),
           ),
@@ -308,7 +410,68 @@ class _MaintenanceOrderDetailsDialogState
     }
   }
 
+  String _dateTimeDisplay(Object? value) {
+    final raw = value?.toString().trim() ?? '';
+    if (raw.isEmpty) return '—';
+    final parsed = DateTime.tryParse(raw)?.toLocal();
+    return parsed == null ? raw : DateFormat('yyyy-MM-dd HH:mm').format(parsed);
+  }
+
+  Future<void> _deleteDraftIssueLine(Map<String, Object?> row) async {
+    if (_busy || !_canAction('material_issue.create')) return;
+    final lineId = row['id']?.toString() ?? '';
+    if (lineId.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: AppText(
+          _bi('حذف بند من مسودة الصرف', 'Remove issue draft line'),
+        ),
+        content: AppText(
+          _bi(
+            'سيُحذف هذا البند من المسودة فقط. لن يتغير المخزون.',
+            'This line will be removed from the draft only. Inventory will not change.',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: AppText(_bi('إلغاء', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: AppText(_bi('حذف من المسودة', 'Remove from draft')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _repository.deleteMaterialIssueDraftLine(lineId);
+      await _reloadDetails();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Theme.of(context).colorScheme.error,
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: _arabic,
+              arabicFallback: 'تعذر حذف بند مسودة الصرف.',
+              englishFallback: 'Unable to remove the issue draft line.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _reverseIssue(Map<String, Object?> event) async {
+    if (!_canAction('reverse', legacy: 'maintenance.update')) return;
     final issueId = event['issueId']?.toString() ?? '';
     if (_busy || issueId.isEmpty) return;
     final confirmed = await showDialog<bool>(
@@ -340,7 +503,7 @@ class _MaintenanceOrderDetailsDialogState
         issueId,
         reason: 'Maintenance issue reversal',
       );
-      await _loadDetails();
+      await _reloadDetails();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -460,7 +623,7 @@ class _MaintenanceOrderDetailsDialogState
   };
 
   Future<void> _advanceWorkflow() async {
-    if (_busy || !_canAdvance) return;
+    if (_busy || !_canAdvanceWithPermission) return;
     setState(() => _busy = true);
     try {
       await _repository.advanceWorkflow(_order.id);
@@ -508,7 +671,7 @@ class _MaintenanceOrderDetailsDialogState
           '${DocumentNomenclature.maintenanceOrder(arabic: _arabic)} ${order.orderNumber}',
         ),
         actions: <Widget>[
-          if (_canAdvance)
+          if (_canAdvanceWithPermission)
             AppModuleActionIcon(
               tooltip: _nextActionLabel,
               icon: _nextActionIcon,
@@ -524,7 +687,7 @@ class _MaintenanceOrderDetailsDialogState
                   ? null
                   : () async {
                       await widget.onPayment?.call();
-                      await _loadDetails();
+                      await _reloadDetails();
                     },
             ),
           if (widget.onEdit != null)
@@ -535,7 +698,7 @@ class _MaintenanceOrderDetailsDialogState
                   ? null
                   : () async {
                       await widget.onEdit?.call();
-                      await _loadDetails();
+                      await _reloadDetails();
                     },
             ),
           if (widget.onDelete != null)
@@ -565,7 +728,7 @@ class _MaintenanceOrderDetailsDialogState
                   ? null
                   : () async {
                       await widget.onCancel?.call();
-                      await _loadDetails();
+                      await _reloadDetails();
                     },
             ),
           AppModuleActionIcon(
@@ -589,6 +752,22 @@ class _MaintenanceOrderDetailsDialogState
           : ListView(
               padding: const EdgeInsets.all(18),
               children: <Widget>[
+                if (_loadWarning != null) ...<Widget>[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Icon(Icons.info_outline_rounded),
+                          const SizedBox(width: 10),
+                          Expanded(child: AppText(_loadWarning ?? '')),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 KajRelationshipHero(
                   eyebrow: _bi(
                     'ملف صيانة متكامل',
@@ -631,7 +810,7 @@ class _MaintenanceOrderDetailsDialogState
                 _costReconciliation(order),
                 const SizedBox(height: 16),
                 AppText(
-                  _bi('وحدات أمر الصيانة', 'Maintenance order components'),
+                  _bi('إدارة مراحل الأمر', 'Manage order stages'),
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
@@ -664,20 +843,26 @@ class _MaintenanceOrderDetailsDialogState
                 ),
                 _fieldView(
                   'invoice',
-                  _componentCard(
-                    index: 4,
-                    title: DocumentNomenclature.maintenanceInvoice(
-                      arabic: _arabic,
-                    ),
-                    subtitle:
-                        order.invoiceNumber ??
-                        _bi('لم تُنشأ الفاتورة بعد', 'No invoice yet'),
-                    icon: Icons.receipt_long_outlined,
-                    color: const Color(0xFF7A4EC2),
-                    componentType: 'invoice',
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _componentCard(
+                        index: 4,
+                        title: DocumentNomenclature.maintenanceInvoice(
+                          arabic: _arabic,
+                        ),
+                        subtitle:
+                            order.invoiceNumber ??
+                            _bi('لم تُنشأ الفاتورة بعد', 'No invoice yet'),
+                        icon: Icons.receipt_long_outlined,
+                        color: const Color(0xFF7A4EC2),
+                        componentType: 'invoice',
+                      ),
+                      _maintenanceInvoiceTable(order),
+                    ],
                   ),
                 ),
-                _fieldView('payments', _paymentCard(order)),
+                _fieldView('payments', _maintenancePaymentsTable(order)),
                 const SizedBox(height: 18),
                 AppText(
                   _bi('بنود الصيانة', 'Maintenance lines'),
@@ -687,55 +872,95 @@ class _MaintenanceOrderDetailsDialogState
                   ),
                 ),
                 const SizedBox(height: 8),
-                ..._lines.map((line) {
-                  final issued = _lineQuantity(line.id, 'issuedQuantity', 0);
-                  final invoiced = _lineQuantity(
-                    line.id,
-                    'invoicedQuantity',
-                    0,
-                  );
-                  final remaining = _lineQuantity(
-                    line.id,
-                    'remainingQuantity',
-                    line.quantity - issued,
-                  );
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(
-                        line.isService
-                            ? Icons.design_services_outlined
-                            : Icons.inventory_2_outlined,
-                      ),
-                      title: AppText(line.productName),
-                      subtitle: AppText(
-                        line.isService
-                            ? _bi(
-                                'عمل/خدمة منفصلة • السعر: ${MoneyFormatter.withCurrency(line.unitPrice, order.currencyCode)}',
-                                'Separate labor/service • Price: ${MoneyFormatter.withCurrency(line.unitPrice, order.currencyCode)}',
-                              )
-                            : _bi(
-                                'المطلوب: ${line.quantity} • المصروف: $issued • المفوتر: $invoiced • المتبقي للصرف: $remaining • المخزن: ${line.warehouseName ?? '—'}',
-                                'Requested: ${line.quantity} • Issued: $issued • Invoiced: $invoiced • To issue: $remaining • Warehouse: ${line.warehouseName ?? '—'}',
-                              ),
-                      ),
-                      trailing: line.isService
-                          ? null
-                          : Chip(
-                              label: AppText(
-                                remaining <= 0 && invoiced >= line.quantity
-                                    ? _bi('مطابق', 'Reconciled')
-                                    : remaining <= 0
-                                    ? _bi('بانتظار الفوترة', 'Awaiting invoice')
-                                    : issued > 0
-                                    ? _bi('صرف جزئي', 'Partially issued')
-                                    : _bi('بانتظار الصرف', 'Awaiting issue'),
-                              ),
-                            ),
-                    ),
-                  );
-                }),
+                _maintenanceLinesTable(order),
               ],
             ),
+    );
+  }
+
+  Widget _maintenanceLinesTable(MaintenanceOrderModel order) {
+    if (_lines.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: AppText(
+            _bi('لا توجد بنود في هذا الأمر.', 'No items in this order.'),
+          ),
+        ),
+      );
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: <DataColumn>[
+            DataColumn(label: AppText(_bi('المادة/الخدمة', 'Item / Service'))),
+            DataColumn(label: AppText(_bi('الوصف', 'Description'))),
+            DataColumn(label: AppText(_bi('المطلوب:', 'Requested:'))),
+            DataColumn(label: AppText(_bi('المصروف:', 'Issued:'))),
+            DataColumn(label: AppText(_bi('المفوتر:', 'Invoiced:'))),
+            DataColumn(label: AppText(_bi('المتبقي', 'Remaining'))),
+            DataColumn(label: AppText(_bi('سعر الوحدة', 'Unit price'))),
+            DataColumn(label: AppText(_bi('الإجمالي', 'Total'))),
+            DataColumn(label: AppText(_bi('العملة', 'Currency'))),
+            DataColumn(label: AppText(_bi('المخزن', 'Warehouse'))),
+          ],
+          rows: _lines
+              .map((line) {
+                final issued = line.isService
+                    ? 0
+                    : _lineQuantity(line.id, 'issuedQuantity', 0);
+                final invoiced = _lineQuantity(line.id, 'invoicedQuantity', 0);
+                final remaining = line.isService
+                    ? (line.quantity - invoiced).clamp(0, line.quantity)
+                    : _lineQuantity(
+                        line.id,
+                        'remainingQuantity',
+                        line.quantity - issued,
+                      );
+                return DataRow(
+                  cells: <DataCell>[
+                    DataCell(AppText(line.productName)),
+                    DataCell(
+                      AppText(
+                        line.description.trim().isNotEmpty
+                            ? line.description.trim()
+                            : line.productName,
+                      ),
+                    ),
+                    DataCell(AppText('${line.quantity}')),
+                    DataCell(AppText(line.isService ? '—' : '$issued')),
+                    DataCell(AppText('$invoiced')),
+                    DataCell(AppText('$remaining')),
+                    DataCell(
+                      AppText(
+                        MoneyFormatter.withCurrency(
+                          line.unitPrice,
+                          order.currencyCode,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      AppText(
+                        MoneyFormatter.withCurrency(
+                          line.unitPrice * line.quantity,
+                          order.currencyCode,
+                        ),
+                      ),
+                    ),
+                    DataCell(AppText(order.currencyCode)),
+                    DataCell(
+                      AppText(
+                        line.isService ? '—' : (line.warehouseName ?? '—'),
+                      ),
+                    ),
+                  ],
+                );
+              })
+              .toList(growable: false),
+        ),
+      ),
     );
   }
 
@@ -755,7 +980,23 @@ class _MaintenanceOrderDetailsDialogState
           ),
           _value(
             _bi('الكلفة', 'Cost'),
-            MoneyFormatter.withCurrency(order.totalCost, order.currencyCode),
+            CurrencyTotalsFormatter.format(
+              order.operationalCostTotalsByCurrency,
+            ),
+          ),
+          _fieldView(
+            'materialCost',
+            _value(
+              _bi('كلفة المواد', 'Material cost'),
+              MoneyFormatter.withCurrency(order.partsCost, order.currencyCode),
+            ),
+          ),
+          _fieldView(
+            'margin',
+            _value(
+              _bi('الهامش', 'Margin'),
+              MoneyFormatter.withCurrency(order.profit, order.currencyCode),
+            ),
           ),
           _value(
             _bi('السعر', 'Price'),
@@ -770,11 +1011,202 @@ class _MaintenanceOrderDetailsDialogState
     ),
   );
 
+  Widget _issueDraftSection(MaintenanceCostReconciliation costs) {
+    final state = costs.issueDraft;
+    if (state.isEmpty) return const SizedBox.shrink();
+    final current = state['currentDraft'] is Map
+        ? Map<String, Object?>.from(state['currentDraft'] as Map)
+        : const <String, Object?>{};
+    final draftLines = (state['draftLines'] as List? ?? const <Object?>[])
+        .whereType<Map>()
+        .map((row) => Map<String, Object?>.from(row))
+        .toList(growable: false);
+    final history = (state['history'] as List? ?? const <Object?>[])
+        .whereType<Map>()
+        .map((row) => Map<String, Object?>.from(row))
+        .toList(growable: false);
+    if (current.isEmpty && draftLines.isEmpty && history.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    Widget table({
+      required List<DataColumn> columns,
+      required List<DataRow> rows,
+    }) => Scrollbar(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowHeight: 42,
+          dataRowMinHeight: 44,
+          dataRowMaxHeight: 58,
+          columnSpacing: 18,
+          columns: columns,
+          rows: rows,
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SizedBox(height: 14),
+        AppText(
+          _bi('مستند صرف مواد الصيانة', 'Maintenance material issue document'),
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        if (current.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              Chip(
+                avatar: const Icon(Icons.description_outlined, size: 18),
+                label: AppText(
+                  '${_bi('رقم المسودة', 'Draft number')}: ${current['documentNumber'] ?? '—'}',
+                ),
+              ),
+              Chip(
+                avatar: const Icon(Icons.person_outline_rounded, size: 18),
+                label: AppText(
+                  '${_bi('أنشأ المسودة', 'Draft created by')}: ${current['createdByName'] ?? current['createdBy'] ?? '—'}',
+                ),
+              ),
+              Chip(
+                avatar: const Icon(Icons.schedule_rounded, size: 18),
+                label: AppText(
+                  '${_bi('وقت الإنشاء', 'Created at')}: ${_dateTimeDisplay(current['createdAt'])}',
+                ),
+              ),
+              Chip(
+                avatar: const Icon(Icons.info_outline_rounded, size: 18),
+                label: AppText(
+                  _bi(
+                    'مسودة فقط — المخزون لم يتغير',
+                    'Draft only — inventory unchanged',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        if (draftLines.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 8),
+          table(
+            columns: <DataColumn>[
+              DataColumn(label: AppText(_bi('المادة', 'Item'))),
+              DataColumn(label: AppText(_bi('المخزن', 'Warehouse'))),
+              DataColumn(label: AppText(_bi('كمية المسودة', 'Draft qty'))),
+              DataColumn(label: AppText(_bi('أُدخل بواسطة', 'Entered by'))),
+              DataColumn(label: AppText(_bi('التاريخ/الوقت', 'Date / time'))),
+              DataColumn(label: AppText(_bi('الإجراء', 'Action'))),
+            ],
+            rows: draftLines
+                .map(
+                  (row) => DataRow(
+                    cells: <DataCell>[
+                      DataCell(
+                        AppText(
+                          '${row['productName'] ?? row['productId'] ?? '—'}',
+                        ),
+                      ),
+                      DataCell(
+                        AppText(
+                          '${row['warehouseName'] ?? row['warehouseId'] ?? '—'}',
+                        ),
+                      ),
+                      DataCell(AppText('${row['quantity'] ?? '—'}')),
+                      DataCell(
+                        AppText(
+                          '${row['createdByName'] ?? row['createdBy'] ?? '—'}',
+                        ),
+                      ),
+                      DataCell(AppText(_dateTimeDisplay(row['createdAt']))),
+                      DataCell(
+                        _order.workflowStage == 'stock_issue_draft' &&
+                                _canAction('material_issue.create')
+                            ? IconButton(
+                                tooltip: _bi(
+                                  'حذف من المسودة',
+                                  'Remove from draft',
+                                ),
+                                onPressed: _busy
+                                    ? null
+                                    : () => _deleteDraftIssueLine(row),
+                                icon: const Icon(Icons.delete_outline_rounded),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ],
+        if (history.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 12),
+          AppText(
+            _bi('سجل تصديقات الصرف', 'Issue approval history'),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          table(
+            columns: <DataColumn>[
+              DataColumn(label: AppText(_bi('رقم الصرف', 'Issue number'))),
+              DataColumn(
+                label: AppText(_bi('أنشأ المسودة', 'Draft created by')),
+              ),
+              DataColumn(label: AppText(_bi('صدّق بواسطة', 'Approved by'))),
+              DataColumn(label: AppText(_bi('وقت الإنشاء', 'Created at'))),
+              DataColumn(label: AppText(_bi('وقت التصديق', 'Approval time'))),
+              DataColumn(label: AppText(_bi('الكمية', 'Quantity'))),
+              DataColumn(label: AppText(_bi('الحالة', 'Status'))),
+            ],
+            rows: history
+                .map(
+                  (row) => DataRow(
+                    cells: <DataCell>[
+                      DataCell(AppText('${row['documentNumber'] ?? '—'}')),
+                      DataCell(
+                        AppText(
+                          '${row['createdByName'] ?? row['createdBy'] ?? '—'}',
+                        ),
+                      ),
+                      DataCell(
+                        AppText(
+                          '${row['approvedByName'] ?? row['approvedBy'] ?? '—'}',
+                        ),
+                      ),
+                      DataCell(AppText(_dateTimeDisplay(row['createdAt']))),
+                      DataCell(AppText(_dateTimeDisplay(row['approvedAt']))),
+                      DataCell(AppText('${row['quantity'] ?? '—'}')),
+                      DataCell(AppText('${row['status'] ?? '—'}')),
+                    ],
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _costReconciliation(MaintenanceOrderModel order) {
     final costs = _costs;
     if (costs == null) return const SizedBox.shrink();
     String money(double value) =>
         MoneyFormatter.withCurrency(value, costs.currency);
+    String costTotals(Map<String, double> totals) =>
+        CurrencyTotalsFormatter.format(totals);
+    final operationalTotals = <String, double>{
+      ...costs.issuedMaterialsActualCostByCurrency,
+    };
+    if (costs.laborCost != 0 || costs.additionalServicesCost != 0) {
+      operationalTotals.update(
+        costs.currency,
+        (value) => value + costs.laborCost + costs.additionalServicesCost,
+        ifAbsent: () => costs.laborCost + costs.additionalServicesCost,
+      );
+    }
     final unavailable = _bi('غير مسجل في مستند الصيانة', 'Not recorded');
     Widget group(String title, List<(String, String)> values) => Container(
       constraints: const BoxConstraints(minWidth: 250),
@@ -832,13 +1264,19 @@ class _MaintenanceOrderDetailsDialogState
                   ),
                 ),
                 KajStatusBadge(
-                  label: discrepancy
+                  label: costs.crossCurrencyMaterials
+                      ? _bi('كلفة متعددة العملات', 'Multi-currency cost')
+                      : discrepancy
                       ? _bi('توجد فروقات', 'Discrepancy')
                       : _bi('متطابق', 'Reconciled'),
-                  color: discrepancy
+                  color: costs.crossCurrencyMaterials
+                      ? KajDesignTokens.electricBlue
+                      : discrepancy
                       ? KajDesignTokens.warning
                       : KajDesignTokens.success,
-                  icon: discrepancy
+                  icon: costs.crossCurrencyMaterials
+                      ? Icons.currency_exchange_rounded
+                      : discrepancy
                       ? Icons.warning_amber_rounded
                       : Icons.verified_outlined,
                 ),
@@ -855,40 +1293,40 @@ class _MaintenanceOrderDetailsDialogState
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     slot(
-                      group(
-                        _bi('تشغيلي / كلفة', 'Operational / Cost'),
-                        <(String, String)>[
-                          (
-                            _bi(
-                              'كلفة المواد المطلوبة',
-                              'Requested materials cost',
-                            ),
-                            costs.requestedCostAvailable &&
-                                    costs.requestedMaterialsCost != null
-                                ? money(costs.requestedMaterialsCost!)
-                                : unavailable,
+                      group(_bi('تشغيلي / كلفة', 'Operational / Cost'), <
+                        (String, String)
+                      >[
+                        (
+                          _bi(
+                            'كلفة المواد المطلوبة',
+                            'Requested materials cost',
                           ),
-                          (
-                            _bi(
-                              'الكلفة الفعلية للمواد المصروفة',
-                              'Issued materials actual cost',
-                            ),
-                            money(costs.issuedMaterialsActualCost),
+                          costs.requestedCostAvailable
+                              ? costTotals(
+                                  costs.requestedMaterialsCostByCurrency,
+                                )
+                              : unavailable,
+                        ),
+                        (
+                          _bi(
+                            'الكلفة الفعلية للمواد المصروفة',
+                            'Issued materials actual cost',
                           ),
-                          (_bi('العمل', 'Labor'), money(costs.laborCost)),
-                          (
-                            _bi('الخدمات الإضافية', 'Additional services'),
-                            money(costs.additionalServicesCost),
+                          costTotals(costs.issuedMaterialsActualCostByCurrency),
+                        ),
+                        (_bi('العمل', 'Labor'), money(costs.laborCost)),
+                        (
+                          _bi('الخدمات الإضافية', 'Additional services'),
+                          money(costs.additionalServicesCost),
+                        ),
+                        (
+                          _bi(
+                            'إجمالي الكلفة التشغيلية',
+                            'Total operational cost',
                           ),
-                          (
-                            _bi(
-                              'إجمالي الكلفة التشغيلية',
-                              'Total operational cost',
-                            ),
-                            money(costs.totalOperationalCost),
-                          ),
-                        ],
-                      ),
+                          costTotals(operationalTotals),
+                        ),
+                      ]),
                     ),
                     SizedBox(
                       width: constraints.maxWidth < 900 ? 0 : 10,
@@ -939,11 +1377,15 @@ class _MaintenanceOrderDetailsDialogState
                           ),
                           (
                             _bi('مصروف غير مفوتر', 'Issued not invoiced'),
-                            money(costs.issuedNotInvoicedCost),
+                            costs.crossCurrencyMaterials
+                                ? unavailable
+                                : money(costs.issuedNotInvoicedCost),
                           ),
                           (
                             _bi('مفوتر غير مصروف', 'Invoiced not issued'),
-                            money(costs.invoicedNotIssuedValue),
+                            costs.crossCurrencyMaterials
+                                ? unavailable
+                                : money(costs.invoicedNotIssuedValue),
                           ),
                         ],
                       ),
@@ -973,6 +1415,7 @@ class _MaintenanceOrderDetailsDialogState
                     .toList(growable: false),
               ),
             ],
+            _issueDraftSection(costs),
             const SizedBox(height: 14),
             AppText(
               _bi('مطابقة الكميات', 'Quantity reconciliation'),
@@ -986,18 +1429,23 @@ class _MaintenanceOrderDetailsDialogState
                 title: AppText(line['description']?.toString() ?? '-'),
                 subtitle: AppText(
                   _bi(
-                    'مطلوب: ${line['requestedQuantity']} • مصروف: ${line['issuedQuantity']} • متبقي: ${line['remainingQuantity']} • مفوتر: ${line['invoicedQuantity']}',
-                    'Requested: ${line['requestedQuantity']} • Issued: ${line['issuedQuantity']} • Remaining: ${line['remainingQuantity']} • Invoiced: ${line['invoicedQuantity']}',
+                    'مطلوب: ${line['requestedQuantity']} • في المسودة: ${line['draftedQuantity'] ?? 0} • مصروف معتمد: ${line['issuedQuantity']} • متبقي: ${line['remainingQuantity']} • مفوتر: ${line['invoicedQuantity']}',
+                    'Requested: ${line['requestedQuantity']} • Drafted: ${line['draftedQuantity'] ?? 0} • Approved issued: ${line['issuedQuantity']} • Remaining: ${line['remainingQuantity']} • Invoiced: ${line['invoicedQuantity']}',
                   ),
                 ),
                 trailing:
                     _order.workflowStage == 'stock_issue_draft' &&
-                        ((line['remainingQuantity'] as num?)?.toDouble() ?? 0) >
+                        _canAction('material_issue.create') &&
+                        (((line['remainingQuantity'] as num?)?.toDouble() ??
+                                    0) -
+                                ((line['draftedQuantity'] as num?)
+                                        ?.toDouble() ??
+                                    0)) >
                             0
                     ? FilledButton.tonalIcon(
-                        onPressed: _busy ? null : () => _issueMaterial(line),
+                        onPressed: _busy ? null : () => _draftMaterial(line),
                         icon: const Icon(Icons.output_rounded),
-                        label: AppText(_bi('صرف', 'Issue')),
+                        label: AppText(_bi('إضافة للمسودة', 'Add to draft')),
                       )
                     : null,
               ),
@@ -1014,9 +1462,12 @@ class _MaintenanceOrderDetailsDialogState
                   title: AppText(
                     '${event['warehouseName']} • ${event['quantity']}',
                   ),
-                  subtitle: AppText(event['status']?.toString() ?? ''),
+                  subtitle: AppText(
+                    '${event['status'] ?? '—'} • ${_bi('صدّق بواسطة', 'Approved by')}: ${event['approvedByName'] ?? event['approvedBy'] ?? '—'} • ${_dateTimeDisplay(event['approvalTime'] ?? event['effectiveAt'])}',
+                  ),
                   trailing:
                       event['status'] == 'executed' &&
+                          _canAction('reverse', legacy: 'maintenance.update') &&
                           !<String>{
                             'invoice_approved',
                             'paid',
@@ -1118,7 +1569,9 @@ class _MaintenanceOrderDetailsDialogState
                   : const Color(0xFF68737D),
             ),
             const SizedBox(width: 10),
-            if (canAdvance)
+            if (canAdvance &&
+                _nextPermissionAction != null &&
+                _canAction(_nextPermissionAction!))
               _fieldAction(
                 componentType == 'stock'
                     ? 'stockIssue'
@@ -1140,7 +1593,11 @@ class _MaintenanceOrderDetailsDialogState
                   ),
                 ),
               ),
-            if (canDelete) ...<Widget>[
+            if (canDelete &&
+                _canAction(
+                  'reverse',
+                  legacy: 'maintenance.update',
+                )) ...<Widget>[
               const SizedBox(width: 6),
               _StageAction(
                 label: _bi('حذف', 'Delete'),
@@ -1161,6 +1618,301 @@ class _MaintenanceOrderDetailsDialogState
     );
   }
 
+  Widget _maintenanceInvoiceTable(MaintenanceOrderModel order) {
+    final invoiceNumber = order.invoiceNumber?.trim() ?? '';
+    if (invoiceNumber.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final costs = _costs;
+    final rows = <Map<String, Object?>>[];
+    for (final line in _lines) {
+      final reconciliation = _reconciliationLine(line.id);
+      final quantity =
+          (reconciliation?['invoicedQuantity'] as num?)?.toDouble() ?? 0;
+      if (quantity <= 0) continue;
+      final unitPrice =
+          (reconciliation?['unitInvoiceValue'] as num?)?.toDouble() ??
+          line.unitPrice;
+      final lineTotal =
+          (reconciliation?['invoicedValue'] as num?)?.toDouble() ??
+          (unitPrice * quantity);
+      rows.add(<String, Object?>{
+        'item': line.productName,
+        'description': line.description.trim().isNotEmpty
+            ? line.description.trim()
+            : (line.isService
+                  ? _bi('خدمة صيانة', 'Maintenance service')
+                  : _bi('مادة صيانة', 'Maintenance material')),
+        'quantity': quantity,
+        'unitPrice': unitPrice,
+        'lineTotal': lineTotal,
+      });
+    }
+    final laborInvoiced = costs?.laborInvoiced ?? 0;
+    if (laborInvoiced > 0) {
+      rows.add(<String, Object?>{
+        'item': _bi('أجور العمل', 'Labor'),
+        'description': _bi(
+          'أجور العمل والخدمة لأمر الصيانة',
+          'Maintenance labor and service charge',
+        ),
+        'quantity': 1.0,
+        'unitPrice': laborInvoiced,
+        'lineTotal': laborInvoiced,
+      });
+    }
+    final invoiceTotal = costs?.totalInvoiced ?? order.salePrice;
+    final createdAt = order.invoiceCreatedAt?.toLocal();
+    final approvedAt = order.invoiceApprovedAt?.toLocal();
+    final invoiceDate = approvedAt ?? createdAt ?? order.updatedAt?.toLocal();
+    final dateText = invoiceDate == null
+        ? '—'
+        : DateFormat('yyyy-MM-dd HH:mm').format(invoiceDate);
+    final createdBy = (order.invoiceCreatedBy?.trim().isNotEmpty ?? false)
+        ? order.invoiceCreatedBy!
+        : (order.createdByName?.trim().isNotEmpty ?? false)
+        ? order.createdByName!
+        : '—';
+    final approvedBy = (order.invoiceApprovedBy?.trim().isNotEmpty ?? false)
+        ? order.invoiceApprovedBy!
+        : '—';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            AppText(
+              _bi('تفاصيل فاتورة الصيانة', 'Maintenance invoice details'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            if (rows.isEmpty)
+              AppText(
+                _bi(
+                  'الفاتورة موجودة، لكن لا توجد بنود مفوترة متاحة في نموذج القراءة الحالي.',
+                  'The invoice exists, but no invoiced lines are available in the current read model.',
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: <DataColumn>[
+                    DataColumn(
+                      label: AppText(_bi('رقم الفاتورة', 'Invoice number')),
+                    ),
+                    DataColumn(
+                      label: AppText(_bi('مرجع المستند', 'Document reference')),
+                    ),
+                    DataColumn(
+                      label: AppText(_bi('المادة/الخدمة', 'Item / service')),
+                    ),
+                    DataColumn(label: AppText(_bi('الوصف', 'Description'))),
+                    DataColumn(label: AppText(_bi('الكمية', 'Quantity'))),
+                    DataColumn(label: AppText(_bi('سعر الوحدة', 'Unit price'))),
+                    DataColumn(label: AppText(_bi('الضريبة', 'Tax'))),
+                    DataColumn(label: AppText(_bi('الخصم', 'Discount'))),
+                    DataColumn(
+                      label: AppText(_bi('إجمالي السطر', 'Line total')),
+                    ),
+                    DataColumn(label: AppText(_bi('العملة', 'Currency'))),
+                    DataColumn(
+                      label: AppText(_bi('إجمالي الفاتورة', 'Invoice total')),
+                    ),
+                    DataColumn(label: AppText(_bi('أنشأها', 'Created by'))),
+                    DataColumn(
+                      label: AppText(
+                        _bi('اعتمد/رحّل بواسطة', 'Approved / posted by'),
+                      ),
+                    ),
+                    DataColumn(
+                      label: AppText(_bi('التاريخ/الوقت', 'Date / time')),
+                    ),
+                  ],
+                  rows: rows
+                      .map(
+                        (row) => DataRow(
+                          cells: <DataCell>[
+                            DataCell(AppText(invoiceNumber)),
+                            DataCell(AppText(order.orderNumber)),
+                            DataCell(AppText('${row['item'] ?? '—'}')),
+                            DataCell(AppText('${row['description'] ?? '—'}')),
+                            DataCell(AppText('${row['quantity'] ?? 0}')),
+                            DataCell(
+                              AppText(
+                                MoneyFormatter.withCurrency(
+                                  (row['unitPrice'] as num?)?.toDouble() ?? 0,
+                                  order.currencyCode,
+                                ),
+                              ),
+                            ),
+                            const DataCell(AppText('—')),
+                            const DataCell(AppText('—')),
+                            DataCell(
+                              AppText(
+                                MoneyFormatter.withCurrency(
+                                  (row['lineTotal'] as num?)?.toDouble() ?? 0,
+                                  order.currencyCode,
+                                ),
+                              ),
+                            ),
+                            DataCell(AppText(order.currencyCode)),
+                            DataCell(
+                              AppText(
+                                MoneyFormatter.withCurrency(
+                                  invoiceTotal,
+                                  order.currencyCode,
+                                ),
+                              ),
+                            ),
+                            DataCell(AppText(createdBy)),
+                            DataCell(AppText(approvedBy)),
+                            DataCell(AppText(dateText)),
+                          ],
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ),
+            if ((costs?.tax ?? 0) != 0 ||
+                (costs?.discount ?? 0) != 0) ...<Widget>[
+              const SizedBox(height: 8),
+              AppText(
+                _bi(
+                  'ضريبة المستند: ${MoneyFormatter.withCurrency(costs?.tax ?? 0, order.currencyCode)} • خصم المستند: ${MoneyFormatter.withCurrency(costs?.discount ?? 0, order.currencyCode)}',
+                  'Document tax: ${MoneyFormatter.withCurrency(costs?.tax ?? 0, order.currencyCode)} • Document discount: ${MoneyFormatter.withCurrency(costs?.discount ?? 0, order.currencyCode)}',
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _maintenancePaymentsTable(MaintenanceOrderModel order) {
+    final ar = _arabic;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: AppText(
+                    _bi('دفعات أمر الصيانة', 'Maintenance Payments'),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                if (widget.onPayment != null &&
+                    order.workflowStage == 'invoice_approved')
+                  _fieldAction(
+                    'payments',
+                    _StageAction(
+                      label: _bi('تسجيل دفعة', 'Record payment'),
+                      icon: Icons.add_card_rounded,
+                      busy: _busy,
+                      onPressed: () async {
+                        await widget.onPayment?.call();
+                        await _reloadDetails();
+                      },
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_payments.isEmpty)
+              AppText(
+                _bi(
+                  'لا توجد دفعات مخصصة لهذا الأمر. المدفوع الحالي: ${MoneyFormatter.withCurrency(order.paidAmount, order.currencyCode)}',
+                  'No payments are allocated to this order. Current paid amount: ${MoneyFormatter.withCurrency(order.paidAmount, order.currencyCode)}',
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: <DataColumn>[
+                    DataColumn(
+                      label: AppText(_bi('مرجع الدفعة', 'Payment reference')),
+                    ),
+                    DataColumn(label: AppText(_bi('الصندوق', 'Cashbox'))),
+                    DataColumn(label: AppText(_bi('العملة', 'Currency'))),
+                    DataColumn(label: AppText(_bi('المبلغ', 'Amount'))),
+                    DataColumn(label: AppText(_bi('FX', 'FX details'))),
+                    DataColumn(
+                      label: AppText(
+                        _bi('التاريخ/الوقت', 'Payment date / time'),
+                      ),
+                    ),
+                    DataColumn(label: AppText(_bi('المستخدم', 'User'))),
+                    DataColumn(
+                      label: AppText(_bi('الفاتورة/الأمر', 'Invoice / order')),
+                    ),
+                    DataColumn(label: AppText(_bi('الحالة', 'Status'))),
+                  ],
+                  rows: _payments
+                      .map((payment) {
+                        final parsed = DateTime.tryParse(
+                          '${payment['paymentDate'] ?? ''}',
+                        )?.toLocal();
+                        final dateText = parsed == null
+                            ? '${payment['paymentDate'] ?? '—'}'
+                            : DateFormat('yyyy-MM-dd HH:mm').format(parsed);
+                        final fx =
+                            '${payment['currency'] ?? ''}' ==
+                                '${payment['invoiceCurrency'] ?? ''}'
+                            ? '—'
+                            : '${payment['exchangeRate'] ?? 1} • Δ ${payment['exchangeDifference'] ?? 0}';
+                        return DataRow(
+                          cells: <DataCell>[
+                            DataCell(
+                              AppText('${payment['paymentReference'] ?? '—'}'),
+                            ),
+                            DataCell(
+                              AppText(
+                                '${payment['cashboxName'] ?? payment['cashboxId'] ?? '—'}',
+                              ),
+                            ),
+                            DataCell(AppText('${payment['currency'] ?? '—'}')),
+                            DataCell(AppText('${payment['amount'] ?? 0}')),
+                            DataCell(AppText(fx)),
+                            DataCell(AppText(dateText)),
+                            DataCell(AppText('${payment['userName'] ?? '—'}')),
+                            DataCell(
+                              AppText(
+                                '${payment['relatedInvoice'] ?? '—'} • ${payment['relatedOrder'] ?? '—'}',
+                              ),
+                            ),
+                            DataCell(
+                              AppText(
+                                ar
+                                    ? 'مرحّل'
+                                    : '${payment['status'] ?? 'Posted'}',
+                              ),
+                            ),
+                          ],
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Retained as the compact payment summary contract for alternate layouts.
+  // ignore: unused_element
   Widget _paymentCard(MaintenanceOrderModel order) => Card(
     margin: const EdgeInsets.only(bottom: 10),
     child: Padding(
@@ -1211,7 +1963,7 @@ class _MaintenanceOrderDetailsDialogState
                 busy: _busy,
                 onPressed: () async {
                   await widget.onPayment?.call();
-                  await _loadDetails();
+                  await _reloadDetails();
                 },
               ),
             ),

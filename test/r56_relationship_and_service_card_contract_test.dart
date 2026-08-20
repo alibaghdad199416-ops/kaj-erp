@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/printing/vehicle_service_card_pdf_service.dart';
 import 'package:quality_line_erp/features/business_partners/shared/data/partner_record_route.dart';
@@ -10,6 +11,7 @@ import 'package:quality_line_erp/features/business_partners/shared/widgets/busin
 import 'package:quality_line_erp/features/inventory/cars/models/car_model.dart';
 import 'package:quality_line_erp/features/inventory/cars/pages/vehicle_service_card_page.dart';
 import 'package:quality_line_erp/features/maintenance/pages/add_maintenance_order_page.dart';
+import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -160,39 +162,48 @@ void main() {
           addTearDown(() => tester.binding.setSurfaceSize(null));
           var opened = false;
           await tester.pumpWidget(
-            MaterialApp(
-              locale: locale,
-              supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              home: VehicleServiceCardPage(
-                car: const CarModel(
-                  id: 'car-r56',
-                  brand: 'Quality',
-                  model: 'Line',
-                  year: 2026,
-                  color: 'Black',
-                  chassis: 'VIN-R56',
-                  plateNumber: 'R56',
-                  carNumber: 'CAR-R56',
-                  purchasePrice: 0,
-                  salePrice: 0,
-                  status: 'sold',
-                  imagePath: '',
+            ChangeNotifierProvider<AccessController>(
+              create: (_) => AccessController(),
+              child: MaterialApp(
+                locale: locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                home: VehicleServiceCardPage(
+                  car: const CarModel(
+                    id: 'car-r56',
+                    brand: 'Quality',
+                    model: 'Line',
+                    year: 2026,
+                    color: 'Black',
+                    chassis: 'VIN-R56',
+                    plateNumber: 'R56',
+                    carNumber: 'CAR-R56',
+                    purchasePrice: 0,
+                    salePrice: 0,
+                    status: 'sold',
+                    imagePath: '',
+                  ),
+                  cardLoader: (_) async => fixture,
+                  onOpenMaintenance: (_) async => opened = true,
                 ),
-                cardLoader: (_) async => fixture,
-                onOpenMaintenance: (_) async => opened = true,
               ),
             ),
           );
           await tester.pumpAndSettle();
-          final maintenanceTile = find.byType(ExpansionTile);
-          expect(maintenanceTile, findsOneWidget);
-          await tester.tap(maintenanceTile);
+          final historyDetails = find.byKey(
+            const ValueKey(
+              'maintenance-history-22222222-2222-4222-8222-222222222222',
+            ),
+          );
+          expect(historyDetails, findsOneWidget);
+          await tester.ensureVisible(historyDetails);
+          await tester.pumpAndSettle();
+          await tester.tap(historyDetails);
           await tester.pumpAndSettle();
           final action = find.byKey(
             const ValueKey(
@@ -200,13 +211,8 @@ void main() {
             ),
           );
           expect(action, findsOneWidget);
-          if (width < 500) {
-            await tester.drag(
-              find.byType(ListView).first,
-              const Offset(0, -650),
-            );
-            await tester.pumpAndSettle();
-          }
+          await tester.ensureVisible(action);
+          await tester.pumpAndSettle();
           await tester.tap(action);
           await tester.pump();
           expect(opened, isTrue);

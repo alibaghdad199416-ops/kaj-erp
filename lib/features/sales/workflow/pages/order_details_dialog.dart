@@ -187,6 +187,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   String _bi(String arabic, String english) =>
       context.l10n.isArabic ? arabic : english;
 
+  String get _unitField => widget.purchase ? 'unitCost' : 'unitPrice';
+
   Future<void> _editOrder() async {
     if (_mutatingOrder) return;
     final changed = await showAppModuleDialog<bool>(
@@ -922,7 +924,6 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     if (order == null) {
       return Center(child: AppText(_bi('الأمر غير موجود', 'Order not found')));
     }
-    final unitField = widget.purchase ? 'unitCost' : 'unitPrice';
     return DefaultTabController(
       length: 7,
       child: Scaffold(
@@ -1021,102 +1022,15 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                 const SizedBox(height: 12),
                 _summary(order),
                 const SizedBox(height: 12),
-                _reconciliationPanel(),
-                const SizedBox(height: 12),
-                AppText(
-                  _bi('البنود', 'Items'),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._items.map(
-                  (item) => Card(
-                    child: ExpansionTile(
-                      leading: Icon(
-                        item['itemType'] == 'car'
-                            ? Icons.directions_car
-                            : Icons.inventory_2,
-                      ),
-                      title: AppText(item['description']?.toString() ?? '-'),
-                      subtitle: AppText(
-                        _bi(
-                          'النوع: ${item['itemType']} • الكمية: ${item['quantity']} • السعر: ${_money.format((item[unitField] as num?)?.toDouble() ?? 0)} • الإجمالي: ${_money.format((item['lineTotal'] as num?)?.toDouble() ?? 0)} ${order['currency']}',
-                          'Type: ${item['itemType']} • Quantity: ${item['quantity']} • Price: ${_money.format((item[unitField] as num?)?.toDouble() ?? 0)} • Total: ${_money.format((item['lineTotal'] as num?)?.toDouble() ?? 0)} ${order['currency']}',
-                        ),
-                      ),
-                      children: [_itemDetails(item)],
-                    ),
-                  ),
-                ),
+                _itemLifecycleTable(order),
               ],
             ),
             _fieldView(
               widget.purchase ? 'receipt' : 'delivery',
-              _records(
-                _logistics,
-                (row) =>
-                    '${row['receiptNumber'] ?? row['deliveryNumber']} — ${row['warehouseName'] ?? _bi('بدون مخزن', 'No warehouse')}',
-                (row) => _bi(
-                  'الحالة: ${row['status']} • التاريخ: ${row['receiptDate'] ?? row['deliveryDate']}',
-                  'Status: ${row['status']} • Date: ${row['receiptDate'] ?? row['deliveryDate']}',
-                ),
-                trailing: (row) =>
-                    _componentActions(row, componentType: 'logistics'),
-              ),
+              _warehouseDocumentsTable(order),
             ),
-            _fieldView(
-              'invoice',
-              _records(
-                _invoices,
-                (row) =>
-                    '${row['invoiceNumber']} — ${_money.format((row['total'] as num?)?.toDouble() ?? 0)} ${row['currency']}',
-                (row) => _bi(
-                  'الحالة: ${row['status']} • المدفوع: ${_money.format((row['paidAmount'] as num?)?.toDouble() ?? 0)} • المتبقي: ${_money.format((row['remainingAmount'] as num?)?.toDouble() ?? 0)}',
-                  'Status: ${row['status']} • Paid: ${_money.format((row['paidAmount'] as num?)?.toDouble() ?? 0)} • Remaining: ${_money.format((row['remainingAmount'] as num?)?.toDouble() ?? 0)}',
-                ),
-                trailing: (row) =>
-                    _componentActions(row, componentType: 'invoice'),
-              ),
-            ),
-            _fieldView(
-              'payments',
-              _records(
-                _payments,
-                (row) =>
-                    '${row['cashAccountName'] ?? _bi('صندوق', 'Cash account')} — ${_money.format((row['cashAmount'] as num?)?.toDouble() ?? 0)} ${row['paymentCurrency']}',
-                (row) {
-                  final settlementMode = row['settlementMode']?.toString();
-                  final mode = switch (settlementMode) {
-                    'settlement' => _bi(
-                      'دفعة تسوية محاسبية',
-                      'Accounting settlement payment',
-                    ),
-                    'full' || 'full_fx' => _bi('دفعة كلية', 'Full payment'),
-                    _ => _bi('دفعة جزئية', 'Partial payment'),
-                  };
-                  final difference =
-                      (row['exchangeDifference'] as num?)?.toDouble() ?? 0;
-                  final differenceText = difference.abs() <= 0.01
-                      ? _bi('بدون فرق صرف', 'No exchange difference')
-                      : difference > 0
-                      ? _bi(
-                          'فرق صرف دائن: ${_money.format(difference)}',
-                          'Credit exchange difference: ${_money.format(difference)}',
-                        )
-                      : _bi(
-                          'فرق صرف مدين: ${_money.format(difference.abs())}',
-                          'Debit exchange difference: ${_money.format(difference.abs())}',
-                        );
-                  return _bi(
-                    'مبلغ الفاتورة: ${_money.format((row['invoiceAmount'] as num?)?.toDouble() ?? 0)} • $mode • $differenceText • التاريخ: ${row['paymentDate']}',
-                    'Invoice amount: ${_money.format((row['invoiceAmount'] as num?)?.toDouble() ?? 0)} • $mode • $differenceText • Date: ${row['paymentDate']}',
-                  );
-                },
-                trailing: (_) => _paymentCashboxAction(),
-              ),
-            ),
+            _fieldView('invoice', _invoiceDocumentsTable(order)),
+            _fieldView('payments', _paymentsTable(order)),
             _fieldView(
               'accounting',
               _records(
@@ -1558,6 +1472,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     _ => status,
   };
 
+  // Retained for alternate expanded item presentation.
+  // ignore: unused_element
   Widget _itemDetails(Map<String, Object?> item) {
     final isCar = item['itemType'] == 'car';
     final details = isCar
@@ -1713,6 +1629,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     );
   }
 
+  // Retained for R57 reconciliation/source-contract compatibility.
+  // ignore: unused_element
   Widget _reconciliationPanel() {
     if (_reconciliation.isEmpty) return const SizedBox.shrink();
     return Card(
@@ -2040,6 +1958,581 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     );
   }
 
+  Object? _firstValue(Map<String, Object?> row, List<String> keys) {
+    for (final key in keys) {
+      final value = row[key];
+      if (value == null) continue;
+      if (value is String && value.trim().isEmpty) continue;
+      return value;
+    }
+    return null;
+  }
+
+  String _dateTimeText(Object? value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+    return parsed == null
+        ? _displayValue(value)
+        : DateFormat('yyyy/MM/dd HH:mm').format(parsed);
+  }
+
+  List<Map<String, Object?>> _documentLines(Map<String, Object?> row) {
+    final result = <Map<String, Object?>>[];
+    void read(Object? value) {
+      if (value is List) {
+        result.addAll(value.whereType<Map>().map(Map<String, Object?>.from));
+      }
+    }
+
+    read(row['allocations']);
+    read(row['items']);
+    read(row['lines']);
+    final payload = row['payload'];
+    if (payload is Map) {
+      read(payload['allocations']);
+      read(payload['items']);
+      read(payload['lines']);
+    }
+    final invoicePayload = row['invoicePayload'];
+    if (invoicePayload is Map) {
+      read(invoicePayload['allocations']);
+      read(invoicePayload['items']);
+      read(invoicePayload['lines']);
+    }
+    return result;
+  }
+
+  Map<String, Object?>? _itemFor(Object? itemId) {
+    final id = itemId?.toString();
+    if (id == null || id.isEmpty) return null;
+    for (final item in _items) {
+      if (item['id']?.toString() == id ||
+          item['itemId']?.toString() == id ||
+          item['productId']?.toString() == id ||
+          item['carId']?.toString() == id) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?>? _reconciliationFor(Object? itemId) {
+    final id = itemId?.toString();
+    if (id == null || id.isEmpty) return null;
+    for (final row in _reconciliation) {
+      if (row['itemId']?.toString() == id || row['id']?.toString() == id) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  String _itemLabel(Map<String, Object?>? item, Map<String, Object?>? line) {
+    return _firstValue(item ?? const <String, Object?>{}, const [
+          'itemCode',
+          'code',
+          'carNumber',
+          'name',
+        ])?.toString() ??
+        _firstValue(line ?? const <String, Object?>{}, const [
+          'itemCode',
+          'code',
+          'productName',
+          'carNumber',
+          'name',
+        ])?.toString() ??
+        _bi('بند', 'Item');
+  }
+
+  String _itemDescription(
+    Map<String, Object?>? item,
+    Map<String, Object?>? line,
+  ) {
+    return _firstValue(item ?? const <String, Object?>{}, const [
+          'description',
+          'detail_name',
+          'name',
+        ])?.toString() ??
+        _firstValue(line ?? const <String, Object?>{}, const [
+          'description',
+          'productName',
+          'name',
+        ])?.toString() ??
+        '-';
+  }
+
+  String _warehouseForLine(
+    Map<String, Object?>? item,
+    Map<String, Object?>? line,
+    Map<String, Object?>? document,
+  ) {
+    final direct = _firstValue(line ?? const <String, Object?>{}, const [
+      'warehouseName',
+      'warehouse_name',
+    ]);
+    if (direct != null) return direct.toString();
+    final warehouseId = _firstValue(line ?? const <String, Object?>{}, const [
+      'warehouseId',
+      'warehouse_id',
+    ])?.toString();
+    if (warehouseId != null) {
+      for (final movement in _movements) {
+        if (movement['warehouseId']?.toString() == warehouseId ||
+            movement['warehouse_id']?.toString() == warehouseId) {
+          final name = _firstValue(movement, const [
+            'warehouseName',
+            'warehouse_name',
+          ]);
+          if (name != null) return name.toString();
+        }
+      }
+    }
+    final documentWarehouse = _firstValue(
+      document ?? const <String, Object?>{},
+      const ['warehouseName', 'warehouse_name'],
+    );
+    if (documentWarehouse != null) return documentWarehouse.toString();
+    return _firstValue(item ?? const <String, Object?>{}, const [
+          'detail_warehouseName',
+          'warehouseName',
+          'warehouse_name',
+        ])?.toString() ??
+        '-';
+  }
+
+  Widget _operationalTable({
+    required List<DataColumn> columns,
+    required List<DataRow> rows,
+    String? emptyText,
+  }) {
+    if (rows.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: AppText(
+            emptyText ?? _bi('لا توجد بيانات مرتبطة', 'No linked data'),
+          ),
+        ),
+      );
+    }
+    return _OperationalTableViewport(columns: columns, rows: rows);
+  }
+
+  DataColumn _column(String ar, String en, {bool numeric = false}) =>
+      DataColumn(label: AppText(_bi(ar, en)), numeric: numeric);
+
+  DataCell _textCell(Object? value, {bool strong = false}) => DataCell(
+    AppText(
+      _displayValue(value),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: strong ? const TextStyle(fontWeight: FontWeight.w700) : null,
+    ),
+  );
+
+  DataCell _numberCell(Object? value) => DataCell(
+    Align(
+      alignment: AlignmentDirectional.centerEnd,
+      child: AppText(_money.format(_number(value))),
+    ),
+  );
+
+  Widget _itemLifecycleTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final item in _items) {
+      final itemId = _firstValue(item, const [
+        'id',
+        'itemId',
+        'productId',
+        'carId',
+      ]);
+      final reconciliation = _reconciliationFor(itemId);
+      final ordered =
+          _firstValue(reconciliation ?? const <String, Object?>{}, const [
+            'orderedQuantity',
+          ]) ??
+          item['quantity'];
+      final operational =
+          _firstValue(reconciliation ?? const <String, Object?>{}, const [
+            'operationalQuantity',
+          ]) ??
+          0;
+      final invoiced =
+          _firstValue(reconciliation ?? const <String, Object?>{}, const [
+            'invoicedQuantity',
+          ]) ??
+          0;
+      final remaining =
+          _firstValue(reconciliation ?? const <String, Object?>{}, const [
+            'remainingInvoice',
+            'remainingOperational',
+          ]) ??
+          (_number(ordered) - _number(invoiced));
+      rows.add(
+        DataRow(
+          cells: [
+            _textCell(_itemLabel(item, null), strong: true),
+            _textCell(_itemDescription(item, null)),
+            _numberCell(ordered),
+            _numberCell(operational),
+            _numberCell(invoiced),
+            _numberCell(remaining),
+            _numberCell(item[_unitField]),
+            _numberCell(item['lineTotal']),
+            _textCell(order['currency']),
+            _textCell(_warehouseForLine(item, null, null)),
+          ],
+        ),
+      );
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: AppText(
+              _bi(
+                'دورة البنود: المطلوب ← الحركة المخزنية ← المفوتر',
+                'Item lifecycle: Ordered → Warehouse movement → Invoiced',
+              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          _operationalTable(
+            columns: [
+              _column('المادة / المنتج', 'Item / Product'),
+              _column('الوصف', 'Description'),
+              _column('الكمية المطلوبة', 'Ordered qty', numeric: true),
+              _column(
+                widget.purchase ? 'المستلم مخزنياً' : 'المجهز مخزنياً',
+                widget.purchase ? 'Warehouse received' : 'Warehouse issued',
+                numeric: true,
+              ),
+              _column('الكمية المفوترة', 'Invoiced qty', numeric: true),
+              _column('المتبقي', 'Remaining qty', numeric: true),
+              _column('سعر الوحدة', 'Unit price', numeric: true),
+              _column('الإجمالي', 'Total', numeric: true),
+              _column('العملة', 'Currency'),
+              _column('المخزن', 'Warehouse'),
+            ],
+            rows: rows,
+            emptyText: _bi('لا توجد بنود في الأمر.', 'No order items.'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _warehouseDocumentsTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final document in _logistics) {
+      final lines = _documentLines(document);
+      final effectiveLines = lines.isEmpty
+          ? <Map<String, Object?>>[const <String, Object?>{}]
+          : lines;
+      for (final line in effectiveLines) {
+        final itemId = _firstValue(line, const [
+          'itemId',
+          'productId',
+          'carId',
+          'id',
+        ]);
+        final item = _itemFor(itemId);
+        final reconciliation = _reconciliationFor(itemId);
+        final ordered =
+            _firstValue(reconciliation ?? const <String, Object?>{}, const [
+              'orderedQuantity',
+            ]) ??
+            item?['quantity'];
+        final moved =
+            _firstValue(line, const ['quantity', 'receivedQuantity']) ??
+            _firstValue(reconciliation ?? const <String, Object?>{}, const [
+              'operationalQuantity',
+            ]) ??
+            0;
+        final remaining =
+            _firstValue(reconciliation ?? const <String, Object?>{}, const [
+              'remainingOperational',
+            ]) ??
+            (_number(ordered) - _number(moved));
+        rows.add(
+          DataRow(
+            cells: [
+              _textCell(
+                _firstValue(
+                  document,
+                  widget.purchase
+                      ? const ['receiptNumber', 'documentNumber']
+                      : const ['deliveryNumber', 'documentNumber'],
+                ),
+                strong: true,
+              ),
+              _textCell(
+                _dateTimeText(
+                  _firstValue(
+                    document,
+                    widget.purchase
+                        ? const ['receiptDate', 'effectiveAt', 'createdAt']
+                        : const ['deliveryDate', 'effectiveAt', 'createdAt'],
+                  ),
+                ),
+              ),
+              _textCell(order['partnerName']),
+              _textCell(_warehouseForLine(item, line, document)),
+              _textCell(_itemLabel(item, line)),
+              _numberCell(ordered),
+              _numberCell(moved),
+              _numberCell(remaining),
+              _textCell(
+                _firstValue(document, const [
+                  'createdByName',
+                  'createdBy',
+                  'performedBy',
+                ]),
+              ),
+              _textCell(
+                _firstValue(document, const ['approvedByName', 'approvedBy']),
+              ),
+              _textCell(
+                _dateTimeText(
+                  _firstValue(document, const ['approvedAt', 'approvalTime']),
+                ),
+              ),
+              _textCell(_statusLabel(document['status']?.toString())),
+              DataCell(
+                _componentActions(
+                  document,
+                  componentType: widget.purchase ? 'receipt' : 'delivery',
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _operationalTable(
+          columns: [
+            _column(
+              widget.purchase ? 'رقم الاستلام' : 'رقم التجهيز',
+              widget.purchase ? 'Receipt number' : 'Delivery number',
+            ),
+            _column('التاريخ والوقت', 'Date & time'),
+            _column(
+              widget.purchase ? 'المجهز' : 'العميل',
+              widget.purchase ? 'Supplier' : 'Customer',
+            ),
+            _column('المخزن المختار', 'Selected warehouse'),
+            _column('المادة', 'Item'),
+            _column('المطلوب', 'Ordered', numeric: true),
+            _column(
+              widget.purchase ? 'المستلم' : 'المجهز',
+              widget.purchase ? 'Received' : 'Issued',
+              numeric: true,
+            ),
+            _column('المتبقي', 'Remaining', numeric: true),
+            _column('أنشأ المسودة', 'Draft created by'),
+            _column('صدّق بواسطة', 'Approved by'),
+            _column('وقت التصديق', 'Approval time'),
+            _column('الحالة', 'Status'),
+            _column('العمليات', 'Actions'),
+          ],
+          rows: rows,
+        ),
+      ],
+    );
+  }
+
+  Widget _invoiceDocumentsTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final invoice in _invoices) {
+      final lines = _documentLines(invoice);
+      final effectiveLines = lines.isEmpty
+          ? <Map<String, Object?>>[const <String, Object?>{}]
+          : lines;
+      for (final line in effectiveLines) {
+        final itemId = _firstValue(line, const [
+          'itemId',
+          'productId',
+          'carId',
+          'id',
+        ]);
+        final item = _itemFor(itemId);
+        final quantity =
+            _firstValue(line, const ['quantity', 'invoiceQuantity']) ??
+            _reconciliationFor(itemId)?['invoicedQuantity'] ??
+            item?['quantity'] ??
+            0;
+        final unitPrice =
+            _firstValue(line, const [
+              'unitPrice',
+              'unit_price',
+              'price',
+              'unitCost',
+            ]) ??
+            item?[_unitField] ??
+            0;
+        final lineTotal =
+            _firstValue(line, const ['lineTotal', 'line_total', 'total']) ??
+            (_number(quantity) * _number(unitPrice));
+        rows.add(
+          DataRow(
+            cells: [
+              _textCell(invoice['invoiceNumber'], strong: true),
+              _textCell(order['orderNumber']),
+              _textCell(_itemLabel(item, line)),
+              _textCell(_itemDescription(item, line)),
+              _numberCell(quantity),
+              _numberCell(unitPrice),
+              _numberCell(
+                _firstValue(line, const ['tax', 'taxAmount', 'tax_amount']) ??
+                    0,
+              ),
+              _numberCell(
+                _firstValue(line, const [
+                      'discount',
+                      'discountAmount',
+                      'discount_amount',
+                    ]) ??
+                    0,
+              ),
+              _numberCell(lineTotal),
+              _textCell(invoice['currency'] ?? order['currency']),
+              _numberCell(invoice['total']),
+              _textCell(
+                _firstValue(invoice, const ['createdByName', 'createdBy']),
+              ),
+              _textCell(
+                _firstValue(invoice, const [
+                  'approvedByName',
+                  'approvedBy',
+                  'postedBy',
+                ]),
+              ),
+              _textCell(
+                _dateTimeText(
+                  _firstValue(invoice, const [
+                    'invoiceDate',
+                    'effectiveAt',
+                    'createdAt',
+                  ]),
+                ),
+              ),
+              _textCell(_statusLabel(invoice['status']?.toString())),
+              DataCell(_componentActions(invoice, componentType: 'invoice')),
+            ],
+          ),
+        );
+      }
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _operationalTable(
+          columns: [
+            _column('رقم الفاتورة', 'Invoice number'),
+            _column('مرجع المستند', 'Document reference'),
+            _column('المادة / الخدمة', 'Item / Service'),
+            _column('الوصف', 'Description'),
+            _column('الكمية', 'Quantity', numeric: true),
+            _column('سعر الوحدة', 'Unit price', numeric: true),
+            _column('الضريبة', 'Tax', numeric: true),
+            _column('الخصم', 'Discount', numeric: true),
+            _column('إجمالي السطر', 'Line total', numeric: true),
+            _column('العملة', 'Currency'),
+            _column('إجمالي الفاتورة', 'Invoice total', numeric: true),
+            _column('أنشأ بواسطة', 'Created by'),
+            _column('صدّق/رحّل بواسطة', 'Approved / posted by'),
+            _column('التاريخ والوقت', 'Date & time'),
+            _column('الحالة', 'Status'),
+            _column('العمليات', 'Actions'),
+          ],
+          rows: rows,
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentsTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final payment in _payments) {
+      final fxRate = _firstValue(payment, const ['exchangeRate', 'fxRate']);
+      final invoiceAmount = _firstValue(payment, const ['invoiceAmount']);
+      final difference = _firstValue(payment, const ['exchangeDifference']);
+      final fx = fxRate == null && invoiceAmount == null && difference == null
+          ? '-'
+          : '${_bi('سعر الصرف', 'FX')} ${_displayValue(fxRate)} • ${_bi('مبلغ الفاتورة', 'Invoice amount')} ${_displayValue(invoiceAmount)} • ${_bi('الفرق', 'Difference')} ${_displayValue(difference)}';
+      rows.add(
+        DataRow(
+          cells: [
+            _textCell(
+              _firstValue(payment, const [
+                'paymentReference',
+                'voucherNumber',
+                'documentNumber',
+                'id',
+              ]),
+              strong: true,
+            ),
+            _textCell(payment['cashAccountName']),
+            _textCell(
+              _firstValue(payment, const ['paymentCurrency', 'currency']),
+            ),
+            _numberCell(_firstValue(payment, const ['cashAmount', 'amount'])),
+            _textCell(fx),
+            _textCell(
+              _dateTimeText(
+                _firstValue(payment, const [
+                  'paymentDate',
+                  'effectiveAt',
+                  'createdAt',
+                ]),
+              ),
+            ),
+            _textCell(
+              _firstValue(payment, const [
+                'createdByName',
+                'performedBy',
+                'createdBy',
+                'userName',
+              ]),
+            ),
+            _textCell(
+              '${_displayValue(payment['invoiceNumber'])} / ${_displayValue(order['orderNumber'])}',
+            ),
+            _textCell(_statusLabel(payment['status']?.toString())),
+            DataCell(_paymentCashboxAction()),
+          ],
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _operationalTable(
+          columns: [
+            _column('مرجع الدفعة', 'Payment reference'),
+            _column('الصندوق', 'Cashbox'),
+            _column('العملة', 'Currency'),
+            _column('المبلغ', 'Amount', numeric: true),
+            _column('تفاصيل الصرف', 'FX details'),
+            _column('تاريخ ووقت الدفع', 'Payment date & time'),
+            _column('المستخدم', 'User'),
+            _column('الفاتورة / الأمر', 'Related invoice / order'),
+            _column('الحالة', 'Status'),
+            _column('عرض الصندوق', 'Cashbox'),
+          ],
+          rows: rows,
+        ),
+      ],
+    );
+  }
+
   Widget _records(
     List<Map<String, Object?>> rows,
     String Function(Map<String, Object?>) title,
@@ -2086,6 +2579,51 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       },
     );
   }
+}
+
+class _OperationalTableViewport extends StatefulWidget {
+  const _OperationalTableViewport({required this.columns, required this.rows});
+
+  final List<DataColumn> columns;
+  final List<DataRow> rows;
+
+  @override
+  State<_OperationalTableViewport> createState() =>
+      _OperationalTableViewportState();
+}
+
+class _OperationalTableViewportState extends State<_OperationalTableViewport> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: DataTable(
+            headingRowHeight: 46,
+            dataRowMinHeight: 48,
+            dataRowMaxHeight: 62,
+            columnSpacing: 24,
+            horizontalMargin: 16,
+            columns: widget.columns,
+            rows: widget.rows,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _InlineComponentButton extends StatelessWidget {

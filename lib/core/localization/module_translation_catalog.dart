@@ -110,6 +110,7 @@ class ModuleTranslationCatalog {
     'مخزنية التجهيز': 'Warehouse fulfillment',
     'مترابطة الفواترة': 'Linked invoicing',
     'ابحث برقم الأمر أو اسم الشريك': 'Search by order number or partner name',
+    'بحث برقم الأمر أو اسم الشريك': 'Search by order number or partner name',
     'مفوتر': 'Invoiced',
     'مسدد': 'Paid',
     'النتائج': 'Results',

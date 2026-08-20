@@ -28,7 +28,9 @@ import 'edit_car_page.dart';
 import 'car_warehouse_transfers_page.dart';
 
 class CarsPage extends StatefulWidget {
-  const CarsPage({super.key});
+  const CarsPage({super.key, this.initialCarId});
+
+  final String? initialCarId;
 
   @override
   State<CarsPage> createState() => _CarsPageState();
@@ -44,6 +46,7 @@ class _CarsPageState extends State<CarsPage> {
   Map<String, String> _warehouseIdByReference = const <String, String>{};
   Map<String, String> _warehouseLabelById = const <String, String>{};
   bool _loadingWarehouses = true;
+  bool _initialCarOpened = false;
 
   @override
   void initState() {
@@ -62,6 +65,20 @@ class _CarsPageState extends State<CarsPage> {
     await context.read<CarImagesController>().loadThumbnails(
       cars.cars.map((car) => car.id),
     );
+    if (!mounted || _initialCarOpened) return;
+    final id = widget.initialCarId?.trim();
+    if (id == null || id.isEmpty) return;
+    CarModel? target;
+    for (final car in cars.cars) {
+      if (car.id == id) {
+        target = car;
+        break;
+      }
+    }
+    if (target != null) {
+      _initialCarOpened = true;
+      await _showCarHistory(target);
+    }
   }
 
   Future<void> _loadWarehouses() async {
@@ -400,6 +417,7 @@ class _CarsPageState extends State<CarsPage> {
                             car: car,
                             onEdit: () => _editCar(car),
                             onHistory: () => _showCarHistory(car),
+                            onSchedule: () => _showCarHistory(car),
                             onDelete: () => _deleteCar(car),
                             warehouseName: (() {
                               final warehouseId = canonicalWarehouseId(car);
@@ -444,7 +462,7 @@ class _CarsPageState extends State<CarsPage> {
   Future<void> _openAddCar() async {
     await showAppModuleDialog(
       context: context,
-      title: 'إضافة سيارة',
+      title: context.l10n.isArabic ? 'إضافة سيارة' : 'Add vehicle',
       windowKey: 'cars:add',
       builder: (_) => const AddCarPage(),
     );
@@ -455,7 +473,7 @@ class _CarsPageState extends State<CarsPage> {
     if (!mounted) return;
     await showAppModuleDialog(
       context: context,
-      title: 'تعديل سيارة',
+      title: context.l10n.isArabic ? 'تعديل سيارة' : 'Edit vehicle',
       windowKey: 'cars:edit:${car.id}',
       builder: (_) => EditCarPage(car: car),
     );

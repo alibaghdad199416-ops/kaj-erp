@@ -184,22 +184,24 @@ class _InventoryPageState extends State<InventoryPage> {
           ? _emptyState()
           : LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1180
-                    ? 3
-                    : constraints.maxWidth >= 760
-                    ? 2
-                    : 1;
+                const gap = 8.0;
+                const minimumCardWidth = 330.0;
+                final columns =
+                    ((constraints.maxWidth + gap) / (minimumCardWidth + gap))
+                        .floor()
+                        .clamp(1, 4)
+                        .toInt();
                 return GridView.builder(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(6),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    mainAxisExtent: columns == 3
-                        ? 158
+                    crossAxisSpacing: gap,
+                    mainAxisSpacing: gap,
+                    mainAxisExtent: columns >= 3
+                        ? 142
                         : columns == 2
-                        ? 166
-                        : 178,
+                        ? 146
+                        : 150,
                   ),
                   itemCount: items.length,
                   itemBuilder: (context, index) {

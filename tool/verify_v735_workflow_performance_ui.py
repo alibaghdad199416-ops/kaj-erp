@@ -76,15 +76,14 @@ require(
 require(
     action,
     (
-        "const systemAccent = KajDesignTokens.electricBlue",
-        "Meaning is carried by the icon and tooltip",
+        "final semanticAccent = destructive",
+        "color ?? KajDesignTokens.electricBlue",
         "width: 38",
         "height: 38",
+        "KajDesignTokens.radiusSm",
     ),
-    "single-color module command icon",
+    "semantic module command icon with unified geometry",
 )
-if contains_code(action, "final moduleAccent = color"):
-    errors.append("legacy per-action command colors are still active")
 require(card, ("AppModuleActionIcon(", "tooltip:", "icon:"), "commercial cards")
 require(
     maintenance_page + maintenance_details + order_details,
@@ -287,5 +286,5 @@ print("  - legacy item/account gaps are repaired during stock approvals")
 print("  - sales, purchase and maintenance approval chains share robust fallbacks")
 print("  - refresh requests are coalesced and aggregate screens remain lazy")
 print("  - login routes after the first successful authentication click")
-print("  - command actions use one icon-only system accent")
+print("  - command actions share icon geometry while preserving semantic colors")
 print("  - module work uses one bounded header and one connected business canvas")

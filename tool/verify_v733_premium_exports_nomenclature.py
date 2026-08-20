@@ -48,11 +48,14 @@ release = read("release") + read("pubspec")
 require(
     action,
     (
-        "const systemAccent = KajDesignTokens.electricBlue",
-        "Meaning is carried by the icon and tooltip",
+        "final semanticAccent = destructive",
+        "color ?? KajDesignTokens.electricBlue",
+        "width: 38",
+        "height: 38",
+        "KajDesignTokens.radiusSm",
         "Tooltip",
     ),
-    "single-color document command buttons",
+    "semantic document command buttons with unified geometry",
 )
 require(
     catalog,
@@ -132,7 +135,7 @@ if errors:
     raise SystemExit(1)
 
 print("PASS V7.3.3 premium exports and nomenclature")
-print("  - order command buttons share one system accent and icon language")
+print("  - order command buttons keep unified geometry with semantic action colors")
 print("  - sales, purchase, maintenance, and field terminology are centralized")
 print("  - Excel files carry typed values, metadata, and a relation index")
 print("  - generic and contextual PDFs use the premium Quality Line identity")

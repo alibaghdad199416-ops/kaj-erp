@@ -210,7 +210,12 @@
     "verify:r58": "python -B tool/verify_r58_maintenance_item_accounting.py",
     "verify:fresh-db": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/verify_fresh_database.ps1",
     "validate:r49:workspace": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r49_workspace.ps1",
-    "deploy:r49:production": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/deploy_r49_production.ps1"
+    "deploy:r49:production": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/deploy_r49_production.ps1",
+    "verify:r88": "python -B tool/verify_r88_phase11.py",
+    "verify:r89": "python -B tool/verify_r89_phase11_completion.py",
+    "verify:r90": "python -B tool/verify_r90_phase11_final_acceptance.py",
+    "verify:r91": "python -B tool/verify_r91_phase11_material_issue_acceptance.py",
+    "verify:r92": "python -B tool/verify_r92_comprehensive_module_audit.py"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

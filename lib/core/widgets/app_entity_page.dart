@@ -35,6 +35,7 @@ class AppEntityPage extends StatelessWidget {
     this.hideHeader = false,
     this.toolbarFramed = false,
     this.mergeHiddenHeaderActionsAndStatistics = true,
+    this.fillAvailableHeight = false,
   });
 
   final String title;
@@ -55,10 +56,18 @@ class AppEntityPage extends StatelessWidget {
   final bool toolbarFramed;
   final bool mergeHiddenHeaderActionsAndStatistics;
 
+  /// Forces the page's inner canvas to consume the full bounded height supplied
+  /// by the module shell. This is opt-in because some legacy pages intentionally
+  /// size to their content. Full-workspace modules such as Accounting use it so
+  /// an Expanded data viewport can genuinely reach the bottom of the screen.
+  final bool fillAvailableHeight;
+
   @override
   Widget build(BuildContext context) {
     final insideModuleWindow = AppWorkspaceWindowScope.maybeOf(context) != null;
-    final shellHasWorkspaceTopBar = AppWorkspaceChromeScope.hasTopBarOf(context);
+    final shellHasWorkspaceTopBar = AppWorkspaceChromeScope.hasTopBarOf(
+      context,
+    );
     final effectiveHideHeader =
         hideHeader || (shellHasWorkspaceTopBar && !insideModuleWindow);
     final effectiveShowBackButton = showBackButton && !insideModuleWindow;
@@ -74,116 +83,132 @@ class AppEntityPage extends StatelessWidget {
       top: false,
       child: FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 720;
-                final horizontal = compact
-                    ? AppSizes.compactScreenPadding
-                    : 16.0;
-                final padding =
-                    bodyPadding ??
-                    EdgeInsetsDirectional.fromSTEB(
-                      horizontal,
-                      effectiveHideHeader ? 4 : 14,
-                      horizontal,
-                      compact ? 12 : 16,
-                    );
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final forceFullHeight =
+                fillAvailableHeight && viewportConstraints.hasBoundedHeight;
+            final page = ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: maxWidth,
+                minHeight: forceFullHeight ? viewportConstraints.maxHeight : 0,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 720;
+                  final horizontal = compact
+                      ? AppSizes.compactScreenPadding
+                      : 16.0;
+                  final padding =
+                      bodyPadding ??
+                      EdgeInsetsDirectional.fromSTEB(
+                        horizontal,
+                        effectiveHideHeader ? 4 : 14,
+                        horizontal,
+                        compact ? 12 : 16,
+                      );
 
-                final chrome = <Widget>[
-                  if (!effectiveHideHeader)
-                    KajSectionHeader(
-                      title: title,
-                      subtitle: subtitle,
-                      compact: compact,
-                      icon: leading == null && !effectiveShowBackButton
-                          ? Icons.grid_view_rounded
-                          : null,
-                      actions: <Widget>[
-                        if (leading != null || effectiveShowBackButton)
-                          leading ?? const AppBackButton(),
-                      ],
-                    ),
-                  if (railChildren.isNotEmpty) ...<Widget>[
-                    SizedBox(
-                      height: effectiveHideHeader
-                          ? KajDesignTokens.space4
-                          : KajDesignTokens.space10,
-                    ),
-                    AppHorizontalStrip(
-                      key: const ValueKey('module-command-rail'),
-                      spacing: KajDesignTokens.space8,
-                      children: railChildren,
-                    ),
-                  ],
-                  if (effectiveToolbar != null) ...<Widget>[
-                    SizedBox(
-                      height: effectiveHideHeader
-                          ? KajDesignTokens.space8
-                          : KajDesignTokens.space10,
-                    ),
-                    KeyedSubtree(
-                      key: const ValueKey('module-bounded-toolbar'),
-                      child: effectiveToolbar,
-                    ),
-                  ],
-                ];
+                  final chrome = <Widget>[
+                    if (!effectiveHideHeader)
+                      KajSectionHeader(
+                        title: title,
+                        subtitle: subtitle,
+                        compact: compact,
+                        icon: leading == null && !effectiveShowBackButton
+                            ? Icons.grid_view_rounded
+                            : null,
+                        actions: <Widget>[
+                          if (leading != null || effectiveShowBackButton)
+                            leading ?? const AppBackButton(),
+                        ],
+                      ),
+                    if (railChildren.isNotEmpty) ...<Widget>[
+                      SizedBox(
+                        height: effectiveHideHeader
+                            ? KajDesignTokens.space4
+                            : KajDesignTokens.space10,
+                      ),
+                      AppHorizontalStrip(
+                        key: const ValueKey('module-command-rail'),
+                        spacing: KajDesignTokens.space8,
+                        children: railChildren,
+                      ),
+                    ],
+                    if (effectiveToolbar != null) ...<Widget>[
+                      SizedBox(
+                        height: effectiveHideHeader
+                            ? KajDesignTokens.space8
+                            : KajDesignTokens.space10,
+                      ),
+                      KeyedSubtree(
+                        key: const ValueKey('module-bounded-toolbar'),
+                        child: effectiveToolbar,
+                      ),
+                    ],
+                  ];
 
-                final bodySpacing = SizedBox(
-                  height: chrome.isEmpty
-                      ? 0
-                      : effectiveHideHeader
-                      ? KajDesignTokens.space8
-                      : KajDesignTokens.space10,
-                );
+                  final bodySpacing = SizedBox(
+                    height: chrome.isEmpty
+                        ? 0
+                        : effectiveHideHeader
+                        ? KajDesignTokens.space8
+                        : KajDesignTokens.space10,
+                  );
 
-                final bodyPanel = ClipRect(
-                  key: const ValueKey('module-continuous-workspace'),
-                  child: body,
-                );
+                  final bodyPanel = ClipRect(
+                    key: const ValueKey('module-continuous-workspace'),
+                    child: body,
+                  );
 
-                final shortHeight = constraints.maxHeight < 680;
+                  final shortHeight = constraints.maxHeight < 680;
 
-                return Padding(
-                  padding: padding,
-                  child: shortHeight
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            if (chrome.isNotEmpty)
-                              Flexible(
-                                flex: 2,
-                                fit: FlexFit.loose,
-                                child: SingleChildScrollView(
-                                  key: const ValueKey(
-                                    'app-entity-page-short-height-scroll',
+                  return Padding(
+                    padding: padding,
+                    child: shortHeight
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              if (chrome.isNotEmpty)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxHeight: constraints.maxHeight * 0.38,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: chrome,
+                                  child: SingleChildScrollView(
+                                    key: const ValueKey(
+                                      'app-entity-page-short-height-scroll',
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: chrome,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            if (chrome.isNotEmpty) bodySpacing,
-                            Expanded(flex: 3, child: bodyPanel),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            ...chrome,
-                            if (chrome.isNotEmpty) bodySpacing,
-                            Expanded(child: bodyPanel),
-                          ],
-                        ),
-                );
-              },
-            ),
-          ),
+                              if (chrome.isNotEmpty) bodySpacing,
+                              Expanded(child: bodyPanel),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              ...chrome,
+                              if (chrome.isNotEmpty) bodySpacing,
+                              Expanded(child: bodyPanel),
+                            ],
+                          ),
+                  );
+                },
+              ),
+            );
+
+            // Center preserves the historical behaviour for existing pages.
+            // Full-workspace pages are pinned to the top and forced to the
+            // exact shell height so their Expanded body receives tight height
+            // constraints instead of collapsing to content height.
+            return forceFullHeight
+                ? Align(alignment: Alignment.topCenter, child: page)
+                : Center(child: page);
+          },
         ),
       ),
     );

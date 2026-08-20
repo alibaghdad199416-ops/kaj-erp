@@ -26,6 +26,8 @@ import 'package:quality_line_erp/features/sales/workflow/models/commercial_order
 import 'package:quality_line_erp/features/sales/workflow/pages/order_details_dialog.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/models/user_model.dart';
+import 'package:quality_line_erp/features/settings/controllers/settings_controller.dart';
+import 'package:quality_line_erp/features/settings/models/branch_model.dart';
 
 final _createdAt = DateTime.utc(2026, 8, 10);
 
@@ -128,7 +130,33 @@ class _MatrixInventoryController extends InventoryController {
   ];
 }
 
-class _EmptyCustomersController extends CustomersController {}
+class _EmptyCustomersController extends CustomersController {
+  @override
+  bool get hasLoaded => true;
+
+  @override
+  Future<void> loadCustomers({bool force = false}) async {}
+}
+
+class _MatrixSettingsController extends SettingsController {
+  _MatrixSettingsController() {
+    branches = <BranchModel>[
+      BranchModel(
+        id: 'branch-1',
+        name: 'Main branch',
+        code: 'BR-001',
+        phone: '',
+        address: 'Baghdad',
+        isMain: true,
+        isActive: true,
+        createdAt: _createdAt,
+      ),
+    ];
+  }
+
+  @override
+  Future<void> ensureBranchesLoaded({bool force = false}) async {}
+}
 
 class _EmptyOpportunitiesController extends OpportunitiesController {}
 
@@ -327,6 +355,9 @@ Widget _testApp({required Locale locale, required Widget child}) =>
         ),
         ChangeNotifierProvider<CustomersController>(
           create: (_) => _EmptyCustomersController(),
+        ),
+        ChangeNotifierProvider<SettingsController>(
+          create: (_) => _MatrixSettingsController(),
         ),
         ChangeNotifierProvider<OpportunitiesController>(
           create: (_) => _EmptyOpportunitiesController(),

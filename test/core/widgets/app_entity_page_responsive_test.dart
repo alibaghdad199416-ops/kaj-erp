@@ -208,6 +208,14 @@ void main() {
             .height,
         greaterThan(0),
       );
+      expect(
+        tester
+            .getBottomRight(find.byKey(const ValueKey('bounded-filter-body')))
+            .dy,
+        greaterThan(560),
+        reason:
+            'Short-height chrome must not reserve an unused flex slice below the body.',
+      );
     },
   );
 }

@@ -116,6 +116,7 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
   Widget build(BuildContext context) {
     final isArabic = context.l10n.isArabic;
     return AppEntityPage(
+      key: const ValueKey('settings-hub-full-workspace'),
       hideHeader: true,
       title: 'الإعدادات والإدارة',
       subtitle: isArabic
@@ -123,8 +124,12 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
           : 'Manage the system, users, monitoring, and reports.',
       leading: const Icon(Icons.settings_suggest_outlined, size: 20),
       showBackButton: false,
+      maxWidth: double.infinity,
+      fillAvailableHeight: true,
+      bodyPadding: const EdgeInsetsDirectional.fromSTEB(12, 4, 12, 10),
       toolbar: SizedBox(
-        height: 34,
+        key: const ValueKey('settings-primary-horizontal-sections'),
+        height: 38,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _sections.length,
@@ -147,11 +152,14 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
           },
         ),
       ),
-      body: IndexedStack(
-        index: _selected,
-        children: List<Widget>.generate(
-          _sections.length,
-          (index) => _sectionCache[index] ?? const SizedBox.shrink(),
+      body: SizedBox.expand(
+        key: const ValueKey('settings-active-section-full-viewport'),
+        child: IndexedStack(
+          index: _selected,
+          children: List<Widget>.generate(
+            _sections.length,
+            (index) => _sectionCache[index] ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );

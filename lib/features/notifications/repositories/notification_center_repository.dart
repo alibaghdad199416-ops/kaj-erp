@@ -71,6 +71,17 @@ class NotificationCenterRepository {
     int limit = 100,
     int offset = 0,
   }) async {
+    // Idempotently materialize due vehicle-maintenance reminders before the
+    // authoritative inbox is read. The RPC remains safe to call repeatedly.
+    try {
+      await _client.rpc(
+        'erp_r88_materialize_maintenance_schedule_reminders',
+        params: {'p_company_id': _companyId},
+      );
+    } catch (_) {
+      // Older/local schemas can still show the persistent inbox; Phase 11
+      // migration availability is verified independently during runtime tests.
+    }
     final rows = await _client.rpc(
       'erp_r49_list_cloud_notifications',
       params: {

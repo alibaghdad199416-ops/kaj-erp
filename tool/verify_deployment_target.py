@@ -129,8 +129,6 @@ else:
     for marker in (
         EXPECTED_LOCAL_URL,
         EXPECTED_LOCAL_PROJECT_ID,
-        "supabase start",
-        "supabase status -o env",
         "/auth/v1/admin/users",
         "company_memberships",
         "Assert-LocalOnlyUrl",
@@ -138,6 +136,16 @@ else:
     ):
         if marker not in bootstrap_source:
             errors.append(f"local bootstrap is missing safety behavior: {marker}")
+    if (
+        "supabase start" not in bootstrap_source
+        and 'Invoke-LocalSupabase -Arguments @("start")' not in bootstrap_source
+    ):
+        errors.append("local bootstrap is missing safety behavior: local Supabase start")
+    if (
+        "supabase status -o env" not in bootstrap_source
+        and 'Invoke-LocalSupabase -Arguments @("status", "-o", "env")' not in bootstrap_source
+    ):
+        errors.append("local bootstrap is missing safety behavior: local Supabase status env")
     if re.search(r"https://[^\s\"']+\.supabase\.co", bootstrap_source, re.I):
         errors.append("local bootstrap must never contain a Hosted Supabase URL")
 

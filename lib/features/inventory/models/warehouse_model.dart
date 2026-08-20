@@ -45,8 +45,11 @@ class WarehouseModel {
     isActive: _asBool(map['isActive'] ?? map['is_active']),
     warehouseType:
         (map['warehouseType'] ?? map['warehouse_type'])?.toString() ?? 'normal',
-    inventoryAccountId: map['inventoryAccountId']?.toString(),
-    scrapExpenseAccountId: map['scrapExpenseAccountId']?.toString(),
+    inventoryAccountId:
+        (map['inventoryAccountId'] ?? map['inventory_account_id'])?.toString(),
+    scrapExpenseAccountId:
+        (map['scrapExpenseAccountId'] ?? map['scrap_expense_account_id'])
+            ?.toString(),
     scrapExpenseIqdAccountId:
         (map['scrapExpenseIqdAccountId'] ?? map['scrap_expense_iqd_account_id'])
             ?.toString(),

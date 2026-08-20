@@ -16,7 +16,7 @@ maint=read('lib/features/maintenance/data/maintenance_repository.dart')
 cloud=read('lib/core/cloud/cloud_feature_command.dart')
 pdfweb=read('lib/core/exporting/pdf_print_service_web.dart')
 binaryweb=read('lib/core/exporting/binary_download_service_web.dart')
-checks['product cards compact']=re.search(r'\?\s*(?:216|184|172|158)\s*:', inv) is not None
+checks['product cards compact']=re.search(r'\?\s*(?:216|184|172|158|142)\s*:', inv) is not None
 checks['car cards compact']='mainAxisExtent:' not in car and 'ListView.separated(' in car and 'final rowCount = (filteredCars.length + columns - 1) ~/ columns;' in car
 checks['warehouse cards compact']=any(token in wh for token in ('mainAxisExtent: 176','mainAxisExtent: 150','mainAxisExtent: 142','mainAxisExtent: 138','mainAxisExtent: 124'))
 checks['customer cards compact']=any(token in cust for token in ('mainAxisExtent: 176','mainAxisExtent: 164','mainAxisExtent: 150','mainAxisExtent: 142','mainAxisExtent: 126'))

@@ -18,10 +18,11 @@ ORIGIN_MARKER = "set local session_replication_role=origin;"
 
 # The R86 SQL deliberately inserts legacy-shaped cash rows while triggers are
 # disabled so deletion can be exercised against historical payment envelopes.
-# Once origin triggers are restored, R68 stamps those rows and the current cash
-# currency guard correctly requires a live cashAccountId. Keep that runtime
-# invariant enabled: make the local regression fixture valid instead of
-# suppressing the trigger/validator.
+# CHECK constraints remain active even while session_replication_role=replica.
+# R49 therefore requires every live fixture cashbox to carry currency, active
+# state, and a canonical ledger alias before origin triggers are restored.
+# Keep the runtime invariant enabled: make the local regression fixture valid
+# instead of suppressing any table guard or validator.
 CASH_ACCOUNT_FIXTURE = """
 -- R86 runner-local cash integrity fixture. Everything remains inside the SQL
 -- test transaction and is rolled back by the test's final ROLLBACK.
@@ -30,13 +31,21 @@ insert into public.erp_cash_accounts(company_id,id,data) values
   '86000000-0000-4000-8000-000000000010','r86-cashbox-usd',
   jsonb_build_object(
     'id','r86-cashbox-usd','name','R86 Local USD Cashbox',
-    'currency','USD','isActive',true
+    'currency','USD','isActive',true,
+    'accountId','r86-cash-usd-ledger',
+    'account_id','r86-cash-usd-ledger',
+    'canonical','r86-cash-usd-ledger',
+    'ledgerAccountId','r86-cash-usd-ledger'
   )
 ),(
   '86000000-0000-4000-8000-000000000010','r86-cashbox-iqd',
   jsonb_build_object(
     'id','r86-cashbox-iqd','name','R86 Local IQD Cashbox',
-    'currency','IQD','isActive',true
+    'currency','IQD','isActive',true,
+    'accountId','r86-cash-iqd-ledger',
+    'account_id','r86-cash-iqd-ledger',
+    'canonical','r86-cash-iqd-ledger',
+    'ledgerAccountId','r86-cash-iqd-ledger'
   )
 );
 

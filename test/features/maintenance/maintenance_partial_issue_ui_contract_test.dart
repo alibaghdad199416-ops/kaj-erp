@@ -13,33 +13,33 @@ void main() {
 
     for (final contract in <String>[
       "'remainingQuantity'",
-      "'Partially issued'",
-      "'Issue maintenance material'",
-      "'Execute issue'",
+      "'Add material to issue draft'",
+      "'Approve stock issue'",
+      "'Maintenance material issue document'",
       "'Material issue events'",
-      "'Reverse material issue'",
+      "'Reverse issue'",
       '_repository.getIssueWarehouseOptions(partId)',
-      '_repository.issueMaterial(',
-      'await _loadDetails()',
+      '_repository.saveMaterialIssueDraftLine(',
+      'await _reloadDetails()',
       '_repository.reverseMaterialIssue(',
     ]) {
       expect(dialog, contains(contract), reason: contract);
     }
 
     for (final contract in <String>[
-      "'erp_r57_execute_maintenance_material_issue'",
-      "'p_issue_id': issueId ?? const Uuid().v4()",
+      "'erp_r90_save_maintenance_issue_draft_line'",
+      "'p_order_id': orderId",
       "'p_part_id': partId",
       "'p_warehouse_id': warehouseId",
       "'p_quantity': quantity",
       "'erp_r57_reverse_maintenance_material_issue'",
-      "'erp_r57_maintenance_material_issue_state'",
+      "'erp_r90_maintenance_material_issue_state'",
     ]) {
       expect(repository, contains(contract), reason: contract);
     }
 
-    expect(dialog, contains("'صرف جزئي'"));
-    expect(dialog, contains("'صرف مواد الصيانة'"));
+    expect(dialog, contains("'إضافة مادة لمسودة الصرف'"));
+    expect(dialog, contains("'مستند صرف مواد الصيانة'"));
     expect(dialog, contains("'عكس عملية الصرف'"));
     expect(dialog, isNot(contains('_stageIndex >= 3 ? line.quantity : 0')));
   });

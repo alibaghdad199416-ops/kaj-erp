@@ -4,3 +4,10 @@ lib/core/performance/cursor_page.dart
 lib/core/performance/ttl_memory_cache.dart
 lib/core/testing/quality_gate.dart
 lib/design_system/kaj_phase6_components.dart
+# Legacy compact Sales widgets retained only as regression fixtures after the
+# Phase 5 workspace moved their behavior inline. They are not runtime imports.
+lib/features/sales/widgets/sales_search.dart
+lib/features/sales/widgets/sales_statistics.dart
+# Legacy compact cash-transaction card retained as a Phase 7 regression
+# fixture after the cashbox workspace moved the transaction table inline.
+lib/features/accounting/cashbox/widgets/cash_transaction_card.dart

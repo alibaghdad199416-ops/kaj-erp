@@ -240,24 +240,34 @@ class _SuppliersPageState extends State<SuppliersPage> {
     }
     return RefreshIndicator(
       onRefresh: controller.loadSuppliers,
-      child: GridView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(10),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 320,
-          mainAxisExtent: 172,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-        ),
-        itemCount: visible.length,
-        itemBuilder: (context, index) {
-          final supplier = visible[index];
-          return SupplierCard(
-            supplier: supplier,
-            onView: () => _showSupplierDetails(supplier),
-            onEdit: () => _openEdit(supplier),
-            onDelete: () => _delete(supplier),
-            onToggleStatus: () => _toggle(supplier),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const minimumCardWidth = 300.0;
+          const gap = 8.0;
+          final availableWidth = constraints.maxWidth - 12;
+          final columns = ((availableWidth + gap) / (minimumCardWidth + gap))
+              .floor()
+              .clamp(1, 4);
+          return GridView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(6),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisExtent: 142,
+              mainAxisSpacing: gap,
+              crossAxisSpacing: gap,
+            ),
+            itemCount: visible.length,
+            itemBuilder: (context, index) {
+              final supplier = visible[index];
+              return SupplierCard(
+                supplier: supplier,
+                onView: () => _showSupplierDetails(supplier),
+                onEdit: () => _openEdit(supplier),
+                onDelete: () => _delete(supplier),
+                onToggleStatus: () => _toggle(supplier),
+              );
+            },
           );
         },
       ),

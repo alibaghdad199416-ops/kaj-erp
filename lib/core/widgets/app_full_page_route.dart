@@ -156,10 +156,7 @@ class _AppWorkspaceDialogState<T> extends State<_AppWorkspaceDialog<T>> {
     final requestedMinWidth = math.min(widget.minWidth, availableWidth);
     final requestedMinHeight = math.min(widget.minHeight, availableHeight);
     final width = desktop
-        ? math.min(
-            math.max(widget.maxWidth, requestedMinWidth),
-            availableWidth,
-          )
+        ? math.min(math.max(widget.maxWidth, requestedMinWidth), availableWidth)
         : availableWidth;
     final height = desktop
         ? math.min(
@@ -181,7 +178,9 @@ class _AppWorkspaceDialogState<T> extends State<_AppWorkspaceDialog<T>> {
             key: const ValueKey('module-workspace-window'),
             color: Theme.of(context).colorScheme.surface,
             elevation: desktop ? 16 : 4,
-            shadowColor: Theme.of(context).colorScheme.shadow.withValues(alpha: .24),
+            shadowColor: Theme.of(
+              context,
+            ).colorScheme.shadow.withValues(alpha: .24),
             clipBehavior: Clip.antiAlias,
             borderRadius: BorderRadius.circular(
               desktop ? KajDesignTokens.radiusMd : KajDesignTokens.radiusSm,
@@ -215,9 +214,9 @@ class _AppWorkspaceDialogState<T> extends State<_AppWorkspaceDialog<T>> {
                           Divider(
                             height: 1,
                             thickness: 1,
-                            color: Theme.of(context)
-                                .dividerColor
-                                .withValues(alpha: .55),
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: .55),
                           ),
                           Expanded(child: presentation.content),
                         ],
@@ -264,9 +263,9 @@ class _WorkspaceHeader extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             if (actions.isNotEmpty) ...[

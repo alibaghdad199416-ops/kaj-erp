@@ -33,7 +33,9 @@ class KajRelationshipHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final insideOperationalWorkspace =
         AppWorkspaceWindowScope.maybeOf(context) != null;
-    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
+    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(
+      context,
+    );
     if (insideOperationalWorkspace || shellOwnsModuleIdentity) {
       final functionalChrome = <Widget>[
         ?trailing,

@@ -23,7 +23,7 @@ class CommercialOrderDetailsRepository {
     }
 
     final result = await _client.rpc(
-      'erp_r62_get_commercial_order_snapshot',
+      'erp_r89_get_commercial_order_snapshot',
       params: <String, Object?>{
         'p_company_id': _companyId,
         'p_order_id': normalizedOrderId,

@@ -49,6 +49,12 @@ class AppRoutes {
       .map((module) => module.route)
       .toSet();
 
+  static Map<String, Object?> _routeArguments(BuildContext context) {
+    final value = ModalRoute.of(context)?.settings.arguments;
+    if (value is! Map) return const <String, Object?>{};
+    return Map<String, Object?>.from(value);
+  }
+
   static Widget _protected({
     required String route,
     required String permission,
@@ -84,16 +90,25 @@ class AppRoutes {
       permission: 'inventory.view',
       child: const StockCatalogPage(initialIndex: 0),
     ),
-    inventory: (_) => _protected(
-      route: inventory,
-      permission: 'inventory.view',
-      child: const StockCatalogPage(initialIndex: 0),
-    ),
-    maintenance: (_) => _protected(
-      route: maintenance,
-      permission: 'maintenance.view',
-      child: const MaintenancePage(),
-    ),
+    inventory: (context) {
+      final args = _routeArguments(context);
+      return _protected(
+        route: inventory,
+        permission: 'inventory.view',
+        child: StockCatalogPage(
+          initialIndex: 0,
+          initialCarId: (args['carId'] ?? args['referenceId'])?.toString(),
+        ),
+      );
+    },
+    maintenance: (context) {
+      final args = _routeArguments(context);
+      return _protected(
+        route: maintenance,
+        permission: 'maintenance.view',
+        child: MaintenancePage(initialOrderId: args['referenceId']?.toString()),
+      );
+    },
     businessPartners: (_) => _protected(
       route: businessPartners,
       permission: 'customers.view',
@@ -104,21 +119,38 @@ class AppRoutes {
       permission: 'customer_service.view',
       child: const CustomerServicePage(),
     ),
-    sales: (_) => _protected(
-      route: sales,
-      permission: 'sales.view',
-      child: const SalesOperationsPage(),
-    ),
-    purchases: (_) => _protected(
-      route: purchases,
-      permission: 'purchases.view',
-      child: const PurchaseOperationsPage(),
-    ),
-    accounting: (_) => _protected(
-      route: accounting,
-      permission: 'accounting.view',
-      child: const AccountingCenterPage(),
-    ),
+    sales: (context) {
+      final args = _routeArguments(context);
+      return _protected(
+        route: sales,
+        permission: 'sales.view',
+        child: SalesOperationsPage(
+          initialOrderId: args['referenceId']?.toString(),
+        ),
+      );
+    },
+    purchases: (context) {
+      final args = _routeArguments(context);
+      return _protected(
+        route: purchases,
+        permission: 'purchases.view',
+        child: PurchaseOperationsPage(
+          initialOrderId: args['referenceId']?.toString(),
+        ),
+      );
+    },
+    accounting: (context) {
+      final args = _routeArguments(context);
+      final cashboxId = args['cashboxId']?.toString();
+      return _protected(
+        route: accounting,
+        permission: 'accounting.view',
+        child: AccountingCenterPage(
+          initialSection: cashboxId == null || cashboxId.isEmpty ? 0 : 2,
+          initialCashboxId: cashboxId,
+        ),
+      );
+    },
     settings: (_) => _protected(
       route: settings,
       permission: 'settings.view',

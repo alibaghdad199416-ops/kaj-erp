@@ -63,7 +63,7 @@ void main() {
     expect(purchaseRepository, contains("'erp_r62_cancel_commercial_order'"));
     expect(
       detailsRepository,
-      contains("'erp_r62_get_commercial_order_snapshot'"),
+      contains("'erp_r89_get_commercial_order_snapshot'"),
     );
     expect(detailsRepository, isNot(contains('Future.wait')));
   });

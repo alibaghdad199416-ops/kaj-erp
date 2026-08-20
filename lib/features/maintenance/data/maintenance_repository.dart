@@ -1,6 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_cost_reconciliation.dart';
@@ -9,6 +7,9 @@ import '../../../core/cloud/workflow_operation_exception.dart';
 
 /// Supabase-only vehicle maintenance repository.
 class MaintenanceRepository {
+  static const String maintenanceScheduleFieldPermission =
+      'maintenanceSchedule';
+
   SupabaseClient get _client => Supabase.instance.client;
 
   String get _companyId {
@@ -40,7 +41,7 @@ class MaintenanceRepository {
 
   Future<List<MaintenanceOrderModel>> getOrders() async {
     final result = await _client.rpc(
-      'erp_r9_list_cloud_maintenance_orders',
+      'erp_r87_list_cloud_maintenance_orders',
       params: {'p_company_id': _companyId},
     );
     return (result as List)
@@ -52,9 +53,19 @@ class MaintenanceRepository {
         .toList(growable: false);
   }
 
+  Future<List<Map<String, Object?>>> getMaintenancePayments(
+    String orderId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_r90_list_maintenance_payments',
+      params: {'p_company_id': _companyId, 'p_order_id': orderId},
+    );
+    return _rows(result);
+  }
+
   Future<MaintenanceOrderSnapshot> getOrderSnapshot(String orderId) async {
     final result = await _client.rpc(
-      'erp_r64_get_maintenance_order_snapshot',
+      'erp_r90_get_maintenance_order_snapshot',
       params: {'p_company_id': _companyId, 'p_order_id': orderId},
     );
     return MaintenanceOrderSnapshot.fromRpc(result);
@@ -71,10 +82,74 @@ class MaintenanceRepository {
 
   Future<Map<String, Object?>> getVehicleServiceCard(String carId) async {
     final result = await _client.rpc(
-      'erp_r56_vehicle_service_card',
+      'erp_r90_vehicle_service_card',
       params: {'p_company_id': _companyId, 'p_car_id': carId},
     );
     return result is Map ? Map<String, Object?>.from(result) : const {};
+  }
+
+  Future<List<Map<String, Object?>>> getMaintenanceSchedules(
+    String carId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_r88_list_vehicle_maintenance_schedules',
+      params: {'p_company_id': _companyId, 'p_car_id': carId},
+    );
+    return _rows(result);
+  }
+
+  Future<String> saveMaintenanceSchedule(Map<String, Object?> schedule) async {
+    final result = await _client.rpc(
+      'erp_r88_save_vehicle_maintenance_schedule',
+      params: {'p_company_id': _companyId, 'p_schedule': schedule},
+    );
+    return result.toString();
+  }
+
+  Future<void> deleteMaintenanceSchedule(String scheduleId) async {
+    await _client.rpc(
+      'erp_r88_delete_vehicle_maintenance_schedule',
+      params: {'p_company_id': _companyId, 'p_schedule_id': scheduleId},
+    );
+  }
+
+  Future<void> linkMaintenanceScheduleToOrder({
+    required String scheduleId,
+    required String maintenanceOrderId,
+  }) async {
+    await _client.rpc(
+      'erp_r88_link_maintenance_schedule_order',
+      params: {
+        'p_company_id': _companyId,
+        'p_schedule_id': scheduleId,
+        'p_maintenance_order_id': maintenanceOrderId,
+      },
+    );
+  }
+
+  Future<String> saveMaintenanceHistoryDetail(
+    Map<String, Object?> detail,
+  ) async {
+    final result = await _client.rpc(
+      'erp_r88_save_maintenance_history_detail',
+      params: {'p_company_id': _companyId, 'p_detail': detail},
+    );
+    return result.toString();
+  }
+
+  Future<void> deleteMaintenanceHistoryDetail(String detailId) async {
+    await _client.rpc(
+      'erp_r88_delete_maintenance_history_detail',
+      params: {'p_company_id': _companyId, 'p_detail_id': detailId},
+    );
+  }
+
+  Future<int> materializeMaintenanceScheduleReminders() async {
+    final result = await _client.rpc(
+      'erp_r88_materialize_maintenance_schedule_reminders',
+      params: {'p_company_id': _companyId},
+    );
+    return result is num ? result.toInt() : int.tryParse('$result') ?? 0;
   }
 
   Future<void> createDraftOrder({
@@ -186,11 +261,11 @@ class MaintenanceRepository {
   ) async {
     final results = await Future.wait<Object?>(<Future<Object?>>[
       _client.rpc(
-        'erp_r57_maintenance_cost_reconciliation',
+        'erp_r89_maintenance_cost_reconciliation',
         params: {'p_company_id': _companyId, 'p_order_id': orderId},
       ),
       _client.rpc(
-        'erp_r57_maintenance_material_issue_state',
+        'erp_r90_maintenance_material_issue_state',
         params: {'p_company_id': _companyId, 'p_order_id': orderId},
       ),
     ]);
@@ -207,7 +282,7 @@ class MaintenanceRepository {
     String partId,
   ) async {
     final result = await _client.rpc(
-      'erp_r57_maintenance_issue_warehouse_options',
+      'erp_r90_maintenance_issue_warehouse_options',
       params: {'p_company_id': _companyId, 'p_part_id': partId},
     );
     return (result as List)
@@ -215,24 +290,28 @@ class MaintenanceRepository {
         .toList(growable: false);
   }
 
-  Future<void> issueMaterial({
+  Future<void> saveMaterialIssueDraftLine({
     required String orderId,
     required String partId,
     required String warehouseId,
     required double quantity,
-    String? issueId,
   }) async {
     await _client.rpc(
-      'erp_r57_execute_maintenance_material_issue',
+      'erp_r90_save_maintenance_issue_draft_line',
       params: {
         'p_company_id': _companyId,
         'p_order_id': orderId,
-        'p_issue_id': issueId ?? const Uuid().v4(),
         'p_part_id': partId,
         'p_warehouse_id': warehouseId,
         'p_quantity': quantity,
-        'p_effective_at': DateTime.now().toUtc().toIso8601String(),
       },
+    );
+  }
+
+  Future<void> deleteMaterialIssueDraftLine(String lineId) async {
+    await _client.rpc(
+      'erp_r90_delete_maintenance_issue_draft_line',
+      params: {'p_company_id': _companyId, 'p_line_id': lineId},
     );
   }
 
@@ -285,8 +364,8 @@ class MaintenanceRepository {
 
   Future<List<Map<String, Object?>>> listCashAccounts() async {
     final result = await _client.rpc(
-      'erp_r49_list_cloud_active_cash_accounts',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_cash_accounts',
+      params: {'p_company_id': _companyId, 'p_module': 'maintenance'},
     );
     return (result as List)
         .map((row) => Map<String, Object?>.from(row as Map))
@@ -295,8 +374,8 @@ class MaintenanceRepository {
 
   Future<List<Map<String, Object?>>> listSettlementAccounts() async {
     final result = await _client.rpc(
-      'erp_list_cloud_settlement_accounts',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_settlement_accounts',
+      params: {'p_company_id': _companyId, 'p_module': 'maintenance'},
     );
     return (result as List)
         .map((row) => Map<String, Object?>.from(row as Map))
@@ -350,4 +429,11 @@ class MaintenanceRepository {
       throw ArgumentError('كمية قطعة الغيار غير صحيحة');
     }
   }
+
+  static List<Map<String, Object?>> _rows(Object? raw) => raw is List
+      ? raw
+            .whereType<Map>()
+            .map((row) => Map<String, Object?>.from(row))
+            .toList(growable: false)
+      : const <Map<String, Object?>>[];
 }

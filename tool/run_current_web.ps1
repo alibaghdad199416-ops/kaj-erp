@@ -26,9 +26,40 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 python -B tool/verify_r85_secondary_record_scope.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+python -B tool/verify_r88_phase11.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r89_phase11_completion.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r90_phase11_final_acceptance.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r91_phase11_material_issue_acceptance.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r92_comprehensive_module_audit.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "`nPreparing the CURRENT LOCAL Supabase database..." -ForegroundColor Cyan
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tool\prepare_local_current_database.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tool\run_r89_local_runtime_test.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tool\run_r90_local_runtime_test.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tool\run_r91_local_runtime_test.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File tool\run_r92_local_runtime_test.ps1
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not (Test-Path 'dart_defines.local.generated.json')) {
@@ -37,7 +68,7 @@ if (-not (Test-Path 'dart_defines.local.generated.json')) {
 
 Write-Host "`nLaunching KAJ ERP against LOCAL Supabase only..." -ForegroundColor Green
 Write-Host 'Backend source: Supabase CLI local stack (127.0.0.1)' -ForegroundColor Green
-Write-Host 'All pending migrations, including R78/R79/R80/R84/R85, are applied forward-only to the existing local database.' -ForegroundColor Green
+Write-Host 'All pending migrations, including R88/R89/R90/R91/R92 Phase 11 + comprehensive module audit, are applied forward-only to the existing local database.' -ForegroundColor Green
 Write-Host 'Production configuration remains separate and unchanged.' -ForegroundColor Green
 flutter run -d edge --dart-define-from-file=dart_defines.local.generated.json
 exit $LASTEXITCODE

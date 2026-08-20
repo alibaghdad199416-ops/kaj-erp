@@ -10,9 +10,12 @@ for token in [
     assert token in sql, token
 assert any(v in (root/'pubspec.yaml').read_text(encoding='utf-8') for v in ["version: 18.9.32+189320","version: 22.9.8+229008"])
 model=(root/'lib/features/accounting/models/account_model.dart').read_text(encoding='utf-8')
-for t in ['receivable','payable','income','cost','cogs','clearing']:
-    assert f"'{t}'" in model
 ui=(root/'lib/features/accounting/models/account_type_presentation.dart').read_text(encoding='utf-8')
+# AccountModel preserves the authoritative persisted type; presentation-only aliases
+# live in the centralized AccountTypePresentation helper so data is never silently rewritten.
+assert 'final type = rawType' in model
+for t in ['receivable','payable','income','cost','cogs','clearing']:
+    assert f"'{t}'" in ui
 assert "'payable' => 'liability'" in ui
 assert "'cost' || 'cogs' => 'expense'" in ui
 print('PASS V7.6.2 definition-only posting and debit/credit/balance hardening')

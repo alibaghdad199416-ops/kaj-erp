@@ -148,27 +148,6 @@ class SalesWorkflowRepository {
 
   Future<void> approveInvoice(String invoiceId) =>
       _void('erp_r22_approve_sales_invoice', {'p_invoice_id': invoiceId});
-  Future<void> addInvoicePayment(
-    String invoiceId,
-    InvoicePaymentInput payment,
-  ) async {
-    if (invoiceId.trim().isEmpty) throw ArgumentError('مرجع الفاتورة غير صالح');
-    payment.validate();
-    await _void('erp_pay_cloud_sales_workflow_invoice', {
-      'p_invoice_id': invoiceId,
-      'p_payment': {
-        'cashAccountId': payment.cashAccountId,
-        'paymentCurrency': payment.paymentCurrency,
-        'invoiceAmount': payment.invoiceAmount,
-        'cashAmount': payment.cashAmount,
-        'exchangeRate': payment.exchangeRate,
-        'paymentDate': payment.paymentDate.toUtc().toIso8601String(),
-        'notes': payment.notes,
-        'settlementMode': payment.settlementMode.name,
-      },
-    });
-  }
-
   Future<void> cancelInvoice(
     String invoiceId, {
     String reason = 'إلغاء فاتورة البيع',
@@ -265,7 +244,7 @@ class SalesWorkflowRepository {
     String orderId,
   ) async {
     final value = await _client.rpc(
-      'erp_r49_get_commercial_order_allocation_context',
+      'erp_r92_get_commercial_order_allocation_context',
       params: {
         'p_company_id': _companyId,
         'p_order_id': orderId,
@@ -304,20 +283,20 @@ class SalesWorkflowRepository {
   );
   Future<List<Map<String, Object?>>> listWarehouses() async => _rows(
     await _client.rpc(
-      'erp_r49_list_cloud_active_warehouses',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_warehouses',
+      params: {'p_company_id': _companyId, 'p_module': 'sales'},
     ),
   );
   Future<List<Map<String, Object?>>> listCashAccounts() async => _rows(
     await _client.rpc(
-      'erp_r49_list_cloud_active_cash_accounts',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_cash_accounts',
+      params: {'p_company_id': _companyId, 'p_module': 'sales'},
     ),
   );
   Future<List<Map<String, Object?>>> listSettlementAccounts() async => _rows(
     await _client.rpc(
-      'erp_list_cloud_settlement_accounts',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_settlement_accounts',
+      params: {'p_company_id': _companyId, 'p_module': 'sales'},
     ),
   );
   Future<List<Map<String, Object?>>> salesCatalog({String? orderId}) async {

@@ -61,8 +61,10 @@ need('Redundant root hero removed from settings', 'KajAdminWorkspace(' not in se
 need('XLSX text values are formula-safe', "const <String>{'=', '+', '-', '@'}" in excel and 'safeText(value)' in excel)
 need('Commercial reconciliation is one bounded aggregate RPC',
      'erp_r57_commercial_reconciliation' in migration and 'Workflow quantity reconciliation' in details)
-need('Maintenance materials expose requested issued and invoiced quantities while labor stays separate',
-     all(value in maintenance for value in ('Requested:', 'Issued:', 'Invoiced:', 'Separate labor/service')))
+need('Maintenance materials expose requested issued and invoiced quantities while labor/service stays separate',
+     all(value in maintenance for value in ('Requested:', 'Issued:', 'Invoiced:', 'Item / Service'))
+     and "line.isService ? '—'" in maintenance
+     and 'Labor invoiced' in maintenance and 'Services invoiced' in maintenance)
 need('Maintenance cost reconciliation is FIFO authoritative and currency bound',
      all(value in requested_cost_migration for value in (
          'erp_inventory_fifo_consumptions', "'issuedMaterialsActualCost'",

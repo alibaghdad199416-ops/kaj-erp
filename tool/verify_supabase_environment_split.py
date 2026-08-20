@@ -92,9 +92,14 @@ if "return _isLoopback(host) ? 'local' : 'production';" in runtime:
     errors.append("runtime must never infer production from a hosted URL")
 
 bootstrap = text("tool/bootstrap_local_supabase.ps1")
-for marker in (LOCAL_URL, LOCAL_ID, "Assert-LocalOnlyUrl", "supabase start"):
+for marker in (LOCAL_URL, LOCAL_ID, "Assert-LocalOnlyUrl"):
     if marker not in bootstrap:
         errors.append(f"local bootstrap safeguard missing: {marker}")
+if (
+    "supabase start" not in bootstrap
+    and 'Invoke-LocalSupabase -Arguments @("start")' not in bootstrap
+):
+    errors.append("local bootstrap safeguard missing: local Supabase start")
 if re.search(r"https://[^\s\"']+\.supabase\.co", bootstrap, re.I):
     errors.append("local bootstrap contains a Hosted Supabase URL")
 

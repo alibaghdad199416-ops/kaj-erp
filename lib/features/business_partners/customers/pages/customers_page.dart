@@ -164,23 +164,34 @@ class _CustomersPageState extends State<CustomersPage> {
             )
           : RefreshIndicator(
               onRefresh: context.read<CustomersController>().loadCustomers,
-              child: GridView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(10),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 320,
-                  mainAxisExtent: 164,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                ),
-                itemCount: filteredCustomers.length,
-                itemBuilder: (context, index) {
-                  final customer = filteredCustomers[index];
-                  return CustomerCard(
-                    customer: customer,
-                    onView: () => _showCustomerDetails(customer),
-                    onEdit: () => _editCustomer(customer),
-                    onDelete: () => _deleteCustomer(customer),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const minimumCardWidth = 300.0;
+                  const gap = 8.0;
+                  final availableWidth = constraints.maxWidth - 12;
+                  final columns =
+                      ((availableWidth + gap) / (minimumCardWidth + gap))
+                          .floor()
+                          .clamp(1, 4);
+                  return GridView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(6),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisExtent: 142,
+                      mainAxisSpacing: gap,
+                      crossAxisSpacing: gap,
+                    ),
+                    itemCount: filteredCustomers.length,
+                    itemBuilder: (context, index) {
+                      final customer = filteredCustomers[index];
+                      return CustomerCard(
+                        customer: customer,
+                        onView: () => _showCustomerDetails(customer),
+                        onEdit: () => _editCustomer(customer),
+                        onDelete: () => _deleteCustomer(customer),
+                      );
+                    },
                   );
                 },
               ),

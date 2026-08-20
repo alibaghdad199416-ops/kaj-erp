@@ -141,6 +141,27 @@ class AccessController extends ChangeNotifier {
     return isSystemAdmin || _currentPermissions.contains(code);
   }
 
+  /// Granular workflow/action restrictions are opt-in for compatibility with
+  /// roles created before Phase 11. Once `<resource>.actions.restrict` is
+  /// granted, only the explicit action code is accepted.
+  bool hasRestrictedActions(String resource) {
+    if (isSystemAdmin) return false;
+    return _currentPermissions.contains('$resource.actions.restrict');
+  }
+
+  bool canPerformAction(
+    String resource,
+    String action, {
+    required String legacyPermission,
+  }) {
+    if (isSystemAdmin) return true;
+    final hasLegacy = _currentPermissions.contains(legacyPermission);
+    if (hasRestrictedActions(resource)) {
+      return hasLegacy && _currentPermissions.contains('$resource.$action');
+    }
+    return hasLegacy;
+  }
+
   /// Returns true when granular field restrictions are enabled for [resource].
   /// Legacy roles remain compatible until the explicit restrict permission is
   /// granted. System administrators always bypass field restrictions.

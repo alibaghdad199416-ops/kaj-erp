@@ -8,8 +8,13 @@ import 'package:quality_line_erp/features/sales/workflow/pages/sales_workflow_pa
 import 'sales_page.dart';
 
 class SalesOperationsPage extends StatelessWidget {
-  const SalesOperationsPage({super.key, this.initialIndex = 0});
+  const SalesOperationsPage({
+    super.key,
+    this.initialIndex = 0,
+    this.initialOrderId,
+  });
   final int initialIndex;
+  final String? initialOrderId;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +53,10 @@ class SalesOperationsPage extends StatelessWidget {
           children: <Widget>[
             AppPillTabBar(
               tabs: <AppPillTab>[
-                AppPillTab(t('أوامر البيع', 'Sales orders'), Icons.edit_note_rounded),
+                AppPillTab(
+                  t('أوامر البيع', 'Sales orders'),
+                  Icons.edit_note_rounded,
+                ),
                 AppPillTab(
                   t('الفواتير القديمة', 'Legacy invoices'),
                   Icons.point_of_sale_rounded,
@@ -56,9 +64,12 @@ class SalesOperationsPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            const Expanded(
+            Expanded(
               child: AppLazyTabView(
-                children: <Widget>[SalesWorkflowPage(), SalesPage()],
+                children: <Widget>[
+                  SalesWorkflowPage(initialOrderId: initialOrderId),
+                  const SalesPage(),
+                ],
               ),
             ),
           ],

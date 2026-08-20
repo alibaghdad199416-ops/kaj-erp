@@ -300,14 +300,18 @@ require(
     ),
     "module one-line command/metric rows",
 )
+# R86 accounting now owns one tight full-height root directly instead of
+# routing through AppEntityPage. This is the stronger no-ruler-frame contract:
+# there is no generic framed toolbar in the accounting workspace at all.
 require(
     accounting_page,
     (
-        "toolbarFramed: false",
+        "accounting-root-tight-viewport",
+        "accounting-root-full-height-column",
         "ChoiceChip(",
         "scrollDirection: Axis.horizontal",
     ),
-    "accounting pill sections without ruler frame",
+    "accounting continuous pill sections without nested ruler frame",
 )
 
 # R86 supersedes the historical movable/resizable window experiment with one
@@ -342,15 +346,19 @@ for forbidden in (
     if forbidden in window:
         errors.append(f"legacy module-window chrome is still active: {forbidden}")
 
-require(
-    customer_card + supplier_card,
-    (
-        "maxLines: 2",
-        "PartnerStatusBadge(",
-        "const SizedBox(height: 3)",
-    ),
-    "partner status below full name",
-)
+# The current compact partner-card geometry uses a 2px vertical separator
+# between the two-line name and its status badge. Assert placement/compactness
+# rather than the superseded Phase-7 literal 3px gap.
+for card_name, card_source in (("customer", customer_card), ("supplier", supplier_card)):
+    require(
+        card_source,
+        (
+            "maxLines: 2",
+            "PartnerStatusBadge(",
+            "const SizedBox(height: 2)",
+        ),
+        f"{card_name} status below full name",
+    )
 
 require(
     opportunity_model + opportunity_card + sales_repo + realtime + migration,

@@ -37,11 +37,19 @@ need('Opportunity without car opens explicit vehicle selection',
 need('R56.1 guard allows absent opportunity car but validates an existing car',
      'v_car_id is not null and v_car_id<>new.source_car_id' in r561
      and 'maintenance_vehicle_company_mismatch' in r561)
-need('Repository uses R56 authoritative RPCs', all(x in repo for x in (
-    'erp_r56_find_maintenance_by_opportunity', 'erp_r56_create_cloud_maintenance_order',
-    'erp_r56_vehicle_service_card')))
-for forbidden in ('purchasePrice', 'acquisitionCost', 'unitCost', 'partsCost', 'laborCost', 'totalCost', 'profit', 'carCostAdded'):
+need('Repository uses authoritative maintenance RPCs', all(x in repo for x in (
+    'erp_r56_find_maintenance_by_opportunity', 'erp_r56_create_cloud_maintenance_order'))
+    and ('erp_r56_vehicle_service_card' in repo or 'erp_r90_vehicle_service_card' in repo))
+for forbidden in ('purchasePrice', 'acquisitionCost', 'unitCost', 'profit', 'carCostAdded'):
     need(f'PDF excludes {forbidden}', forbidden not in pdf)
+r90 = (root / 'supabase/migrations/20260820113000_r90_phase11_final_acceptance_closure.sql').read_text(encoding='utf-8')
+r9 = (root / 'supabase/migrations/20260807240000_r9_finance_read_write_field_enforcement.sql').read_text(encoding='utf-8')
+need('Vehicle PDF exposes maintenance cost columns only through permission-filtered card payload',
+     all(value in pdf for value in ('laborCost','partsCost','totalCost'))
+     and 'erp_r90_vehicle_service_card' in repo
+     and 'erp_r9_filter_result_json' in (root / 'supabase/migrations/20260819210000_r88_phase11_operational_financial_closure.sql').read_text(encoding='utf-8')
+     and all(value in r9 for value in ("when 'laborCost' then 'laborCost'","when 'partsCost' then 'partsCost'","when 'totalCost' then 'totalCost'"))
+     and 'v_can_history' in r90)
 need('Partner cards use permission-aware 360 RPC', 'erp_r56_business_partner_360' in partner)
 need('Canonical supplier child documents route through their purchase order',
      all(value in partner_route for value in ("type.startsWith('purchases_')", 'parentId',

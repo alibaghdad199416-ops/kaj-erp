@@ -147,60 +147,89 @@ class VehicleServiceCardPdfService {
             style: pw.TextStyle(font: fonts.bold, color: primary, fontSize: 13),
           ),
           pw.SizedBox(height: 8),
-          ...history.map(
-            (order) => pw.Container(
-              margin: const pw.EdgeInsets.only(bottom: 8),
-              padding: const pw.EdgeInsets.all(9),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                border: pw.Border(left: pw.BorderSide(color: accent, width: 3)),
+          if (history.isEmpty)
+            PdfTextSupport.text(
+              clean(t('لا يوجد سجل صيانة.', 'No maintenance history.')),
+            )
+          else
+            pw.TableHelper.fromTextArray(
+              headers: <String>[
+                clean(t('أمر الصيانة', 'Maintenance order')),
+                clean(t('التاريخ/الوقت', 'Date / time')),
+                clean(t('المسؤول', 'Responsible')),
+                clean(t('صرف المواد', 'Material issue')),
+                clean(t('الفاتورة', 'Invoice')),
+                clean(t('الدفعات', 'Payments')),
+                clean(t('الكلفة', 'Cost')),
+                clean(t('العملة', 'Currency')),
+              ],
+              data: history
+                  .map(
+                    (order) => <String>[
+                      clean(order['orderNumber'] ?? '—'),
+                      clean(
+                        order['maintenanceDate'] ?? order['createdAt'] ?? '—',
+                      ),
+                      clean(
+                        order['responsibleUser'] ??
+                            order['createdByName'] ??
+                            '—',
+                      ),
+                      clean(_references(order['materialIssues'])),
+                      clean(
+                        _references(
+                          order['invoiceReferences'],
+                          fallback: order['invoiceNumber'],
+                        ),
+                      ),
+                      clean(_references(order['paymentReferences'])),
+                      clean('${order['totalCost'] ?? 0}'),
+                      clean(order['currencyCode'] ?? '—'),
+                    ],
+                  )
+                  .toList(growable: false),
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: .45),
+              headerDecoration: pw.BoxDecoration(color: primary),
+              headerStyle: pw.TextStyle(
+                font: fonts.bold,
+                color: PdfColors.white,
+                fontSize: 6.7,
               ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  PdfTextSupport.text(
-                    clean(
-                      '${order['orderNumber'] ?? '—'} • ${order['maintenanceDate'] ?? ''}',
-                    ),
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-                  ),
-                  if ((order['opportunityNumber']?.toString() ?? '').isNotEmpty)
-                    PdfTextSupport.text(
-                      clean(
-                        '${t('الفرصة', 'Opportunity')}: ${order['opportunityNumber']}',
-                      ),
-                      style: const pw.TextStyle(fontSize: 8),
-                    ),
-                  if ((order['invoiceNumber']?.toString() ?? '').isNotEmpty)
-                    PdfTextSupport.text(
-                      clean(
-                        '${t('الفاتورة', 'Invoice')}: ${order['invoiceNumber']}',
-                      ),
-                      style: const pw.TextStyle(fontSize: 8),
-                    ),
-                  PdfTextSupport.text(
-                    clean(
-                      '${t('الحالة', 'Status')}: ${order['workflowStage'] ?? order['status'] ?? '—'}',
-                    ),
-                    style: const pw.TextStyle(fontSize: 8),
-                  ),
-                  PdfTextSupport.text(
-                    clean(
-                      '${t('الخدمة للعميل', 'Customer service amount')}: ${order['salePrice'] ?? 0} ${order['currencyCode'] ?? ''}',
-                    ),
-                    style: const pw.TextStyle(fontSize: 8),
-                  ),
-                  for (final item in _list(order['items']))
-                    PdfTextSupport.text(
-                      clean(
-                        '• ${item['name'] ?? '—'} × ${item['quantity'] ?? 0}',
-                      ),
-                      style: const pw.TextStyle(fontSize: 8),
-                    ),
-                ],
-              ),
+              cellStyle: const pw.TextStyle(fontSize: 6.5),
+              cellPadding: const pw.EdgeInsets.all(4),
             ),
-          ),
+          pw.SizedBox(height: 12),
+          for (final order in history)
+            if (_list(order['customDetails']).isNotEmpty)
+              pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 8),
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  border: pw.Border(
+                    left: pw.BorderSide(color: accent, width: 3),
+                  ),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: <pw.Widget>[
+                    PdfTextSupport.text(
+                      clean(
+                        '${order['orderNumber'] ?? '—'} — ${t('تفاصيل مخصصة', 'Custom details')}',
+                      ),
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+                    ),
+                    pw.SizedBox(height: 4),
+                    for (final detail in _list(order['customDetails']))
+                      PdfTextSupport.text(
+                        clean(
+                          '• ${detail['title'] ?? '—'}: ${detail['description'] ?? ''}',
+                        ),
+                        style: const pw.TextStyle(fontSize: 7.5),
+                      ),
+                  ],
+                ),
+              ),
         ],
       ),
     );
@@ -243,6 +272,13 @@ class VehicleServiceCardPdfService {
       'invoiceStatus',
       'notes',
       'cancelReason',
+      'createdAt',
+      'createdByName',
+      'responsibleUser',
+      'materialIssues',
+      'invoiceReferences',
+      'paymentReferences',
+      'customDetails',
     };
     const itemKeys = <String>{
       'name',
@@ -261,6 +297,10 @@ class VehicleServiceCardPdfService {
             (order) => <String, Object?>{
               for (final entry in order.entries)
                 if (orderKeys.contains(entry.key)) entry.key: entry.value,
+              'materialIssues': _list(order['materialIssues']),
+              'invoiceReferences': _list(order['invoiceReferences']),
+              'paymentReferences': _list(order['paymentReferences']),
+              'customDetails': _list(order['customDetails']),
               'items': _list(order['items'])
                   .map(
                     (item) => <String, Object?>{
@@ -274,6 +314,19 @@ class VehicleServiceCardPdfService {
           )
           .toList(growable: false),
     };
+  }
+
+  static String _references(Object? raw, {Object? fallback}) {
+    final rows = _list(raw);
+    if (rows.isEmpty) return fallback?.toString() ?? '—';
+    final values = <String>[];
+    for (final row in rows) {
+      final value = row['reference'] ?? row['voucherNumber'] ?? row['id'];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        values.add(value.toString().trim());
+      }
+    }
+    return values.isEmpty ? (fallback?.toString() ?? '—') : values.join(', ');
   }
 
   static Map<String, Object?> _map(Object? raw) =>

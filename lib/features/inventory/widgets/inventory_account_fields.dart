@@ -80,7 +80,7 @@ class _InventoryAccountFieldsState extends State<InventoryAccountFields> {
 
   @override
   Widget build(BuildContext context) {
-    final accounts = context.watch<AccountingController>().accounts;
+    final accounts = context.watch<AccountingController>().postableAccounts;
     final currency = widget.currency.trim().toUpperCase();
     final assets = accounts
         .where(

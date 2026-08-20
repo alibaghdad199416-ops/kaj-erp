@@ -32,6 +32,7 @@ class SettingsController extends ChangeNotifier {
   List<BackupModel> backups = [];
   bool isLoading = false;
   String? errorMessage;
+  Future<void>? _branchesLoadFuture;
 
   Future<void> loadSettings() async {
     isLoading = true;
@@ -59,6 +60,20 @@ class SettingsController extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> ensureBranchesLoaded({bool force = false}) {
+    if (!force && branches.isNotEmpty) return Future<void>.value();
+    final active = _branchesLoadFuture;
+    if (active != null) return active;
+    final future = _repository.getBranches().then((value) {
+      branches = value;
+      notifyListeners();
+    });
+    _branchesLoadFuture = future;
+    return future.whenComplete(() {
+      if (identical(_branchesLoadFuture, future)) _branchesLoadFuture = null;
+    });
   }
 
   Future<void> saveCompany(CompanySettingsModel value) async {

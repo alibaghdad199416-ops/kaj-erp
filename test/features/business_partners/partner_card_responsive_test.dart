@@ -29,7 +29,7 @@ Widget _host(Widget child, Locale locale) =>
           GlobalCupertinoLocalizations.delegate,
         ],
         home: Scaffold(
-          body: Center(child: SizedBox(width: 280, height: 158, child: child)),
+          body: Center(child: SizedBox(width: 280, height: 142, child: child)),
         ),
       ),
     );

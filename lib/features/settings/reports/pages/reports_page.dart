@@ -444,10 +444,29 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
-  Future<void> _export(Future<void> Function() action) async {
+  Future<void> _export(
+    Future<void> Function() action, {
+    required String outputFormat,
+    required String reportKey,
+  }) async {
+    final reportsController = context.read<ReportsController>();
+    final reportTitle = _exportOptions.title;
+    final selectedModule = _selectedModule;
     setState(() => _isExporting = true);
     try {
       await action();
+      try {
+        await reportsController.recordReportEvent(
+          reportKey: reportKey,
+          reportTitle: reportTitle,
+          outputFormat: outputFormat,
+          module: selectedModule,
+        );
+      } catch (error, stackTrace) {
+        AppLogger.debug(
+          'Report event notification persistence failed: $error\n$stackTrace',
+        );
+      }
     } catch (error, stackTrace) {
       AppLogger.error(
         'Report export failed',
@@ -1349,6 +1368,8 @@ class _ReportsPageState extends State<ReportsPage> {
                           period: periodValue,
                           sections: _contextualSections,
                         ),
+                        outputFormat: 'PDF_PREVIEW',
+                        reportKey: 'executive_report',
                       );
                     } else {
                       await _export(
@@ -1360,6 +1381,8 @@ class _ReportsPageState extends State<ReportsPage> {
                           period: periodValue,
                           sections: _contextualSections,
                         ),
+                        outputFormat: 'PDF',
+                        reportKey: 'executive_report',
                       );
                     }
                   },
@@ -1424,6 +1447,8 @@ class _ReportsPageState extends State<ReportsPage> {
                             period: _periodLabel(controller),
                             sections: _contextualSections,
                           ),
+                          outputFormat: 'XLSX',
+                          reportKey: 'executive_report',
                         ),
                   icon: const Icon(Icons.table_view_outlined),
                   label: const AppText('Excel'),
@@ -1448,6 +1473,8 @@ class _ReportsPageState extends State<ReportsPage> {
                             period: _periodLabel(controller),
                             sections: _contextualSections,
                           ),
+                          outputFormat: 'CSV',
+                          reportKey: 'executive_report',
                         ),
                   icon: const Icon(Icons.description_outlined),
                   label: const AppText('CSV'),

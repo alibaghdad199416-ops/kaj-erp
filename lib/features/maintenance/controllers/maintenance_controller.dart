@@ -261,8 +261,19 @@ class MaintenanceController extends ChangeNotifier {
     (order) => order.salePrice,
   );
 
-  Map<String, double> get totalCostByCurrency =>
-      _sumByCurrency(_orders, (order) => order.totalCost);
+  Map<String, double> get totalCostByCurrency {
+    final totals = <String, double>{};
+    for (final order in _orders) {
+      for (final entry in order.operationalCostTotalsByCurrency.entries) {
+        totals.update(
+          entry.key,
+          (value) => value + entry.value,
+          ifAbsent: () => entry.value,
+        );
+      }
+    }
+    return Map<String, double>.unmodifiable(totals);
+  }
 
   Map<String, double> get inventoryCarCostAddedByCurrency =>
       _sumByCurrency(_orders, (order) => order.carCostAdded);

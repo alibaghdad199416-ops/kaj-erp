@@ -362,7 +362,7 @@ class _AddCarPageState extends State<AddCarPage> {
   }
 
   bool _validateAccountingAssignments() {
-    final accounts = context.read<AccountingController>().accounts;
+    final accounts = context.read<AccountingController>().postableAccounts;
     AccountModel? accountById(String? id) {
       if (id == null || id.isEmpty) return null;
       for (final account in accounts) {

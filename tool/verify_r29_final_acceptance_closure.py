@@ -21,8 +21,9 @@ need('product movement rpc plus pdf excel', 'erp_r28_inventory_movement_log' in 
 need('commercial details full drilldown endpoint',
      any(endpoint in text('lib/features/sales/workflow/repositories/commercial_order_details_repository.dart')
          for endpoint in ['erp_r28_get_commercial_order_complete_details',
-                          'erp_r62_get_commercial_order_snapshot']))
-need('cashbox canonical read save endpoints', all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r28_list_cash_accounts','erp_r28_save_cash_account']) or all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r42_list_cash_accounts','erp_r42_save_cash_account']))
+                          'erp_r62_get_commercial_order_snapshot',
+                          'erp_r89_get_commercial_order_snapshot']))
+need('cashbox canonical read save endpoints', all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r28_list_cash_accounts','erp_r28_save_cash_account']) or all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r42_list_cash_accounts','erp_r42_save_cash_account']) or all(x in text('lib/features/accounting/cashbox/repositories/cashbox_repository.dart') for x in ['erp_r90_list_cash_accounts','erp_r90_save_cash_account']))
 need('cash model has no unix epoch fallback', 'DateTime.fromMillisecondsSinceEpoch(0)' not in text('lib/features/accounting/cashbox/models/cash_transaction_model.dart'))
 account_model=text('lib/features/accounting/models/account_model.dart')
 need('account code identifier semantics', 'ErpDisplayFormatter.accountCode(raw)' in account_model and 'double.tryParse' not in text('lib/core/utils/erp_display_formatter.dart').split('static String accountCode',1)[1].split('static String number',1)[0])

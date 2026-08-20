@@ -26,7 +26,7 @@ checks["maintenance R37 or newer create/advance"]=(("erp_r37_create_cloud_mainte
 checks["web PDF is a reliable download"]="browser_download.saveBinary" in pdfweb and "html.Blob" in binaryweb and "AnchorElement" in binaryweb and "..download = fileName" in binaryweb and "html.window.open(" not in pdfweb
 checks["no custom viewport warning"]='<meta name="viewport"' not in index
 inv_compact=re.sub(r'\s+',' ',inv)
-checks["product cards tighter"]=("? 172 : " in inv_compact and "? 180 : " in inv_compact and ": 192" in inv_compact) or ("? 158 : " in inv_compact and "? 166 : " in inv_compact and ": 178" in inv_compact)
+checks["product cards tighter"]=("? 172 : " in inv_compact and "? 180 : " in inv_compact and ": 192" in inv_compact) or ("? 158 : " in inv_compact and "? 166 : " in inv_compact and ": 178" in inv_compact) or ("? 142 : " in inv_compact and "? 146 : " in inv_compact and ": 150" in inv_compact)
 checks["car cards tighter"]="mainAxisExtent:" not in cars and "ListView.separated(" in cars and "final rowCount = (filteredCars.length + columns - 1) ~/ columns;" in cars
 checks["warehouse cards tighter"]=any(x in wh for x in ("mainAxisExtent: 142","mainAxisExtent: 138","mainAxisExtent: 124"))
 checks["partner cards responsive"]=any(x in cust for x in ("mainAxisExtent: 164","mainAxisExtent: 142","mainAxisExtent: 126")) and any(x in supp for x in ("mainAxisExtent: 172","mainAxisExtent: 142","mainAxisExtent: 126"))

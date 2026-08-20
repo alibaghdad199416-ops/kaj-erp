@@ -317,38 +317,6 @@ class InventoryController extends ChangeNotifier {
     await loadInventory(force: true);
   }
 
-  Future<void> receiveStock({
-    required String productId,
-    required String warehouseId,
-    required int quantity,
-    required double unitPurchasePrice,
-    required double freightCost,
-    required double customsCost,
-    required double insuranceCost,
-    required double otherCost,
-    String? supplierId,
-    String? supplierName,
-    String? notes,
-  }) async {
-    await _repository.receiveStock(
-      productId: productId,
-      warehouseId: warehouseId,
-      quantity: quantity,
-      unitPurchasePrice: unitPurchasePrice,
-      freightCost: freightCost,
-      customsCost: customsCost,
-      insuranceCost: insuranceCost,
-      otherCost: otherCost,
-      supplierId: supplierId,
-      supplierName: supplierName,
-      notes: notes,
-    );
-    invalidateMaintenanceCatalog();
-    invalidateInventoryCache();
-    AppDataChangeBus.instance.publish('inventory', operation: 'receive');
-    await loadInventory(force: true);
-  }
-
   Future<Map<String, Object?>> transferCar({
     required String carId,
     required String fromWarehouseId,
@@ -473,28 +441,6 @@ class InventoryController extends ChangeNotifier {
     invalidateMaintenanceCatalog();
     invalidateInventoryCache();
     AppDataChangeBus.instance.publish('inventory', operation: 'plan');
-    await loadInventory(force: true);
-  }
-
-  Future<void> sellStock({
-    required String productId,
-    required String warehouseId,
-    required int quantity,
-    required double unitSalePrice,
-    String? customerName,
-    String? notes,
-  }) async {
-    await _repository.sellStock(
-      productId: productId,
-      warehouseId: warehouseId,
-      quantity: quantity,
-      unitSalePrice: unitSalePrice,
-      customerName: customerName,
-      notes: notes,
-    );
-    invalidateMaintenanceCatalog();
-    invalidateInventoryCache();
-    AppDataChangeBus.instance.publish('inventory', operation: 'sale');
     await loadInventory(force: true);
   }
 

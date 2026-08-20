@@ -12,9 +12,10 @@ import 'warehouse_management_page.dart';
 /// catalog itself as plain content prevents duplicated chrome and ensures all
 /// product, warehouse and car pages share the full available area.
 class StockCatalogPage extends StatelessWidget {
-  const StockCatalogPage({super.key, this.initialIndex = 0});
+  const StockCatalogPage({super.key, this.initialIndex = 0, this.initialCarId});
 
   final int initialIndex;
+  final String? initialCarId;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
@@ -36,9 +37,13 @@ class StockCatalogPage extends StatelessWidget {
             ),
           ),
         ),
-        const Expanded(
+        Expanded(
           child: AppLazyTabView(
-            children: [CarsPage(), WarehouseManagementPage(), InventoryPage()],
+            children: [
+              CarsPage(initialCarId: initialCarId),
+              const WarehouseManagementPage(),
+              const InventoryPage(),
+            ],
           ),
         ),
       ],

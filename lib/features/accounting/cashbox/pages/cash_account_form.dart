@@ -111,7 +111,7 @@ class _CashAccountFormState extends State<CashAccountForm> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<CashboxController>();
-    final ledger = controller.ledgerAccounts
+    final ledger = controller.postableLedgerAccounts
         .where(
           (a) =>
               a.type == 'asset' &&

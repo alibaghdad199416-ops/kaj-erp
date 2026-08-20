@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
 /// Unified premium shell for sales, purchases, invoices, payments and approvals.
@@ -25,6 +26,23 @@ class KajCommercialWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shellOwnsIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
+    if (shellOwnsIdentity) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (actions.isNotEmpty) ...<Widget>[
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(spacing: 6, runSpacing: 6, children: actions),
+            ),
+            const SizedBox(height: 6),
+          ],
+          Expanded(child: child),
+        ],
+      );
+    }
+
     final insideOperationalWorkspace =
         AppWorkspaceWindowScope.maybeOf(context) != null;
     if (insideOperationalWorkspace) {
@@ -66,7 +84,11 @@ class KajCommercialWorkspace extends StatelessWidget {
                       color: scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(icon, color: scheme.onPrimaryContainer, size: 21),
+                    child: Icon(
+                      icon,
+                      color: scheme.onPrimaryContainer,
+                      size: 21,
+                    ),
                   ),
                   const SizedBox(width: 13),
                   Expanded(
@@ -75,19 +97,21 @@ class KajCommercialWorkspace extends StatelessWidget {
                       children: <Widget>[
                         AppText(
                           title,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 20,
+                              ),
                         ),
                         const SizedBox(height: 3),
                         AppText(
                           subtitle,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.4,
-                            fontSize: 12.6,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                height: 1.4,
+                                fontSize: 12.6,
+                              ),
                         ),
                       ],
                     ),
@@ -186,9 +210,9 @@ class _MetricTile extends StatelessWidget {
             children: <Widget>[
               AppText(
                 data.value,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 1),
               AppText(
@@ -221,10 +245,7 @@ class KajCommercialDocumentHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     if (AppWorkspaceWindowScope.maybeOf(context) != null) {
       if (trailing == null) return const SizedBox.shrink();
-      return Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: trailing!,
-      );
+      return Align(alignment: AlignmentDirectional.centerEnd, child: trailing!);
     }
 
     final scheme = Theme.of(context).colorScheme;
@@ -248,9 +269,9 @@ class KajCommercialDocumentHeader extends StatelessWidget {
               children: <Widget>[
                 AppText(
                   title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 3),
                 AppText(
@@ -419,14 +440,89 @@ class KajCommercialEmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+
   @override
-  Widget build(BuildContext context) => KajSystemState(
-    icon: Icons.receipt_long_outlined,
-    title: title,
-    message: message,
-    tone: Theme.of(context).colorScheme.onSurfaceVariant,
-    action: actionLabel != null && onAction != null
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final action = actionLabel != null && onAction != null
         ? KajPrimaryAction(label: actionLabel!, onPressed: onAction)
-        : null,
-  );
+        : null;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 620),
+      child: KajShellSurface(
+        emphasized: true,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final messageBlock = Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: scheme.onSurfaceVariant.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.receipt_long_outlined,
+                    size: 19,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      AppText(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      AppText(
+                        message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            if (action == null) return messageBlock;
+            if (constraints.maxWidth < 520) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  messageBlock,
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: action,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: <Widget>[
+                Expanded(child: messageBlock),
+                const SizedBox(width: 12),
+                action,
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }

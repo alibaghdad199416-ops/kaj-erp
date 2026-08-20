@@ -33,6 +33,32 @@ class AccountingController extends ChangeNotifier {
   Future<void>? _accountsLoadFuture;
 
   List<AccountModel> get accounts => List.unmodifiable(_accounts);
+  List<AccountModel> get postableAccounts {
+    final parentIds = _accounts
+        .map((account) => account.parentId?.trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return List<AccountModel>.unmodifiable(
+      _accounts.where(
+        (account) => account.isActive && !parentIds.contains(account.id),
+      ),
+    );
+  }
+
+  bool isAccountPostable(String accountId) =>
+      postableAccounts.any((account) => account.id == accountId);
+
+  void _assertJournalAccountsPostable(List<JournalLineModel> lines) {
+    final postableIds = postableAccounts.map((account) => account.id).toSet();
+    final invalid = lines
+        .where((line) => !postableIds.contains(line.accountId))
+        .map((line) => line.accountId)
+        .toSet();
+    if (invalid.isNotEmpty) {
+      throw StateError('journal_non_postable_account:${invalid.join(',')}');
+    }
+  }
   List<JournalEntryModel> get entries => List.unmodifiable(_entries);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -352,6 +378,8 @@ class AccountingController extends ChangeNotifier {
       if (await _repository.entryNumberExists(entry.entryNumber)) {
         throw StateError('رقم القيد مستخدم مسبقًا.');
       }
+      await ensureAccountsLoaded();
+      _assertJournalAccountsPostable(lines);
       await _repository.addEntry(entry: entry, lines: lines);
       AppDataChangeBus.instance.publish(
         'accounting',
@@ -380,6 +408,8 @@ class AccountingController extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
+      await ensureAccountsLoaded();
+      _assertJournalAccountsPostable(lines);
       await _repository.updateEntry(entry: entry, lines: lines);
       AppDataChangeBus.instance.publish(
         'accounting',

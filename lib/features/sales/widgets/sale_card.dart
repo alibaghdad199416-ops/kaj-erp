@@ -55,7 +55,7 @@ class SaleCard extends StatelessWidget {
     );
 
     return Card(
-      margin: const EdgeInsets.only(bottom: KajDesignTokens.space12),
+      margin: const EdgeInsets.only(bottom: 7),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KajDesignTokens.radiusMd),
@@ -65,14 +65,14 @@ class SaleCard extends StatelessWidget {
       child: InkWell(
         onTap: onEdit,
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(12, 9, 10, 8),
+          padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 9, 7),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 18,
+                    radius: 17,
                     backgroundColor: scheme.primaryContainer,
                     foregroundColor: scheme.onPrimaryContainer,
                     child: const Icon(Icons.point_of_sale_rounded, size: 18),
@@ -222,7 +222,7 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Theme.of(context).colorScheme;
     return Container(
-      constraints: const BoxConstraints(minWidth: 116, maxWidth: 220),
+      constraints: const BoxConstraints(minWidth: 108, maxWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: s.surfaceContainerHighest.withValues(alpha: .45),
@@ -305,7 +305,7 @@ class _Action extends StatelessWidget {
       onTap: onPressed,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        height: 30,
+        height: 28,
         padding: const EdgeInsetsDirectional.only(start: 7, end: 9),
         decoration: BoxDecoration(
           color: primary ? s.primary : Colors.transparent,

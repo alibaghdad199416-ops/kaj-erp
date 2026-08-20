@@ -42,6 +42,18 @@ class CashboxController extends ChangeNotifier {
       List.unmodifiable(_transactions);
   List<CashAccountModel> get cashAccounts => List.unmodifiable(_cashAccounts);
   List<AccountModel> get ledgerAccounts => List.unmodifiable(_ledgerAccounts);
+  List<AccountModel> get postableLedgerAccounts {
+    final parentIds = _ledgerAccounts
+        .map((account) => account.parentId?.trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return List.unmodifiable(
+      _ledgerAccounts.where(
+        (account) => account.isActive && !parentIds.contains(account.id),
+      ),
+    );
+  }
   Map<String, double> get balances => Map.unmodifiable(_balances);
   Map<String, Map<String, double>> get reconciliation =>
       Map.unmodifiable(_reconciliation);

@@ -129,7 +129,9 @@ class KajSignaturePageHero extends StatelessWidget {
                               fontSize: compact ? 22 : 26,
                               height: 1.12,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: context.l10n.isArabic ? -.25 : -.55,
+                              letterSpacing: context.l10n.isArabic
+                                  ? -.25
+                                  : -.55,
                             ),
                           ),
                           const SizedBox(height: 6),

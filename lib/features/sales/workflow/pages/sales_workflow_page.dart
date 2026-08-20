@@ -4,15 +4,18 @@ import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:quality_line_erp/design_system/kaj_commercial_stage6_components.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
+import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 
 import 'package:quality_line_erp/core/finance/invoice_payment_batch_dialog.dart';
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/core/widgets/commercial_workflow_order_card.dart';
+import 'package:quality_line_erp/core/widgets/commercial_workflow_order_table.dart';
 import 'package:quality_line_erp/core/widgets/commercial_workflow_filter_bar.dart';
 import 'package:quality_line_erp/core/widgets/warehouse_allocation_dialog.dart';
 import 'package:quality_line_erp/features/sales/workflow/repositories/sales_workflow_repository.dart';
@@ -20,7 +23,9 @@ import 'sales_order_draft_page.dart';
 import 'order_details_dialog.dart';
 
 class SalesWorkflowPage extends StatefulWidget {
-  const SalesWorkflowPage({super.key});
+  const SalesWorkflowPage({super.key, this.initialOrderId});
+
+  final String? initialOrderId;
 
   @override
   State<SalesWorkflowPage> createState() => _SalesWorkflowPageState();
@@ -41,6 +46,7 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
   DateTime? _loadedAt;
   static const Duration _loadTtl = Duration(milliseconds: 700);
   final Set<String> _busyOrderIds = <String>{};
+  bool _initialOrderOpened = false;
 
   @override
   void initState() {
@@ -54,6 +60,26 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
       );
     });
     unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant SalesWorkflowPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialOrderId != widget.initialOrderId) {
+      _initialOrderOpened = false;
+      _scheduleInitialOrderOpen();
+    }
+  }
+
+  void _scheduleInitialOrderOpen() {
+    if (_initialOrderOpened) return;
+    final id = widget.initialOrderId?.trim();
+    if (id == null || id.isEmpty) return;
+    if (!_orders.any((order) => order['id']?.toString() == id)) return;
+    _initialOrderOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_openDetails(id));
+    });
   }
 
   @override
@@ -141,6 +167,7 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
         _loading = false;
         _loadedAt = DateTime.now();
       });
+      _scheduleInitialOrderOpen();
     } catch (error, stackTrace) {
       if (!mounted || generation != _loadGeneration) return;
       AppLogger.debug('Sales workflow load failed: $error');
@@ -150,6 +177,8 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
   }
 
   Future<void> _newDraft() async {
+    if (!await PermissionAction.require(context, 'sales.create')) return;
+    if (!mounted) return;
     final changed = await showAppModuleDialog<bool>(
       context: context,
       title: 'مسودة أمر بيع',
@@ -162,10 +191,15 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
   }
 
   Future<void> _approve(String id) async {
-    await _run(() => _repository.approveOrder(id), orderId: id);
+    await _runWorkflowAction(
+      'order.approve',
+      () => _repository.approveOrder(id),
+      orderId: id,
+    );
   }
 
   Future<void> _delivery(String id) async {
+    if (!await _requireWorkflowAction('delivery.create')) return;
     final contextData = await _repository.warehouseAllocationContext(id);
     if (!mounted) return;
     final items = ((contextData['items'] as List?) ?? const [])
@@ -201,17 +235,33 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
     );
   }
 
-  Future<void> _invoice(String id) async =>
-      _run(() => _repository.createInvoiceDraft(id), orderId: id);
+  Future<void> _invoice(String id) async => _runWorkflowAction(
+    'invoice.create',
+    () => _repository.createInvoiceDraft(id),
+    orderId: id,
+  );
 
   Future<void> _approveDelivery(String orderId, String deliveryId) async =>
-      _run(() => _repository.approveDelivery(deliveryId), orderId: orderId);
+      _runWorkflowAction(
+        'delivery.approve',
+        () => _repository.approveDelivery(deliveryId),
+        orderId: orderId,
+      );
   Future<void> _cancelDelivery(String orderId, String deliveryId) async =>
-      _run(() => _repository.cancelDelivery(deliveryId), orderId: orderId);
+      _runWorkflowAction(
+        'reverse',
+        () => _repository.cancelDelivery(deliveryId),
+        orderId: orderId,
+      );
   Future<void> _approveInvoice(String orderId, String invoiceId) async =>
-      _run(() => _repository.approveInvoice(invoiceId), orderId: orderId);
+      _runWorkflowAction(
+        'invoice.approve',
+        () => _repository.approveInvoice(invoiceId),
+        orderId: orderId,
+      );
 
   Future<void> _addPayment(Map<String, Object?> order) async {
+    if (!await _requireWorkflowAction('payment')) return;
     final invoiceId = order['invoiceId']?.toString();
     if (invoiceId == null || invoiceId.isEmpty) return;
     final invoiceCurrency =
@@ -269,6 +319,8 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
   }
 
   Future<void> _cancelInvoice(Map<String, Object?> order) async {
+    if (!await _requireWorkflowAction('reverse')) return;
+    if (!mounted) return;
     final invoiceId = order['invoiceId']?.toString();
     if (invoiceId == null || invoiceId.isEmpty) return;
     final reason = TextEditingController();
@@ -320,6 +372,7 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
       context.l10n.isArabic ? arabic : english;
 
   Future<void> _editOrder(String orderId) async {
+    if (!await PermissionAction.require(context, 'sales.update')) return;
     if (!mounted || _busyOrderIds.contains(orderId)) return;
     setState(() => _busyOrderIds.add(orderId));
     try {
@@ -452,6 +505,206 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
     }
   }
 
+  List<String> _legacyPermissionsForAction(String action) => switch (action) {
+    'order.approve' => const <String>['sales.approve'],
+    'delivery.create' => const <String>['sales.update'],
+    'delivery.approve' => const <String>[
+      'sales.approve',
+      'sales.update',
+      'sales.create',
+    ],
+    'invoice.create' => const <String>[
+      'sales.create',
+      'sales.update',
+      'sales.approve',
+    ],
+    'invoice.approve' => const <String>['sales.approve'],
+    'payment' => const <String>['cashbox.receipt'],
+    'reverse' => const <String>['sales.cancel', 'sales.update', 'sales.delete'],
+    _ => const <String>['sales.view'],
+  };
+
+  bool _allowsGranularAction(String action) {
+    final access = context.read<AccessController>();
+    final hasLegacy = _legacyPermissionsForAction(
+      action,
+    ).any(access.hasPermission);
+    if (!hasLegacy) return false;
+    if (!access.hasRestrictedActions('sales')) return true;
+    return access.hasPermission('sales.$action');
+  }
+
+  Future<bool> _requireWorkflowAction(String action) async {
+    if (_allowsGranularAction(action)) return true;
+    final access = context.read<AccessController>();
+    await access.recordDeniedAccess('sales.$action');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            context.l10n.isArabic
+                ? 'ليس لديك صلاحية لتنفيذ هذه المرحلة من دورة البيع.'
+                : 'You do not have permission to perform this sales workflow stage.',
+          ),
+        ),
+      );
+    }
+    return false;
+  }
+
+  Future<void> _runWorkflowAction(
+    String action,
+    Future<Object?> Function() operation, {
+    String? orderId,
+  }) async {
+    if (!await _requireWorkflowAction(action)) return;
+    await _run(operation, orderId: orderId);
+  }
+
+  List<CommercialWorkflowAction> _actionsForOrder(Map<String, Object?> order) {
+    final status = order['status']?.toString() ?? 'draft';
+    final actions = <CommercialWorkflowAction>[
+      if ((status == 'draft' || status == 'cancelled') &&
+          _allowsGranularAction('order.approve'))
+        CommercialWorkflowAction(
+          label: _bi('تصديق أمر البيع', 'Approve sales order'),
+          icon: Icons.verified_outlined,
+          primary: true,
+          onPressed: () => _approve(order['id'].toString()),
+        ),
+      if (_serverFlag(
+            order,
+            'canCreateDelivery',
+            status == 'approved' && order['deliveryId'] == null,
+          ) &&
+          _allowsGranularAction('delivery.create'))
+        CommercialWorkflowAction(
+          label: _bi('إنشاء إذن تجهيز مخزني', 'Create warehouse delivery'),
+          icon: Icons.local_shipping_outlined,
+          primary: true,
+          onPressed: () => _delivery(order['id'].toString()),
+        ),
+      if (_serverFlag(
+            order,
+            'canApproveDelivery',
+            order['deliveryStatus'] == 'draft',
+          ) &&
+          _allowsGranularAction('delivery.approve'))
+        CommercialWorkflowAction(
+          label: _bi('تصديق إذن التجهيز', 'Approve warehouse delivery'),
+          icon: Icons.inventory_rounded,
+          onPressed: () => _approveDelivery(
+            order['id'].toString(),
+            order['deliveryId'].toString(),
+          ),
+        ),
+      if (_serverFlag(
+            order,
+            'canCancelDelivery',
+            const <String>{
+              'draft',
+              'approved',
+            }.contains(order['deliveryStatus']?.toString()),
+          ) &&
+          _allowsGranularAction('reverse'))
+        CommercialWorkflowAction(
+          label: _bi('حذف أو عكس إذن التجهيز', 'Reverse warehouse delivery'),
+          icon: Icons.undo_rounded,
+          onPressed: () => _cancelDelivery(
+            order['id'].toString(),
+            order['deliveryId'].toString(),
+          ),
+        ),
+      if (_serverFlag(
+            order,
+            'canCreateInvoice',
+            const <String>{'approved', 'partially_executed'}.contains(status) &&
+                const <String>{
+                  'approved',
+                  'posted',
+                  'completed',
+                  'confirmed',
+                }.contains(
+                  order['deliveryStatus']?.toString().trim().toLowerCase(),
+                ) &&
+                (order['invoiceId']?.toString().trim().isEmpty ?? true),
+          ) &&
+          _allowsGranularAction('invoice.create'))
+        CommercialWorkflowAction(
+          label: _bi('إنشاء فاتورة بيع', 'Create sales invoice'),
+          icon: Icons.request_quote_outlined,
+          onPressed: () => _invoice(order['id'].toString()),
+        ),
+      if (_serverFlag(
+            order,
+            'canApproveInvoice',
+            order['invoiceStatus'] == 'draft',
+          ) &&
+          _allowsGranularAction('invoice.approve'))
+        CommercialWorkflowAction(
+          label: _bi('تصديق فاتورة البيع', 'Approve sales invoice'),
+          icon: Icons.fact_check_outlined,
+          onPressed: () => _approveInvoice(
+            order['id'].toString(),
+            order['invoiceId'].toString(),
+          ),
+        ),
+      if (_serverFlag(
+            order,
+            'canRecordPayment',
+            order['invoiceStatus'] == 'approved' &&
+                ((order['invoiceRemaining'] as num?)?.toDouble() ?? 0) > 0,
+          ) &&
+          _allowsGranularAction('payment'))
+        CommercialWorkflowAction(
+          label: _bi('الدفعات متعددة العملات', 'Multi-currency payments'),
+          icon: Icons.payments_outlined,
+          primary: true,
+          onPressed: () => _addPayment(order),
+        ),
+      if (_serverFlag(
+            order,
+            'canCancelInvoice',
+            const <String>{
+              'draft',
+              'approved',
+            }.contains(order['invoiceStatus']?.toString()),
+          ) &&
+          _allowsGranularAction('reverse'))
+        CommercialWorkflowAction(
+          label: _bi('حذف أو عكس فاتورة البيع', 'Reverse sales invoice'),
+          icon: Icons.settings_backup_restore_rounded,
+          onPressed: () => _cancelInvoice(order),
+        ),
+      if (context.read<AccessController>().hasPermission('sales.update'))
+        CommercialWorkflowAction(
+          label: _bi('تعديل الأمر والارتباطات', 'Edit order and links'),
+          icon: Icons.edit_outlined,
+          onPressed: () => _editOrder(order['id'].toString()),
+        ),
+      if ((status == 'draft' || status == 'cancelled') &&
+          context.read<AccessController>().hasPermission('sales.delete'))
+        CommercialWorkflowAction(
+          label: status == 'cancelled'
+              ? _bi('حذف الأمر الملغى', 'Delete cancelled order')
+              : _bi('حذف المسودة', 'Delete draft'),
+          icon: Icons.delete_forever_outlined,
+          destructive: true,
+          onPressed: () => _deleteOrder(order['id'].toString()),
+        ),
+      if (status != 'draft' &&
+          status != 'cancelled' &&
+          context.read<AccessController>().hasPermission('sales.cancel'))
+        CommercialWorkflowAction(
+          label: _bi('إلغاء الأمر', 'Cancel order'),
+          icon: Icons.undo_rounded,
+          destructive: true,
+          onPressed: () => _cancelOrder(order['id'].toString()),
+        ),
+    ];
+    return actions;
+  }
+
   @override
   Widget build(BuildContext context) => _loading
       ? const Center(child: KajCommercialLoadingState())
@@ -462,220 +715,47 @@ class _SalesWorkflowPageState extends State<SalesWorkflowPage> {
               status: _statusFilter,
               onSearchChanged: (value) => setState(() => _query = value),
               onStatusChanged: (value) => setState(() => _statusFilter = value),
-              onCreate: _newDraft,
+              onCreate:
+                  context.read<AccessController>().hasPermission('sales.create')
+                  ? _newDraft
+                  : null,
               createLabel: _bi('مسودة بيع جديدة', 'New sales order'),
               resultCount: _filteredOrders.length,
             ),
             Expanded(
               child: _filteredOrders.isEmpty
-                  ? Center(
-                      child: KajCommercialEmptyState(
-                        title: AppTranslation.translate('لا توجد أوامر بيع'),
-                        message: AppTranslation.translate(
-                          'ابدأ بإنشاء مسودة بيع جديدة ثم تابع الاعتماد والتجهيز والفوترة والتحصيل.',
+                  ? Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 42),
+                        child: KajCommercialEmptyState(
+                          title: AppTranslation.translate('لا توجد أوامر بيع'),
+                          message: AppTranslation.translate(
+                            'ابدأ بإنشاء مسودة بيع جديدة ثم تابع الاعتماد والتجهيز والفوترة والتحصيل.',
+                          ),
+                          actionLabel:
+                              context.read<AccessController>().hasPermission(
+                                'sales.create',
+                              )
+                              ? AppTranslation.translate('مسودة بيع جديدة')
+                              : null,
+                          onAction:
+                              context.read<AccessController>().hasPermission(
+                                'sales.create',
+                              )
+                              ? _newDraft
+                              : null,
                         ),
-                        actionLabel: AppTranslation.translate(
-                          'مسودة بيع جديدة',
-                        ),
-                        onAction: _newDraft,
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                        12,
-                        6,
-                        12,
-                        12,
-                      ),
-                      itemCount: _filteredOrders.length,
-                      itemBuilder: (context, index) {
-                        final order = _filteredOrders[index];
-                        final status = order['status']?.toString() ?? 'draft';
-                        final actions = <CommercialWorkflowAction>[
-                          if (status == 'draft' || status == 'cancelled')
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'تصديق أمر البيع',
-                                'Approve sales order',
-                              ),
-                              icon: Icons.verified_outlined,
-                              primary: true,
-                              onPressed: () => _approve(order['id'].toString()),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canCreateDelivery',
-                            status == 'approved' && order['deliveryId'] == null,
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'إنشاء إذن تجهيز مخزني',
-                                'Create warehouse delivery',
-                              ),
-                              icon: Icons.local_shipping_outlined,
-                              primary: true,
-                              onPressed: () =>
-                                  _delivery(order['id'].toString()),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canApproveDelivery',
-                            order['deliveryStatus'] == 'draft',
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'تصديق إذن التجهيز',
-                                'Approve warehouse delivery',
-                              ),
-                              icon: Icons.inventory_rounded,
-                              onPressed: () => _approveDelivery(
-                                order['id'].toString(),
-                                order['deliveryId'].toString(),
-                              ),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canCancelDelivery',
-                            const <String>{
-                              'draft',
-                              'approved',
-                            }.contains(order['deliveryStatus']?.toString()),
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'حذف أو عكس إذن التجهيز',
-                                'Reverse warehouse delivery',
-                              ),
-                              icon: Icons.undo_rounded,
-                              onPressed: () => _cancelDelivery(
-                                order['id'].toString(),
-                                order['deliveryId'].toString(),
-                              ),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canCreateInvoice',
-                            const <String>{
-                                  'approved',
-                                  'partially_executed',
-                                }.contains(status) &&
-                                const <String>{
-                                  'approved',
-                                  'posted',
-                                  'completed',
-                                  'confirmed',
-                                }.contains(
-                                  order['deliveryStatus']
-                                      ?.toString()
-                                      .trim()
-                                      .toLowerCase(),
-                                ) &&
-                                (order['invoiceId']
-                                        ?.toString()
-                                        .trim()
-                                        .isEmpty ??
-                                    true),
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'إنشاء فاتورة بيع',
-                                'Create sales invoice',
-                              ),
-                              icon: Icons.request_quote_outlined,
-                              onPressed: () => _invoice(order['id'].toString()),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canApproveInvoice',
-                            order['invoiceStatus'] == 'draft',
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'تصديق فاتورة البيع',
-                                'Approve sales invoice',
-                              ),
-                              icon: Icons.fact_check_outlined,
-                              onPressed: () => _approveInvoice(
-                                order['id'].toString(),
-                                order['invoiceId'].toString(),
-                              ),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canRecordPayment',
-                            order['invoiceStatus'] == 'approved' &&
-                                ((order['invoiceRemaining'] as num?)
-                                            ?.toDouble() ??
-                                        0) >
-                                    0,
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'الدفعات متعددة العملات',
-                                'Multi-currency payments',
-                              ),
-                              icon: Icons.payments_outlined,
-                              primary: true,
-                              onPressed: () => _addPayment(order),
-                            ),
-                          if (_serverFlag(
-                            order,
-                            'canCancelInvoice',
-                            const <String>{
-                              'draft',
-                              'approved',
-                            }.contains(order['invoiceStatus']?.toString()),
-                          ))
-                            CommercialWorkflowAction(
-                              label: _bi(
-                                'حذف أو عكس فاتورة البيع',
-                                'Reverse sales invoice',
-                              ),
-                              icon: Icons.settings_backup_restore_rounded,
-                              onPressed: () => _cancelInvoice(order),
-                            ),
-                          CommercialWorkflowAction(
-                            label: _bi(
-                              'تعديل الأمر والارتباطات',
-                              'Edit order and links',
-                            ),
-                            icon: Icons.edit_outlined,
-                            onPressed: () => _editOrder(order['id'].toString()),
-                          ),
-                          if (status == 'draft' || status == 'cancelled')
-                            CommercialWorkflowAction(
-                              label: status == 'cancelled'
-                                  ? _bi(
-                                      'حذف الأمر الملغى',
-                                      'Delete cancelled order',
-                                    )
-                                  : _bi('حذف المسودة', 'Delete draft'),
-                              icon: Icons.delete_forever_outlined,
-                              destructive: true,
-                              onPressed: () =>
-                                  _deleteOrder(order['id'].toString()),
-                            ),
-                          if (status != 'draft' && status != 'cancelled')
-                            CommercialWorkflowAction(
-                              label: _bi('إلغاء الأمر', 'Cancel order'),
-                              icon: Icons.undo_rounded,
-                              destructive: true,
-                              onPressed: () =>
-                                  _cancelOrder(order['id'].toString()),
-                            ),
-                        ];
-                        return CommercialWorkflowOrderCard(
-                          order: order,
-                          purchase: false,
-                          partnerLabel: _bi('العميل', 'Customer'),
-                          partnerName:
-                              order['customerName']?.toString() ??
-                              _bi('غير محدد', 'Not specified'),
-                          actions: actions,
-                          busy: _busyOrderIds.contains(order['id'].toString()),
-                          onDetails: () => _openDetails(order['id'].toString()),
-                        );
-                      },
+                  : CommercialWorkflowOrderTable(
+                      orders: _filteredOrders,
+                      purchase: false,
+                      actionsBuilder: _actionsForOrder,
+                      isBusy: (order) =>
+                          _busyOrderIds.contains(order['id'].toString()),
+                      onDetails: (order) =>
+                          _openDetails(order['id'].toString()),
                     ),
             ),
           ],

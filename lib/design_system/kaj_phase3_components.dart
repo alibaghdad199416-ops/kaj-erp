@@ -37,7 +37,9 @@ class KajPhaseHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final insideOperationalWorkspace =
         AppWorkspaceWindowScope.maybeOf(context) != null;
-    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
+    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(
+      context,
+    );
     if (insideOperationalWorkspace || shellOwnsModuleIdentity) {
       final commands = <Widget>[?secondaryAction, ?primaryAction, ?trailing];
       if (commands.isEmpty) return const SizedBox.shrink();
@@ -241,7 +243,9 @@ class KajWorkflowStepper extends StatelessWidget {
                   vertical: dense ? 7 : 10,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: complete || active ? .10 : .035),
+                  color: color.withValues(
+                    alpha: complete || active ? .10 : .035,
+                  ),
                   borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
                   border: Border.all(
                     color: color.withValues(

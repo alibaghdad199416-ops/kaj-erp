@@ -7,6 +7,28 @@ class ReportsRepository {
   String get _companyId =>
       CloudTenantContext.instance.companyUuid ??
       (throw StateError('لم يتم تحديد شركة سحابية.'));
+  Future<void> recordReportEvent({
+    required String reportKey,
+    required String reportTitle,
+    required String outputFormat,
+    required String module,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    await _client.rpc(
+      'erp_r88_record_report_event',
+      params: {
+        'p_company_id': _companyId,
+        'p_report_key': reportKey,
+        'p_report_title': reportTitle,
+        'p_output_format': outputFormat,
+        'p_module': module,
+        'p_from_date': startDate?.toUtc().toIso8601String(),
+        'p_to_date': endDate?.toUtc().toIso8601String(),
+      },
+    );
+  }
+
   Future<ReportModel> getReportsData({
     DateTime? startDate,
     DateTime? endDate,

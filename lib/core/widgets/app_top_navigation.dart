@@ -27,9 +27,16 @@ class AppModuleNavigation {
 
   static bool _switching = false;
   static String? _pendingRoute;
+  static Object? _pendingArguments;
 
-  static void open(BuildContext context, String route, {String? currentRoute}) {
+  static void open(
+    BuildContext context,
+    String route, {
+    String? currentRoute,
+    Object? arguments,
+  }) {
     _pendingRoute = route;
+    _pendingArguments = arguments;
     FocusManager.instance.primaryFocus?.unfocus();
     if (_switching) return;
     _switching = true;
@@ -47,16 +54,24 @@ class AppModuleNavigation {
       if (!context.mounted) return;
 
       final target = _pendingRoute;
+      final arguments = _pendingArguments;
       _pendingRoute = null;
+      _pendingArguments = null;
       if (target == null) return;
 
       final rootNavigator = Navigator.of(context, rootNavigator: true);
       if (!rootNavigator.mounted) return;
-      unawaited(rootNavigator.pushNamedAndRemoveUntil(target, (_) => false));
+      unawaited(
+        rootNavigator.pushNamedAndRemoveUntil(
+          target,
+          (_) => false,
+          arguments: arguments,
+        ),
+      );
     } finally {
       _switching = false;
       if (_pendingRoute != null && context.mounted) {
-        open(context, _pendingRoute!);
+        open(context, _pendingRoute!, arguments: _pendingArguments);
       }
     }
   }

@@ -49,7 +49,7 @@ if errors:
  for e in errors: print("  -",e)
  raise SystemExit(1)
 print("PASS V7.3.4 complete export audit")
-print("  - command bars no longer carry per-action semantic colors")
+print("  - command bars avoid ad-hoc hard-coded colors and delegate semantics to the shared action component")
 print("  - generic Excel exports include profile and relation-index sheets")
 print("  - field and document names share one bilingual catalog")
 print("  - all principal PDF exporters use one premium/unified visual theme")

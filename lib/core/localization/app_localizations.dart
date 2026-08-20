@@ -165,6 +165,183 @@ class AppLocalizations {
       'ar': 'إنشاء المستخدمين وتحديد الأدوار وحالة الحسابات.',
       'en': 'Create users and manage roles and account status.',
     },
+    // Dashboard KPI card titles
+    'kpiTotalSales': {'ar': 'إجمالي المبيعات', 'en': 'Total Sales'},
+    'kpiNetProfit': {'ar': 'صافي الربح', 'en': 'Net Profit'},
+    'kpiMaintenanceRevenue': {
+      'ar': 'إيراد فواتير الصيانة',
+      'en': 'Maintenance Revenue',
+    },
+    'kpiFleet': {'ar': 'أسطول السيارات', 'en': 'Fleet'},
+    'kpiDueInstallments': {'ar': 'الأقساط المستحقة', 'en': 'Due Installments'},
+    'kpiInventoryValue': {'ar': 'قيمة المخزون', 'en': 'Inventory Value'},
+    'kpiReceivables': {'ar': 'الذمم المدينة', 'en': 'Receivables'},
+    'kpiCashBalanceIqd': {'ar': 'رصيد الصناديق IQD', 'en': 'Cash Balance IQD'},
+    'kpiVehicleAlerts': {'ar': 'تنبيهات السيارات', 'en': 'Vehicle Alerts'},
+    // Dashboard KPI card detail labels
+    'kpiToday': {'ar': 'اليوم', 'en': 'Today'},
+    'kpiPositive': {'ar': 'ربحية موجبة', 'en': 'Positive'},
+    'kpiNeedsReview': {'ar': 'تحتاج إلى مراجعة', 'en': 'Needs review'},
+    'kpiFifoCost': {'ar': 'تكلفة FIFO', 'en': 'FIFO cost'},
+    'kpiOutstanding': {'ar': 'متبقي', 'en': 'Outstanding'},
+    'kpiAvailable': {'ar': 'متوفرة', 'en': 'available'},
+    'kpiSold': {'ar': 'مباعة', 'en': 'sold'},
+    'kpiWithinDays': {'ar': 'خلال 7 أيام', 'en': 'within 7 days'},
+    'kpiAtMinimum': {'ar': 'عند الحد الأدنى', 'en': 'at minimum'},
+    'kpiSupplierPayables': {'ar': 'ذمم الموردين', 'en': 'Supplier payables'},
+    'kpiOnPurchase': {'ar': 'قيد الشراء', 'en': 'on purchase'},
+    // Dashboard panel headers
+    'panelRecentSales': {'ar': 'أحدث المبيعات', 'en': 'Recent Sales'},
+    'panelActualSales': {'ar': 'مبيعات فعلية', 'en': 'Actual Sales'},
+    'panelInstallments': {
+      'ar': 'الأقساط والمتابعات',
+      'en': 'Installments & Follow-ups',
+    },
+    'panelFleet': {'ar': 'أسطول السيارات', 'en': 'Fleet'},
+    'panelRecentDocuments': {'ar': 'أحدث المستندات', 'en': 'Recent Documents'},
+    'panelInvoices': {'ar': 'فواتير فعلية', 'en': 'Invoices'},
+    'panelRecentActivity': {'ar': 'آخر النشاطات', 'en': 'Recent Activity'},
+    'panelAuditTrail': {'ar': 'سجل العمليات', 'en': 'Audit Trail'},
+    // Dashboard empty states
+    'dashboardLoading': {'ar': 'جاري التحميل...', 'en': 'Loading...'},
+    'dashboardNoSalesData': {
+      'ar': 'لا توجد مبيعات حديثة',
+      'en': 'No recent sales data',
+    },
+    'dashboardNoInstallments': {
+      'ar': 'لا توجد أقساط قريبة',
+      'en': 'No upcoming installments',
+    },
+    'dashboardNoDocuments': {
+      'ar': 'لا توجد مستندات حديثة',
+      'en': 'No recent documents',
+    },
+    'dashboardNoActivity': {
+      'ar': 'لا توجد عمليات مسجلة بعد',
+      'en': 'No operations recorded yet',
+    },
+    'dashboardNoSalesTrend': {
+      'ar': 'لا توجد بيانات مبيعات',
+      'en': 'No sales data',
+    },
+    // Dashboard period bar
+    'periodAllTime': {'ar': 'كل الفترات', 'en': 'All time'},
+    'periodToday': {'ar': 'اليوم', 'en': 'Today'},
+    'periodCurrentMonth': {'ar': 'الشهر الحالي', 'en': 'Current month'},
+    'periodCustomRange': {'ar': 'فترة مخصصة', 'en': 'Custom range'},
+    'periodThrough': {'ar': 'حتى', 'en': 'Through'},
+    // Dashboard installments panel
+    'installmentsOverdue': {'ar': 'متأخرة', 'en': 'Overdue'},
+    'installmentsUpcoming': {'ar': 'قادمة', 'en': 'Upcoming'},
+    'installmentsRemaining': {'ar': 'المبلغ المتبقي', 'en': 'Remaining Amount'},
+    'installmentsNoReservations': {
+      'ar': 'لا توجد حجوزات',
+      'en': 'No reservations',
+    },
+    // Dashboard report dialog titles
+    'detailsTotalSales': {
+      'ar': 'تفاصيل إجمالي المبيعات',
+      'en': 'Total Sales Details',
+    },
+    'detailsProfit': {'ar': 'تفاصيل الأرباح', 'en': 'Profit Details'},
+    'detailsMaintenanceRevenue': {
+      'ar': 'تفاصيل إيراد وتكلفة الصيانة',
+      'en': 'Maintenance Revenue & Cost Details',
+    },
+    'detailsFleet': {'ar': 'تفاصيل أسطول السيارات', 'en': 'Fleet Details'},
+    'detailsSettlements': {
+      'ar': 'تفاصيل التسويات والأقساط',
+      'en': 'Settlements & Installments Details',
+    },
+    'detailsInventory': {
+      'ar': 'تفاصيل قيمة المخزون',
+      'en': 'Inventory Value Details',
+    },
+    'detailsReceivables': {
+      'ar': 'تفاصيل الذمم المدينة والدائنة',
+      'en': 'Receivables & Payables Details',
+    },
+    'detailsCashbox': {
+      'ar': 'تفاصيل الصناديق والتسويات',
+      'en': 'Cashbox & Settlements Details',
+    },
+    'detailsVehicleStatus': {
+      'ar': 'تفاصيل حالات السيارات',
+      'en': 'Vehicle Status Details',
+    },
+    // Dashboard hero and shared labels
+    'dashboardCommandCenter': {
+      'ar': 'مركز القيادة التنفيذي',
+      'en': 'EXECUTIVE COMMAND CENTER',
+    },
+    'dashboardWelcome': {'ar': 'مرحباً بك', 'en': 'Welcome'},
+    'dashboardNameSeparator': {'ar': '، ', 'en': ', '},
+    'dashboardHeroSubtitle': {
+      'ar':
+          'نظرة تنفيذية لحظية على المبيعات والمخزون والصيانة والالتزامات المالية.',
+      'en':
+          'A live executive view of sales, inventory, maintenance and financial commitments.',
+    },
+    'dashboardLegacySubtitle': {
+      'ar': 'ملخص تنفيذي لحظي لأعمال خط الجودة اليوم',
+      'en': 'Live executive overview of Khat Al-Jawda operations',
+    },
+    'dashboardTodaySales': {'ar': 'مبيعات اليوم', 'en': 'TODAY SALES'},
+    'dashboardAvailableVehicles': {
+      'ar': 'السيارات المتوفرة',
+      'en': 'AVAILABLE VEHICLES',
+    },
+    'dashboardOverdueInstallments': {
+      'ar': 'أقساط متأخرة',
+      'en': 'OVERDUE INSTALLMENTS',
+    },
+    'salesTrendByCurrency': {
+      'ar': 'اتجاه المبيعات حسب العملة',
+      'en': 'Sales trend by currency',
+    },
+    'salesTrendMixedCurrencies': {
+      'ar': 'تم إخفاء الرسم الموحّد لأنه سيجمع عملات مختلفة في محور مالي واحد.',
+      'en':
+          'The combined chart is hidden because it would mix different currencies on one monetary axis.',
+    },
+    'salesMovement': {'ar': 'حركة المبيعات', 'en': 'Sales Trend'},
+    'lastSevenDays': {'ar': 'آخر 7 أيام', 'en': 'Last 7 days'},
+    'sevenDays': {'ar': '7 أيام', 'en': '7 days'},
+    'periodTotal': {'ar': 'إجمالي الفترة', 'en': 'Period Total'},
+    'installmentNumber': {'ar': 'القسط', 'en': 'Installment'},
+    'fleetStatus': {'ar': 'حالة الأسطول', 'en': 'Fleet Status'},
+    'vehicles': {'ar': 'السيارات', 'en': 'Vehicles'},
+    'fleetAvailable': {'ar': 'متوفرة', 'en': 'Available'},
+    'fleetReserved': {'ar': 'قيد البيع', 'en': 'Reserved'},
+    'fleetSold': {'ar': 'مباعة', 'en': 'Sold'},
+    'fleetPendingPurchase': {'ar': 'قيد الشراء', 'en': 'Pending Purchase'},
+    'activeReservations': {
+      'ar': 'الحجوزات النشطة',
+      'en': 'Active Reservations',
+    },
+    'statusLastUpdated': {'ar': 'آخر تحديث', 'en': 'Last Updated'},
+    'statusSync': {'ar': 'المزامنة', 'en': 'Sync'},
+    'statusComplete': {'ar': 'مكتملة', 'en': 'Complete'},
+    'statusPending': {'ar': 'معلقة', 'en': 'pending'},
+    'statusCashboxUsd': {'ar': 'الصندوق USD', 'en': 'USD Cashbox'},
+    'statusCashboxIqd': {'ar': 'الصندوق IQD', 'en': 'IQD Cashbox'},
+    'statusInventoryValue': {'ar': 'قيمة المخزون', 'en': 'Inventory Value'},
+    'statusPurchases': {'ar': 'المشتريات', 'en': 'Purchases'},
+    'statusExpenses': {'ar': 'المصروفات', 'en': 'Expenses'},
+    'relativeNow': {'ar': 'الآن', 'en': 'Now'},
+    'relativeMinutesAgo': {'ar': 'منذ', 'en': 'ago'},
+    'relativeHoursAgo': {'ar': 'منذ', 'en': 'ago'},
+    'relativeDaysAgo': {'ar': 'منذ', 'en': 'ago'},
+    'minuteAbbreviation': {'ar': 'د', 'en': 'm'},
+    'hourAbbreviation': {'ar': 'س', 'en': 'h'},
+    'dayAbbreviation': {'ar': 'ي', 'en': 'd'},
+    'weekdayMon': {'ar': 'الإثنين', 'en': 'Mon'},
+    'weekdayTue': {'ar': 'الثلاثاء', 'en': 'Tue'},
+    'weekdayWed': {'ar': 'الأربعاء', 'en': 'Wed'},
+    'weekdayThu': {'ar': 'الخميس', 'en': 'Thu'},
+    'weekdayFri': {'ar': 'الجمعة', 'en': 'Fri'},
+    'weekdaySat': {'ar': 'السبت', 'en': 'Sat'},
+    'weekdaySun': {'ar': 'الأحد', 'en': 'Sun'},
   };
 }
 

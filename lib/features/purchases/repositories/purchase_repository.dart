@@ -105,7 +105,7 @@ class PurchaseRepository {
 
   Future<void> deletePurchase(String purchaseId) async {
     await _client.rpc(
-      'erp_delete_cloud_purchase',
+      'erp_r92_delete_cloud_purchase',
       params: {'p_company_id': _companyId, 'p_purchase_id': purchaseId},
     );
   }

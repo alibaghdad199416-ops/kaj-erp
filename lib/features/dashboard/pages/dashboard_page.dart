@@ -53,22 +53,15 @@ class DashboardPage extends StatelessWidget {
                   children: [
                     const SizedBox(height: 2),
                     KajSignaturePageHero(
-                      eyebrow: context.l10n.isArabic
-                          ? 'مركز القيادة التنفيذي'
-                          : 'EXECUTIVE COMMAND CENTER',
-                      title: context.l10n.isArabic
-                          ? 'مرحباً بك${userName.isEmpty ? '' : '، $userName'}'
-                          : 'Welcome${userName.isEmpty ? '' : ', $userName'}',
-                      subtitle: context.l10n.isArabic
-                          ? 'نظرة تنفيذية لحظية على المبيعات والمخزون والصيانة والالتزامات المالية.'
-                          : 'A live executive view of sales, inventory, maintenance and financial commitments.',
+                      eyebrow: context.l10n.text('dashboardCommandCenter'),
+                      title:
+                          '${context.l10n.text('dashboardWelcome')}${userName.isEmpty ? '' : '${context.l10n.text('dashboardNameSeparator')}$userName'}',
+                      subtitle: context.l10n.text('dashboardHeroSubtitle'),
                       icon: Icons.space_dashboard_outlined,
                       metrics: <KajSignatureMetricData>[
                         if (can('todaySales'))
                           KajSignatureMetricData(
-                            label: context.l10n.isArabic
-                                ? 'مبيعات اليوم'
-                                : 'TODAY SALES',
+                            label: context.l10n.text('dashboardTodaySales'),
                             value: CurrencyTotalsFormatter.format(
                               dashboard.todaySalesByCurrency,
                             ),
@@ -76,18 +69,18 @@ class DashboardPage extends StatelessWidget {
                           ),
                         if (can('availableCars'))
                           KajSignatureMetricData(
-                            label: context.l10n.isArabic
-                                ? 'السيارات المتوفرة'
-                                : 'AVAILABLE VEHICLES',
+                            label: context.l10n.text(
+                              'dashboardAvailableVehicles',
+                            ),
                             value: '${dashboard.availableCars}',
                             icon: Icons.directions_car_filled_outlined,
                             accent: KajDesignTokens.champagne,
                           ),
                         if (can('overdueInstallments'))
                           KajSignatureMetricData(
-                            label: context.l10n.isArabic
-                                ? 'أقساط متأخرة'
-                                : 'OVERDUE INSTALLMENTS',
+                            label: context.l10n.text(
+                              'dashboardOverdueInstallments',
+                            ),
                             value: '${dashboard.overdueInstallments}',
                             icon: Icons.schedule_rounded,
                             accent: dashboard.overdueInstallments > 0
@@ -95,6 +88,7 @@ class DashboardPage extends StatelessWidget {
                                 : KajDesignTokens.success,
                           ),
                       ],
+                      trailing: _DashboardPeriodBar(controller: controller),
                     ),
                     if (controller.isLoading) ...[
                       const SizedBox(height: 12),
@@ -104,9 +98,7 @@ class DashboardPage extends StatelessWidget {
                       const SizedBox(height: 12),
                       _ErrorCard(message: controller.errorMessage ?? ''),
                     ],
-                    const SizedBox(height: 12),
-                    _DashboardPeriodBar(controller: controller),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     _KpiGrid(dashboard: dashboard),
                     const SizedBox(height: 16),
                     LayoutBuilder(
@@ -244,9 +236,7 @@ class _WelcomeBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppText(
-                    context.l10n.isArabic
-                        ? 'مرحباً بك${userName.isEmpty ? '' : '، $userName'}'
-                        : 'Welcome${userName.isEmpty ? '' : ', $userName'}',
+                    '${context.l10n.text('dashboardWelcome')}${userName.isEmpty ? '' : '${context.l10n.text('dashboardNameSeparator')}$userName'}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 21,
@@ -255,9 +245,7 @@ class _WelcomeBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   AppText(
-                    context.l10n.isArabic
-                        ? 'ملخص تنفيذي لحظي لأعمال خط الجودة اليوم'
-                        : 'Live executive overview of Khat Al-Jawda operations',
+                    context.l10n.text('dashboardLegacySubtitle'),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .82),
                       fontSize: 12.5,
@@ -270,15 +258,11 @@ class _WelcomeBanner extends StatelessWidget {
                 runSpacing: 10,
                 children: [
                   _BannerChip(
-                    label: context.l10n.isArabic
-                        ? 'مبيعات اليوم'
-                        : 'Today sales',
+                    label: context.l10n.text('dashboardTodaySales'),
                     value: _money(todaySales),
                   ),
                   _BannerChip(
-                    label: context.l10n.isArabic
-                        ? 'سيارات متوفرة'
-                        : 'Available vehicles',
+                    label: context.l10n.text('dashboardAvailableVehicles'),
                     value: '$availableCars',
                   ),
                 ],
@@ -352,12 +336,11 @@ class _DashboardPeriodBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final arabic = context.l10n.isArabic;
     final labels = <DashboardPeriod, String>{
-      DashboardPeriod.allTime: arabic ? 'كل الفترات' : 'All time',
-      DashboardPeriod.today: arabic ? 'اليوم' : 'Today',
-      DashboardPeriod.currentMonth: arabic ? 'الشهر الحالي' : 'Current month',
-      DashboardPeriod.custom: arabic ? 'فترة مخصصة' : 'Custom range',
+      DashboardPeriod.allTime: context.l10n.text('periodAllTime'),
+      DashboardPeriod.today: context.l10n.text('periodToday'),
+      DashboardPeriod.currentMonth: context.l10n.text('periodCurrentMonth'),
+      DashboardPeriod.custom: context.l10n.text('periodCustomRange'),
     };
     return Wrap(
       spacing: 8,
@@ -393,7 +376,7 @@ class _DashboardPeriodBar extends StatelessWidget {
           ),
         AppText(
           controller.fromDate == null
-              ? '${arabic ? 'حتى' : 'Through'} ${DateFormat('yyyy/MM/dd').format(controller.toDate)}'
+              ? '${context.l10n.text('periodThrough')} ${DateFormat('yyyy/MM/dd').format(controller.toDate)}'
               : '${DateFormat('yyyy/MM/dd').format(controller.fromDate!)} – ${DateFormat('yyyy/MM/dd').format(controller.toDate)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -416,36 +399,27 @@ class _KpiGrid extends StatelessWidget {
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1180
-            ? 4
-            : constraints.maxWidth >= 720
-            ? 2
-            : 1;
-        final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
+        const spacing = 12.0;
+        final columnCount = dashboardKpiColumnCount(constraints.maxWidth);
+        final cards = <Widget>[
             if (can('totalSales') && can('todaySales'))
               _KpiCard(
-                width: width,
                 icon: Icons.point_of_sale_outlined,
                 color: const Color(0xFF16A66A),
-                title: 'إجمالي المبيعات',
+                title: context.l10n.text('kpiTotalSales'),
                 value: CurrencyTotalsFormatter.format(
                   dashboard.totalSalesByCurrency,
                 ),
                 detail:
-                    'اليوم ${CurrencyTotalsFormatter.format(dashboard.todaySalesByCurrency)}',
+                    '${context.l10n.text('kpiToday')} ${CurrencyTotalsFormatter.format(dashboard.todaySalesByCurrency)}',
                 onTap: () => _openDashboardReport(
                   context,
                   'sales',
-                  'تفاصيل إجمالي المبيعات',
+                  context.l10n.text('detailsTotalSales'),
                 ),
               ),
             if (can('netProfit'))
               _KpiCard(
-                width: width,
                 icon: Icons.trending_up_rounded,
                 color:
                     !dashboard.netProfitByCurrency.values.any(
@@ -453,7 +427,7 @@ class _KpiGrid extends StatelessWidget {
                     )
                     ? const Color(0xFF7C5CE7)
                     : Colors.red,
-                title: 'صافي الربح',
+                title: context.l10n.text('kpiNetProfit'),
                 value: CurrencyTotalsFormatter.format(
                   dashboard.netProfitByCurrency,
                 ),
@@ -461,122 +435,141 @@ class _KpiGrid extends StatelessWidget {
                     !dashboard.netProfitByCurrency.values.any(
                       (value) => value < 0,
                     )
-                    ? 'ربحية موجبة'
-                    : 'تحتاج إلى مراجعة',
-                onTap: () =>
-                    _openDashboardReport(context, 'overview', 'تفاصيل الأرباح'),
+                    ? context.l10n.text('kpiPositive')
+                    : context.l10n.text('kpiNeedsReview'),
+                onTap: () => _openDashboardReport(
+                  context,
+                  'overview',
+                  context.l10n.text('detailsProfit'),
+                ),
               ),
             if (can('maintenanceRevenueByCurrency'))
               _KpiCard(
-                width: width,
                 icon: Icons.build_circle_outlined,
                 color: const Color(0xFF0E8F9B),
-                title: 'إيراد فواتير الصيانة',
+                title: context.l10n.text('kpiMaintenanceRevenue'),
                 value: CurrencyTotalsFormatter.format(
                   dashboard.maintenanceRevenueByCurrency,
                 ),
                 detail:
-                    'تكلفة FIFO ${CurrencyTotalsFormatter.format(dashboard.maintenanceActualCostByCurrency)} • متبقي ${CurrencyTotalsFormatter.format(dashboard.maintenanceOutstandingByCurrency)}',
+                    '${context.l10n.text('kpiFifoCost')} ${CurrencyTotalsFormatter.format(dashboard.maintenanceActualCostByCurrency)} • ${context.l10n.text('kpiOutstanding')} ${CurrencyTotalsFormatter.format(dashboard.maintenanceOutstandingByCurrency)}',
                 onTap: () => _openDashboardReport(
                   context,
                   'maintenance',
-                  'تفاصيل إيراد وتكلفة الصيانة',
+                  context.l10n.text('detailsMaintenanceRevenue'),
                 ),
               ),
             if (can('totalCars') && can('availableCars') && can('soldCars'))
               _KpiCard(
-                width: width,
                 icon: Icons.directions_car_outlined,
                 color: const Color(0xFF2F80ED),
-                title: 'أسطول السيارات',
+                title: context.l10n.text('kpiFleet'),
                 value: '${dashboard.totalCars}',
                 detail:
-                    '${dashboard.availableCars} متوفرة • ${dashboard.soldCars} مباعة',
+                    '${dashboard.availableCars} ${context.l10n.text('kpiAvailable')} • ${dashboard.soldCars} ${context.l10n.text('kpiSold')}',
                 onTap: () => _openDashboardReport(
                   context,
                   'cars',
-                  'تفاصيل أسطول السيارات',
+                  context.l10n.text('detailsFleet'),
                 ),
               ),
             if (can('overdueInstallments') && can('dueSoonInstallments'))
               _KpiCard(
-                width: width,
                 icon: Icons.schedule_rounded,
                 color: dashboard.overdueInstallments > 0
                     ? const Color(0xFFE05D5D)
                     : const Color(0xFFF2A900),
-                title: 'الأقساط المستحقة',
+                title: context.l10n.text('kpiDueInstallments'),
                 value: '${dashboard.overdueInstallments}',
-                detail: '${dashboard.dueSoonInstallments} خلال 7 أيام',
+                detail:
+                    '${dashboard.dueSoonInstallments} ${context.l10n.text('kpiWithinDays')}',
                 onTap: () => _openDashboardReport(
                   context,
                   'finance',
-                  'تفاصيل التسويات والأقساط',
+                  context.l10n.text('detailsSettlements'),
                 ),
               ),
             if (can('inventoryValue') && can('lowStockItems'))
               _KpiCard(
-                width: width,
                 icon: Icons.inventory_2_outlined,
                 color: const Color(0xFF0E8F9B),
-                title: 'قيمة المخزون',
+                title: context.l10n.text('kpiInventoryValue'),
                 value: CurrencyTotalsFormatter.format(
                   dashboard.inventoryValueByCurrency,
                 ),
-                detail: '${dashboard.lowStockItems} مواد عند الحد الأدنى',
+                detail:
+                    '${dashboard.lowStockItems} ${context.l10n.text('kpiAtMinimum')}',
                 onTap: () => _openDashboardReport(
                   context,
                   'inventory',
-                  'تفاصيل قيمة المخزون',
+                  context.l10n.text('detailsInventory'),
                 ),
               ),
             if (can('totalReceivables') && can('totalPayables'))
               _KpiCard(
-                width: width,
                 icon: Icons.receipt_long_outlined,
                 color: const Color(0xFF8A5CF5),
-                title: 'الذمم المدينة',
+                title: context.l10n.text('kpiReceivables'),
                 value: CurrencyTotalsFormatter.format(
                   dashboard.totalReceivablesByCurrency,
                 ),
                 detail:
-                    'ذمم الموردين ${CurrencyTotalsFormatter.format(dashboard.totalPayablesByCurrency)}',
+                    '${context.l10n.text('kpiSupplierPayables')} ${CurrencyTotalsFormatter.format(dashboard.totalPayablesByCurrency)}',
                 onTap: () => _openDashboardReport(
                   context,
                   'finance',
-                  'تفاصيل الذمم المدينة والدائنة',
+                  context.l10n.text('detailsReceivables'),
                 ),
               ),
             if (can('cashBalanceIqd') && can('cashBalanceUsd'))
               _KpiCard(
-                width: width,
                 icon: Icons.currency_exchange_rounded,
                 color: const Color(0xFFB7791F),
-                title: 'رصيد الصناديق IQD',
+                title: context.l10n.text('kpiCashBalanceIqd'),
                 value: _money(dashboard.cashBalanceIqd),
                 detail: 'USD ${_money(dashboard.cashBalanceUsd)}',
                 onTap: () => _openDashboardReport(
                   context,
                   'finance',
-                  'تفاصيل الصناديق والتسويات',
+                  context.l10n.text('detailsCashbox'),
                 ),
               ),
             if (can('carsWithoutWarehouse') && can('pendingPurchaseCars'))
               _KpiCard(
-                width: width,
                 icon: Icons.warning_amber_rounded,
                 color: dashboard.carsWithoutWarehouse > 0
                     ? const Color(0xFFE05D5D)
                     : const Color(0xFF16A66A),
-                title: 'تنبيهات السيارات',
+                title: context.l10n.text('kpiVehicleAlerts'),
                 value: '${dashboard.carsWithoutWarehouse}',
-                detail: '${dashboard.pendingPurchaseCars} قيد الشراء',
+                detail:
+                    '${dashboard.pendingPurchaseCars} ${context.l10n.text('kpiOnPurchase')}',
                 onTap: () => _openDashboardReport(
                   context,
                   'cars',
-                  'تفاصيل حالات السيارات',
+                  context.l10n.text('detailsVehicleStatus'),
                 ),
               ),
+        ];
+        if (cards.isEmpty) return const SizedBox.shrink();
+        final rowSizes = dashboardKpiRowSizes(cards.length, columnCount);
+        var cardIndex = 0;
+        return Column(
+          children: <Widget>[
+            for (var rowIndex = 0; rowIndex < rowSizes.length; rowIndex++) ...<Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (var index = 0; index < rowSizes[rowIndex]; index++) ...<Widget>[
+                    Expanded(child: cards[cardIndex++]),
+                    if (index < rowSizes[rowIndex] - 1)
+                      const SizedBox(width: spacing),
+                  ],
+                ],
+              ),
+              if (rowIndex < rowSizes.length - 1)
+                const SizedBox(height: spacing),
+            ],
           ],
         );
       },
@@ -586,7 +579,6 @@ class _KpiGrid extends StatelessWidget {
 
 class _KpiCard extends StatelessWidget {
   const _KpiCard({
-    required this.width,
     required this.icon,
     required this.color,
     required this.title,
@@ -594,7 +586,6 @@ class _KpiCard extends StatelessWidget {
     required this.detail,
     this.onTap,
   });
-  final double width;
   final IconData icon;
   final Color color;
   final String title;
@@ -604,9 +595,7 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: InkWell(
+    return InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: _Panel(
@@ -628,6 +617,8 @@ class _KpiCard extends StatelessWidget {
                   children: [
                     AppText(
                       title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -662,8 +653,7 @@ class _KpiCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -699,19 +689,14 @@ class _SalesTrendPanel extends StatelessWidget {
       (value, point) => value + point.amount,
     );
     if (mixedCurrencies) {
+      // The combined chart is hidden when the period contains more than one
+      // currency so USD/IQD values are never plotted on one misleading axis.
       return _Panel(
+        key: const ValueKey('dashboard-mixed-currency-trend-suppressed'),
         child: ListTile(
           leading: const Icon(Icons.currency_exchange_outlined),
-          title: AppText(
-            context.l10n.isArabic
-                ? 'اتجاه المبيعات حسب العملة'
-                : 'Sales trend by currency',
-          ),
-          subtitle: AppText(
-            context.l10n.isArabic
-                ? 'تم إخفاء الرسم الموحّد لأنه سيجمع عملات مختلفة في محور مالي واحد.'
-                : 'The combined chart is hidden because it would mix different currencies on one monetary axis.',
-          ),
+          title: AppText(context.l10n.text('salesTrendByCurrency')),
+          subtitle: AppText(context.l10n.text('salesTrendMixedCurrencies')),
         ),
       );
     }
@@ -721,99 +706,107 @@ class _SalesTrendPanel extends StatelessWidget {
         children: [
           _PanelHeader(
             icon: Icons.bar_chart_rounded,
-            title: 'حركة المبيعات',
-            trailing: 'آخر 7 أيام',
+            title: context.l10n.text('salesMovement'),
+            trailing: context.l10n.text('lastSevenDays'),
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 190,
-            child: points.isEmpty
-                ? const _EmptyState(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'لا توجد بيانات مبيعات',
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: points.map((point) {
-                      final ratio = maxValue <= 0
-                          ? 0.04
-                          : math.max(.04, point.amount / maxValue);
-                      return Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (point.amount > 0)
-                                Tooltip(
-                                  message: _money(point.amount),
-                                  child: AppText(
-                                    _compactMoney(point.amount),
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+          if (points.isEmpty) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: _EmptyState(
+                icon: Icons.bar_chart_rounded,
+                label: context.l10n.text('dashboardNoSalesTrend'),
+                compact: true,
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 190,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: points.map((point) {
+                  final ratio = maxValue <= 0
+                      ? 0.04
+                      : math.max(.04, point.amount / maxValue);
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (point.amount > 0)
+                            Tooltip(
+                              message: _money(point.amount),
+                              child: AppText(
+                                _compactMoney(point.amount),
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              const SizedBox(height: 5),
-                              Flexible(
-                                child: FractionallySizedBox(
-                                  heightFactor: ratio,
-                                  alignment: Alignment.bottomCenter,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.bottomCenter,
-                                        end: Alignment.topCenter,
-                                        colors: [
-                                          Theme.of(context).colorScheme.primary,
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                        ],
-                                      ),
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(8),
-                                      ),
-                                    ),
+                              ),
+                            ),
+                          const SizedBox(height: 5),
+                          Flexible(
+                            child: FractionallySizedBox(
+                              heightFactor: ratio,
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Theme.of(context).colorScheme.primary,
+                                      Theme.of(context).colorScheme.tertiary,
+                                    ],
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(8),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 7),
-                              AppText(
-                                _weekday(point.date),
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                          const SizedBox(height: 7),
+                          AppText(
+                            _weekday(context, point.date),
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const Divider(height: 22),
+            Row(
+              children: [
+                AppText(
+                  context.l10n.text('periodTotal'),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
                   ),
-          ),
-          const Divider(height: 22),
-          Row(
-            children: [
-              const AppText(
-                'إجمالي الفترة',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              AppText(
-                _money(total),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-            ],
-          ),
+                const Spacer(),
+                AppText(
+                  _money(total),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -838,17 +831,17 @@ class _InstallmentsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _PanelHeader(
+          _PanelHeader(
             icon: Icons.event_note_outlined,
-            title: 'الأقساط والمتابعات',
-            trailing: '7 أيام',
+            title: context.l10n.text('panelInstallments'),
+            trailing: context.l10n.text('sevenDays'),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: _MiniMetric(
-                  label: 'متأخرة',
+                  label: context.l10n.text('installmentsOverdue'),
                   value: '$overdueCount',
                   color: const Color(0xFFE05D5D),
                 ),
@@ -856,7 +849,7 @@ class _InstallmentsPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _MiniMetric(
-                  label: 'قريبة',
+                  label: context.l10n.text('installmentsUpcoming'),
                   value: '$dueSoonCount',
                   color: const Color(0xFFF2A900),
                 ),
@@ -865,17 +858,18 @@ class _InstallmentsPanel extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _MiniMetric(
-            label: 'إجمالي المتبقي',
+            label: context.l10n.text('installmentsRemaining'),
             value: CurrencyTotalsFormatter.format(outstandingByCurrency),
             color: Theme.of(context).colorScheme.primary,
           ),
-          const Divider(height: 24),
+          const Divider(height: 20),
           if (items.isEmpty)
-            const SizedBox(
-              height: 100,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: _EmptyState(
                 icon: Icons.task_alt_rounded,
-                label: 'لا توجد أقساط قريبة',
+                label: context.l10n.text('dashboardNoInstallments'),
+                compact: true,
               ),
             )
           else
@@ -918,7 +912,7 @@ class _InstallmentRow extends StatelessWidget {
                   ),
                 ),
                 AppText(
-                  'القسط ${item.installmentNo} • ${DateFormat('yyyy/MM/dd').format(item.dueDate)}',
+                  '${context.l10n.text('installmentNumber')} ${item.installmentNo} • ${DateFormat('yyyy/MM/dd').format(item.dueDate)}',
                   style: TextStyle(
                     fontSize: 9.5,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -961,48 +955,54 @@ class _FleetPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _PanelHeader(
+          _PanelHeader(
             icon: Icons.directions_car_filled_outlined,
-            title: 'حالة الأسطول',
-            trailing: 'السيارات',
+            title: context.l10n.text('fleetStatus'),
+            trailing: context.l10n.text('vehicles'),
           ),
           const SizedBox(height: 16),
           if (can('availableCars'))
             _ProgressRow(
-              label: 'متوفرة',
+              label: context.l10n.text('fleetAvailable'),
               value: dashboard.availableCars,
               total: total,
               color: const Color(0xFF16A66A),
             ),
           if (can('reservedCars'))
             _ProgressRow(
-              label: 'قيد البيع',
+              label: context.l10n.text('fleetReserved'),
               value: dashboard.reservedCars,
               total: total,
               color: const Color(0xFFF2A900),
             ),
           if (can('soldCars'))
             _ProgressRow(
-              label: 'مباعة',
+              label: context.l10n.text('fleetSold'),
               value: dashboard.soldCars,
               total: total,
               color: const Color(0xFF2F80ED),
             ),
           if (can('pendingPurchaseCars'))
             _ProgressRow(
-              label: 'قيد الشراء',
+              label: context.l10n.text('fleetPendingPurchase'),
               value: dashboard.pendingPurchaseCars,
               total: total,
               color: const Color(0xFF8A5CF5),
             ),
           const Divider(height: 24),
           if (can('totalCustomers'))
-            _SimpleRow(label: 'العملاء', value: '${dashboard.totalCustomers}'),
+            _SimpleRow(
+              label: context.l10n.text('customers'),
+              value: '${dashboard.totalCustomers}',
+            ),
           if (can('totalSuppliers'))
-            _SimpleRow(label: 'الموردون', value: '${dashboard.totalSuppliers}'),
+            _SimpleRow(
+              label: context.l10n.text('suppliers'),
+              value: '${dashboard.totalSuppliers}',
+            ),
           if (can('activeReservations'))
             _SimpleRow(
-              label: 'الحجوزات النشطة',
+              label: context.l10n.text('activeReservations'),
               value: '${dashboard.activeReservations}',
             ),
         ],
@@ -1021,18 +1021,18 @@ class _DocumentPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _PanelHeader(
+          _PanelHeader(
             icon: Icons.receipt_long_outlined,
-            title: 'أحدث المستندات',
-            trailing: 'فواتير فعلية',
+            title: context.l10n.text('panelRecentDocuments'),
+            trailing: context.l10n.text('panelInvoices'),
           ),
           const SizedBox(height: 12),
           if (items.isEmpty)
-            const SizedBox(
-              height: 190,
+            SizedBox(
+              height: 80,
               child: _EmptyState(
                 icon: Icons.receipt_long_outlined,
-                label: 'لا توجد مستندات حديثة',
+                label: context.l10n.text('dashboardNoDocuments'),
               ),
             )
           else
@@ -1086,18 +1086,18 @@ class _ActivityPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _PanelHeader(
+          _PanelHeader(
             icon: Icons.history_rounded,
-            title: 'آخر النشاطات',
-            trailing: 'سجل العمليات',
+            title: context.l10n.text('panelRecentActivity'),
+            trailing: context.l10n.text('panelAuditTrail'),
           ),
           const SizedBox(height: 12),
           if (items.isEmpty)
-            const SizedBox(
-              height: 190,
+            SizedBox(
+              height: 120,
               child: _EmptyState(
                 icon: Icons.history_toggle_off_rounded,
-                label: 'لا توجد عمليات مسجلة بعد',
+                label: context.l10n.text('dashboardNoActivity'),
               ),
             )
           else
@@ -1157,7 +1157,7 @@ class _ActivityRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 AppText(
-                  '${item.userName} • ${_relativeTime(item.createdAt)}',
+                  '${item.userName} • ${_relativeTime(context, item.createdAt)}',
                   style: TextStyle(
                     fontSize: 9.5,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1195,7 +1195,7 @@ class _StatusBar extends StatelessWidget {
           if (can('generatedAt'))
             _StatusItem(
               icon: Icons.schedule_rounded,
-              label: 'آخر تحديث',
+              label: context.l10n.text('statusLastUpdated'),
               value: DateFormat('hh:mm a').format(dashboard.generatedAt),
             ),
           if (can('pendingSyncOperations'))
@@ -1203,28 +1203,28 @@ class _StatusBar extends StatelessWidget {
               icon: synced
                   ? Icons.cloud_done_outlined
                   : Icons.cloud_upload_outlined,
-              label: 'المزامنة',
+              label: context.l10n.text('statusSync'),
               value: synced
-                  ? 'مكتملة'
-                  : '${dashboard.pendingSyncOperations} معلقة',
+                  ? context.l10n.text('statusComplete')
+                  : '${dashboard.pendingSyncOperations} ${context.l10n.text('statusPending')}',
               color: synced ? const Color(0xFF16A66A) : const Color(0xFFF2A900),
             ),
           if (can('cashBalanceUsd'))
             _StatusItem(
               icon: Icons.account_balance_wallet_outlined,
-              label: 'الصندوق USD',
+              label: context.l10n.text('statusCashboxUsd'),
               value: _money(dashboard.cashBalanceUsd),
             ),
           if (can('cashBalanceIqd'))
             _StatusItem(
               icon: Icons.account_balance_wallet_outlined,
-              label: 'الصندوق IQD',
+              label: context.l10n.text('statusCashboxIqd'),
               value: _money(dashboard.cashBalanceIqd),
             ),
           if (can('inventoryValue'))
             _StatusItem(
               icon: Icons.inventory_2_outlined,
-              label: 'قيمة المخزون',
+              label: context.l10n.text('statusInventoryValue'),
               value: CurrencyTotalsFormatter.format(
                 dashboard.inventoryValueByCurrency,
               ),
@@ -1232,7 +1232,7 @@ class _StatusBar extends StatelessWidget {
           if (can('totalPurchases'))
             _StatusItem(
               icon: Icons.shopping_cart_outlined,
-              label: 'المشتريات',
+              label: context.l10n.text('statusPurchases'),
               value: CurrencyTotalsFormatter.format(
                 dashboard.totalPurchasesByCurrency,
               ),
@@ -1240,7 +1240,7 @@ class _StatusBar extends StatelessWidget {
           if (can('totalExpenses'))
             _StatusItem(
               icon: Icons.payments_outlined,
-              label: 'المصروفات',
+              label: context.l10n.text('statusExpenses'),
               value: CurrencyTotalsFormatter.format(
                 dashboard.totalExpensesByCurrency,
               ),
@@ -1252,7 +1252,11 @@ class _StatusBar extends StatelessWidget {
 }
 
 class _Panel extends StatelessWidget {
-  const _Panel({required this.child, this.padding = const EdgeInsets.all(16)});
+  const _Panel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
   final Widget child;
   final EdgeInsetsGeometry padding;
   @override
@@ -1475,9 +1479,14 @@ class _StatusItem extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.label});
+  const _EmptyState({
+    required this.icon,
+    required this.label,
+    this.compact = false,
+  });
   final IconData icon;
   final String label;
+  final bool compact;
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -1486,16 +1495,17 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 34,
+            size: compact ? 28 : 34,
             color: Theme.of(
               context,
             ).colorScheme.onSurfaceVariant.withValues(alpha: .45),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: compact ? 4 : 8),
           AppText(
             label,
+            textAlign: compact ? TextAlign.center : null,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: compact ? 10.5 : 11,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -1531,6 +1541,30 @@ class _ErrorCard extends StatelessWidget {
 bool _hasMultipleCurrencies(Map<String, double> totals) =>
     totals.entries.where((entry) => entry.value.abs() > 0.0000001).length > 1;
 
+List<int> dashboardKpiRowSizes(int itemCount, int maxColumns) {
+  if (itemCount <= 0 || maxColumns <= 0) return const <int>[];
+  final rows = (itemCount / maxColumns).ceil();
+  final base = itemCount ~/ rows;
+  final remainder = itemCount % rows;
+  return List<int>.generate(
+    rows,
+    (index) => base + (index < remainder ? 1 : 0),
+    growable: false,
+  );
+}
+
+int dashboardKpiColumnCount(double availableWidth) {
+  const spacing = 12.0;
+  const minimumPracticalCardWidth = 220.0;
+  const maxColumns = 5;
+
+  for (var columns = maxColumns; columns > 1; columns--) {
+    final cardWidth = (availableWidth - (columns - 1) * spacing) / columns;
+    if (cardWidth >= minimumPracticalCardWidth) return columns;
+  }
+  return 1;
+}
+
 String _money(double value) => NumberFormat('#,##0.00').format(value);
 String _compactMoney(double value) {
   if (value.abs() >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
@@ -1538,27 +1572,37 @@ String _compactMoney(double value) {
   return value.toStringAsFixed(0);
 }
 
-String _weekday(DateTime date) {
-  const days = [
-    'الإثنين',
-    'الثلاثاء',
-    'الأربعاء',
-    'الخميس',
-    'الجمعة',
-    'السبت',
-    'الأحد',
+String _weekday(BuildContext context, DateTime date) {
+  final days = [
+    context.l10n.text('weekdayMon'),
+    context.l10n.text('weekdayTue'),
+    context.l10n.text('weekdayWed'),
+    context.l10n.text('weekdayThu'),
+    context.l10n.text('weekdayFri'),
+    context.l10n.text('weekdaySat'),
+    context.l10n.text('weekdaySun'),
   ];
-  return days[date.weekday - 1].substring(
-    0,
-    math.min(3, days[date.weekday - 1].length),
-  );
+  final day = days[date.weekday - 1];
+  return day.substring(0, math.min(3, day.length));
 }
 
-String _relativeTime(DateTime value) {
+String _relativeTime(BuildContext context, DateTime value) {
   final difference = DateTime.now().difference(value);
-  if (difference.inMinutes < 1) return 'الآن';
-  if (difference.inMinutes < 60) return 'منذ ${difference.inMinutes} د';
-  if (difference.inHours < 24) return 'منذ ${difference.inHours} س';
-  if (difference.inDays < 7) return 'منذ ${difference.inDays} ي';
+  if (difference.inMinutes < 1) return context.l10n.text('relativeNow');
+  if (difference.inMinutes < 60) {
+    return context.l10n.isArabic
+        ? '${context.l10n.text('relativeMinutesAgo')} ${difference.inMinutes} ${context.l10n.text('minuteAbbreviation')}'
+        : '${difference.inMinutes}${context.l10n.text('minuteAbbreviation')} ${context.l10n.text('relativeMinutesAgo')}';
+  }
+  if (difference.inHours < 24) {
+    return context.l10n.isArabic
+        ? '${context.l10n.text('relativeHoursAgo')} ${difference.inHours} ${context.l10n.text('hourAbbreviation')}'
+        : '${difference.inHours}${context.l10n.text('hourAbbreviation')} ${context.l10n.text('relativeHoursAgo')}';
+  }
+  if (difference.inDays < 7) {
+    return context.l10n.isArabic
+        ? '${context.l10n.text('relativeDaysAgo')} ${difference.inDays} ${context.l10n.text('dayAbbreviation')}'
+        : '${difference.inDays}${context.l10n.text('dayAbbreviation')} ${context.l10n.text('relativeDaysAgo')}';
+  }
   return DateFormat('yyyy/MM/dd').format(value);
 }

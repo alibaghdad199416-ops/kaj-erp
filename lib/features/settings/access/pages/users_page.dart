@@ -645,48 +645,45 @@ class _UsersPageState extends State<UsersPage>
                                   .toSet();
                             }),
                             icon: const Icon(Icons.select_all),
-                            label: const AppText('تحديد الكل'),
+                            label: AppText(
+                              context.l10n.isArabic
+                                  ? 'تحديد الكل'
+                                  : 'Select all',
+                            ),
                           ),
                           TextButton.icon(
                             onPressed: () => setState(selected.clear),
                             icon: const Icon(Icons.deselect),
-                            label: const AppText('إلغاء الكل'),
+                            label: AppText(
+                              context.l10n.isArabic
+                                  ? 'إلغاء الكل'
+                                  : 'Clear all',
+                            ),
                           ),
                           const Spacer(),
-                          AppText('المحدد: ${selected.length}'),
+                          AppText(
+                            context.l10n.isArabic
+                                ? 'المحدد: ${selected.length}'
+                                : 'Selected: ${selected.length}',
+                          ),
                         ],
                       ),
                     ),
                   Expanded(
-                    child: ListView(
-                      children: grouped.entries.map((entry) {
-                        return ExpansionTile(
-                          initiallyExpanded: true,
-                          title: AppText(entry.key),
-                          children: entry.value.map((permission) {
-                            final inherited = rolePermissions.contains(
-                              permission.code,
-                            );
-                            return CheckboxListTile(
-                              value: selected.contains(permission.code),
-                              enabled: useCustom,
-                              title: AppText(permission.name),
-                              subtitle: AppText(
-                                '${permission.code}${!useCustom && inherited ? ' • موروثة من الدور' : ''}',
-                              ),
-                              onChanged: useCustom
-                                  ? (checked) => setState(() {
-                                      if (checked == true) {
-                                        selected.add(permission.code);
-                                      } else {
-                                        selected.remove(permission.code);
-                                      }
-                                    })
-                                  : null,
-                            );
-                          }).toList(),
-                        );
-                      }).toList(),
+                    child: SingleChildScrollView(
+                      child: _PermissionMatrix(
+                        grouped: grouped,
+                        selected: selected,
+                        inherited: rolePermissions,
+                        enabled: useCustom,
+                        onChanged: (permission, checked) => setState(() {
+                          if (checked) {
+                            selected.add(permission.code);
+                          } else {
+                            selected.remove(permission.code);
+                          }
+                        }),
+                      ),
                     ),
                   ),
                 ],
@@ -837,7 +834,7 @@ class _UsersPageState extends State<UsersPage>
             )
           else if (users.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(50),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               child: Center(
                 child: AppText(
                   context.l10n.isArabic ? 'لا توجد نتائج.' : 'No results.',
@@ -1176,7 +1173,7 @@ class _UsersPageState extends State<UsersPage>
         const SizedBox(height: 16),
         if (controller.auditLogs.isEmpty)
           Padding(
-            padding: const EdgeInsets.all(50),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             child: Center(
               child: AppText(
                 context.l10n.isArabic
@@ -1291,6 +1288,158 @@ class _ProfileAvatar extends StatelessWidget {
   }
 }
 
+class _PermissionMatrix extends StatelessWidget {
+  const _PermissionMatrix({
+    required this.grouped,
+    required this.selected,
+    required this.enabled,
+    required this.onChanged,
+    this.inherited = const <String>{},
+  });
+
+  final Map<String, List<PermissionModel>> grouped;
+  final Set<String> selected;
+  final Set<String> inherited;
+  final bool enabled;
+  final void Function(PermissionModel permission, bool checked) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ar = context.l10n.isArabic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: grouped.entries
+          .map((entry) {
+            final permissions = [...entry.value]
+              ..sort((a, b) => a.code.compareTo(b.code));
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      14,
+                      10,
+                      14,
+                      10,
+                    ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Row(
+                      children: <Widget>[
+                        const Icon(Icons.security_outlined, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: AppText(
+                            entry.key,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        AppText(
+                          '${permissions.where((p) => selected.contains(p.code)).length}/${permissions.length}',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      dataRowMinHeight: 46,
+                      dataRowMaxHeight: 62,
+                      columns: <DataColumn>[
+                        DataColumn(
+                          label: AppText(ar ? 'الصلاحية' : 'Permission'),
+                        ),
+                        DataColumn(
+                          label: AppText(ar ? 'الوصف' : 'Description'),
+                        ),
+                        DataColumn(label: AppText(ar ? 'الكود' : 'Code')),
+                        DataColumn(label: AppText(ar ? 'الوصول' : 'Access')),
+                      ],
+                      rows: permissions
+                          .map((permission) {
+                            final inheritedValue = inherited.contains(
+                              permission.code,
+                            );
+                            return DataRow(
+                              cells: <DataCell>[
+                                DataCell(
+                                  SizedBox(
+                                    width: 210,
+                                    child: AppText(
+                                      permission.name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  SizedBox(
+                                    width: 310,
+                                    child: AppText(
+                                      permission.description.isEmpty
+                                          ? (ar ? '—' : '—')
+                                          : permission.description,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  SizedBox(
+                                    width: 270,
+                                    child: AppText(
+                                      permission.code,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Checkbox(
+                                        value: selected.contains(
+                                          permission.code,
+                                        ),
+                                        onChanged: enabled
+                                            ? (value) => onChanged(
+                                                permission,
+                                                value == true,
+                                              )
+                                            : null,
+                                      ),
+                                      if (!enabled && inheritedValue)
+                                        AppText(
+                                          ar ? 'موروثة' : 'Inherited',
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.labelSmall,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          })
+                          .toList(growable: false),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+}
+
 class _PermissionsEditor extends StatefulWidget {
   const _PermissionsEditor({required this.controller});
 
@@ -1365,7 +1514,7 @@ class _PermissionsEditorState extends State<_PermissionsEditor> {
           )
         else if (roleId == null)
           Padding(
-            padding: const EdgeInsets.all(50),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             child: Center(
               child: AppText(
                 context.l10n.isArabic ? 'اختر دورًا.' : 'Choose a role.',
@@ -1373,36 +1522,19 @@ class _PermissionsEditorState extends State<_PermissionsEditor> {
             ),
           )
         else ...[
-          ...grouped.entries.map(
-            (entry) => Card(
-              child: ExpansionTile(
-                initiallyExpanded: true,
-                title: AppText(
-                  entry.key,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                children: entry.value
-                    .map(
-                      (permission) => CheckboxListTile(
-                        title: AppText(permission.name),
-                        subtitle: permission.description.isEmpty
-                            ? null
-                            : AppText(permission.description),
-                        value: selected.contains(permission.code),
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == true) {
-                              selected.add(permission.code);
-                            } else {
-                              selected.remove(permission.code);
-                            }
-                          });
-                        },
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
+          _PermissionMatrix(
+            grouped: grouped,
+            selected: selected,
+            enabled: true,
+            onChanged: (permission, checked) {
+              setState(() {
+                if (checked) {
+                  selected.add(permission.code);
+                } else {
+                  selected.remove(permission.code);
+                }
+              });
+            },
           ),
           FilledButton.icon(
             onPressed: () async {

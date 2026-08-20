@@ -23,7 +23,14 @@ import 'package:quality_line_erp/design_system/kaj_finance_stage7_components.dar
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 
 class FixedAssetsPage extends StatefulWidget {
-  const FixedAssetsPage({super.key});
+  const FixedAssetsPage({
+    super.key,
+    this.embedded = false,
+    this.continuous = false,
+  });
+
+  final bool embedded;
+  final bool continuous;
 
   @override
   State<FixedAssetsPage> createState() => _FixedAssetsPageState();
@@ -243,7 +250,7 @@ class _FixedAssetsPageState extends State<FixedAssetsPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return KajFinanceState(
         icon: Icons.sync_rounded,
         title: context.l10n.isArabic ? 'جارٍ تحميل الأصول' : 'Loading assets',
@@ -251,146 +258,170 @@ class _FixedAssetsPageState extends State<FixedAssetsPage> {
             ? 'تتم مزامنة الأصول والإهلاك والقيود المرتبطة.'
             : 'Synchronizing assets, depreciation and linked journals.',
       );
+    }
+
+    final list = _items.isEmpty
+        ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Center(
+              child: AppText(
+                context.l10n.isArabic
+                    ? 'لا توجد أصول ثابتة مسجلة.'
+                    : 'No fixed assets have been registered.',
+              ),
+            ),
+          )
+        : ListView.separated(
+            shrinkWrap: widget.continuous,
+            physics: widget.continuous
+                ? const NeverScrollableScrollPhysics()
+                : null,
+            padding: widget.embedded
+                ? EdgeInsets.zero
+                : const EdgeInsets.all(12),
+            itemCount: _items.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final a = _items[i];
+              final cost = (a['acquisition_cost'] as num?)?.toDouble() ?? 0;
+              final accumulated =
+                  (a['accumulated_depreciation'] as num?)?.toDouble() ?? 0;
+              final salvage = (a['salvage_value'] as num?)?.toDouble() ?? 0;
+              return ListTile(
+                leading: const CircleAvatar(
+                  child: Icon(Icons.apartment_outlined),
+                ),
+                title: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    FieldPermissionVisibility(
+                      resource: 'fixed_assets',
+                      field: 'assetCode',
+                      viewPermission: 'accounting.view',
+                      child: AppText(a['asset_code']?.toString() ?? ''),
+                    ),
+                    FieldPermissionVisibility(
+                      resource: 'fixed_assets',
+                      field: 'name',
+                      viewPermission: 'accounting.view',
+                      child: AppText(a['name']?.toString() ?? ''),
+                    ),
+                  ],
+                ),
+                subtitle: Wrap(
+                  spacing: 10,
+                  runSpacing: 4,
+                  children: [
+                    FieldPermissionVisibility(
+                      resource: 'fixed_assets',
+                      field: 'acquisitionCost',
+                      viewPermission: 'accounting.view',
+                      child: AppText(
+                        'الكلفة: ${_assetMoney(cost, a['currency'])}',
+                      ),
+                    ),
+                    FieldPermissionVisibility(
+                      resource: 'fixed_assets',
+                      field: 'accumulatedDepreciation',
+                      viewPermission: 'accounting.view',
+                      child: AppText(
+                        'مجمع الإهلاك: ${_assetMoney(accumulated, a['currency'])}',
+                      ),
+                    ),
+                    FieldPermissionVisibility(
+                      resource: 'fixed_assets',
+                      field: 'bookValue',
+                      viewPermission: 'accounting.view',
+                      child: AppText(
+                        'القيمة الدفترية: ${_assetMoney((cost - accumulated).clamp(salvage, cost).toDouble(), a['currency'])}',
+                      ),
+                    ),
+                    if ((a['last_depreciation_date'] ?? '')
+                        .toString()
+                        .isNotEmpty)
+                      FieldPermissionVisibility(
+                        resource: 'fixed_assets',
+                        field: 'depreciationPostingDate',
+                        viewPermission: 'accounting.view',
+                        child: AppText(
+                          'آخر إهلاك: ${a['last_depreciation_date']}',
+                        ),
+                      ),
+                  ],
+                ),
+                onTap: _busyAssetId == a['id']?.toString()
+                    ? null
+                    : () => _edit(a),
+                trailing: _busyAssetId == a['id']?.toString()
+                    ? const SizedBox.square(
+                        dimension: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'depreciate') {
+                            unawaited(_depreciate(a));
+                          } else if (value == 'edit') {
+                            unawaited(_edit(a));
+                          } else if (value == 'delete') {
+                            unawaited(_delete(a));
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'depreciate',
+                            child: AppText('توليد الإهلاك'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: AppText('تعديل الأصل'),
+                          ),
+                          if (PermissionAction.allowed(
+                            context,
+                            'accounting.delete',
+                          ))
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: AppText('حذف الأصل وارتباطاته'),
+                            ),
+                        ],
+                      ),
+              );
+            },
+          );
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: widget.embedded
+              ? const EdgeInsets.only(bottom: 8)
+              : const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: AppText(
-                  'الأصول الثابتة وغير المتداولة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  context.l10n.isArabic
+                      ? 'الأصول الثابتة وغير المتداولة'
+                      : 'Fixed and non-current assets',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               FilledButton.icon(
                 onPressed: () => _edit(),
                 icon: const Icon(Icons.add),
-                label: const AppText('إضافة أصل'),
+                label: AppText(
+                  context.l10n.isArabic ? 'إضافة أصل' : 'Add asset',
+                ),
               ),
             ],
           ),
         ),
-        Expanded(
-          child: _items.isEmpty
-              ? const Center(child: AppText('لا توجد أصول ثابتة مسجلة.'))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _items.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final a = _items[i];
-                    final cost =
-                        (a['acquisition_cost'] as num?)?.toDouble() ?? 0;
-                    final accumulated =
-                        (a['accumulated_depreciation'] as num?)?.toDouble() ??
-                        0;
-                    final salvage =
-                        (a['salvage_value'] as num?)?.toDouble() ?? 0;
-                    return ListTile(
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.apartment_outlined),
-                      ),
-                      title: Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          FieldPermissionVisibility(
-                            resource: 'fixed_assets',
-                            field: 'assetCode',
-                            viewPermission: 'accounting.view',
-                            child: AppText(a['asset_code']?.toString() ?? ''),
-                          ),
-                          FieldPermissionVisibility(
-                            resource: 'fixed_assets',
-                            field: 'name',
-                            viewPermission: 'accounting.view',
-                            child: AppText(a['name']?.toString() ?? ''),
-                          ),
-                        ],
-                      ),
-                      subtitle: Wrap(
-                        spacing: 10,
-                        runSpacing: 4,
-                        children: [
-                          FieldPermissionVisibility(
-                            resource: 'fixed_assets',
-                            field: 'acquisitionCost',
-                            viewPermission: 'accounting.view',
-                            child: AppText(
-                              'الكلفة: ${_assetMoney(cost, a['currency'])}',
-                            ),
-                          ),
-                          FieldPermissionVisibility(
-                            resource: 'fixed_assets',
-                            field: 'accumulatedDepreciation',
-                            viewPermission: 'accounting.view',
-                            child: AppText(
-                              'مجمع الإهلاك: ${_assetMoney(accumulated, a['currency'])}',
-                            ),
-                          ),
-                          FieldPermissionVisibility(
-                            resource: 'fixed_assets',
-                            field: 'bookValue',
-                            viewPermission: 'accounting.view',
-                            child: AppText(
-                              'القيمة الدفترية: ${_assetMoney((cost - accumulated).clamp(salvage, cost).toDouble(), a['currency'])}',
-                            ),
-                          ),
-                          if ((a['last_depreciation_date'] ?? '')
-                              .toString()
-                              .isNotEmpty)
-                            FieldPermissionVisibility(
-                              resource: 'fixed_assets',
-                              field: 'depreciationPostingDate',
-                              viewPermission: 'accounting.view',
-                              child: AppText(
-                                'آخر إهلاك: ${a['last_depreciation_date']}',
-                              ),
-                            ),
-                        ],
-                      ),
-                      onTap: _busyAssetId == a['id']?.toString()
-                          ? null
-                          : () => _edit(a),
-                      trailing: _busyAssetId == a['id']?.toString()
-                          ? const SizedBox.square(
-                              dimension: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : PopupMenuButton<String>(
-                              onSelected: (value) {
-                                if (value == 'depreciate') {
-                                  unawaited(_depreciate(a));
-                                } else if (value == 'edit') {
-                                  unawaited(_edit(a));
-                                } else if (value == 'delete') {
-                                  unawaited(_delete(a));
-                                }
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(
-                                  value: 'depreciate',
-                                  child: AppText('توليد الإهلاك'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'edit',
-                                  child: AppText('تعديل الأصل'),
-                                ),
-                                if (PermissionAction.allowed(
-                                  context,
-                                  'accounting.delete',
-                                ))
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: AppText('حذف الأصل وارتباطاته'),
-                                  ),
-                              ],
-                            ),
-                    );
-                  },
-                ),
-        ),
+        if (widget.continuous) list else Expanded(child: list),
       ],
     );
   }
@@ -571,7 +602,7 @@ class _FixedAssetDialogState extends State<_FixedAssetDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final accounts = context.watch<AccountingController>().accounts;
+    final accounts = context.watch<AccountingController>().postableAccounts;
     List<AccountModel> byType(String type) => accounts
         .where(
           (a) =>
