@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-import os
 import subprocess
 import sys
 
+from ensure_local_supabase_schema import ensure_local_supabase_schema
+
 ROOT = Path(__file__).resolve().parents[1]
-CONTAINER = os.environ.get(
-    "KAJ_LOCAL_SUPABASE_DB_CONTAINER",
-    "supabase_db_quality_line_erp_local_dev",
-)
 TESTS = [
     "supabase/tests/verify_r89_phase11_runtime.sql",
     "supabase/tests/verify_r90_phase11_runtime.sql",
@@ -26,23 +23,10 @@ def fail(message: str) -> None:
 
 
 def main() -> None:
-    ps = subprocess.run(
-        ["docker", "ps", "--format", "{{.Names}}"],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    if ps.returncode != 0:
-        fail(f"Unable to inspect local Docker containers: {ps.stderr.strip()}")
-    running = {line.strip() for line in ps.stdout.splitlines() if line.strip()}
-    if CONTAINER not in running:
-        fail(
-            "LOCAL Supabase PostgreSQL container is not running: "
-            f"{CONTAINER}"
-        )
+    # Runtime tests are only meaningful against the schema represented by the
+    # committed migration history. A long-running local stack can otherwise be
+    # several releases behind even though the source checkout is current.
+    container = ensure_local_supabase_schema()
 
     for rel in TESTS:
         path = ROOT / rel
@@ -55,7 +39,7 @@ def main() -> None:
                 "docker",
                 "exec",
                 "-i",
-                CONTAINER,
+                container,
                 "psql",
                 "-U",
                 "postgres",
