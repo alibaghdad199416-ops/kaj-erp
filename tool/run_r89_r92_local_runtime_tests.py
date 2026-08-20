@@ -15,6 +15,7 @@ TESTS = [
     "supabase/tests/verify_r90_phase11_runtime.sql",
     "supabase/tests/verify_r91_phase11_runtime.sql",
     "supabase/tests/verify_r92_comprehensive_module_audit_runtime.sql",
+    "supabase/tests/verify_r93_purchase_receipt_single_action_runtime.sql",
     "supabase/tests/verify_r93_restricted_user_runtime.sql",
 ]
 

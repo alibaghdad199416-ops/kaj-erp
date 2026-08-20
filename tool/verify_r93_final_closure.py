@@ -78,10 +78,12 @@ for rel in [
     "tool/verify_r90_phase11_final_acceptance.py",
     "tool/verify_r91_phase11_material_issue_acceptance.py",
     "tool/verify_r92_comprehensive_module_audit.py",
+    "supabase/migrations/20260820184500_r93_purchase_receipt_single_action_closure.sql",
     "supabase/tests/verify_r89_phase11_runtime.sql",
     "supabase/tests/verify_r90_phase11_runtime.sql",
     "supabase/tests/verify_r91_phase11_runtime.sql",
     "supabase/tests/verify_r92_comprehensive_module_audit_runtime.sql",
+    "supabase/tests/verify_r93_purchase_receipt_single_action_runtime.sql",
     "supabase/tests/verify_r93_restricted_user_runtime.sql",
     "tool/run_r89_r92_local_runtime_tests.py",
 ]:
@@ -147,7 +149,27 @@ for conflict in sorted(set(used_rpcs) & revoked_rpcs):
         + ", ".join(sorted(set(used_rpcs[conflict])))
     )
 
-# 5. The official GitHub gate must validate the committed tree before any
+# 5. Purchase receiving is one atomic action. The established client RPC keeps
+# its signature, but R93 owns create+approval in one PostgreSQL transaction.
+r93_purchase = text(
+    "supabase/migrations/20260820184500_r93_purchase_receipt_single_action_closure.sql"
+)
+for marker in [
+    "create or replace function public.erp_r49_create_purchase_receipt_multi",
+    "'purchases','receipt.create'",
+    "'purchases','receipt.approve'",
+    "erp_r49_create_purchase_receipt_multi_pre_r88",
+    "erp_phase2_approve_purchase_receipt_pre_r88",
+    "purchase_receipt_allocations_required",
+]:
+    need(f"R93 atomic purchase receiving missing {marker}", marker in r93_purchase)
+need(
+    "R93 atomic purchase receiving mutates stock directly instead of approval-owned flow",
+    "erp_warehouse_stock" not in r93_purchase
+    and "erp_inventory_movements" not in r93_purchase,
+)
+
+# 6. The official GitHub gate must validate the committed tree before any
 # formatter mutation, run the authoritative all-gate, and exercise local PostgreSQL.
 workflow = text(".github/workflows/quality-gates.yml")
 for marker in [
@@ -173,7 +195,7 @@ for forbidden in [
 ]:
     need(f"quality-gates workflow contains forbidden operation: {forbidden}", forbidden not in workflow)
 
-# 6. The local runtime runner must be explicitly local-only and cover every
+# 7. The local runtime runner must be explicitly local-only and cover every
 # available R89-R93 PostgreSQL acceptance script without reset/push/link.
 runner = text("tool/run_r89_r92_local_runtime_tests.py")
 for marker in [
@@ -182,6 +204,7 @@ for marker in [
     "verify_r90_phase11_runtime.sql",
     "verify_r91_phase11_runtime.sql",
     "verify_r92_comprehensive_module_audit_runtime.sql",
+    "verify_r93_purchase_receipt_single_action_runtime.sql",
     "verify_r93_restricted_user_runtime.sql",
     "ON_ERROR_STOP=1",
 ]:
@@ -199,6 +222,7 @@ print("R93 final closure verification PASS")
 print("  - accepted R92 historical migrations remain immutable")
 print("  - verify:all/check include the complete R88-R93 static closure")
 print("  - R92 revoked RPCs are unused across the complete Flutter lib tree")
+print("  - purchase receipt create+approve is one approval-owned PostgreSQL action")
 print("  - committed formatting is checked before any formatter mutation")
 print("  - R89-R93 PostgreSQL runtime tests are wired to local Supabase only")
 print("  - restricted-user runtime proves field masking and delete denial")
