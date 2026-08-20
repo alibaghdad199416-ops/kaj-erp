@@ -295,7 +295,6 @@ for table in sorted(cloud_tables):
          f'CloudMasterDataService table lacks R9 server resource mapping: {table}')
 uses_r9_master_reads = "'erp_r9_list_cloud_master_records'" in master_service and "'erp_r9_get_cloud_master_record'" in master_service
 uses_r14_master_reads = "'erp_r14_list_cloud_master_records'" in master_service and "'erp_r14_get_cloud_master_record'" in master_service
-uses_r22_master_reads = "'erp_r22_list_cloud_master_records'" in master_service and "'erp_r22_get_cloud_master_record'" in master_service
 r14_wraps_r9_reads = (
     'create or replace function public.erp_r14_list_cloud_master_records' in r14_runtime
     and 'select * from public.erp_r9_list_cloud_master_records($1,$2)' in r14_runtime
