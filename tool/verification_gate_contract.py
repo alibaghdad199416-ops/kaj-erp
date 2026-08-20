@@ -5,6 +5,10 @@ Historical release verifiers remain useful evidence, but they must not each inve
 what `verify:all`, `check`, or GitHub Actions mean. This module owns the current
 installed-workspace superset and CI ordering so R10/R13/R93/package checks cannot
 drift into mutually contradictory requirements again.
+
+R94 is intentionally wired through `verify_project.py`, the current-project gate
+already executed by `verify:workspace`. The explicit npm phase aliases remain the
+accepted R88-R93 historical chain instead of adding another competing topology.
 """
 from __future__ import annotations
 
@@ -17,7 +21,6 @@ CURRENT_PHASE_VERIFY_SCRIPTS: tuple[str, ...] = (
     "verify:r91",
     "verify:r92",
     "verify:r93",
-    "verify:r94",
 )
 
 CANONICAL_CHECK_COMMAND = (
