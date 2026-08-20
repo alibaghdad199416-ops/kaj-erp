@@ -302,6 +302,50 @@ for marker in [
         marker in notification_center,
     )
 
+# 10. CRM opportunity-to-sales linkage remains canonical and single-link. Lost
+# is explicit, a Sales Order is opened/created from the opportunity, and the DB
+# trigger projects Proposal -> Negotiation -> Won -> Closed from real workflow
+# documents while cancellation projects Lost.
+customer_service = text("lib/features/customer_service/pages/customer_service_page.dart")
+sales_workflow = text("lib/features/sales/workflow/repositories/sales_workflow_repository.dart")
+single_link = text("supabase/migrations/20260728004400_opportunity_sales_order_single_link.sql")
+r37_crm = text("supabase/migrations/20260809124736_r37_full_functional_presentation_closure.sql")
+r49_crm = text("supabase/migrations/20260810030000_r49_end_to_end_opportunity_lifecycle_readback.sql")
+
+for marker in [
+    "markLost(opportunity)",
+    "findOrderByOpportunity(opportunity.id)",
+    "SalesOrderDraftPage(",
+    "opportunityId: opportunity.id",
+    "OrderDetailsDialog(orderId: orderId, purchase: false)",
+]:
+    need(f"CRM opportunity sales UI missing marker: {marker}", marker in customer_service)
+for marker in [
+    "'opportunityId': opportunityId",
+    "erp_r9_find_sales_order_by_opportunity",
+    "await _reconcileOpportunityLinks();",
+]:
+    need(f"Sales workflow opportunity linkage missing marker: {marker}", marker in sales_workflow)
+need(
+    "CRM active Sales Order link is no longer unique per opportunity",
+    "erp_sales_orders_one_active_per_opportunity_uq" in single_link
+    and "where opportunity_id is not null" in single_link,
+)
+for marker in [
+    "create trigger trg_r37_sales_order_opportunity",
+    "erp_sync_opportunity_sales_lifecycle",
+]:
+    need(f"CRM lifecycle trigger missing marker: {marker}", marker in r37_crm)
+for marker in [
+    "v_stage:='proposal'",
+    "v_stage:='negotiation'",
+    "v_status:='won'",
+    "v_stage:='closed'",
+    "v_status:='lost'",
+    "v_remaining<=0.001",
+]:
+    need(f"CRM canonical lifecycle missing marker: {marker}", marker in r49_crm)
+
 if errors:
     print("R93 final closure verification FAILED")
     for error in errors:
@@ -320,4 +364,5 @@ print("  - localized Arabic/Persian numeric entry cannot be silently discarded")
 print("  - maintenance draft reopen keeps loading/error/vehicle fallback guards")
 print("  - purchase receiving UI has no second approval action; sales delivery remains staged")
 print("  - every vehicle keeps service schedules/history access and due reminders materialize")
+print("  - opportunity Sales Order linkage remains unique and lifecycle-synchronized")
 print("  - analyze, Flutter tests and web build remain mandatory")
