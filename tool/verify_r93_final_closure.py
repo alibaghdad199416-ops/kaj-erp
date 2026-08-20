@@ -87,8 +87,10 @@ for rel in [
     "supabase/tests/verify_r92_comprehensive_module_audit_runtime.sql",
     "supabase/tests/verify_r93_purchase_receipt_single_action_runtime.sql",
     "supabase/tests/verify_r93_restricted_user_runtime.sql",
+    "tool/ensure_local_supabase_schema.py",
     "tool/run_r89_r92_local_runtime_tests.py",
     "test/thousands_input_formatter_localized_test.dart",
+    "test/features/inventory/inventory_model_item_type_visibility_test.dart",
 ]:
     need(f"required final gate missing: {rel}", (ROOT / rel).exists())
 
@@ -176,11 +178,14 @@ for forbidden in [
 ]:
     need(f"quality-gates workflow contains forbidden operation: {forbidden}", forbidden not in workflow)
 
-# 7. The local runtime runner must be explicitly local-only and cover every
-# available R89-R93 PostgreSQL acceptance script without reset/push/link.
+# 7. Runtime verification must first synchronize the approved LOCAL database to
+# committed migration history. This closes the long-running-stack failure mode
+# where source is R93 but PostgreSQL is still missing R88+ functions.
 runner = text("tool/run_r89_r92_local_runtime_tests.py")
+schema_sync = text("tool/ensure_local_supabase_schema.py")
 for marker in [
-    "supabase_db_quality_line_erp_local_dev",
+    "from ensure_local_supabase_schema import ensure_local_supabase_schema",
+    "container = ensure_local_supabase_schema()",
     "verify_r89_phase11_runtime.sql",
     "verify_r90_phase11_runtime.sql",
     "verify_r91_phase11_runtime.sql",
@@ -190,8 +195,20 @@ for marker in [
     "ON_ERROR_STOP=1",
 ]:
     need(f"local runtime runner missing marker: {marker}", marker in runner)
+for marker in [
+    'LOCAL_PROJECT_ID = "quality_line_erp_local_dev"',
+    "supabase_db_quality_line_erp_local_dev",
+    "REQUIRED_MIGRATION_VERSIONS",
+    "supabase_migrations.schema_migrations",
+    "erp_r88_filter_trial_balance_row(uuid,jsonb)",
+    '"migration", "up", "--local"',
+]:
+    need(f"LOCAL schema synchronizer missing marker: {marker}", marker in schema_sync)
 for forbidden in ["db reset", "db push", "supabase link"]:
-    need(f"local runtime runner contains forbidden operation: {forbidden}", forbidden not in runner)
+    need(
+        f"LOCAL runtime path contains forbidden operation: {forbidden}",
+        forbidden not in runner and forbidden not in schema_sync,
+    )
 
 # 8. High-severity Phase 11 UI regressions must remain closed. These guards are
 # deliberately structural in addition to Flutter tests so a future refactor
@@ -338,7 +355,7 @@ print("  - authoritative verify:all/check/CI topology is centralized")
 print("  - R92 revoked RPCs are unused across the complete Flutter lib tree")
 print("  - purchase receipt create+approve is one approval-owned PostgreSQL action")
 print("  - committed formatting is checked before any formatter mutation")
-print("  - R89-R93 PostgreSQL runtime tests are wired to local Supabase only")
+print("  - Local runtime synchronizes pending migrations before R89-R93 SQL tests")
 print("  - restricted-user runtime proves field masking and delete denial")
 print("  - localized Arabic/Persian numeric entry cannot be silently discarded")
 print("  - maintenance draft reopen keeps loading/error/vehicle fallback guards")
