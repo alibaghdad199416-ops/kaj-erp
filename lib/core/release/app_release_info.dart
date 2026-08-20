@@ -12,12 +12,13 @@ class AppReleaseInfo {
       '22.9.8-r49-focused-final-completion';
   static const String releaseToken = 'r49-focused-final-completion-20260810';
 
-  // Current source/runtime identity. R74 adds authenticated user+tenant
-  // attestation and invalidates the earlier project-only tenant cache.
-  static const String currentRuntimeRevision =
-      'r74-authenticated-tenant-runtime';
+  // Current source/runtime identity. Phase 11 R93 is the active database and
+  // browser-cache contract; historical R74 remains represented only by legacy
+  // markers in web/version.json and web/index.html.
+  static const String currentRuntimeRevision = 'r93-phase11-runtime-closure';
   static const String currentRuntimeToken =
-      'r74-authenticated-tenant-runtime-20260815';
+      'r93-phase11-runtime-closure-20260820';
+  static const String databaseContract = 'R93';
 
   // Historical audit markers retained for backward-compatible release checks:
   // 18.9.8 / 189800 / v738-full-verified-runtime-accounting-ui-20260806
