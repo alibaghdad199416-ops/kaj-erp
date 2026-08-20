@@ -25,13 +25,13 @@ _PASSWORD_DSN_RE = re.compile(
 )
 _SERVICE_ROLE_ASSIGNMENT_RE = re.compile(
     r"""
-    (?ix)
     \b(?:SUPABASE[_-]?)?SERVICE[_-]?ROLE(?:[_-]?KEY)?\b
     \s*(?:=|:)\s*
     (?P<quote>[\"']?)
     (?P<value>[A-Za-z0-9._~+/=-]{20,})
     (?P=quote)
     """,
+    re.IGNORECASE | re.VERBOSE,
 )
 _JWT_RE = re.compile(
     r"(?<![A-Za-z0-9_-])"
