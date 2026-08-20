@@ -37,6 +37,8 @@ GATES = (
     "verify_r90_phase11_final_acceptance.py",
     "verify_r91_phase11_material_issue_acceptance.py",
     "verify_r92_comprehensive_module_audit.py",
+    "verify_r93_final_closure.py",
+    "verify_r94_legacy_endpoint_acl_closure.py",
 )
 
 
