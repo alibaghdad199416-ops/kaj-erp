@@ -70,7 +70,10 @@ class ThousandsInputFormatter extends TextInputFormatter {
   ) {
     var raw = _normalizeLocalizedNumber(newValue.text);
     if (raw.isEmpty || raw == '-' && allowNegative) {
-      return newValue.copyWith(text: raw);
+      return TextEditingValue(
+        text: raw,
+        selection: TextSelection.collapsed(offset: raw.length),
+      );
     }
     if (!allowNegative) raw = raw.replaceAll('-', '');
     raw = raw.replaceAll(RegExp(r'[^0-9.\-]'), '');
