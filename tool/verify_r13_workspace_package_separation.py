@@ -6,6 +6,7 @@ import ast
 import json
 from pathlib import Path
 
+from verification_gate_contract import verify_all_errors, workflow_errors
 from verification_text import normalized_text_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,27 +45,7 @@ need(
     == "npm run verify:package && npm run verify:deployment-target",
     "verify:delivery contract changed",
 )
-
-# verify:workspace remains the historical installed-workspace chain. verify:all
-# is intentionally the current superset, adding Phase 11 R88-R93 gates. This
-# avoids silently certifying only the historical R58 endpoint.
-verify_all = str(scripts.get("verify:all", ""))
-need(
-    "npm run verify:workspace" in verify_all,
-    "verify:all must include installed-workspace verification",
-)
-for latest_gate in (
-    "verify:r88",
-    "verify:r89",
-    "verify:r90",
-    "verify:r91",
-    "verify:r92",
-    "verify:r93",
-):
-    need(
-        f"npm run {latest_gate}" in verify_all,
-        f"verify:all omits current closure gate {latest_gate}",
-    )
+errors.extend(verify_all_errors(scripts))
 
 need(
     scripts.get("verify:preformat") == "npm run verify:preinstall",
@@ -145,31 +126,10 @@ for path in sorted((ROOT / "tool").glob("verify_*.py")):
             f"package-cleanliness assertion leaked into workspace gate: {path.name}"
         )
 
-# CI must verify the pristine delivery before dependency generation, then check
-# formatting without mutating the checked-out commit, then run the complete
-# verify:all superset. This is intentionally stricter than historical validators.
+# The authoritative CI topology is centralized. R13 owns the separation policy,
+# while verification_gate_contract owns exact current stage ordering.
 workflow = read(".github/workflows/quality-gates.yml")
-workflow_order = [
-    "run: npm run verify:delivery",
-    "run: npm ci",
-    "run: flutter pub get",
-    "run: npm run format:check",
-    "run: npm run verify:all",
-    "run: npm run analyze",
-    "run: npm run test",
-    "run: npm run build:web",
-]
-workflow_pos = [workflow.find(marker) for marker in workflow_order]
-need(
-    all(position >= 0 for position in workflow_pos)
-    and workflow_pos == sorted(workflow_pos),
-    "CI pipeline is not delivery-first, non-mutating, and complete",
-)
-workflow_lines = {line.strip() for line in workflow.splitlines()}
-need(
-    "run: npm run format" not in workflow_lines,
-    "CI must not auto-format and hide committed formatting defects",
-)
+errors.extend(workflow_errors(workflow))
 
 package_gate = read("tool/verify_package_sanity.py")
 for marker in ('".dart_tool"', '"node_modules"', '"build"'):
@@ -186,6 +146,7 @@ print("  - clean delivery is checked before npm/flutter generate workspace artif
 print("  - installed workspace verification allows .dart_tool/node_modules/build metadata")
 print("  - verify:all adds R88-R93 on top of the historical workspace chain")
 print("  - CI checks committed formatting without mutating source")
+print("  - authoritative gate topology is centralized")
 print("  - package cleanliness remains enforced by verify:package only")
 print("  - analyzer/test/web build remain fail-fast")
 print("  - Local Supabase/Firebase baseline hashes are unchanged")
