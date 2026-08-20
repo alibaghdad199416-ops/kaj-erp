@@ -279,7 +279,7 @@ for marker in [
 for marker in [
     "if (onSchedule != null)",
     "onPressed: onSchedule",
-    "بطاقة الخدمة والسجل",
+    "جدولة الصيانة",
 ]:
     need(f"car card service access missing marker: {marker}", marker in car_card)
 for marker in [
