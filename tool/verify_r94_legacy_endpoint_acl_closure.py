@@ -61,9 +61,16 @@ def read(path: Path) -> str:
 
 migration = read(MIGRATION)
 runtime = read(RUNTIME)
-need("begin;" in migration.lower() and "commit;" in migration.lower(), "R94 migration is not forward transactional")
 need(
-    not re.search(r"\b(drop\s+schema|drop\s+table|truncate\s+table|db\s+reset)\b", migration, re.I),
+    "begin;" in migration.lower() and "commit;" in migration.lower(),
+    "R94 migration is not forward transactional",
+)
+need(
+    not re.search(
+        r"\b(drop\s+schema|drop\s+table|truncate\s+table|db\s+reset)\b",
+        migration,
+        re.I,
+    ),
     "R94 migration contains destructive schema/data operations",
 )
 
@@ -110,7 +117,10 @@ for dart in (ROOT / "lib").rglob("*.dart"):
             legacy_calls.append(f"{rpc} @ {dart.relative_to(ROOT)}")
         if rpc in SECURE_RPC_NAMES:
             secure_calls.add(rpc)
-need(not legacy_calls, "Flutter still calls R94-revoked legacy RPCs: " + ", ".join(legacy_calls))
+need(
+    not legacy_calls,
+    "Flutter still calls R94-revoked legacy RPCs: " + ", ".join(legacy_calls),
+)
 for rpc in SECURE_RPC_NAMES:
     need(rpc in secure_calls, f"governed browser RPC is not used by Flutter: {rpc}")
 
@@ -120,6 +130,58 @@ r90_runtime = read(ROOT / "supabase/tests/verify_r90_phase11_runtime.sql")
 need(
     "r90_legacy_endpoint_bypass_still_exposed" in r90_runtime,
     "R90 inherited legacy bypass regression assertion is missing",
+)
+
+# R94 must be part of both the static current-project gate and the Local runtime
+# suite, and the Local schema synchronizer must require the R94 migration.
+verify_project = read(ROOT / "tool/verify_project.py")
+runner = read(ROOT / "tool/run_r89_r92_local_runtime_tests.py")
+schema_sync = read(ROOT / "tool/ensure_local_supabase_schema.py")
+need(
+    '"verify_r94_legacy_endpoint_acl_closure.py"' in verify_project,
+    "verify_project does not execute the R94 static closure",
+)
+need(
+    '"supabase/tests/verify_r94_legacy_endpoint_acl_runtime.sql"' in runner
+    and "R89-R94 LOCAL PostgreSQL runtime verification PASS" in runner,
+    "Local runtime runner does not include R94",
+)
+need(
+    '"20260820233000"' in schema_sync
+    and "required R88-R94 migrations" in schema_sync
+    and "erp_r57_maintenance_cost_reconciliation" in schema_sync,
+    "Local schema synchronizer does not require and validate R94",
+)
+
+# Database/runtime identity is centralized in AppReleaseInfo and consumed by the
+# web generator/verifier. This prevents schema R94 from shipping as an R93/R74
+# cache/database contract.
+release = read(ROOT / "lib/core/release/app_release_info.dart")
+prepare_web = read(ROOT / "tool/prepare_web_release.py")
+verify_web = read(ROOT / "tool/verify_web_release.py")
+web_index = read(ROOT / "web/index.html")
+web_version = read(ROOT / "web/version.json")
+for marker in (
+    "r94-legacy-acl-runtime-closure-20260820",
+    "static const String databaseContract = 'R94'",
+):
+    need(marker in release, f"R94 canonical release metadata missing: {marker}")
+need(
+    'dart_string("databaseContract")' in prepare_web,
+    "web release generator does not consume canonical databaseContract",
+)
+need(
+    'release_string("databaseContract")' in verify_web,
+    "web release verifier does not consume canonical databaseContract",
+)
+need(
+    "22.9.8+229008-r94-legacy-acl-runtime-closure-20260820" in web_index,
+    "web fallback runtime identity is not R94",
+)
+need(
+    '"databaseContract": "R94"' in web_version
+    and '"runtimeToken": "r94-legacy-acl-runtime-closure-20260820"' in web_version,
+    "committed web/version.json is not synchronized to R94",
 )
 
 if errors:
@@ -133,4 +195,6 @@ print("  - all R90 legacy browser bypasses revoke inherited PUBLIC/anon/authenti
 print("  - service_role retains explicit internal execution")
 print("  - Flutter has no literal calls to the revoked legacy RPC set")
 print("  - governed R89/R90 browser wrappers remain the active client API")
-print("  - R94 runtime verifies inherited-role ACLs, not only direct grants")
+print("  - R94 is wired into current-project static verification and Local runtime")
+print("  - Local schema synchronization requires and validates the R94 ACL closure")
+print("  - web runtime/database metadata is centrally synchronized to R94")
