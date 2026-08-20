@@ -27,6 +27,7 @@ REQUIRED_MIGRATION_VERSIONS = (
     "20260820124500",  # R91
     "20260820133000",  # R92
     "20260820184500",  # R93 purchase receipt single-action closure
+    "20260820233000",  # R94 inherited PUBLIC legacy-endpoint ACL closure
 )
 
 
@@ -171,7 +172,7 @@ def ensure_local_supabase_schema() -> str:
             "versions: " + ", ".join(missing_before)
         )
     else:
-        print("LOCAL schema already contains the required R88-R93 migration versions.")
+        print("LOCAL schema already contains the required R88-R94 migration versions.")
 
     # Always invoke the idempotent pending-migration command. On an up-to-date
     # database the CLI reports no pending migrations; on a stale database it
@@ -189,7 +190,7 @@ def ensure_local_supabase_schema() -> str:
         )
 
     trial_balance_filter = _psql_scalar(
-        "select coalesce(to_regprocedure(" 
+        "select coalesce(to_regprocedure("
         "'public.erp_r88_filter_trial_balance_row(uuid,jsonb)')::text,'');"
     )
     if not trial_balance_filter:
@@ -198,7 +199,21 @@ def ensure_local_supabase_schema() -> str:
             "filter function is absent; database drift must be repaired before runtime tests."
         )
 
-    print("LOCAL Supabase schema sync PASS — required R88-R93 migrations are applied.")
+    # R94 exists specifically to close inherited PUBLIC EXECUTE on R90 legacy
+    # endpoints. Check the original failing function before running the suite so
+    # migration-history drift cannot masquerade as a test failure.
+    legacy_execute = _psql_scalar(
+        "select has_function_privilege('authenticated',"
+        "'public.erp_r57_maintenance_cost_reconciliation(uuid,uuid)','execute');"
+    ).lower()
+    if legacy_execute not in {"f", "false"}:
+        fail(
+            "LOCAL migration history claims R94 is applied but the maintenance "
+            "legacy endpoint remains executable by authenticated; ACL drift must "
+            "be repaired before runtime tests."
+        )
+
+    print("LOCAL Supabase schema sync PASS — required R88-R94 migrations are applied.")
     return CONTAINER
 
 
