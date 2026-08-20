@@ -57,5 +57,19 @@ void main() {
 
       expect(result.text, '123');
     });
+
+    test('discarded nonnumeric input keeps a valid collapsed selection', () {
+      final formatter = ThousandsInputFormatter();
+      final result = formatter.formatEditUpdate(
+        TextEditingValue.empty,
+        const TextEditingValue(
+          text: 'أ',
+          selection: TextSelection.collapsed(offset: 1),
+        ),
+      );
+
+      expect(result.text, isEmpty);
+      expect(result.selection, const TextSelection.collapsed(offset: 0));
+    });
   });
 }
