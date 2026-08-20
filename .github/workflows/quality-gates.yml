@@ -42,7 +42,7 @@ jobs:
       - run: npm run test
       - name: Start LOCAL Supabase
         run: npx supabase start
-      - name: Run R89-R92 LOCAL PostgreSQL runtime gates
+      - name: Run R89-R93 LOCAL PostgreSQL runtime gates
         run: python -B tool/run_r89_r92_local_runtime_tests.py
       - run: npm run build:web
       - name: Stop LOCAL Supabase

@@ -81,6 +81,7 @@ for rel in [
     "supabase/tests/verify_r90_phase11_runtime.sql",
     "supabase/tests/verify_r91_phase11_runtime.sql",
     "supabase/tests/verify_r92_comprehensive_module_audit_runtime.sql",
+    "supabase/tests/verify_r93_restricted_user_runtime.sql",
     "tool/run_r89_r92_local_runtime_tests.py",
 ]:
     need(f"required final gate missing: {rel}", (ROOT / rel).exists())
@@ -148,7 +149,7 @@ for forbidden in [
     need(f"quality-gates workflow contains forbidden operation: {forbidden}", forbidden not in workflow)
 
 # 5. The local runtime runner must be explicitly local-only and cover every
-# available R89-R92 PostgreSQL acceptance script without reset/push/link.
+# available R89-R93 PostgreSQL acceptance script without reset/push/link.
 runner = text("tool/run_r89_r92_local_runtime_tests.py")
 for marker in [
     "supabase_db_quality_line_erp_local_dev",
@@ -156,6 +157,7 @@ for marker in [
     "verify_r90_phase11_runtime.sql",
     "verify_r91_phase11_runtime.sql",
     "verify_r92_comprehensive_module_audit_runtime.sql",
+    "verify_r93_restricted_user_runtime.sql",
     "ON_ERROR_STOP=1",
 ]:
     need(f"local runtime runner missing marker: {marker}", marker in runner)
@@ -173,5 +175,6 @@ print("  - accepted R92 historical migrations remain immutable")
 print("  - R92 revoked RPCs are unused across the complete Flutter lib tree")
 print("  - committed formatting is checked before any formatter mutation")
 print("  - R88-R92 static gates are wired into official CI")
-print("  - R89-R92 PostgreSQL runtime tests are wired to local Supabase only")
+print("  - R89-R93 PostgreSQL runtime tests are wired to local Supabase only")
+print("  - restricted-user runtime proves field masking and delete denial")
 print("  - analyze, Flutter tests and web build remain mandatory")

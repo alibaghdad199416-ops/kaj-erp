@@ -15,6 +15,7 @@ TESTS = [
     "supabase/tests/verify_r90_phase11_runtime.sql",
     "supabase/tests/verify_r91_phase11_runtime.sql",
     "supabase/tests/verify_r92_comprehensive_module_audit_runtime.sql",
+    "supabase/tests/verify_r93_restricted_user_runtime.sql",
 ]
 
 
@@ -72,7 +73,7 @@ def main() -> None:
         if result.returncode != 0:
             fail(f"LOCAL PostgreSQL runtime verification failed: {rel}")
 
-    print("\nR89-R92 LOCAL PostgreSQL runtime verification PASS")
+    print("\nR89-R93 LOCAL PostgreSQL runtime verification PASS")
 
 
 if __name__ == "__main__":
