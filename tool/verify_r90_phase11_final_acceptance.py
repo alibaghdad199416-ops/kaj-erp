@@ -232,12 +232,38 @@ for required in [
 ]:
     need(f'Phase 11 predecessor contract missing: {required}', (ROOT / required).exists())
 
-# 8) Runtime gate + launch path must include R90 once the files are added.
+# 8) Runtime gate + launch path must use the canonical R89-R94 runner.
 need('R90 LOCAL runtime SQL missing', (ROOT / 'supabase/tests/verify_r90_phase11_runtime.sql').exists())
-need('R90 LOCAL runtime runner missing', (ROOT / 'tool/run_r90_local_runtime_test.ps1').exists())
+has_all('canonical R89-R94 LOCAL runtime runner', 'tool/run_r89_r92_local_runtime_tests.py', [
+    'ensure_local_supabase_schema',
+    'verify_r89_phase11_runtime.sql',
+    'verify_r90_phase11_runtime.sql',
+    'verify_r91_phase11_runtime.sql',
+    'verify_r92_comprehensive_module_audit_runtime.sql',
+    'verify_r93_purchase_receipt_single_action_runtime.sql',
+    'verify_r93_restricted_user_runtime.sql',
+    'verify_r94_legacy_endpoint_acl_runtime.sql',
+    'R89-R94 LOCAL PostgreSQL runtime verification PASS',
+])
 run_web = text('tool/run_current_web.ps1')
-need('run_current_web does not gate R90 source verifier', 'verify_r90_phase11_final_acceptance.py' in run_web)
-need('run_current_web does not gate R90 LOCAL runtime test', 'run_r90_local_runtime_test.ps1' in run_web)
+need(
+    'run_current_web does not gate R90 source verifier',
+    'verify_r90_phase11_final_acceptance.py' in run_web,
+)
+need(
+    'run_current_web does not use canonical R89-R94 LOCAL runtime runner',
+    'run_r89_r92_local_runtime_tests.py' in run_web,
+)
+for legacy_runner in [
+    'run_r89_local_runtime_test.ps1',
+    'run_r90_local_runtime_test.ps1',
+    'run_r91_local_runtime_test.ps1',
+    'run_r92_local_runtime_test.ps1',
+]:
+    need(
+        f'run_current_web still depends on legacy runtime runner {legacy_runner}',
+        legacy_runner not in run_web,
+    )
 
 # 9) Project verifier should include current Phase 11 gates.
 verify_project = text('tool/verify_project.py')

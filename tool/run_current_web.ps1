@@ -41,26 +41,23 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 python -B tool/verify_r92_comprehensive_module_audit.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+python -B tool/verify_r93_final_closure.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r94_legacy_endpoint_acl_closure.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "`nPreparing the CURRENT LOCAL Supabase database..." -ForegroundColor Cyan
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File tool\prepare_local_current_database.ps1
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tool\run_r89_local_runtime_test.ps1
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Host "`nRunning canonical R89-R94 LOCAL PostgreSQL runtime verification..." -ForegroundColor Cyan
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tool\run_r90_local_runtime_test.ps1
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tool\run_r91_local_runtime_test.ps1
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File tool\run_r92_local_runtime_test.ps1
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+python -B tool\run_r89_r92_local_runtime_tests.py
+if ($LASTEXITCODE -ne 0) {
+  throw 'R89-R94 LOCAL PostgreSQL runtime verification failed.'
+}
 
 if (-not (Test-Path 'dart_defines.local.generated.json')) {
   throw 'Local Supabase runtime file was not generated.'

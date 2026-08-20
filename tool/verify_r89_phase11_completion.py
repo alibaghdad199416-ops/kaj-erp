@@ -169,14 +169,41 @@ has_all('R89 LOCAL runtime test', 'supabase/tests/verify_r89_phase11_runtime.sql
     'erp_r89_get_maintenance_order_snapshot', 'erp_r89_spawn_next_maintenance_schedule',
     "status='converted'", 'has_table_privilege', 'rollback;',
 ])
-has_all('R89 LOCAL runtime runner', 'tool/run_r89_local_runtime_test.ps1', [
-    'quality_line_erp_local_dev', 'supabase_db_', 'verify_r89_phase11_runtime.sql',
-    'docker.exe exec', 'No Production Supabase endpoint was contacted',
+has_all('canonical R89-R94 LOCAL runtime runner', 'tool/run_r89_r92_local_runtime_tests.py', [
+    'ensure_local_supabase_schema',
+    'verify_r89_phase11_runtime.sql',
+    'verify_r90_phase11_runtime.sql',
+    'verify_r91_phase11_runtime.sql',
+    'verify_r92_comprehensive_module_audit_runtime.sql',
+    'verify_r93_purchase_receipt_single_action_runtime.sql',
+    'verify_r93_restricted_user_runtime.sql',
+    'verify_r94_legacy_endpoint_acl_runtime.sql',
+    'R89-R94 LOCAL PostgreSQL runtime verification PASS',
 ])
-has_all('local run path includes Phase 11 gates', 'tool/run_current_web.ps1', [
-    'verify_r88_phase11.py', 'verify_r89_phase11_completion.py',
-    'Preparing the CURRENT LOCAL Supabase database', 'run_r89_local_runtime_test.ps1', 'LOCAL Supabase only',
+has_all('local run path includes current Phase 11 gates', 'tool/run_current_web.ps1', [
+    'verify_r88_phase11.py',
+    'verify_r89_phase11_completion.py',
+    'verify_r90_phase11_final_acceptance.py',
+    'verify_r91_phase11_material_issue_acceptance.py',
+    'verify_r92_comprehensive_module_audit.py',
+    'verify_r93_final_closure.py',
+    'verify_r94_legacy_endpoint_acl_closure.py',
+    'Preparing the CURRENT LOCAL Supabase database',
+    'run_r89_r92_local_runtime_tests.py',
+    'R89-R94 LOCAL PostgreSQL runtime verification',
+    'LOCAL Supabase only',
 ])
+run_web = text('tool/run_current_web.ps1')
+for legacy_runner in [
+    'run_r89_local_runtime_test.ps1',
+    'run_r90_local_runtime_test.ps1',
+    'run_r91_local_runtime_test.ps1',
+    'run_r92_local_runtime_test.ps1',
+]:
+    need(
+        f'local launcher still depends on legacy runtime runner {legacy_runner}',
+        legacy_runner not in run_web,
+    )
 need('R88 migration missing', (ROOT / 'supabase/migrations/20260819210000_r88_phase11_operational_financial_closure.sql').exists())
 need('R89 migration missing', (ROOT / 'supabase/migrations/20260820090000_r89_phase11_completion_closure.sql').exists())
 
