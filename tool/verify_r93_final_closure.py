@@ -86,6 +86,7 @@ for rel in [
     "supabase/tests/verify_r93_purchase_receipt_single_action_runtime.sql",
     "supabase/tests/verify_r93_restricted_user_runtime.sql",
     "tool/run_r89_r92_local_runtime_tests.py",
+    "test/thousands_input_formatter_localized_test.dart",
 ]:
     need(f"required final gate missing: {rel}", (ROOT / rel).exists())
 
@@ -212,6 +213,54 @@ for marker in [
 for forbidden in ["db reset", "db push", "supabase link"]:
     need(f"local runtime runner contains forbidden operation: {forbidden}", forbidden not in runner)
 
+# 8. High-severity Phase 11 UI regressions must remain closed. These guards are
+# deliberately structural in addition to Flutter tests so a future refactor
+# cannot silently reintroduce the reported production-facing failures.
+numeric_formatter = text("lib/core/utils/thousands_input_formatter.dart")
+localized_numeric_test = text("test/thousands_input_formatter_localized_test.dart")
+maintenance_form = text("lib/features/maintenance/pages/add_maintenance_order_page.dart")
+order_details = text("lib/features/sales/workflow/pages/order_details_dialog.dart")
+
+for marker in [
+    "_arabicIndicDigits",
+    "_persianDigits",
+    "_normalizeLocalizedNumber",
+    "case '٫'",
+    "case '٬'",
+    "TextSelection.collapsed(offset: raw.length)",
+]:
+    need(f"localized numeric formatter missing marker: {marker}", marker in numeric_formatter)
+for marker in ["١٢٣٬٤٥٦٫٧٥", "۹۸۷٬۶۵۴٫۵", "123,456.75", "discarded nonnumeric input"]:
+    need(f"localized numeric regression test missing marker: {marker}", marker in localized_numeric_test)
+
+for marker in [
+    "getOrderLines(editingOrder.id)",
+    "if (selectedVehicle == null && editingOrder != null)",
+    "_loadError",
+    "_bootstrap(force: true)",
+    "CircularProgressIndicator",
+]:
+    need(f"maintenance draft reopen safety missing marker: {marker}", marker in maintenance_form)
+
+need(
+    "purchase receipt approval is still exposed as a separate workflow action",
+    "Approve warehouse receipt" not in order_details
+    and "تصديق الاستلام المخزني" not in order_details,
+)
+need(
+    "purchase receipt inline approval is still enabled",
+    "!(widget.purchase && componentType == 'receipt')" in order_details,
+)
+need(
+    "purchase receipt UI still calls separate approveReceipt",
+    "PurchaseWorkflowRepository().approveReceipt(documentId)" not in order_details,
+)
+need(
+    "sales delivery lost its intentional separate approval branch",
+    "SalesWorkflowRepository().approveDelivery(documentId)" in order_details
+    and "!widget.purchase &&" in order_details,
+)
+
 if errors:
     print("R93 final closure verification FAILED")
     for error in errors:
@@ -226,4 +275,7 @@ print("  - purchase receipt create+approve is one approval-owned PostgreSQL acti
 print("  - committed formatting is checked before any formatter mutation")
 print("  - R89-R93 PostgreSQL runtime tests are wired to local Supabase only")
 print("  - restricted-user runtime proves field masking and delete denial")
+print("  - localized Arabic/Persian numeric entry cannot be silently discarded")
+print("  - maintenance draft reopen keeps loading/error/vehicle fallback guards")
+print("  - purchase receiving UI has no second approval action; sales delivery remains staged")
 print("  - analyze, Flutter tests and web build remain mandatory")
