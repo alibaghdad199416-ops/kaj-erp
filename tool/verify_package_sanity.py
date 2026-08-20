@@ -336,7 +336,8 @@ if workflow_path.is_file():
             "GitHub Actions must validate pristine delivery, install dependencies, "
             "check formatting, then run verify:all"
         )
-    if "run: npm run format\n" in workflow or "run: npm run format\r\n" in workflow:
+    workflow_lines = {line.strip() for line in workflow.splitlines()}
+    if "run: npm run format" in workflow_lines:
         errors.append("GitHub Actions must not auto-format committed source")
 
 if errors:
