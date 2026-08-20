@@ -77,6 +77,12 @@ class ThousandsInputFormatter extends TextInputFormatter {
     }
     if (!allowNegative) raw = raw.replaceAll('-', '');
     raw = raw.replaceAll(RegExp(r'[^0-9.\-]'), '');
+    if (raw.isEmpty || raw == '-' && allowNegative) {
+      return TextEditingValue(
+        text: raw,
+        selection: TextSelection.collapsed(offset: raw.length),
+      );
+    }
     final dot = raw.indexOf('.');
     if (dot >= 0) {
       raw =
