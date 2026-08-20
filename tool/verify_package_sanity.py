@@ -6,6 +6,13 @@ import json
 import re
 from pathlib import Path
 
+from verification_gate_contract import (
+    CANONICAL_CHECK_COMMAND,
+    CURRENT_PHASE_VERIFY_SCRIPTS,
+    verify_all_errors,
+    workflow_errors,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = "22.9.8+229008"
 GENERATED_FILES = {
@@ -62,20 +69,12 @@ for local_config in (".env",):
     if path.exists():
         errors.append(f"local runtime configuration must not be packaged: {local_config}")
 
-# This delivery intentionally carries the browser-safe production dart defines
-# so the operator is not forced to re-enter Supabase configuration. The
-# deployment verifier separately guarantees that only the publishable browser
-# key is present and that the supplied project identifiers are unchanged.
-
 for generated_file in GENERATED_FILES:
     path = ROOT / generated_file
     if path.exists():
         errors.append(f"generated or local file must not be packaged: {generated_file}")
 
 for generated in GENERATED_DIRS:
-    # Repository metadata is expected when this source-package verifier runs
-    # from a real Git working tree. Keep it excluded from recursive content
-    # inspection, but do not treat its presence as packaged project content.
     if generated == ".git":
         continue
     path = ROOT / generated
@@ -91,7 +90,6 @@ for path in sorted(ROOT.rglob("*.json")):
         errors.append(f"invalid JSON {path.relative_to(ROOT)}: {error}")
 
 pubspec_text = (ROOT / "pubspec.yaml").read_text(encoding="utf-8")
-
 version_match = re.search(r"(?m)^version:\s*([^\s#]+)", pubspec_text)
 version = version_match.group(1).strip("\"'") if version_match else ""
 if version != EXPECTED_VERSION:
@@ -110,8 +108,6 @@ runtime_text = "\n".join(
     if path.is_file()
 )
 
-# Every direct hosted runtime package must be referenced by application/test source.
-# SDK dependencies are excluded because they do not use package imports in the same way.
 dependency_block = re.search(
     r"(?ms)^dependencies:\n(?P<body>.*?)(?=^dev_dependencies:)",
     pubspec_text,
@@ -124,9 +120,6 @@ if dependency_block:
         )
     )
     imported_packages = set(re.findall(r"package:([a-zA-Z0-9_]+)/", runtime_text))
-    # Font packages can be consumed by Flutter's asset bundler without a Dart
-    # import. Keep this allowlist narrow so ordinary unused dependencies still
-    # fail the package gate.
     asset_only_packages = {"cupertino_icons"}
     unused_direct_packages = sorted(
         direct_packages - imported_packages - asset_only_packages
@@ -220,19 +213,13 @@ expected_scripts = {
     "verify:workspace",
     "verify:all",
     "verify:r13",
-    "verify:r88",
-    "verify:r89",
-    "verify:r90",
-    "verify:r91",
-    "verify:r92",
-    "verify:r93",
+    *CURRENT_PHASE_VERIFY_SCRIPTS,
 }
 missing_scripts = expected_scripts.difference(scripts)
 if missing_scripts:
     errors.append("missing package commands: " + ", ".join(sorted(missing_scripts)))
 
 build_web = scripts.get("build:web", "")
-# Ignore Python bytecode-suppression spelling when validating build order.
 build_web_semantic = build_web.replace("python -B tool/", "python tool/")
 required_build_steps = (
     "python tool/prepare_web_release.py",
@@ -259,13 +246,11 @@ if (
     errors.append("verify:delivery must validate clean package and deployment target")
 if scripts.get("check:delivery") != "npm run verify:delivery":
     errors.append("check:delivery must run the clean pre-install delivery gate")
-if (
-    scripts.get("check")
-    != "npm run verify:all && npm run format:check && npm run analyze && npm run test"
-):
+if scripts.get("check") != CANONICAL_CHECK_COMMAND:
     errors.append(
         "check must run the complete verification chain, formatting, analyzer, and tests"
     )
+errors.extend(verify_all_errors(scripts))
 
 if scripts.get("check:release") != "npm run format && npm run check && npm run build:web":
     errors.append(
@@ -289,21 +274,6 @@ if (
     )
 if scripts.get("verify:preinstall") != "npm run verify:delivery":
     errors.append("verify:preinstall must run the pristine delivery gate")
-
-verify_all = str(scripts.get("verify:all", ""))
-if "npm run verify:workspace" not in verify_all:
-    errors.append("verify:all must include verify:workspace")
-for latest_gate in (
-    "verify:r88",
-    "verify:r89",
-    "verify:r90",
-    "verify:r91",
-    "verify:r92",
-    "verify:r93",
-):
-    if f"npm run {latest_gate}" not in verify_all:
-        errors.append(f"verify:all must include {latest_gate}")
-
 if (
     "verify:package" in scripts.get("verify:workspace", "")
     or "verify:delivery" in scripts.get("verify:workspace", "")
@@ -322,23 +292,7 @@ if workflow_path.is_file():
         errors.append("GitHub Actions must use the canonical build:web command")
     if "python tool/prepare_local_canvaskit.py" in workflow:
         errors.append("GitHub Actions must not validate CanvasKit before the web build")
-    delivery_pos = workflow.find("run: npm run verify:delivery")
-    npm_pos = workflow.find("run: npm ci")
-    flutter_pos = workflow.find("run: flutter pub get")
-    format_check_pos = workflow.find("run: npm run format:check")
-    verify_all_pos = workflow.find("run: npm run verify:all")
-    if min(delivery_pos, npm_pos, flutter_pos, format_check_pos, verify_all_pos) < 0:
-        errors.append("GitHub Actions is missing a canonical validation stage")
-    elif not (
-        delivery_pos < npm_pos < flutter_pos < format_check_pos < verify_all_pos
-    ):
-        errors.append(
-            "GitHub Actions must validate pristine delivery, install dependencies, "
-            "check formatting, then run verify:all"
-        )
-    workflow_lines = {line.strip() for line in workflow.splitlines()}
-    if "run: npm run format" in workflow_lines:
-        errors.append("GitHub Actions must not auto-format committed source")
+    errors.extend(workflow_errors(workflow))
 
 if errors:
     print("FAILED clean package sanity verification")
@@ -352,5 +306,4 @@ print("  - generated/local paths are excluded by .gitignore")
 print("  - Supabase is the application backend; Firebase is Hosting only")
 print("  - local credentials and generated folders are excluded")
 print("  - new source-inspection tests are blocked outside tool/verify_*.py")
-print("  - root command surface is explicit and verify:all includes R88-R93")
-print("  - CI validates pristine delivery and committed formatting before verification")
+print("  - authoritative verify:all/check/CI topology comes from one contract")
