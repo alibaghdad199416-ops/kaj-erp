@@ -5,6 +5,8 @@ import json
 import re
 import subprocess
 
+from verification_gate_contract import check_errors, workflow_errors
+
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_COMMIT = "967845801cb6d63881f95b38744fdd6e4c27ff6c"
 errors: list[str] = []
@@ -90,8 +92,8 @@ for rel in [
 ]:
     need(f"required final gate missing: {rel}", (ROOT / rel).exists())
 
-# 3. npm's authoritative aliases must include the current closure instead of
-# silently stopping at the historical R58 workspace chain.
+# 3. The authoritative npm gate topology is centralized so historical/current
+# verifiers cannot drift into contradictory verify:all/check definitions.
 package_text = text("package.json")
 try:
     package = json.loads(package_text)
@@ -99,24 +101,10 @@ except json.JSONDecodeError as exc:
     errors.append(f"package.json is invalid JSON: {exc}")
     package = {}
 scripts = package.get("scripts", {}) if isinstance(package, dict) else {}
-verify_all = str(scripts.get("verify:all", ""))
-for script_name in [
-    "verify:r88",
-    "verify:r89",
-    "verify:r90",
-    "verify:r91",
-    "verify:r92",
-    "verify:r93",
-]:
-    need(f"verify:all omits {script_name}", f"npm run {script_name}" in verify_all)
-need("verify:all no longer includes verify:workspace", "npm run verify:workspace" in verify_all)
+errors.extend(check_errors(scripts))
 need(
     "verify:r93 script is not wired to the final verifier",
     scripts.get("verify:r93") == "python -B tool/verify_r93_final_closure.py",
-)
-need(
-    "check does not enter through verify:all",
-    str(scripts.get("check", "")).startswith("npm run verify:all &&"),
 )
 
 # 4. R92 ACL tightening must not revoke an RPC still called anywhere in Flutter,
@@ -170,25 +158,16 @@ need(
     and "erp_inventory_movements" not in r93_purchase,
 )
 
-# 6. The official GitHub gate must validate the committed tree before any
-# formatter mutation, run the authoritative all-gate, and exercise local PostgreSQL.
+# 6. The official GitHub gate must validate the committed tree without formatter
+# mutation, run the authoritative all-gate, and exercise LOCAL PostgreSQL.
 workflow = text(".github/workflows/quality-gates.yml")
 for marker in [
     "fetch-depth: 0",
-    "npm run format:check",
-    "npm run verify:all",
     "npx supabase start",
     "python -B tool/run_r89_r92_local_runtime_tests.py",
-    "npm run analyze",
-    "npm run test",
-    "npm run build:web",
 ]:
     need(f"quality-gates workflow missing final closure marker: {marker}", marker in workflow)
-workflow_lines = {line.strip() for line in workflow.splitlines()}
-need(
-    "quality-gates workflow still mutates Dart formatting before validation",
-    "run: npm run format" not in workflow_lines,
-)
+errors.extend(workflow_errors(workflow))
 for forbidden in [
     "supabase db reset",
     "supabase db push",
@@ -355,7 +334,7 @@ if errors:
 
 print("R93 final closure verification PASS")
 print("  - accepted R92 historical migrations remain immutable")
-print("  - verify:all/check include the complete R88-R93 static closure")
+print("  - authoritative verify:all/check/CI topology is centralized")
 print("  - R92 revoked RPCs are unused across the complete Flutter lib tree")
 print("  - purchase receipt create+approve is one approval-owned PostgreSQL action")
 print("  - committed formatting is checked before any formatter mutation")
