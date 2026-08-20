@@ -85,14 +85,19 @@ need("Inventory repository still exposes direct sellStock", "Future<void> sellSt
 need("Inventory controller still exposes direct receiveStock", "Future<void> receiveStock(" not in inventory_controller)
 need("Inventory controller still exposes direct sellStock", "Future<void> sellStock(" not in inventory_controller)
 
-# Hidden item type must not silently become a stock item.
+# Hidden item type must not silently become a stock item. New objects may keep a
+# constructor default for explicit local creation, but persisted DB rows must use
+# the current defensive reader without a stock fallback when the field is hidden.
 inv_model = text("lib/features/inventory/models/inventory_model.dart")
+from_map_start = inv_model.find("factory InventoryModel.fromMap")
+from_map_end = inv_model.find("factory InventoryModel.fromCloudMap", from_map_start)
+from_map = inv_model[from_map_start:from_map_end] if from_map_start >= 0 and from_map_end > from_map_start else ""
 need(
-    "Persisted InventoryModel still defaults hidden itemType to stock",
+    "Persisted InventoryModel does not read itemType through ModelValueReader",
     contains_code(
-        inv_model,
+        from_map,
         """
-        readString(
+        itemType: ModelValueReader.string(
           map,
           'itemType',
           aliases: const ['item_type', 'productType', 'product_type'],
@@ -100,7 +105,20 @@ need(
         """,
     ),
 )
+item_type_match = re.search(
+    r"itemType\s*:\s*ModelValueReader\.string\((.*?)\)\.toLowerCase\(\)",
+    from_map,
+    re.S,
+)
+need(
+    "Persisted InventoryModel still defaults hidden itemType to stock",
+    item_type_match is not None and "fallback" not in item_type_match.group(1),
+)
 need("Stock semantics are not explicit", "bool get isStockItem => itemType == 'stock';" in inv_model)
+need(
+    "Inventory persisted item-type behavior test missing",
+    (ROOT / "test/features/inventory/inventory_model_item_type_visibility_test.dart").is_file(),
+)
 
 # 3. Exact sale/purchase delete permissions.
 for token in [
@@ -221,6 +239,7 @@ for rel_root in audited_roots:
         if direct_pattern.search(src):
             errors.append(f"direct Data API table access remains: {dart.relative_to(ROOT)}")
 
+
 # Opportunities are implemented under Customer Service in the current source.
 opportunity_repo = text("lib/features/customer_service/repositories/opportunity_repository.dart")
 need("Opportunity repository does not use tenant/field-scoped R84 reader", "erp_r84_list_opportunities" in opportunity_repo)
@@ -233,6 +252,7 @@ for token in [
     "erp_r84_record_visible",
 ]:
     need(f"Opportunity R84 read boundary missing {token}", token in r84)
+
 
 # R92 ACL tightening must not revoke any RPC still invoked by the audited
 # Flutter modules. This guards against security hardening accidentally breaking
