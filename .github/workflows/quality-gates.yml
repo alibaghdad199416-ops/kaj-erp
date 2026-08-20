@@ -23,9 +23,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - run: npm run verify:delivery
       - run: npm ci
       - run: flutter pub get
-      - run: npm run verify:delivery
       - run: python -B tool/verify_supabase_environment_split.py
       - run: python -B tool/verify_r70_crm_runtime.py
       - run: python -B tool/verify_r86_phase2b_sales_readback.py
