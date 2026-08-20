@@ -1,4 +1,5 @@
 import 'access_policy_models.dart';
+import 'permission_contract.dart';
 
 abstract final class RecordRules {
   static bool sameTenant(AccessRequest request) {
@@ -27,8 +28,9 @@ abstract final class RecordRules {
   }
 
   /// Per-module record visibility. Existing installations remain compatible
-  /// until an administrator assigns one of the new scope permissions. Once
-  /// `.records.own` or `.records.all` exists on the user it becomes explicit.
+  /// until an administrator assigns one of the new scope permissions. The
+  /// precedence and fallback are centralized in [PermissionContract] so UI
+  /// policy checks remain aligned with PostgreSQL R84 semantics.
   static bool permissionScoped(
     AccessRequest request, {
     required String module,
@@ -36,13 +38,13 @@ abstract final class RecordRules {
     if (!sameTenant(request) || !sameCompany(request)) return false;
     if (request.subject.isSystemAdmin) return true;
 
-    final permissions = request.subject.permissionCodes;
-    final allCode = '$module.records.all';
-    final ownCode = '$module.records.own';
-    if (permissions.contains(allCode)) return true;
-    if (permissions.contains(ownCode)) return ownRecord(request);
+    final scope = PermissionContract.resolveRecordScope(
+      request.subject.permissionCodes,
+      module,
+    );
+    if (scope == RecordScopeMode.own) return ownRecord(request);
 
-    // Legacy-safe default until a scope is explicitly selected for this module.
+    // Explicit all and the deliberate R84 legacy fallback are both visible.
     return true;
   }
 }
