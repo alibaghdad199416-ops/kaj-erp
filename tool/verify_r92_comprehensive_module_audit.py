@@ -2,6 +2,8 @@ from pathlib import Path
 import re
 import json
 
+from verification_text import contains_code
+
 ROOT = Path(__file__).resolve().parents[1]
 errors: list[str] = []
 
@@ -87,7 +89,16 @@ need("Inventory controller still exposes direct sellStock", "Future<void> sellSt
 inv_model = text("lib/features/inventory/models/inventory_model.dart")
 need(
     "Persisted InventoryModel still defaults hidden itemType to stock",
-    "'itemType',\n        aliases: const ['item_type', 'productType', 'product_type'],\n      ).toLowerCase()" in inv_model,
+    contains_code(
+        inv_model,
+        """
+        readString(
+          map,
+          'itemType',
+          aliases: const ['item_type', 'productType', 'product_type'],
+        ).toLowerCase()
+        """,
+    ),
 )
 need("Stock semantics are not explicit", "bool get isStockItem => itemType == 'stock';" in inv_model)
 
@@ -210,7 +221,6 @@ for rel_root in audited_roots:
         if direct_pattern.search(src):
             errors.append(f"direct Data API table access remains: {dart.relative_to(ROOT)}")
 
-
 # Opportunities are implemented under Customer Service in the current source.
 opportunity_repo = text("lib/features/customer_service/repositories/opportunity_repository.dart")
 need("Opportunity repository does not use tenant/field-scoped R84 reader", "erp_r84_list_opportunities" in opportunity_repo)
@@ -223,7 +233,6 @@ for token in [
     "erp_r84_record_visible",
 ]:
     need(f"Opportunity R84 read boundary missing {token}", token in r84)
-
 
 # R92 ACL tightening must not revoke any RPC still invoked by the audited
 # Flutter modules. This guards against security hardening accidentally breaking
