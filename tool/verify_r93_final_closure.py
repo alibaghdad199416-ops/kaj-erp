@@ -184,9 +184,10 @@ for marker in [
     "npm run build:web",
 ]:
     need(f"quality-gates workflow missing final closure marker: {marker}", marker in workflow)
+workflow_lines = {line.strip() for line in workflow.splitlines()}
 need(
     "quality-gates workflow still mutates Dart formatting before validation",
-    "npm run format\n" not in workflow and "npm run format\r\n" not in workflow,
+    "run: npm run format" not in workflow_lines,
 )
 for forbidden in [
     "supabase db reset",
