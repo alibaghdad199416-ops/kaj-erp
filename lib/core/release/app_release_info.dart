@@ -12,13 +12,12 @@ class AppReleaseInfo {
       '22.9.8-r49-focused-final-completion';
   static const String releaseToken = 'r49-focused-final-completion-20260810';
 
-  // Current source/runtime identity. Phase 11 R93 is the active database and
-  // browser-cache contract; historical R74 remains represented only by legacy
-  // markers in web/version.json and web/index.html.
-  static const String currentRuntimeRevision = 'r93-phase11-runtime-closure';
+  // Current source/runtime identity. Phase 11 R94 closes inherited PUBLIC
+  // execution on low-level legacy RPCs; R93 and R74 remain historical markers.
+  static const String currentRuntimeRevision = 'r94-legacy-acl-runtime-closure';
   static const String currentRuntimeToken =
-      'r93-phase11-runtime-closure-20260820';
-  static const String databaseContract = 'R93';
+      'r94-legacy-acl-runtime-closure-20260820';
+  static const String databaseContract = 'R94';
 
   // Historical audit markers retained for backward-compatible release checks:
   // 18.9.8 / 189800 / v738-full-verified-runtime-accounting-ui-20260806
