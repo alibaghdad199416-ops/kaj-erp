@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json, re, sys
 from pathlib import Path
+from privileged_secret_scanner import assert_detection_contract, find_privileged_secret
 from verification_text import contains_code
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -379,12 +380,22 @@ if not commercial_safe:
 if not report_safe:
     fail('report PDF must preserve the requested canonical language and bundled logo')
 
-# Ensure no embedded privileged credential literal exists.
-secret_re=re.compile(r'(sb_secret_[A-Za-z0-9._-]{12,}|service_role_[A-Za-z0-9._-]{12,}|postgres(?:ql)?://[^\s:]+:[^\s@]+@)',re.I)
+# Ensure no embedded privileged credential literal exists. The scanner is
+# semantic: PostgreSQL role names and assertion identifiers are safe, while
+# actual service-role JWTs/keys, sb_secret values, and password DSNs fail closed.
+try:
+    assert_detection_contract()
+except AssertionError as exc:
+    fail(f'privileged credential scanner contract failed: {exc}')
 for p in ROOT.rglob('*'):
     if not p.is_file() or any(part in {'.git','build','.dart_tool','node_modules'} for part in p.parts): continue
     if p.suffix.lower() in {'.png','.jpg','.jpeg','.ico','.zip','.wasm'}: continue
-    if secret_re.search(read(p)): fail(f'possible privileged credential literal in {p.relative_to(ROOT)}')
+    secret_match = find_privileged_secret(read(p))
+    if secret_match:
+        fail(
+            f'possible privileged credential literal ({secret_match.kind}) '
+            f'in {p.relative_to(ROOT)}'
+        )
 
 if errors:
     print('FAILED Supabase-only verification')
