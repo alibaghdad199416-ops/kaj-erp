@@ -17,6 +17,7 @@ CURRENT_PHASE_VERIFY_SCRIPTS: tuple[str, ...] = (
     "verify:r91",
     "verify:r92",
     "verify:r93",
+    "verify:r94",
 )
 
 CANONICAL_CHECK_COMMAND = (
