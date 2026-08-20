@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from verification_text import contains_code
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,7 +34,17 @@ for permission in ('warehouses.create', 'warehouses.update', 'warehouses.delete'
 require('ensureBranchesLoaded()' in warehouse and 'DropdownButtonFormField<String?>' in warehouse, 'R87 warehouse editor loads real branch choices')
 require('branch.id == _branchId' in warehouse and 'branchId: _branchId' in warehouse, 'R87 warehouse persists the selected branch UUID')
 require('AppWorkspaceWindowScope.closeCurrent(context)' in warehouse, 'R87 warehouse cancel closes the workspace correctly')
-require('AppWorkspaceWindowScope.closeCurrent(\n      context,\n      WarehouseModel(' in warehouse, 'R87 warehouse save returns the persisted model to its caller')
+require(
+    contains_code(
+        warehouse,
+        """
+        AppWorkspaceWindowScope.closeCurrent(
+          context,
+          WarehouseModel(
+        """,
+    ),
+    'R87 warehouse save returns the persisted model to its caller',
+)
 require('_verifyWarehousePersistence(warehouse)' in inv_repo, 'R87 warehouse create/update performs read-back verification')
 for field in ('inventoryAccountId', 'scrapExpenseAccountId', 'scrapExpenseIqdAccountId', 'scrapExpenseUsdAccountId'):
     require(f'normalized(actual.{field})' in inv_repo, f'R87 warehouse read-back verifies {field}')
@@ -50,7 +62,16 @@ require('loadSuppliers()' in suppliers_page and 'initState()' in suppliers_page,
 
 maintenance_form = text('lib/features/maintenance/pages/add_maintenance_order_page.dart')
 maintenance_migration = text('supabase/migrations/20260818233500_r87_phase10_corrective_integrity.sql')
-require('inventory.maintenanceItems\n          .where((item) => item.isActive)' in maintenance_form, 'R87 Maintenance item availability is not filtered by document currency')
+require(
+    contains_code(
+        maintenance_form,
+        """
+        inventory.maintenanceItems
+          .where((item) => item.isActive)
+        """,
+    ),
+    'R87 Maintenance item availability is not filtered by document currency',
+)
 require('_defaultDocumentPrice(InventoryModel item)' in maintenance_form and "_itemCurrency(item) == _currency ? item.salePrice : 0" in maintenance_form, 'R87 cross-currency Maintenance keeps billing price explicit without mutating master currency')
 require('drop trigger if exists erp_v2301_maintenance_line_currency' in maintenance_migration, 'R87 obsolete Maintenance currency-coupling trigger is removed forward-only')
 require('erp_r87_maintenance_material_cost_totals' in maintenance_migration and 'group by cost_currency' in maintenance_migration, 'R87 Maintenance inventory valuation stays separated by native cost currency')
