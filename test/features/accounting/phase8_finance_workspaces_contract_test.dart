@@ -2,13 +2,16 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+String _source(String path) =>
+    File(path).readAsStringSync().replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
 void main() {
   test(
     'Phase 8 expenses use a horizontal toolbar and full-height result viewport',
     () {
-      final source = File(
+      final source = _source(
         'lib/features/accounting/expenses/pages/expenses_page.dart',
-      ).readAsStringSync();
+      );
 
       expect(source, contains("ValueKey('expenses-horizontal-toolbar')"));
       expect(source, contains('constraints.maxWidth >= 1040'));
@@ -26,9 +29,9 @@ void main() {
   test(
     'Phase 8 expense records switch between desktop rows and compact columns',
     () {
-      final source = File(
+      final source = _source(
         'lib/features/accounting/expenses/widgets/expense_card.dart',
-      ).readAsStringSync();
+      );
 
       expect(source, contains('final desktop = constraints.maxWidth >= 900'));
       expect(source, contains("'expense-desktop-row'"));
@@ -43,9 +46,9 @@ void main() {
   test(
     'Phase 8 installments keep accounting permissions and use full-height responsive rows',
     () {
-      final source = File(
+      final source = _source(
         'lib/features/accounting/installments/pages/installments_page.dart',
-      ).readAsStringSync();
+      );
 
       expect(
         source,
@@ -64,9 +67,9 @@ void main() {
   test(
     'Phase 8 account statement filters, summary and data table fill the active workspace',
     () {
-      final source = File(
+      final source = _source(
         'lib/features/accounting/pages/account_statement_page.dart',
-      ).readAsStringSync();
+      );
 
       expect(
         source,
@@ -93,9 +96,9 @@ void main() {
   test(
     'Phase 8 trial balance uses compact controls, currency summaries and one dense table',
     () {
-      final source = File(
+      final source = _source(
         'lib/features/accounting/pages/accounting_center_page.dart',
-      ).readAsStringSync();
+      );
 
       expect(
         source,
