@@ -293,9 +293,9 @@ for marker in [
 ]:
     need(f"vehicle schedule UI missing marker: {marker}", marker in vehicle_service)
 for marker in [
-    "await generateDueScheduleNotifications(",
+    "Future<List<Map<String, Object?>>> loadPersistentNotifications(",
     "erp_r88_materialize_maintenance_schedule_reminders",
-    "listInbox(",
+    "authoritative inbox is read",
 ]:
     need(
         f"maintenance notification materialization missing marker: {marker}",
