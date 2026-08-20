@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import ast
-from verification_text import normalized_text_sha256
 import json
-import re
 from pathlib import Path
+
+from verification_text import contains_code, normalized_text_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 errors: list[str] = []
@@ -25,8 +25,8 @@ def sha(relative: str) -> str:
     return normalized_text_sha256(ROOT / relative)
 
 
-# Local runtime/hosting text must stay content-identical to the
-# current Local Supabase baseline across Git LF/CRLF worktrees.
+# Local runtime/hosting text must stay content-identical to the current Local
+# Supabase baseline across Git LF/CRLF worktrees.
 expected_hashes = {
     "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
     ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
@@ -36,75 +36,172 @@ for relative, expected in expected_hashes.items():
     need(sha(relative) == expected, f"local runtime/hosting baseline changed: {relative}")
 
 permission_codes = read("lib/features/settings/access/models/permission_codes.dart")
-need("static const settingsView = 'settings.view';" in permission_codes,
-     "PermissionCodes.settingsView compile contract is missing")
-need("static const recycleBinView = 'settings.recycle_bin.view';" in permission_codes,
-     "recycle-bin view permission contract is missing")
-need("static const periodsView = 'periods.view';" in permission_codes,
-     "operational-period view permission contract is missing")
+need(
+    "static const settingsView = 'settings.view';" in permission_codes,
+    "PermissionCodes.settingsView compile contract is missing",
+)
+need(
+    "static const recycleBinView = 'settings.recycle_bin.view';" in permission_codes,
+    "recycle-bin view permission contract is missing",
+)
+need(
+    "static const periodsView = 'periods.view';" in permission_codes,
+    "operational-period view permission contract is missing",
+)
 
 recycle_bin = read("lib/features/settings/recycle_bin/pages/recycle_bin_page.dart")
-operational_periods = read("lib/features/settings/operational_periods/pages/operational_periods_page.dart")
-need("PermissionCodes.settingsView" not in recycle_bin and "PermissionCodes.recycleBinView" in recycle_bin,
-     "recycle-bin field visibility is not scoped to recycleBinView")
-need("PermissionCodes.settingsView" not in operational_periods and "PermissionCodes.periodsView" in operational_periods,
-     "operational-period field visibility is not scoped to periodsView")
+operational_periods = read(
+    "lib/features/settings/operational_periods/pages/operational_periods_page.dart"
+)
+need(
+    "PermissionCodes.settingsView" not in recycle_bin
+    and "PermissionCodes.recycleBinView" in recycle_bin,
+    "recycle-bin field visibility is not scoped to recycleBinView",
+)
+need(
+    "PermissionCodes.settingsView" not in operational_periods
+    and "PermissionCodes.periodsView" in operational_periods,
+    "operational-period field visibility is not scoped to periodsView",
+)
 
 purchase_card = read("lib/features/purchases/widgets/purchase_card.dart")
 sale_card = read("lib/features/sales/widgets/sale_card.dart")
-need("final VoidCallback? onEdit;" in purchase_card and "if (onEdit != null)" in purchase_card,
-     "PurchaseCard read-only mode is not null-safe")
-need("final VoidCallback? onEdit;" in sale_card and "if (onEdit != null)" in sale_card,
-     "SaleCard read-only mode is not null-safe")
+need(
+    "final VoidCallback? onEdit;" in purchase_card and "if (onEdit != null)" in purchase_card,
+    "PurchaseCard read-only mode is not null-safe",
+)
+need(
+    "final VoidCallback? onEdit;" in sale_card and "if (onEdit != null)" in sale_card,
+    "SaleCard read-only mode is not null-safe",
+)
 
 purchases_page = read("lib/features/purchases/pages/purchases_page.dart")
 sales_page = read("lib/features/sales/pages/sales_page.dart")
-need("onEdit: null" not in purchases_page,
-     "legacy purchase page still passes an explicit null edit callback")
-need("onEdit: null" not in sales_page and "onResell: null" not in sales_page,
-     "legacy sales page still passes explicit null callbacks")
+need(
+    "onEdit: null" not in purchases_page,
+    "legacy purchase page still passes an explicit null edit callback",
+)
+need(
+    "onEdit: null" not in sales_page and "onResell: null" not in sales_page,
+    "legacy sales page still passes explicit null callbacks",
+)
 
-# Analyzer warnings from the user's real Flutter 3.44.6 run must stay removed.
-need("String _exportText(" not in read("lib/core/exporting/excel_export_service.dart"),
-     "unused Excel _exportText helper returned")
-need("features/settings/access/models/user_model.dart" not in read("lib/core/widgets/app_workspace_top_bar.dart"),
-     "unused user_model import returned")
-need("features/settings/access/widgets/permission_action.dart" not in read("lib/features/accounting/installments/pages/installments_page.dart"),
-     "unused installments PermissionAction import returned")
-need("core/widgets/app_module_dialog.dart" not in purchases_page,
-     "unused purchases app_module_dialog import returned")
-need("core/widgets/app_module_dialog.dart" not in sales_page,
-     "unused sales app_module_dialog import returned")
+# Analyzer warnings from the user's real Flutter run must stay removed.
+need(
+    "String _exportText(" not in read("lib/core/exporting/excel_export_service.dart"),
+    "unused Excel _exportText helper returned",
+)
+need(
+    "features/settings/access/models/user_model.dart"
+    not in read("lib/core/widgets/app_workspace_top_bar.dart"),
+    "unused user_model import returned",
+)
+need(
+    "features/settings/access/widgets/permission_action.dart"
+    not in read("lib/features/accounting/installments/pages/installments_page.dart"),
+    "unused installments PermissionAction import returned",
+)
+need(
+    "core/widgets/app_module_dialog.dart" not in purchases_page,
+    "unused purchases app_module_dialog import returned",
+)
+need(
+    "core/widgets/app_module_dialog.dart" not in sales_page,
+    "unused sales app_module_dialog import returned",
+)
 
+# The cashbox transfer now uses the central granular-action helper. Verify the
+# semantic async safety rather than forcing a historical direct PermissionAction
+# call shape: after awaiting the permission helper the State must be mounted
+# before reading BuildContext, and the helper itself must guard its own async gap.
 cashbox = read("lib/features/accounting/cashbox/pages/cashbox_page.dart")
-need(re.search(
-    r"if \(!await PermissionAction\.require\(context, 'accounting\.update'\)\) return;\s*if \(!mounted\) return;\s*final controller = context\.read<CashboxController>\(\);",
-    cashbox,
-) is not None, "cashbox transfer still uses BuildContext after an async gap without a mounted guard")
+need(
+    contains_code(
+        cashbox,
+        """
+        Future<void> _openTransfer() async {
+          if (!await _requireCashboxAction(
+            'transfer',
+            legacyPermission: 'accounting.update',
+          )) return;
+          if (!mounted) return;
+          final controller = context.read<CashboxController>();
+        """,
+    ),
+    "cashbox transfer does not mounted-guard BuildContext after the async permission gap",
+)
+need(
+    contains_code(
+        cashbox,
+        """
+        await access.recordDeniedAccess('cashbox.$action');
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context)
+        """,
+    ),
+    "cashbox action helper uses BuildContext after an async denial-log gap without a mounted guard",
+)
 
 package = json.loads(read("package.json"))
-build_web = package.get("scripts", {}).get("build:web", "")
-need("--pwa-strategy" not in build_web,
-     "deprecated Flutter --pwa-strategy flag returned to build:web")
-need("--no-wasm-dry-run" in build_web and "--no-web-resources-cdn" in build_web,
-     "self-contained web release flags regressed")
-need(package.get("scripts", {}).get("check") ==
-     "npm run verify:workspace && npm run format:check && npm run analyze && npm run test",
-     "canonical check command does not run every installed-workspace source gate")
-need(package.get("scripts", {}).get("check:release") ==
-     "npm run format && npm run check && npm run build:web",
-     "canonical release check must auto-format before verifying/analyzing/testing/building")
-need((ROOT / "tool/validate_r10_windows.ps1").is_file(),
-     "Windows fail-fast release validation script is missing")
+scripts = package.get("scripts", {})
+build_web = scripts.get("build:web", "")
+need(
+    "--pwa-strategy" not in build_web,
+    "deprecated Flutter --pwa-strategy flag returned to build:web",
+)
+need(
+    "--no-wasm-dry-run" in build_web and "--no-web-resources-cdn" in build_web,
+    "self-contained web release flags regressed",
+)
+
+# verify:all is the authoritative installed-workspace superset. It must execute
+# the historical workspace chain plus every current Phase 11 closure. check must
+# enter through that complete chain rather than stopping at verify:workspace.
+verify_all = str(scripts.get("verify:all", ""))
+need(
+    "npm run verify:workspace" in verify_all,
+    "verify:all no longer includes the installed-workspace verification chain",
+)
+for latest_gate in (
+    "verify:r88",
+    "verify:r89",
+    "verify:r90",
+    "verify:r91",
+    "verify:r92",
+    "verify:r93",
+):
+    need(
+        f"npm run {latest_gate}" in verify_all,
+        f"verify:all omits current closure gate {latest_gate}",
+    )
+need(
+    scripts.get("check")
+    == "npm run verify:all && npm run format:check && npm run analyze && npm run test",
+    "canonical check command does not run the complete installed-workspace source gates",
+)
+need(
+    scripts.get("check:release") == "npm run format && npm run check && npm run build:web",
+    "canonical release check contract changed unexpectedly",
+)
+need(
+    (ROOT / "tool/validate_r10_windows.ps1").is_file(),
+    "Windows fail-fast release validation script is missing",
+)
 
 web_index = read("web/index.html")
 firebase = read("firebase.json")
-need("navigator.serviceWorker.getRegistrations()" in web_index and "registration.unregister()" in web_index,
-     "stale service-worker cleanup is missing from web/index.html")
-need("no-store, no-cache, must-revalidate, max-age=0" in firebase,
-     "Firebase runtime no-cache headers are missing")
+need(
+    "navigator.serviceWorker.getRegistrations()" in web_index
+    and "registration.unregister()" in web_index,
+    "stale service-worker cleanup is missing from web/index.html",
+)
+need(
+    "no-store, no-cache, must-revalidate, max-age=0" in firebase,
+    "Firebase runtime no-cache headers are missing",
+)
 
-# Every Python verifier must parse and every Path.read_text() call must declare an encoding.
+# Every Python verifier must parse and every Path.read_text() call must declare
+# an encoding so Windows locale cannot change verifier behavior.
 for path in sorted((ROOT / "tool").rglob("*.py")):
     source = path.read_text(encoding="utf-8", errors="strict")
     try:
@@ -119,11 +216,12 @@ for path in sorted((ROOT / "tool").rglob("*.py")):
         if isinstance(func, ast.Attribute) and func.attr == "read_text":
             if not any(keyword.arg == "encoding" for keyword in node.keywords):
                 errors.append(
-                    f"Windows-locale unsafe read_text() without encoding in {path.relative_to(ROOT)}:{node.lineno}"
+                    "Windows-locale unsafe read_text() without encoding in "
+                    f"{path.relative_to(ROOT)}:{node.lineno}"
                 )
 
-# Specifically protect the verifier that failed on the user's Windows cp1252 locale.
-# Inspect the AST rather than matching one exact call spelling.
+# Specifically protect the verifier that failed on the user's Windows cp1252
+# locale. Inspect the AST rather than matching one exact call spelling.
 v741 = read("tool/verify_v741_complete_requirements.py")
 try:
     v741_tree = ast.parse(v741, filename="verify_v741_complete_requirements.py")
@@ -140,7 +238,10 @@ if v741_tree is not None:
         for keyword in node.keywords:
             if keyword.arg != "encoding":
                 continue
-            if isinstance(keyword.value, ast.Constant) and str(keyword.value.value).lower().replace("_", "-") == "utf-8":
+            if (
+                isinstance(keyword.value, ast.Constant)
+                and str(keyword.value.value).lower().replace("_", "-") == "utf-8"
+            ):
                 v741_utf8_reads += 1
 need(v741_utf8_reads > 0, "V7.4.1 verifier is not UTF-8 explicit")
 
@@ -154,6 +255,7 @@ print("PASS R10 Windows/Flutter build cleanup verification")
 print("  - Local Supabase/Firebase baseline text is unchanged across LF/CRLF worktrees")
 print("  - settings permission and legacy read-only cards are compile-safe")
 print("  - analyzer warnings reported by the user's Flutter run are removed")
-print("  - cashbox async BuildContext usage is mounted-guarded")
+print("  - cashbox async BuildContext usage is semantically mounted-guarded")
+print("  - verify:all/check execute the complete installed-workspace + R88-R93 closure")
 print("  - Python verifiers are UTF-8 deterministic on Windows")
 print("  - deprecated --pwa-strategy is removed while cache cleanup remains")
