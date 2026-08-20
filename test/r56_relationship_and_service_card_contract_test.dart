@@ -39,7 +39,11 @@ void main() {
         'salePrice': 125,
         'paidAmount': 50,
         'invoiceNumber': 'MINV-R56-1',
-        'partsCost': 765432.10,
+        'laborCost': 40.25,
+        'partsCost': 84.75,
+        'totalCost': 125,
+        'profit': 765432.10,
+        'carCostAdded': 654321.09,
         'items': <Object?>[
           <String, Object?>{
             'name': 'Customer service',
@@ -58,10 +62,35 @@ void main() {
     expect(encoded, contains('CAR-R56-1'));
     expect(encoded, contains('MO-R56-1'));
     expect(encoded, contains('125'));
+    expect(encoded, contains('40.25'));
+    expect(encoded, contains('84.75'));
     expect(encoded, isNot(contains('987654.32')));
     expect(encoded, isNot(contains('876543.21')));
     expect(encoded, isNot(contains('765432.1')));
+    expect(encoded, isNot(contains('654321.09')));
   });
+
+  test(
+    'print presentation does not invent permission-filtered cost fields',
+    () {
+      final filteredFixture = Map<String, Object?>.from(fixture);
+      final history =
+          Map<String, Object?>.from(
+              (fixture['maintenanceHistory']! as List<Object?>).single!
+                  as Map<String, Object?>,
+            )
+            ..remove('laborCost')
+            ..remove('partsCost')
+            ..remove('totalCost');
+      filteredFixture['maintenanceHistory'] = <Object?>[history];
+
+      final encoded = jsonEncode(service.buildPresentation(filteredFixture));
+
+      expect(encoded, isNot(contains('laborCost')));
+      expect(encoded, isNot(contains('partsCost')));
+      expect(encoded, isNot(contains('totalCost')));
+    },
+  );
 
   test('linked opportunity keeps its canonical existing car', () {
     expect(

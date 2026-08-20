@@ -13,6 +13,7 @@ import base64
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 
 _MODERN_SUPABASE_SECRET_RE = re.compile(
@@ -20,18 +21,34 @@ _MODERN_SUPABASE_SECRET_RE = re.compile(
     re.IGNORECASE,
 )
 _PASSWORD_DSN_RE = re.compile(
-    r"postgres(?:ql)?://[^\s:@/]+:[^\s@/]+@",
+    "postgres" + r"(?:ql)?://[^\s:@/]+:[^\s@/]+@",
     re.IGNORECASE,
 )
-_SERVICE_ROLE_ASSIGNMENT_RE = re.compile(
+_SERVICE_ROLE_QUOTED_ASSIGNMENT_RE = re.compile(
     r"""
+    (?<![A-Za-z0-9_])
+    (?P<name_quote>[\"']?)
+    \$?
     \b(?:SUPABASE[_-]?)?SERVICE[_-]?ROLE(?:[_-]?KEY)?\b
+    (?P=name_quote)
     \s*(?:=|:)\s*
-    (?P<quote>[\"']?)
+    (?P<quote>[\"'])
     (?P<value>[A-Za-z0-9._~+/=-]{20,})
     (?P=quote)
     """,
     re.IGNORECASE | re.VERBOSE,
+)
+_SERVICE_ROLE_BARE_CONFIG_RE = re.compile(
+    r"""
+    ^\s*(?:export\s+)?
+    (?P<name_quote>[\"']?)
+    (?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|supabase-service-role-key|service-role-key)
+    (?P=name_quote)
+    \s*(?:=|:)\s*
+    (?P<value>[A-Za-z0-9._~+/=-]{20,})
+    \s*(?:[#;].*)?$
+    """,
+    re.MULTILINE | re.VERBOSE,
 )
 _JWT_RE = re.compile(
     r"(?<![A-Za-z0-9_-])"
@@ -74,14 +91,24 @@ def find_privileged_secret(text: str) -> PrivilegedSecretMatch | None:
 
     match = _PASSWORD_DSN_RE.search(text)
     if match:
-        return PrivilegedSecretMatch("postgres_password_dsn", "postgresql://…:…@")
+        return PrivilegedSecretMatch(
+            "postgres_password_dsn",
+            "password-bearing PostgreSQL DSN",
+        )
 
-    match = _SERVICE_ROLE_ASSIGNMENT_RE.search(text)
-    if match:
-        value = match.group("value")
-        # Environment/template expressions are not matched by the token alphabet
-        # above; this branch therefore represents a checked-in literal value.
-        return PrivilegedSecretMatch("service_role_key_literal", value[:6] + "…")
+    for pattern in (
+        _SERVICE_ROLE_QUOTED_ASSIGNMENT_RE,
+        _SERVICE_ROLE_BARE_CONFIG_RE,
+    ):
+        match = pattern.search(text)
+        if match:
+            value = match.group("value")
+            # Environment/template expressions and function calls are not literal
+            # values. Quoted source values and bare config/env values are.
+            return PrivilegedSecretMatch(
+                "service_role_key_literal",
+                value[:6] + "…",
+            )
 
     for match in _JWT_RE.finditer(text):
         token = match.group("jwt")
@@ -115,6 +142,8 @@ def assert_detection_contract() -> None:
         "has_function_privilege('service_role', v_sig, 'execute')",
         "r94_internal_service_role_execute_missing",
         "service_role is a PostgreSQL role name",
+        "$serviceRoleKey = Get-LocalServiceRoleKey",
+        "serviceRoleKey = loadServiceRoleKeyFromEnvironment()",
         "SERVICE_ROLE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']",
         "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}",
     )
@@ -123,14 +152,54 @@ def assert_detection_contract() -> None:
             raise AssertionError(f"safe service-role reference misclassified: {sample}")
 
     dangerous_samples = (
-        "prefix " + "sb_" + "secret_" + "abcdefghijklmnopqrstuvwx",
-        "DATABASE_URL=postgresql://postgres:" + "local-but-embedded-password" + "@db.example/postgres",
-        "SUPABASE_SERVICE_ROLE_KEY='" + "literal_privileged_key_material_123456789" + "'",
+        "".join(("prefix ", "sb_", "secret_", "abcdefghijkl", "mnopqrstuvwx")),
+        "".join(
+            (
+                "DATABASE_URL=",
+                "postgres",
+                "ql://",
+                "contract-user",
+                ":",
+                "embedded-",
+                "password",
+                "@",
+                "db.invalid/postgres",
+            )
+        ),
+        "".join(
+            (
+                "SUPABASE_",
+                "SERVICE_",
+                "ROLE_KEY=",
+                "'",
+                "literal_",
+                "privileged_",
+                "key_material_",
+                "123456789",
+                "'",
+            )
+        ),
+        "".join(
+            (
+                "SERVICE_",
+                "ROLE_KEY=",
+                "bare_",
+                "privileged_",
+                "key_material_",
+                "123456789",
+            )
+        ),
         _fake_service_role_jwt(),
     )
     for sample in dangerous_samples:
         if not contains_privileged_secret(sample):
             raise AssertionError("privileged credential contract was weakened")
+
+    source_match = find_privileged_secret(Path(__file__).read_text(encoding="utf-8"))
+    if source_match:
+        raise AssertionError(
+            f"scanner source contains a matchable {source_match.kind} sample"
+        )
 
 
 if __name__ == "__main__":

@@ -6,7 +6,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
 
-/// Customer-safe vehicle service card built only from the public service view.
+/// Customer-safe vehicle service card built only from the permission-filtered
+/// service-card payload.
 class VehicleServiceCardPdfService {
   const VehicleServiceCardPdfService();
 
@@ -160,7 +161,9 @@ class VehicleServiceCardPdfService {
                 clean(t('صرف المواد', 'Material issue')),
                 clean(t('الفاتورة', 'Invoice')),
                 clean(t('الدفعات', 'Payments')),
-                clean(t('الكلفة', 'Cost')),
+                clean(t('أجور العمل', 'Labor cost')),
+                clean(t('كلفة المواد', 'Parts cost')),
+                clean(t('الكلفة الكلية', 'Total cost')),
                 clean(t('العملة', 'Currency')),
               ],
               data: history
@@ -183,7 +186,21 @@ class VehicleServiceCardPdfService {
                         ),
                       ),
                       clean(_references(order['paymentReferences'])),
-                      clean('${order['totalCost'] ?? 0}'),
+                      clean(
+                        order.containsKey('laborCost')
+                            ? order['laborCost']
+                            : '—',
+                      ),
+                      clean(
+                        order.containsKey('partsCost')
+                            ? order['partsCost']
+                            : '—',
+                      ),
+                      clean(
+                        order.containsKey('totalCost')
+                            ? order['totalCost']
+                            : '—',
+                      ),
                       clean(order['currencyCode'] ?? '—'),
                     ],
                   )
@@ -193,10 +210,10 @@ class VehicleServiceCardPdfService {
               headerStyle: pw.TextStyle(
                 font: fonts.bold,
                 color: PdfColors.white,
-                fontSize: 6.7,
+                fontSize: 5.8,
               ),
-              cellStyle: const pw.TextStyle(fontSize: 6.5),
-              cellPadding: const pw.EdgeInsets.all(4),
+              cellStyle: const pw.TextStyle(fontSize: 5.8),
+              cellPadding: const pw.EdgeInsets.all(3),
             ),
           pw.SizedBox(height: 12),
           for (final order in history)
@@ -263,6 +280,9 @@ class VehicleServiceCardPdfService {
       'customerName',
       'currencyCode',
       'salePrice',
+      'laborCost',
+      'partsCost',
+      'totalCost',
       'paidAmount',
       'paymentStatus',
       'warehouseName',

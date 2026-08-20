@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -232,47 +233,57 @@ void main() {
 
   for (final language in const ['en', 'ar']) {
     test('warehouse product and car transfer builds in $language', () async {
-      final bytes = await const WarehouseTransferPdfService().build(
-        language: language,
-        documentNumber: 'WT-57-001',
-        transferDate: '2026-08-12',
-        sourceWarehouse: const <String, Object?>{
-          'id': 'source-id',
-          'code': 'WH-01',
-          'name': 'Main warehouse',
-        },
-        destinationWarehouse: const <String, Object?>{
-          'id': 'destination-id',
-          'code': 'WH-02',
-          'name': 'Secondary warehouse',
-        },
-        preparedBy: language == 'ar' ? 'مستخدم الاختبار' : 'Test user',
-        notes: language == 'ar'
-            ? 'نقل تشغيلي معتمد'
-            : 'Approved operational transfer',
-        items: <Map<String, Object?>>[
-          const <String, Object?>{
-            'code': 'PR-001',
-            'name': 'Spare part',
-            'details': 'Product transfer',
-            'quantity': 12,
-            'unit': 'Piece',
-            'cost': '15.00',
-            'currency': 'USD',
+      final printed = <String>[];
+      final bytes = await runZoned(
+        () => const WarehouseTransferPdfService().build(
+          language: language,
+          documentNumber: 'WT-57-001',
+          transferDate: '2026-08-12',
+          sourceWarehouse: const <String, Object?>{
+            'id': 'source-id',
+            'code': 'WH-01',
+            'name': 'Main warehouse',
           },
-          <String, Object?>{
-            'code': 'CAR-001',
-            'name': language == 'ar' ? 'سيارة اختبار' : 'Test vehicle',
-            'details': 'VIN: TESTVIN57',
-            'quantity': 1,
-            'unit': language == 'ar' ? 'سيارة' : 'Vehicle',
-            'cost': '25000000',
-            'currency': 'IQD',
+          destinationWarehouse: const <String, Object?>{
+            'id': 'destination-id',
+            'code': 'WH-02',
+            'name': 'Secondary warehouse',
           },
-        ],
+          preparedBy: language == 'ar' ? 'مستخدم الاختبار' : 'Test user',
+          notes: language == 'ar'
+              ? 'نقل تشغيلي معتمد'
+              : 'Approved operational transfer',
+          items: <Map<String, Object?>>[
+            const <String, Object?>{
+              'code': 'PR-001',
+              'name': 'Spare part',
+              'details': 'Product transfer',
+              'quantity': 12,
+              'unit': 'Piece',
+              'cost': '15.00',
+              'currency': 'USD',
+            },
+            <String, Object?>{
+              'code': 'CAR-001',
+              'name': language == 'ar' ? 'سيارة اختبار' : 'Test vehicle',
+              'details': 'VIN: TESTVIN57',
+              'quantity': 1,
+              'unit': language == 'ar' ? 'سيارة' : 'Vehicle',
+              'cost': '25000000',
+              'currency': 'IQD',
+            },
+          ],
+        ),
+        zoneSpecification: ZoneSpecification(
+          print: (_, _, _, message) => printed.add(message),
+        ),
       );
       _expectPdf(bytes);
       expect(bytes.length, greaterThan(5000));
+      expect(
+        printed.where((message) => message.contains('Unicode support')),
+        isEmpty,
+      );
     });
   }
 }

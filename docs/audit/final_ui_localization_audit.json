@@ -1038,17 +1038,17 @@
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 647,
+      "line": 646,
       "value": "مخزن اعتيادي"
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 651,
+      "line": 650,
       "value": "مخزن توالف واستهلاك"
     },
     {
       "file": "lib/features/inventory/pages/warehouse_management_page.dart",
-      "line": 680,
+      "line": 679,
       "value": "حساب المادة التالفة يُحدد آليًا من حساب تقييم المادة أو السيارة في بطاقة التعريف."
     },
     {
@@ -1750,87 +1750,87 @@
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 846,
+      "line": 853,
       "value": "Color(0xFFE05D5D)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 854,
+      "line": 861,
       "value": "Color(0xFFF2A900)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 889,
+      "line": 896,
       "value": "Color(0xFFE05D5D)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 890,
+      "line": 897,
       "value": "Color(0xFFF2A900)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 969,
-      "value": "Color(0xFF16A66A)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
       "line": 976,
-      "value": "Color(0xFFF2A900)"
+      "value": "Color(0xFF16A66A)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
       "line": 983,
-      "value": "Color(0xFF2F80ED)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 990,
-      "value": "Color(0xFF8A5CF5)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1051,
-      "value": "Color(0xFF16A66A)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1119,
-      "value": "Color(0xFFE05D5D)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1121,
-      "value": "Color(0xFF16A66A)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1122,
-      "value": "Color(0xFF2F80ED)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1210,
-      "value": "Color(0xFF16A66A)"
-    },
-    {
-      "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1210,
       "value": "Color(0xFFF2A900)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1268,
+      "line": 990,
+      "value": "Color(0xFF2F80ED)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 997,
+      "value": "Color(0xFF8A5CF5)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1058,
+      "value": "Color(0xFF16A66A)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1126,
+      "value": "Color(0xFFE05D5D)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1128,
+      "value": "Color(0xFF16A66A)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1129,
+      "value": "Color(0xFF2F80ED)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1217,
+      "value": "Color(0xFF16A66A)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1217,
+      "value": "Color(0xFFF2A900)"
+    },
+    {
+      "file": "lib/features/dashboard/pages/dashboard_page.dart",
+      "line": 1275,
       "value": "Color(0xFF0C1623)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1271,
+      "line": 1278,
       "value": "Color(0xFF1D2A3A)"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1271,
+      "line": 1278,
       "value": "Color(0xFFE7E9EF)"
     },
     {
@@ -1970,7 +1970,7 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/order_details_dialog.dart",
-      "line": 771,
+      "line": 761,
       "value": "Color(0xFFD74747)"
     },
     {
@@ -2422,37 +2422,37 @@
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 600,
+      "line": 608,
       "value": "18"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 609,
+      "line": 617,
       "value": "14"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1138,
+      "line": 1145,
       "value": "9"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1269,
+      "line": 1276,
       "value": "17"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1335,
+      "line": 1342,
       "value": "11"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1405,
+      "line": 1412,
       "value": "20"
     },
     {
       "file": "lib/features/dashboard/pages/dashboard_page.dart",
-      "line": 1527,
+      "line": 1534,
       "value": "12"
     },
     {
@@ -2657,7 +2657,7 @@
     },
     {
       "file": "lib/features/sales/workflow/pages/order_details_dialog.dart",
-      "line": 1851,
+      "line": 1840,
       "value": "10"
     },
     {

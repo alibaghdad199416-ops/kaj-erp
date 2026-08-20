@@ -98,7 +98,7 @@
     "verify:r6": "python -B tool/verify_r6_deployment_closure.py",
     "verify:v2302": "python -B tool/verify_v2302_runtime_accounting_root_closure.py",
     "verify:r8": "python -B tool/verify_r8_release_closure.py",
-    "verify:all": "npm run verify:workspace && npm run verify:r88 && npm run verify:r89 && npm run verify:r90 && npm run verify:r91 && npm run verify:r92 && npm run verify:r93",
+    "verify:all": "npm run verify:workspace && npm run verify:r88 && npm run verify:r89 && npm run verify:r90 && npm run verify:r91 && npm run verify:r92 && npm run verify:r93 && npm run verify:r94",
     "verify:r9": "python -B tool/verify_r9_complete_closure.py",
     "verify:r10": "python -B tool/verify_r10_windows_flutter_build_cleanup.py",
     "validate:r10:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r10_windows.ps1",
@@ -216,7 +216,8 @@
     "verify:r90": "python -B tool/verify_r90_phase11_final_acceptance.py",
     "verify:r91": "python -B tool/verify_r91_phase11_material_issue_acceptance.py",
     "verify:r92": "python -B tool/verify_r92_comprehensive_module_audit.py",
-    "verify:r93": "python -B tool/verify_r93_final_closure.py"
+    "verify:r93": "python -B tool/verify_r93_final_closure.py",
+    "verify:r94": "python -B tool/verify_r94_legacy_endpoint_acl_closure.py"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
