@@ -59,6 +59,7 @@ class AccountingController extends ChangeNotifier {
       throw StateError('journal_non_postable_account:${invalid.join(',')}');
     }
   }
+
   List<JournalEntryModel> get entries => List.unmodifiable(_entries);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;

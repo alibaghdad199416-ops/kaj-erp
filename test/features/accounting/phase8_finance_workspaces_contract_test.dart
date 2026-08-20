@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-String _source(String path) =>
-    File(path).readAsStringSync().replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+String _source(String path) => File(
+  path,
+).readAsStringSync().replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 
 void main() {
   test(

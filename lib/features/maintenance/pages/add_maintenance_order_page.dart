@@ -829,7 +829,10 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                               ThousandsInputFormatter(decimalDigits: 2),
                             ],
                             decoration: InputDecoration(
-                              labelText: t('سعر المستخدم ($_currency)', 'User price ($_currency)'),
+                              labelText: t(
+                                'سعر المستخدم ($_currency)',
+                                'User price ($_currency)',
+                              ),
                             ),
                             validator: _nonNegative,
                           ),

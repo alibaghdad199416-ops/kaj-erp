@@ -402,165 +402,173 @@ class _KpiGrid extends StatelessWidget {
         const spacing = 12.0;
         final columnCount = dashboardKpiColumnCount(constraints.maxWidth);
         final cards = <Widget>[
-            if (can('totalSales') && can('todaySales'))
-              _KpiCard(
-                icon: Icons.point_of_sale_outlined,
-                color: const Color(0xFF16A66A),
-                title: context.l10n.text('kpiTotalSales'),
-                value: CurrencyTotalsFormatter.format(
-                  dashboard.totalSalesByCurrency,
-                ),
-                detail:
-                    '${context.l10n.text('kpiToday')} ${CurrencyTotalsFormatter.format(dashboard.todaySalesByCurrency)}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'sales',
-                  context.l10n.text('detailsTotalSales'),
-                ),
+          if (can('totalSales') && can('todaySales'))
+            _KpiCard(
+              icon: Icons.point_of_sale_outlined,
+              color: const Color(0xFF16A66A),
+              title: context.l10n.text('kpiTotalSales'),
+              value: CurrencyTotalsFormatter.format(
+                dashboard.totalSalesByCurrency,
               ),
-            if (can('netProfit'))
-              _KpiCard(
-                icon: Icons.trending_up_rounded,
-                color:
-                    !dashboard.netProfitByCurrency.values.any(
-                      (value) => value < 0,
-                    )
-                    ? const Color(0xFF7C5CE7)
-                    : Colors.red,
-                title: context.l10n.text('kpiNetProfit'),
-                value: CurrencyTotalsFormatter.format(
-                  dashboard.netProfitByCurrency,
-                ),
-                detail:
-                    !dashboard.netProfitByCurrency.values.any(
-                      (value) => value < 0,
-                    )
-                    ? context.l10n.text('kpiPositive')
-                    : context.l10n.text('kpiNeedsReview'),
-                onTap: () => _openDashboardReport(
-                  context,
-                  'overview',
-                  context.l10n.text('detailsProfit'),
-                ),
+              detail:
+                  '${context.l10n.text('kpiToday')} ${CurrencyTotalsFormatter.format(dashboard.todaySalesByCurrency)}',
+              onTap: () => _openDashboardReport(
+                context,
+                'sales',
+                context.l10n.text('detailsTotalSales'),
               ),
-            if (can('maintenanceRevenueByCurrency'))
-              _KpiCard(
-                icon: Icons.build_circle_outlined,
-                color: const Color(0xFF0E8F9B),
-                title: context.l10n.text('kpiMaintenanceRevenue'),
-                value: CurrencyTotalsFormatter.format(
-                  dashboard.maintenanceRevenueByCurrency,
-                ),
-                detail:
-                    '${context.l10n.text('kpiFifoCost')} ${CurrencyTotalsFormatter.format(dashboard.maintenanceActualCostByCurrency)} • ${context.l10n.text('kpiOutstanding')} ${CurrencyTotalsFormatter.format(dashboard.maintenanceOutstandingByCurrency)}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'maintenance',
-                  context.l10n.text('detailsMaintenanceRevenue'),
-                ),
+            ),
+          if (can('netProfit'))
+            _KpiCard(
+              icon: Icons.trending_up_rounded,
+              color:
+                  !dashboard.netProfitByCurrency.values.any(
+                    (value) => value < 0,
+                  )
+                  ? const Color(0xFF7C5CE7)
+                  : Colors.red,
+              title: context.l10n.text('kpiNetProfit'),
+              value: CurrencyTotalsFormatter.format(
+                dashboard.netProfitByCurrency,
               ),
-            if (can('totalCars') && can('availableCars') && can('soldCars'))
-              _KpiCard(
-                icon: Icons.directions_car_outlined,
-                color: const Color(0xFF2F80ED),
-                title: context.l10n.text('kpiFleet'),
-                value: '${dashboard.totalCars}',
-                detail:
-                    '${dashboard.availableCars} ${context.l10n.text('kpiAvailable')} • ${dashboard.soldCars} ${context.l10n.text('kpiSold')}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'cars',
-                  context.l10n.text('detailsFleet'),
-                ),
+              detail:
+                  !dashboard.netProfitByCurrency.values.any(
+                    (value) => value < 0,
+                  )
+                  ? context.l10n.text('kpiPositive')
+                  : context.l10n.text('kpiNeedsReview'),
+              onTap: () => _openDashboardReport(
+                context,
+                'overview',
+                context.l10n.text('detailsProfit'),
               ),
-            if (can('overdueInstallments') && can('dueSoonInstallments'))
-              _KpiCard(
-                icon: Icons.schedule_rounded,
-                color: dashboard.overdueInstallments > 0
-                    ? const Color(0xFFE05D5D)
-                    : const Color(0xFFF2A900),
-                title: context.l10n.text('kpiDueInstallments'),
-                value: '${dashboard.overdueInstallments}',
-                detail:
-                    '${dashboard.dueSoonInstallments} ${context.l10n.text('kpiWithinDays')}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'finance',
-                  context.l10n.text('detailsSettlements'),
-                ),
+            ),
+          if (can('maintenanceRevenueByCurrency'))
+            _KpiCard(
+              icon: Icons.build_circle_outlined,
+              color: const Color(0xFF0E8F9B),
+              title: context.l10n.text('kpiMaintenanceRevenue'),
+              value: CurrencyTotalsFormatter.format(
+                dashboard.maintenanceRevenueByCurrency,
               ),
-            if (can('inventoryValue') && can('lowStockItems'))
-              _KpiCard(
-                icon: Icons.inventory_2_outlined,
-                color: const Color(0xFF0E8F9B),
-                title: context.l10n.text('kpiInventoryValue'),
-                value: CurrencyTotalsFormatter.format(
-                  dashboard.inventoryValueByCurrency,
-                ),
-                detail:
-                    '${dashboard.lowStockItems} ${context.l10n.text('kpiAtMinimum')}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'inventory',
-                  context.l10n.text('detailsInventory'),
-                ),
+              detail:
+                  '${context.l10n.text('kpiFifoCost')} ${CurrencyTotalsFormatter.format(dashboard.maintenanceActualCostByCurrency)} • ${context.l10n.text('kpiOutstanding')} ${CurrencyTotalsFormatter.format(dashboard.maintenanceOutstandingByCurrency)}',
+              onTap: () => _openDashboardReport(
+                context,
+                'maintenance',
+                context.l10n.text('detailsMaintenanceRevenue'),
               ),
-            if (can('totalReceivables') && can('totalPayables'))
-              _KpiCard(
-                icon: Icons.receipt_long_outlined,
-                color: const Color(0xFF8A5CF5),
-                title: context.l10n.text('kpiReceivables'),
-                value: CurrencyTotalsFormatter.format(
-                  dashboard.totalReceivablesByCurrency,
-                ),
-                detail:
-                    '${context.l10n.text('kpiSupplierPayables')} ${CurrencyTotalsFormatter.format(dashboard.totalPayablesByCurrency)}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'finance',
-                  context.l10n.text('detailsReceivables'),
-                ),
+            ),
+          if (can('totalCars') && can('availableCars') && can('soldCars'))
+            _KpiCard(
+              icon: Icons.directions_car_outlined,
+              color: const Color(0xFF2F80ED),
+              title: context.l10n.text('kpiFleet'),
+              value: '${dashboard.totalCars}',
+              detail:
+                  '${dashboard.availableCars} ${context.l10n.text('kpiAvailable')} • ${dashboard.soldCars} ${context.l10n.text('kpiSold')}',
+              onTap: () => _openDashboardReport(
+                context,
+                'cars',
+                context.l10n.text('detailsFleet'),
               ),
-            if (can('cashBalanceIqd') && can('cashBalanceUsd'))
-              _KpiCard(
-                icon: Icons.currency_exchange_rounded,
-                color: const Color(0xFFB7791F),
-                title: context.l10n.text('kpiCashBalanceIqd'),
-                value: _money(dashboard.cashBalanceIqd),
-                detail: 'USD ${_money(dashboard.cashBalanceUsd)}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'finance',
-                  context.l10n.text('detailsCashbox'),
-                ),
+            ),
+          if (can('overdueInstallments') && can('dueSoonInstallments'))
+            _KpiCard(
+              icon: Icons.schedule_rounded,
+              color: dashboard.overdueInstallments > 0
+                  ? const Color(0xFFE05D5D)
+                  : const Color(0xFFF2A900),
+              title: context.l10n.text('kpiDueInstallments'),
+              value: '${dashboard.overdueInstallments}',
+              detail:
+                  '${dashboard.dueSoonInstallments} ${context.l10n.text('kpiWithinDays')}',
+              onTap: () => _openDashboardReport(
+                context,
+                'finance',
+                context.l10n.text('detailsSettlements'),
               ),
-            if (can('carsWithoutWarehouse') && can('pendingPurchaseCars'))
-              _KpiCard(
-                icon: Icons.warning_amber_rounded,
-                color: dashboard.carsWithoutWarehouse > 0
-                    ? const Color(0xFFE05D5D)
-                    : const Color(0xFF16A66A),
-                title: context.l10n.text('kpiVehicleAlerts'),
-                value: '${dashboard.carsWithoutWarehouse}',
-                detail:
-                    '${dashboard.pendingPurchaseCars} ${context.l10n.text('kpiOnPurchase')}',
-                onTap: () => _openDashboardReport(
-                  context,
-                  'cars',
-                  context.l10n.text('detailsVehicleStatus'),
-                ),
+            ),
+          if (can('inventoryValue') && can('lowStockItems'))
+            _KpiCard(
+              icon: Icons.inventory_2_outlined,
+              color: const Color(0xFF0E8F9B),
+              title: context.l10n.text('kpiInventoryValue'),
+              value: CurrencyTotalsFormatter.format(
+                dashboard.inventoryValueByCurrency,
               ),
+              detail:
+                  '${dashboard.lowStockItems} ${context.l10n.text('kpiAtMinimum')}',
+              onTap: () => _openDashboardReport(
+                context,
+                'inventory',
+                context.l10n.text('detailsInventory'),
+              ),
+            ),
+          if (can('totalReceivables') && can('totalPayables'))
+            _KpiCard(
+              icon: Icons.receipt_long_outlined,
+              color: const Color(0xFF8A5CF5),
+              title: context.l10n.text('kpiReceivables'),
+              value: CurrencyTotalsFormatter.format(
+                dashboard.totalReceivablesByCurrency,
+              ),
+              detail:
+                  '${context.l10n.text('kpiSupplierPayables')} ${CurrencyTotalsFormatter.format(dashboard.totalPayablesByCurrency)}',
+              onTap: () => _openDashboardReport(
+                context,
+                'finance',
+                context.l10n.text('detailsReceivables'),
+              ),
+            ),
+          if (can('cashBalanceIqd') && can('cashBalanceUsd'))
+            _KpiCard(
+              icon: Icons.currency_exchange_rounded,
+              color: const Color(0xFFB7791F),
+              title: context.l10n.text('kpiCashBalanceIqd'),
+              value: _money(dashboard.cashBalanceIqd),
+              detail: 'USD ${_money(dashboard.cashBalanceUsd)}',
+              onTap: () => _openDashboardReport(
+                context,
+                'finance',
+                context.l10n.text('detailsCashbox'),
+              ),
+            ),
+          if (can('carsWithoutWarehouse') && can('pendingPurchaseCars'))
+            _KpiCard(
+              icon: Icons.warning_amber_rounded,
+              color: dashboard.carsWithoutWarehouse > 0
+                  ? const Color(0xFFE05D5D)
+                  : const Color(0xFF16A66A),
+              title: context.l10n.text('kpiVehicleAlerts'),
+              value: '${dashboard.carsWithoutWarehouse}',
+              detail:
+                  '${dashboard.pendingPurchaseCars} ${context.l10n.text('kpiOnPurchase')}',
+              onTap: () => _openDashboardReport(
+                context,
+                'cars',
+                context.l10n.text('detailsVehicleStatus'),
+              ),
+            ),
         ];
         if (cards.isEmpty) return const SizedBox.shrink();
         final rowSizes = dashboardKpiRowSizes(cards.length, columnCount);
         var cardIndex = 0;
         return Column(
           children: <Widget>[
-            for (var rowIndex = 0; rowIndex < rowSizes.length; rowIndex++) ...<Widget>[
+            for (
+              var rowIndex = 0;
+              rowIndex < rowSizes.length;
+              rowIndex++
+            ) ...<Widget>[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  for (var index = 0; index < rowSizes[rowIndex]; index++) ...<Widget>[
+                  for (
+                    var index = 0;
+                    index < rowSizes[rowIndex];
+                    index++
+                  ) ...<Widget>[
                     Expanded(child: cards[cardIndex++]),
                     if (index < rowSizes[rowIndex] - 1)
                       const SizedBox(width: spacing),
@@ -596,64 +604,63 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: _Panel(
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .11),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: color),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: _Panel(
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .11),
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppText(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppText(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    const SizedBox(height: 3),
-                    AppText(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  ),
+                  const SizedBox(height: 3),
+                  AppText(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 2),
-                    AppText(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  AppText(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              if (onTap != null)
-                const Icon(Icons.chevron_left_rounded, size: 20),
-            ],
-          ),
+            ),
+            if (onTap != null) const Icon(Icons.chevron_left_rounded, size: 20),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
 

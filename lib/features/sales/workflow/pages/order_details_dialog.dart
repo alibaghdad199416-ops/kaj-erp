@@ -603,10 +603,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         _fieldAction(
           'delivery',
           AppModuleActionIcon(
-            tooltip: _bi(
-              'تصديق التجهيز المخزني',
-              'Approve warehouse delivery',
-            ),
+            tooltip: _bi('تصديق التجهيز المخزني', 'Approve warehouse delivery'),
             icon: Icons.inventory_rounded,
             busy: busy,
             onPressed: busy || documentId.isEmpty
@@ -1429,10 +1426,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       'تصديق إذن التجهيز',
       'Approve delivery note',
     ),
-    'approve_purchase_receipt' => _bi(
-      'استلام مخزني',
-      'Warehouse receipt',
-    ),
+    'approve_purchase_receipt' => _bi('استلام مخزني', 'Warehouse receipt'),
     'approve_sales_invoice' ||
     'approve_purchase_invoice' => _bi('تصديق الفاتورة', 'Approve invoice'),
     'cancel_sales_invoice' ||

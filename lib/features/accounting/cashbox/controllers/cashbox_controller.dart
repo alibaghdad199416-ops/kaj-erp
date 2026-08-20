@@ -54,6 +54,7 @@ class CashboxController extends ChangeNotifier {
       ),
     );
   }
+
   Map<String, double> get balances => Map.unmodifiable(_balances);
   Map<String, Map<String, double>> get reconciliation =>
       Map.unmodifiable(_reconciliation);

@@ -38,30 +38,33 @@ void main() {
       );
     });
 
-    test('accepts explicit loopback targets only when local dev is enabled', () {
-      for (final url in <String>[
-        'http://127.0.0.1:54321',
-        'http://localhost:54321',
-        'http://[::1]:54321',
-      ]) {
+    test(
+      'accepts explicit loopback targets only when local dev is enabled',
+      () {
+        for (final url in <String>[
+          'http://127.0.0.1:54321',
+          'http://localhost:54321',
+          'http://[::1]:54321',
+        ]) {
+          expect(
+            SupabaseConfig.validateConfiguration(
+              projectUrl: url,
+              publishableKey: 'sb_publishable_local_example',
+              allowLocalDev: true,
+            ),
+            isNull,
+          );
+        }
         expect(
           SupabaseConfig.validateConfiguration(
-            projectUrl: url,
+            projectUrl: 'http://127.0.0.1:54321',
             publishableKey: 'sb_publishable_local_example',
-            allowLocalDev: true,
+            allowLocalDev: false,
           ),
-          isNull,
+          contains('Local Supabase'),
         );
-      }
-      expect(
-        SupabaseConfig.validateConfiguration(
-          projectUrl: 'http://127.0.0.1:54321',
-          publishableKey: 'sb_publishable_local_example',
-          allowLocalDev: false,
-        ),
-        contains('Local Supabase'),
-      );
-    });
+      },
+    );
 
     test('runtime target is mandatory and never falls back to production', () {
       expect(

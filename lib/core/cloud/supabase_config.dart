@@ -1,8 +1,7 @@
 class SupabaseConfig {
   SupabaseConfig._();
 
-  static const String expectedProductionProjectRef =
-      'havlqebmnjdcwmpaaqew';
+  static const String expectedProductionProjectRef = 'havlqebmnjdcwmpaaqew';
   static const String expectedProductionUrl =
       'https://$expectedProductionProjectRef.supabase.co';
 
@@ -21,10 +20,7 @@ class SupabaseConfig {
 
   static const String publishableKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
-    defaultValue: String.fromEnvironment(
-      'SUPABASE_ANON_KEY',
-      defaultValue: '',
-    ),
+    defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
   );
 
   static const String localProjectId = String.fromEnvironment(
@@ -214,7 +210,8 @@ class SupabaseConfig {
     final resolvedUrl = (projectUrl ?? url).trim();
     final resolvedKey = (publishableKey ?? SupabaseConfig.publishableKey)
         .trim();
-    final allowed = allowLocalDevelopment ??
+    final allowed =
+        allowLocalDevelopment ??
         (_isLoopback(Uri.tryParse(resolvedUrl)?.host.toLowerCase() ?? '') ||
             allowLocalDev);
     if (validateConfiguration(
@@ -270,7 +267,9 @@ class SupabaseConfig {
           ? 'بيئة تطوير Supabase المحلية'
           : 'Local Supabase Development Environment';
     }
-    return isArabic ? 'إعداد Supabase مطلوب' : 'Supabase Configuration Required';
+    return isArabic
+        ? 'إعداد Supabase مطلوب'
+        : 'Supabase Configuration Required';
   }
 
   static bool _isLoopback(String host) {

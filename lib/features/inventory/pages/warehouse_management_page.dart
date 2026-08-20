@@ -591,9 +591,8 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
                           (branch) => branch.isActive || branch.id == _branchId,
                         )
                         .toList(growable: false);
-                    final safeBranchId = branches.any(
-                      (branch) => branch.id == _branchId,
-                    )
+                    final safeBranchId =
+                        branches.any((branch) => branch.id == _branchId)
                         ? _branchId
                         : null;
                     return Padding(
@@ -756,7 +755,9 @@ class _WarehouseEditorState extends State<WarehouseEditor> {
                 SwitchListTile(
                   value: _active,
                   onChanged: (value) => setState(() => _active = value),
-                  title: AppText(context.l10n.isArabic ? 'المخزن فعال' : 'Warehouse active'),
+                  title: AppText(
+                    context.l10n.isArabic ? 'المخزن فعال' : 'Warehouse active',
+                  ),
                 ),
               ),
             ],

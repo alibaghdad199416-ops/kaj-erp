@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-String _source(String path) =>
-    File(path).readAsStringSync().replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+String _source(String path) => File(
+  path,
+).readAsStringSync().replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 
 void main() {
   test(
@@ -55,9 +56,7 @@ void main() {
   test(
     'legacy sales and purchase invoice tabs use the compact archive toolbar',
     () {
-      final sales = _source(
-        'lib/features/sales/pages/sales_page.dart',
-      );
+      final sales = _source('lib/features/sales/pages/sales_page.dart');
       final purchases = _source(
         'lib/features/purchases/pages/purchases_page.dart',
       );
@@ -73,9 +72,7 @@ void main() {
   test(
     'legacy commercial cards retain all data and actions at tighter density',
     () {
-      final saleCard = _source(
-        'lib/features/sales/widgets/sale_card.dart',
-      );
+      final saleCard = _source('lib/features/sales/widgets/sale_card.dart');
       final purchaseCard = _source(
         'lib/features/purchases/widgets/purchase_card.dart',
       );
