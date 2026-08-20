@@ -471,9 +471,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   }
 
   Future<void> _approveLogistics(String documentId) => _runWorkflowOperation(
-    () => widget.purchase
-        ? PurchaseWorkflowRepository().approveReceipt(documentId)
-        : SalesWorkflowRepository().approveDelivery(documentId),
+    () => SalesWorkflowRepository().approveDelivery(documentId),
   );
 
   Future<void> _createInvoiceDraft() => _runWorkflowOperation(
@@ -580,10 +578,10 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
           AppModuleActionIcon(
             tooltip: _bi(
               widget.purchase
-                  ? 'إنشاء إشعار الاستلام المخزني'
+                  ? 'إنشاء الاستلام المخزني'
                   : 'إنشاء إذن التجهيز المخزني',
               widget.purchase
-                  ? 'Create warehouse receipt'
+                  ? 'Receive into warehouse'
                   : 'Create warehouse delivery',
             ),
             icon: widget.purchase
@@ -597,20 +595,17 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
               : 'sales.approve',
         ),
       );
-    } else if (logistics != null &&
+    } else if (!widget.purchase &&
+        logistics != null &&
         const <String>{'draft', 'pending_approval'}.contains(logisticsStatus)) {
       final documentId = logistics['id']?.toString() ?? '';
       actions.add(
         _fieldAction(
-          widget.purchase ? 'receipt' : 'delivery',
+          'delivery',
           AppModuleActionIcon(
             tooltip: _bi(
-              widget.purchase
-                  ? 'تصديق الاستلام المخزني'
-                  : 'تصديق التجهيز المخزني',
-              widget.purchase
-                  ? 'Approve warehouse receipt'
-                  : 'Approve warehouse delivery',
+              'تصديق التجهيز المخزني',
+              'Approve warehouse delivery',
             ),
             icon: Icons.inventory_rounded,
             busy: busy,
@@ -618,9 +613,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                 ? null
                 : () => _approveLogistics(documentId),
           ),
-          writePermission: widget.purchase
-              ? 'purchases.approve'
-              : 'sales.approve',
+          writePermission: 'sales.approve',
         ),
       );
     } else if (const <String>{
@@ -844,7 +837,9 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     final id = row['id']?.toString() ?? '';
     final status = row['status']?.toString().toLowerCase() ?? '';
     final busy = _mutatingComponentId == id;
-    final canApprove = const {'draft', 'pending_approval'}.contains(status);
+    final canApprove =
+        const {'draft', 'pending_approval'}.contains(status) &&
+        !(widget.purchase && componentType == 'receipt');
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -1435,8 +1430,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       'Approve delivery note',
     ),
     'approve_purchase_receipt' => _bi(
-      'تصديق إشعار الاستلام',
-      'Approve goods receipt',
+      'استلام مخزني',
+      'Warehouse receipt',
     ),
     'approve_sales_invoice' ||
     'approve_purchase_invoice' => _bi('تصديق الفاتورة', 'Approve invoice'),
@@ -2336,7 +2331,10 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
               numeric: true,
             ),
             _column('المتبقي', 'Remaining', numeric: true),
-            _column('أنشأ المسودة', 'Draft created by'),
+            _column(
+              widget.purchase ? 'أنشأ الاستلام' : 'أنشأ المسودة',
+              widget.purchase ? 'Receipt created by' : 'Draft created by',
+            ),
             _column('صدّق بواسطة', 'Approved by'),
             _column('وقت التصديق', 'Approval time'),
             _column('الحالة', 'Status'),
