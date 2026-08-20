@@ -100,7 +100,9 @@ for dart in (ROOT/'lib').rglob('*.dart'):
     text=dart.read_text(encoding='utf-8',errors='replace')
     for pattern in [r"viewPermission:\s*'([^']+)'",r"writePermission:\s*'([^']+)'",r"hasPermission\(\s*'([^']+)'\s*\)"]:
         used_codes.update(re.findall(pattern,text))
-undefined=sorted(code for code in used_codes if '.fields.' not in code and code not in known_codes)
+# Dart strings containing interpolation are templates resolved at runtime, not
+# literal permission codes. Keep strict catalog validation for true literals.
+undefined=sorted(code for code in used_codes if '$' not in code and '.fields.' not in code and code not in known_codes)
 need(not undefined,'undefined literal base permissions: '+', '.join(undefined))
 
 # Main editable module surfaces must consume granular permissions.
@@ -293,6 +295,7 @@ for table in sorted(cloud_tables):
          f'CloudMasterDataService table lacks R9 server resource mapping: {table}')
 uses_r9_master_reads = "'erp_r9_list_cloud_master_records'" in master_service and "'erp_r9_get_cloud_master_record'" in master_service
 uses_r14_master_reads = "'erp_r14_list_cloud_master_records'" in master_service and "'erp_r14_get_cloud_master_record'" in master_service
+uses_r22_master_reads = "'erp_r22_list_cloud_master_records'" in master_service and "'erp_r22_get_cloud_master_record'" in master_service
 r14_wraps_r9_reads = (
     'create or replace function public.erp_r14_list_cloud_master_records' in r14_runtime
     and 'select * from public.erp_r9_list_cloud_master_records($1,$2)' in r14_runtime
