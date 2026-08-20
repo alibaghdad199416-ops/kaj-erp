@@ -261,6 +261,47 @@ need(
     and "!widget.purchase &&" in order_details,
 )
 
+# 9. Vehicle maintenance scheduling must stay reachable from every vehicle card,
+# support the full schedule lifecycle, and materialize due reminders into the
+# assigned user's notification inbox rather than storing reminder timestamps only.
+cars_page = text("lib/features/inventory/cars/pages/cars_page.dart")
+car_card = text("lib/features/inventory/cars/widgets/car_card.dart")
+vehicle_service = text("lib/features/inventory/cars/pages/vehicle_service_card_page.dart")
+notification_center = text(
+    "lib/features/notifications/repositories/notification_center_repository.dart"
+)
+
+for marker in [
+    "onSchedule: () => _showCarHistory(car)",
+    "VehicleServiceCardPage(car: car)",
+]:
+    need(f"vehicle service card access missing marker: {marker}", marker in cars_page)
+for marker in [
+    "if (onSchedule != null)",
+    "onPressed: onSchedule",
+    "بطاقة الخدمة والسجل",
+]:
+    need(f"car card service access missing marker: {marker}", marker in car_card)
+for marker in [
+    "_editSchedule",
+    "_deleteSchedule",
+    "_convertSchedule",
+    "assignedUserId",
+    "reminderMinutes",
+    "linkedMaintenanceOrderId",
+    "customDetails",
+]:
+    need(f"vehicle schedule UI missing marker: {marker}", marker in vehicle_service)
+for marker in [
+    "await generateDueScheduleNotifications(",
+    "erp_r88_materialize_maintenance_schedule_reminders",
+    "listInbox(",
+]:
+    need(
+        f"maintenance notification materialization missing marker: {marker}",
+        marker in notification_center,
+    )
+
 if errors:
     print("R93 final closure verification FAILED")
     for error in errors:
@@ -278,4 +319,5 @@ print("  - restricted-user runtime proves field masking and delete denial")
 print("  - localized Arabic/Persian numeric entry cannot be silently discarded")
 print("  - maintenance draft reopen keeps loading/error/vehicle fallback guards")
 print("  - purchase receiving UI has no second approval action; sales delivery remains staged")
+print("  - every vehicle keeps service schedules/history access and due reminders materialize")
 print("  - analyze, Flutter tests and web build remain mandatory")
