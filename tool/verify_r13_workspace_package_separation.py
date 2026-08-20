@@ -165,9 +165,9 @@ need(
     and workflow_pos == sorted(workflow_pos),
     "CI pipeline is not delivery-first, non-mutating, and complete",
 )
+workflow_lines = {line.strip() for line in workflow.splitlines()}
 need(
-    "run: npm run format\n" not in workflow
-    and "run: npm run format\r\n" not in workflow,
+    "run: npm run format" not in workflow_lines,
     "CI must not auto-format and hide committed formatting defects",
 )
 
