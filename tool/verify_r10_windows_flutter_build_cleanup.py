@@ -6,6 +6,7 @@ import ast
 import json
 from pathlib import Path
 
+from verification_gate_contract import check_errors
 from verification_text import contains_code, normalized_text_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -154,31 +155,9 @@ need(
     "self-contained web release flags regressed",
 )
 
-# verify:all is the authoritative installed-workspace superset. It must execute
-# the historical workspace chain plus every current Phase 11 closure. check must
-# enter through that complete chain rather than stopping at verify:workspace.
-verify_all = str(scripts.get("verify:all", ""))
-need(
-    "npm run verify:workspace" in verify_all,
-    "verify:all no longer includes the installed-workspace verification chain",
-)
-for latest_gate in (
-    "verify:r88",
-    "verify:r89",
-    "verify:r90",
-    "verify:r91",
-    "verify:r92",
-    "verify:r93",
-):
-    need(
-        f"npm run {latest_gate}" in verify_all,
-        f"verify:all omits current closure gate {latest_gate}",
-    )
-need(
-    scripts.get("check")
-    == "npm run verify:all && npm run format:check && npm run analyze && npm run test",
-    "canonical check command does not run the complete installed-workspace source gates",
-)
+# The current gate topology is owned centrally so historical release verifiers
+# cannot drift into conflicting definitions of verify:all/check.
+errors.extend(check_errors(scripts))
 need(
     scripts.get("check:release") == "npm run format && npm run check && npm run build:web",
     "canonical release check contract changed unexpectedly",
@@ -256,6 +235,6 @@ print("  - Local Supabase/Firebase baseline text is unchanged across LF/CRLF wor
 print("  - settings permission and legacy read-only cards are compile-safe")
 print("  - analyzer warnings reported by the user's Flutter run are removed")
 print("  - cashbox async BuildContext usage is semantically mounted-guarded")
-print("  - verify:all/check execute the complete installed-workspace + R88-R93 closure")
+print("  - authoritative verify:all/check topology is centralized")
 print("  - Python verifiers are UTF-8 deterministic on Windows")
 print("  - deprecated --pwa-strategy is removed while cache cleanup remains")
