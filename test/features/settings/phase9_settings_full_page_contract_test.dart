@@ -2,13 +2,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+String _source(String path) =>
+    File(path).readAsStringSync().replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
 void main() {
   test(
     'settings hub keeps one horizontal primary strip and one full-height active section',
     () {
-      final source = File(
-        'lib/features/settings/pages/settings_hub_page.dart',
-      ).readAsStringSync();
+      final source = _source('lib/features/settings/pages/settings_hub_page.dart');
 
       expect(source, contains("ValueKey('settings-hub-full-workspace')"));
       expect(source, contains('maxWidth: double.infinity'));
@@ -29,9 +30,7 @@ void main() {
   test(
     'system model uses a horizontal section strip and an expanded active viewport',
     () {
-      final source = File(
-        'lib/features/settings/pages/settings_page.dart',
-      ).readAsStringSync();
+      final source = _source('lib/features/settings/pages/settings_page.dart');
 
       expect(
         source,
@@ -50,9 +49,7 @@ void main() {
   test(
     'company settings fill the available page instead of a narrow centered form card',
     () {
-      final source = File(
-        'lib/features/settings/pages/settings_page.dart',
-      ).readAsStringSync();
+      final source = _source('lib/features/settings/pages/settings_page.dart');
 
       expect(source, contains("ValueKey('settings-company-full-page-scroll')"));
       expect(source, contains('constraints.maxHeight > 14'));
@@ -69,9 +66,7 @@ void main() {
   test(
     'branches and currencies use actual-width responsive grids with full-page scrolling',
     () {
-      final source = File(
-        'lib/features/settings/pages/settings_page.dart',
-      ).readAsStringSync();
+      final source = _source('lib/features/settings/pages/settings_page.dart');
 
       expect(
         source,
@@ -91,9 +86,7 @@ void main() {
   test(
     'backup workspace has one full-page scroll surface and compact records',
     () {
-      final source = File(
-        'lib/features/settings/pages/settings_page.dart',
-      ).readAsStringSync();
+      final source = _source('lib/features/settings/pages/settings_page.dart');
 
       expect(source, contains("ValueKey('settings-backups-full-page-scroll')"));
       expect(source, contains('visualDensity: VisualDensity.compact'));
