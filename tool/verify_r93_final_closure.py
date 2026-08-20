@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import re
 import subprocess
 
@@ -86,7 +87,36 @@ for rel in [
 ]:
     need(f"required final gate missing: {rel}", (ROOT / rel).exists())
 
-# 3. R92 ACL tightening must not revoke an RPC still called anywhere in Flutter,
+# 3. npm's authoritative aliases must include the current closure instead of
+# silently stopping at the historical R58 workspace chain.
+package_text = text("package.json")
+try:
+    package = json.loads(package_text)
+except json.JSONDecodeError as exc:
+    errors.append(f"package.json is invalid JSON: {exc}")
+    package = {}
+scripts = package.get("scripts", {}) if isinstance(package, dict) else {}
+verify_all = str(scripts.get("verify:all", ""))
+for script_name in [
+    "verify:r88",
+    "verify:r89",
+    "verify:r90",
+    "verify:r91",
+    "verify:r92",
+    "verify:r93",
+]:
+    need(f"verify:all omits {script_name}", f"npm run {script_name}" in verify_all)
+need("verify:all no longer includes verify:workspace", "npm run verify:workspace" in verify_all)
+need(
+    "verify:r93 script is not wired to the final verifier",
+    scripts.get("verify:r93") == "python -B tool/verify_r93_final_closure.py",
+)
+need(
+    "check does not enter through verify:all",
+    str(scripts.get("check", "")).startswith("npm run verify:all &&"),
+)
+
+# 4. R92 ACL tightening must not revoke an RPC still called anywhere in Flutter,
 # including shared core/widgets code outside the seven audited feature trees.
 r92 = text("supabase/migrations/20260820133000_r92_comprehensive_module_audit.sql")
 rpc_pattern = re.compile(r"\.rpc\(\s*['\"]([^'\"]+)['\"]")
@@ -117,18 +147,13 @@ for conflict in sorted(set(used_rpcs) & revoked_rpcs):
         + ", ".join(sorted(set(used_rpcs[conflict])))
     )
 
-# 4. The official GitHub gate must validate the committed tree before any
-# formatter mutation, run current Phase 11 gates, and exercise local PostgreSQL.
+# 5. The official GitHub gate must validate the committed tree before any
+# formatter mutation, run the authoritative all-gate, and exercise local PostgreSQL.
 workflow = text(".github/workflows/quality-gates.yml")
 for marker in [
     "fetch-depth: 0",
     "npm run format:check",
-    "python -B tool/verify_r88_phase11.py",
-    "python -B tool/verify_r89_phase11_completion.py",
-    "python -B tool/verify_r90_phase11_final_acceptance.py",
-    "python -B tool/verify_r91_phase11_material_issue_acceptance.py",
-    "python -B tool/verify_r92_comprehensive_module_audit.py",
-    "python -B tool/verify_r93_final_closure.py",
+    "npm run verify:all",
     "npx supabase start",
     "python -B tool/run_r89_r92_local_runtime_tests.py",
     "npm run analyze",
@@ -148,7 +173,7 @@ for forbidden in [
 ]:
     need(f"quality-gates workflow contains forbidden operation: {forbidden}", forbidden not in workflow)
 
-# 5. The local runtime runner must be explicitly local-only and cover every
+# 6. The local runtime runner must be explicitly local-only and cover every
 # available R89-R93 PostgreSQL acceptance script without reset/push/link.
 runner = text("tool/run_r89_r92_local_runtime_tests.py")
 for marker in [
@@ -172,9 +197,9 @@ if errors:
 
 print("R93 final closure verification PASS")
 print("  - accepted R92 historical migrations remain immutable")
+print("  - verify:all/check include the complete R88-R93 static closure")
 print("  - R92 revoked RPCs are unused across the complete Flutter lib tree")
 print("  - committed formatting is checked before any formatter mutation")
-print("  - R88-R92 static gates are wired into official CI")
 print("  - R89-R93 PostgreSQL runtime tests are wired to local Supabase only")
 print("  - restricted-user runtime proves field masking and delete denial")
 print("  - analyze, Flutter tests and web build remain mandatory")
