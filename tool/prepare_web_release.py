@@ -30,6 +30,7 @@ build = int(version_match.group(2))
 if dart_string("version") != version:
     sys.exit("AppReleaseInfo.version differs from pubspec")
 
+database_contract = dart_string("databaseContract")
 path = root / "web/version.json"
 meta = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 meta.update(
@@ -44,7 +45,7 @@ meta.update(
         "operationalRevision": dart_string("operationalRevision"),
         "runtimeRevision": dart_string("currentRuntimeRevision"),
         "runtimeToken": dart_string("currentRuntimeToken"),
-        "databaseContract": "R74",
+        "databaseContract": database_contract,
     }
 )
 path.write_text(
@@ -53,5 +54,5 @@ path.write_text(
 )
 print(
     f"Prepared web release {version}+{build}-"
-    f"{dart_string('currentRuntimeToken')} / DB R74"
+    f"{dart_string('currentRuntimeToken')} / DB {database_contract}"
 )
