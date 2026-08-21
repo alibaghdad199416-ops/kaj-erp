@@ -146,7 +146,10 @@ class AccessController extends ChangeNotifier {
   /// granted, only the explicit action code is accepted.
   bool hasRestrictedActions(String resource) {
     if (isSystemAdmin) return false;
-    return _currentPermissions.contains('$resource.actions.restrict');
+    return PermissionContract.hasRestrictedActions(
+      _currentPermissions,
+      resource,
+    );
   }
 
   bool canPerformAction(
@@ -154,12 +157,13 @@ class AccessController extends ChangeNotifier {
     String action, {
     required String legacyPermission,
   }) {
-    if (isSystemAdmin) return true;
-    final hasLegacy = _currentPermissions.contains(legacyPermission);
-    if (hasRestrictedActions(resource)) {
-      return hasLegacy && _currentPermissions.contains('$resource.$action');
-    }
-    return hasLegacy;
+    return PermissionContract.canPerformAction(
+      _currentPermissions,
+      resource: resource,
+      actionName: action,
+      legacyPermission: legacyPermission,
+      isSystemAdmin: isSystemAdmin,
+    );
   }
 
   /// Returns true when granular field restrictions are enabled for [resource].
