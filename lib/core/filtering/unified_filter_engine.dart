@@ -252,13 +252,13 @@ abstract final class UnifiedFilterEngine {
       });
     }
 
-    final safeOffset = math.max(0, criteria.offset);
+    final safeOffset = math.max<int>(0, criteria.offset);
     if (safeOffset >= filtered.length) return <T>[];
     final remaining = filtered.length - safeOffset;
     final safeLimit = criteria.limit == null
         ? remaining
-        : math.max(0, criteria.limit!);
-    final end = safeOffset + math.min(remaining, safeLimit);
+        : math.max<int>(0, criteria.limit!);
+    final end = safeOffset + math.min<int>(remaining, safeLimit);
     return filtered
         .sublist(safeOffset, end)
         .map((entry) => entry.value)
