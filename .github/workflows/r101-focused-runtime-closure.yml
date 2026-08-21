@@ -1,5 +1,6 @@
 name: R99-R101 focused runtime closure
 
+# Push trigger confirmed by CI heartbeat before this retry.
 on:
   push:
     branches:
