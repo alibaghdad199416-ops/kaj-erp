@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/operations/operational_line_lifecycle.dart';
 
-typedef OperationalLifecycleTextBuilder = String Function(
-  OperationalLineLifecycle line,
-);
+typedef OperationalLifecycleTextBuilder =
+    String Function(OperationalLineLifecycle line);
 
 typedef OperationalLifecycleQuantityFormatter = String Function(double value);
 
@@ -47,7 +46,9 @@ class OperationalLifecycleTable extends StatelessWidget {
   static String _defaultQuantityFormatter(double value) {
     if (value == value.roundToDouble()) return value.toStringAsFixed(0);
     final text = value.toStringAsFixed(6);
-    return text.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    return text
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
   }
 
   @override

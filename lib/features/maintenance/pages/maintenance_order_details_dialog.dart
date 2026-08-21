@@ -870,55 +870,51 @@ class _MaintenanceOrderDetailsDialogState
   }
 
   Widget _maintenanceLinesTable(MaintenanceOrderModel _) {
-  final reconciliationByLine = <String, Map<String, Object?>>{};
-  for (final row in _costs?.lines ?? const <Map<String, Object?>>[]) {
-    final lineId = row['lineId']?.toString().trim() ?? '';
-    if (lineId.isNotEmpty) reconciliationByLine[lineId] = row;
-  }
-  final lifecycleRows = _lines.map((line) {
-    final reconciliation = reconciliationByLine[line.id];
-    return <String, Object?>{
-      if (reconciliation != null) ...reconciliation,
-      'lineId': line.id,
-      'itemId': line.productId,
-      'productName': line.productName,
-      'description': line.description.trim().isNotEmpty
-          ? line.description.trim()
-          : line.productName,
-      'requestedQuantity': line.quantity,
-      'lineType': line.lineType,
-    };
-  }).toList(growable: false);
+    final reconciliationByLine = <String, Map<String, Object?>>{};
+    for (final row in _costs?.lines ?? const <Map<String, Object?>>[]) {
+      final lineId = row['lineId']?.toString().trim() ?? '';
+      if (lineId.isNotEmpty) reconciliationByLine[lineId] = row;
+    }
+    final lifecycleRows = _lines
+        .map((line) {
+          final reconciliation = reconciliationByLine[line.id];
+          return <String, Object?>{
+            if (reconciliation != null) ...reconciliation,
+            'lineId': line.id,
+            'itemId': line.productId,
+            'productName': line.productName,
+            'description': line.description.trim().isNotEmpty
+                ? line.description.trim()
+                : line.productName,
+            'requestedQuantity': line.quantity,
+            'lineType': line.lineType,
+          };
+        })
+        .toList(growable: false);
 
-  return Card(
-    clipBehavior: Clip.antiAlias,
-    child: OperationalLifecycleTable(
-      rows: lifecycleRows,
-      itemLabel: _bi('المادة / الخدمة', 'Item / Service'),
-      descriptionLabel: _bi('الوصف', 'Description'),
-      requestedLabel: _bi('المطلوب', 'Requested'),
-      logisticsLabel: _bi('المصروف', 'Issue'),
-      invoicedLabel: _bi('المفوتر', 'Invoiced'),
-      remainingLogisticsLabel: _bi(
-        'المتبقي للصرف',
-        'Remaining logistics',
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: OperationalLifecycleTable(
+        rows: lifecycleRows,
+        itemLabel: _bi('المادة / الخدمة', 'Item / Service'),
+        descriptionLabel: _bi('الوصف', 'Description'),
+        requestedLabel: _bi('المطلوب', 'Requested'),
+        logisticsLabel: _bi('المصروف', 'Issue'),
+        invoicedLabel: _bi('المفوتر', 'Invoiced'),
+        remainingLogisticsLabel: _bi('المتبقي للصرف', 'Remaining logistics'),
+        remainingInvoiceLabel: _bi('المتبقي للفوترة', 'Remaining invoice'),
+        emptyLabel: _bi(
+          'لا توجد بنود في هذا الأمر.',
+          'No items in this order.',
+        ),
+        itemTextBuilder: (line) =>
+            line.raw['productName']?.toString() ??
+            (line.itemId.isEmpty ? '-' : line.itemId),
+        descriptionTextBuilder: (line) =>
+            line.description.isEmpty ? '-' : line.description,
       ),
-      remainingInvoiceLabel: _bi(
-        'المتبقي للفوترة',
-        'Remaining invoice',
-      ),
-      emptyLabel: _bi(
-        'لا توجد بنود في هذا الأمر.',
-        'No items in this order.',
-      ),
-      itemTextBuilder: (line) =>
-          line.raw['productName']?.toString() ??
-          (line.itemId.isEmpty ? '-' : line.itemId),
-      descriptionTextBuilder: (line) =>
-          line.description.isEmpty ? '-' : line.description,
-    ),
-  );
-}
+    );
+  }
 
   Widget _summary(MaintenanceOrderModel order) => Card(
     child: Padding(

@@ -2127,74 +2127,70 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   );
 
   Widget _itemLifecycleTable(Map<String, Object?> _) {
-  final lifecycleRows = _items.map((item) {
-    final itemId = _firstValue(item, const [
-      'id',
-      'itemId',
-      'productId',
-      'carId',
-    ]);
-    final reconciliation = _reconciliationFor(itemId);
-    return <String, Object?>{
-      ...item,
-      if (reconciliation != null) ...reconciliation,
-      'lineId': itemId,
-      'itemId': itemId,
-      'description': _itemDescription(item, null),
-      'displayLabel': _itemLabel(item, null),
-    };
-  }).toList(growable: false);
+    final lifecycleRows = _items
+        .map((item) {
+          final itemId = _firstValue(item, const [
+            'id',
+            'itemId',
+            'productId',
+            'carId',
+          ]);
+          final reconciliation = _reconciliationFor(itemId);
+          return <String, Object?>{
+            ...item,
+            if (reconciliation != null) ...reconciliation,
+            'lineId': itemId,
+            'itemId': itemId,
+            'description': _itemDescription(item, null),
+            'displayLabel': _itemLabel(item, null),
+          };
+        })
+        .toList(growable: false);
 
-  return Card(
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-          child: AppText(
-            _bi(
-              'دورة البنود: المطلوب ← الحركة المخزنية ← المفوتر',
-              'Item lifecycle: Requested → Logistics → Invoiced',
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: AppText(
+              _bi(
+                'دورة البنود: المطلوب ← الحركة المخزنية ← المفوتر',
+                'Item lifecycle: Requested → Logistics → Invoiced',
+              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
+          ),
+          OperationalLifecycleTable(
+            rows: lifecycleRows,
+            itemLabel: _bi('المادة / المنتج', 'Item / Product'),
+            descriptionLabel: _bi('الوصف', 'Description'),
+            requestedLabel: _bi('المطلوب', 'Requested'),
+            logisticsLabel: _bi(
+              widget.purchase ? 'المستلم' : 'المجهز',
+              widget.purchase ? 'Receipt' : 'Delivery',
             ),
+            invoicedLabel: _bi('المفوتر', 'Invoiced'),
+            remainingLogisticsLabel: _bi(
+              'المتبقي لوجستيًا',
+              'Remaining logistics',
+            ),
+            remainingInvoiceLabel: _bi('المتبقي للفوترة', 'Remaining invoice'),
+            emptyLabel: _bi('لا توجد بنود في الأمر.', 'No order items.'),
+            itemTextBuilder: (line) =>
+                line.raw['displayLabel']?.toString() ??
+                (line.itemId.isEmpty ? '-' : line.itemId),
+            descriptionTextBuilder: (line) =>
+                line.description.isEmpty ? '-' : line.description,
+            quantityFormatter: (value) => _money.format(value),
           ),
-        ),
-        OperationalLifecycleTable(
-          rows: lifecycleRows,
-          itemLabel: _bi('المادة / المنتج', 'Item / Product'),
-          descriptionLabel: _bi('الوصف', 'Description'),
-          requestedLabel: _bi('المطلوب', 'Requested'),
-          logisticsLabel: _bi(
-            widget.purchase ? 'المستلم' : 'المجهز',
-            widget.purchase ? 'Receipt' : 'Delivery',
-          ),
-          invoicedLabel: _bi('المفوتر', 'Invoiced'),
-          remainingLogisticsLabel: _bi(
-            'المتبقي لوجستيًا',
-            'Remaining logistics',
-          ),
-          remainingInvoiceLabel: _bi(
-            'المتبقي للفوترة',
-            'Remaining invoice',
-          ),
-          emptyLabel: _bi(
-            'لا توجد بنود في الأمر.',
-            'No order items.',
-          ),
-          itemTextBuilder: (line) =>
-              line.raw['displayLabel']?.toString() ??
-              (line.itemId.isEmpty ? '-' : line.itemId),
-          descriptionTextBuilder: (line) =>
-              line.description.isEmpty ? '-' : line.description,
-          quantityFormatter: (value) => _money.format(value),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _warehouseDocumentsTable(Map<String, Object?> order) {
     final rows = <DataRow>[];
