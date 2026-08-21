@@ -6,6 +6,16 @@ on:
       - current-local-r92-20260820
     paths:
       - .github/workflows/r101-gl-ui-order-fix.yml
+  pull_request:
+    paths:
+      - .github/workflows/r101-gl-ui-order-fix.yml
+      - lib/features/accounting/pages/accounting_center_page.dart
+      - test/features/accounting/accounting_trial_balance_projection_test.dart
+      - supabase/migrations/20260821193000_r100_accounting_report_projection_closure.sql
+      - supabase/migrations/20260821200000_r101_gl_running_balance_deterministic_closure.sql
+      - supabase/tests/verify_r100_accounting_report_projection_runtime.sql
+      - supabase/tests/verify_r101_gl_running_balance_runtime.sql
+      - tool/run_r89_r92_local_runtime_tests.py
 
 permissions:
   contents: write
