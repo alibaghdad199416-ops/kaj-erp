@@ -33,12 +33,14 @@ jobs:
           cache: true
       - name: Apply R101 GL presentation fix
         run: python -B tool/apply_r101_gl_server_order_fix.py
+      - name: Apply current analyzer blockers needed for runtime closure
+        run: python -B tool/apply_r101_analyzer_blocker_fixes.py
       - name: Install Node tooling without lifecycle gates
         run: npm ci --ignore-scripts
       - name: Resolve Flutter packages
         run: flutter pub get
-      - name: Format changed Flutter source
-        run: dart format lib/features/accounting/pages/accounting_center_page.dart
+      - name: Format changed Flutter sources
+        run: dart format lib/features/accounting/pages/accounting_center_page.dart lib/features/maintenance/pages/maintenance_order_details_dialog.dart lib/features/sales/workflow/pages/order_details_dialog.dart
       - name: Verify R100/R101 static accounting contract
         run: python -B tool/verify_r100_r101_accounting_projection.py
       - name: Analyze current Flutter application
@@ -50,7 +52,7 @@ jobs:
       - name: Stop LOCAL Supabase
         if: always()
         run: npx supabase stop --no-backup
-      - name: Publish verified GL presentation fix
+      - name: Publish verified Phase 11 closure
         shell: bash
         run: |
           set -euo pipefail
@@ -58,7 +60,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git pull --rebase --autostash origin "$branch"
-          git add -- lib/features/accounting/pages/accounting_center_page.dart
+          git add -- \
+            lib/features/accounting/pages/accounting_center_page.dart \
+            lib/features/maintenance/pages/maintenance_order_details_dialog.dart \
+            lib/features/sales/workflow/pages/order_details_dialog.dart
           git diff --cached --check
-          git commit -m 'fix(accounting): preserve deterministic GL row order'
+          git commit -m 'fix(phase11): preserve GL order and restore analyzer clean state'
           git push origin HEAD:"$branch"
