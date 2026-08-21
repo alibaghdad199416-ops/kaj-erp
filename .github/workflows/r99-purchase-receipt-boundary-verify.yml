@@ -1,0 +1,51 @@
+name: R99 purchase receipt boundary verify
+
+on:
+  push:
+    branches:
+      - current-local-r92-20260820
+    paths:
+      - .github/workflows/r99-purchase-receipt-boundary-verify.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - name: Verify purchase receipt draft boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          test_file='test/features/purchases/purchase_receipt_draft_boundary_test.dart'
+
+          git fetch origin "$branch"
+          git checkout "$branch"
+          git pull --ff-only origin "$branch"
+          test -f "$test_file"
+
+          dart format "$test_file"
+          dart format --output=none --set-exit-if-changed "$test_file"
+          git diff --check -- "$test_file"
+          flutter pub get
+          flutter test "$test_file"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -- .github/workflows/r99-purchase-receipt-boundary-verify.yml
+          git add -- "$test_file" .github/workflows/r99-purchase-receipt-boundary-verify.yml
+          git diff --cached --check
+          git commit -m 'test(purchases): verify receipt draft boundary runtime'
+          git push origin HEAD:"$branch"
