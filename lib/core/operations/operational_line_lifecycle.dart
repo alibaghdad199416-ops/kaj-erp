@@ -14,10 +14,12 @@ class OperationalLineLifecycle {
     required this.invoicedQuantity,
     required this.remainingLogisticsQuantity,
     required this.remainingInvoiceQuantity,
+    required this.requiresLogistics,
     required this.raw,
   });
 
   factory OperationalLineLifecycle.fromMap(Map<String, Object?> map) {
+    final requiresLogistics = _requiresLogistics(map);
     final requested = _nonNegative(
       _number(
         map,
@@ -30,23 +32,26 @@ class OperationalLineLifecycle {
         ],
       ),
     );
-    final logistics = _nonNegative(
-      _number(
-        map,
-        const <String>[
-          'logisticsQuantity',
-          'executedQuantity',
-          'receivedQuantity',
-          'deliveredQuantity',
-          'issuedQuantity',
-          'approvedQuantity',
-          'executedQty',
-          'receivedQty',
-          'deliveredQty',
-          'issuedQty',
-        ],
-      ),
-    );
+    final logistics = requiresLogistics
+        ? _nonNegative(
+            _number(
+              map,
+              const <String>[
+                'logisticsQuantity',
+                'operationalQuantity',
+                'executedQuantity',
+                'receivedQuantity',
+                'deliveredQuantity',
+                'issuedQuantity',
+                'approvedQuantity',
+                'executedQty',
+                'receivedQty',
+                'deliveredQty',
+                'issuedQty',
+              ],
+            ),
+          )
+        : 0.0;
     final invoiced = _nonNegative(
       _number(
         map,
@@ -65,6 +70,7 @@ class OperationalLineLifecycle {
       const <String>[
         'remainingLogisticsQuantity',
         'remainingLogistics',
+        'remainingOperational',
         'remainingExecutionQuantity',
       ],
     );
@@ -76,6 +82,7 @@ class OperationalLineLifecycle {
         'remainingToInvoiceQuantity',
       ],
     );
+    final invoiceable = requiresLogistics ? logistics : requested;
 
     return OperationalLineLifecycle(
       lineId: _text(
@@ -99,15 +106,19 @@ class OperationalLineLifecycle {
       requestedQuantity: requested,
       logisticsQuantity: logistics,
       invoicedQuantity: invoiced,
-      remainingLogisticsQuantity: _nonNegative(
-        explicitRemainingLogistics ?? (requested - logistics),
-      ),
-      // Invoice eligibility follows executed logistics, not unexecuted order
-      // quantity. This keeps draft stock quantities from being presented as
-      // invoiceable value.
+      remainingLogisticsQuantity: requiresLogistics
+          ? _nonNegative(
+              explicitRemainingLogistics ?? (requested - logistics),
+            )
+          : 0,
+      // Stock lines become invoiceable only after approved logistics. Service
+      // lines have no inventory movement, so their requested quantity is the
+      // invoiceable quantity and must never be reported as over-invoiced merely
+      // because logisticsQuantity is intentionally zero.
       remainingInvoiceQuantity: _nonNegative(
-        explicitRemainingInvoice ?? (logistics - invoiced),
+        explicitRemainingInvoice ?? (invoiceable - invoiced),
       ),
+      requiresLogistics: requiresLogistics,
       raw: Map<String, Object?>.unmodifiable(map),
     );
   }
@@ -126,26 +137,32 @@ class OperationalLineLifecycle {
   final double invoicedQuantity;
   final double remainingLogisticsQuantity;
   final double remainingInvoiceQuantity;
+  final bool requiresLogistics;
   final Map<String, Object?> raw;
 
   static const double _epsilon = 0.000001;
 
-  bool get hasOverLogistics =>
-      logisticsQuantity > requestedQuantity + _epsilon;
+  double get invoiceableQuantity =>
+      requiresLogistics ? logisticsQuantity : requestedQuantity;
 
-  bool get hasOverInvoice => invoicedQuantity > logisticsQuantity + _epsilon;
+  bool get hasOverLogistics =>
+      requiresLogistics && logisticsQuantity > requestedQuantity + _epsilon;
+
+  bool get hasOverInvoice =>
+      invoicedQuantity > invoiceableQuantity + _epsilon;
 
   bool get hasIntegrityViolation => hasOverLogistics || hasOverInvoice;
 
   bool get logisticsComplete =>
-      requestedQuantity > _epsilon &&
-      !hasOverLogistics &&
-      logisticsQuantity + _epsilon >= requestedQuantity;
+      !requiresLogistics ||
+      (requestedQuantity > _epsilon &&
+          !hasOverLogistics &&
+          logisticsQuantity + _epsilon >= requestedQuantity);
 
   bool get invoiceComplete =>
-      logisticsQuantity > _epsilon &&
+      invoiceableQuantity > _epsilon &&
       !hasOverInvoice &&
-      invoicedQuantity + _epsilon >= logisticsQuantity;
+      invoicedQuantity + _epsilon >= invoiceableQuantity;
 
   OperationalLineProgress get progress {
     if (hasIntegrityViolation) return OperationalLineProgress.invalid;
@@ -160,6 +177,28 @@ class OperationalLineLifecycle {
       return OperationalLineProgress.partialLogistics;
     }
     return OperationalLineProgress.pending;
+  }
+
+  static bool _requiresLogistics(Map<String, Object?> map) {
+    final explicit = map['requiresLogistics'] ?? map['requires_logistics'];
+    if (explicit is bool) return explicit;
+    if (explicit is num) return explicit != 0;
+    final explicitText = explicit?.toString().trim().toLowerCase();
+    if (explicitText == 'false' || explicitText == '0' || explicitText == 'no') {
+      return false;
+    }
+    if (explicitText == 'true' || explicitText == '1' || explicitText == 'yes') {
+      return true;
+    }
+    final isService = map['isService'] ?? map['is_service'];
+    if (isService == true || isService == 1 || isService?.toString() == '1') {
+      return false;
+    }
+    final lineType = (map['lineType'] ?? map['line_type'])
+        ?.toString()
+        .trim()
+        .toLowerCase();
+    return lineType != 'service';
   }
 
   static String _text(Map<String, Object?> map, List<String> keys) {
