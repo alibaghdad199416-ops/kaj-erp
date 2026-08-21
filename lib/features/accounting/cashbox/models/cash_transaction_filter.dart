@@ -32,7 +32,7 @@ abstract final class CashboxTransactionFilter {
           'cashbox': (transaction) => transaction.cashAccountId,
           'reference': (transaction) => transaction.referenceId,
           'referenceType': (transaction) => transaction.referenceType,
-          'sourceModule': (transaction) => _sourceModule(transaction),
+          'sourceModule': sourceModuleOf,
           'paymentType': (transaction) => transaction.paymentMethod,
           'counterAccount': (transaction) => transaction.counterAccountId,
           'partyType': (transaction) => transaction.partyType,
@@ -62,7 +62,9 @@ abstract final class CashboxTransactionFilter {
     adapter: adapter,
   );
 
-  static String _sourceModule(CashTransactionModel transaction) {
+  /// Canonical cash-source classification used by filters, tables, charts and
+  /// exports. UI code must not re-invent source-module predicates.
+  static String sourceModuleOf(CashTransactionModel transaction) {
     final reference = (transaction.referenceType ?? '').trim().toLowerCase();
     final category = transaction.category.trim().toLowerCase();
     final combined = '$reference $category';
