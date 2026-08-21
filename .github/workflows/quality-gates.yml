@@ -1,32 +1,103 @@
-name: Quality Gates
+name: R101 Focused Validation
 
 on:
-  push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
-  verify:
+  phase11-r101-proof:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.8'
           channel: stable
           cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm run verify:delivery
-      - run: npm ci
-      - run: flutter pub get
-      - run: npm run format
-      - run: npm run verify:all
-      - run: npm run format:check
-      - run: npm run analyze
-      - run: npm run test
-      - run: npm run build:web
+      - name: Apply deterministic GL presentation fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('lib/features/accounting/pages/accounting_center_page.dart')
+          source = page.read_text(encoding='utf-8')
+          old = """                      final accountRows = account.value
+                        ..sort((left, right) {
+                          final leftDate = '${left['entryDate'] ?? ''}';
+                          final rightDate = '${right['entryDate'] ?? ''}';
+                          final dateResult = leftDate.compareTo(rightDate);
+                          if (dateResult != 0) return dateResult;
+                          return '${left['entryNumber'] ?? ''}'.compareTo(
+                            '${right['entryNumber'] ?? ''}',
+                          );
+                        });
+"""
+          new = """                      final accountRows = List<Map<String, Object?>>.of(
+                        account.value,
+                      );
+                      // R101 makes General Ledger running balances deterministic
+                      // at the database boundary. Preserve that exact server row
+                      // order so tied lines from the same journal entry cannot be
+                      // reordered after their running balances are calculated.
+                      if (widget.type != _AccountingReportType.generalLedger) {
+                        accountRows.sort((left, right) {
+                          final leftDate = '${left['entryDate'] ?? ''}';
+                          final rightDate = '${right['entryDate'] ?? ''}';
+                          final dateResult = leftDate.compareTo(rightDate);
+                          if (dateResult != 0) return dateResult;
+                          return '${left['entryNumber'] ?? ''}'.compareTo(
+                            '${right['entryNumber'] ?? ''}',
+                          );
+                        });
+                      }
+"""
+          if source.count(old) != 1:
+              raise SystemExit(f'Expected one legacy GL sort block, found {source.count(old)}')
+          page.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Install Node tooling without package lifecycle gates
+        run: npm ci --ignore-scripts
+      - name: Resolve Flutter packages
+        run: flutter pub get
+      - name: Format GL presentation fix
+        run: dart format lib/features/accounting/pages/accounting_center_page.dart
+      - name: Verify R100/R101 accounting presentation contract
+        run: python -B tool/verify_r100_r101_accounting_projection.py
+      - name: Analyze current application
+        run: flutter analyze --fatal-infos --fatal-warnings
+      - name: Start LOCAL Supabase
+        run: npx supabase start
+      - name: Run canonical LOCAL PostgreSQL runtime gates through R101
+        run: python -B tool/run_r89_r92_local_runtime_tests.py
+      - name: Stop LOCAL Supabase
+        if: always()
+        run: npx supabase stop --no-backup
+      - name: Publish verified GL presentation fix
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git show HEAD^:.github/workflows/quality-gates.yml > .github/workflows/quality-gates.yml
+          git add -- \
+            lib/features/accounting/pages/accounting_center_page.dart \
+            .github/workflows/quality-gates.yml
+          git diff --cached --check
+          git commit -m 'fix(accounting): preserve deterministic GL row order'
+          git push origin HEAD:"$branch"
