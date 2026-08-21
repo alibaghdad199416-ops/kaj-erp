@@ -8,6 +8,9 @@ from ensure_local_supabase_schema import ensure_local_supabase_schema
 
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = [
+    # Current maintenance accounting ownership: material issue owns FIFO/COGS,
+    # invoice owns receivable/revenue without duplicate inventory-cost posting.
+    "supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql",
     "supabase/tests/verify_r89_phase11_runtime.sql",
     "supabase/tests/verify_r90_phase11_runtime.sql",
     "supabase/tests/verify_r91_phase11_runtime.sql",
@@ -15,13 +18,12 @@ TESTS = [
     "supabase/tests/verify_r93_purchase_receipt_single_action_runtime.sql",
     "supabase/tests/verify_r93_restricted_user_runtime.sql",
     "supabase/tests/verify_r94_legacy_endpoint_acl_runtime.sql",
-    # R99 regression reuses the canonical R49 end-to-end transaction fixture.
-    # That suite advances a sales order through approved deliveries to the
-    # active partially_executed stage before approving its invoice, verifies
-    # balanced AR/revenue + COGS/inventory journals, and proves invoice approval
-    # does not mutate stock. It therefore fails on the pre-R99 literal
-    # status='approved' posting guard and passes only with the active-stage fix.
-    "supabase/tests/verify_r49_erp_transactions_runtime.sql",
+    # Focused R99 proof executes the real approval wrapper against an active
+    # partially_executed Sales Order and verifies atomic temporary-stage rollback.
+    "supabase/tests/verify_r99_sales_invoice_active_stage_runtime.sql",
+    # Current wrapper-chain proof prevents regressions from R99/R90/R88/R37 into
+    # the R87 maintenance invoice accounting + material-issue ownership contract.
+    "supabase/tests/verify_r99_maintenance_invoice_current_workflow_runtime.sql",
 ]
 
 
@@ -66,7 +68,7 @@ def main() -> None:
         if result.returncode != 0:
             fail(f"LOCAL PostgreSQL runtime verification failed: {rel}")
 
-    print("\nR49 + R89-R99 LOCAL PostgreSQL runtime verification PASS")
+    print("\nR58 + R89-R99 LOCAL PostgreSQL runtime verification PASS")
 
 
 if __name__ == "__main__":
