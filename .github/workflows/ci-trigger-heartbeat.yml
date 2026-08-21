@@ -1,0 +1,38 @@
+name: CI trigger heartbeat
+
+on:
+  push:
+    branches:
+      - current-local-r92-20260820
+    paths:
+      - .github/workflows/ci-trigger-heartbeat.yml
+
+permissions:
+  contents: write
+
+jobs:
+  heartbeat:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
+      - name: Record push-trigger heartbeat
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          proof='.github/ci-trigger-heartbeat.txt'
+          workflow='.github/workflows/ci-trigger-heartbeat.yml'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --ff-only origin "$branch"
+          printf 'push_workflow_trigger=success\nrun_id=%s\ncheckout=%s\n' \
+            "$GITHUB_RUN_ID" "$(git rev-parse HEAD)" > "$proof"
+          git rm -- "$workflow"
+          git add -- "$proof"
+          git diff --cached --check
+          git commit -m 'chore(ci): prove Actions push trigger'
+          git push origin HEAD:"$branch"
