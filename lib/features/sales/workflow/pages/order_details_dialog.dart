@@ -18,6 +18,7 @@ import 'package:quality_line_erp/core/finance/invoice_payment_batch_dialog.dart'
 import 'package:quality_line_erp/core/widgets/warehouse_allocation_dialog.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
+import 'package:quality_line_erp/core/operations/operational_lifecycle_table.dart';
 import 'package:quality_line_erp/core/printing/enterprise_document_pdf_service.dart';
 import 'package:quality_line_erp/core/widgets/app_module_action_icon.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
@@ -2125,95 +2126,75 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     ),
   );
 
-  Widget _itemLifecycleTable(Map<String, Object?> order) {
-    final rows = <DataRow>[];
-    for (final item in _items) {
-      final itemId = _firstValue(item, const [
-        'id',
-        'itemId',
-        'productId',
-        'carId',
-      ]);
-      final reconciliation = _reconciliationFor(itemId);
-      final ordered =
-          _firstValue(reconciliation ?? const <String, Object?>{}, const [
-            'orderedQuantity',
-          ]) ??
-          item['quantity'];
-      final operational =
-          _firstValue(reconciliation ?? const <String, Object?>{}, const [
-            'operationalQuantity',
-          ]) ??
-          0;
-      final invoiced =
-          _firstValue(reconciliation ?? const <String, Object?>{}, const [
-            'invoicedQuantity',
-          ]) ??
-          0;
-      final remaining =
-          _firstValue(reconciliation ?? const <String, Object?>{}, const [
-            'remainingInvoice',
-            'remainingOperational',
-          ]) ??
-          (_number(ordered) - _number(invoiced));
-      rows.add(
-        DataRow(
-          cells: [
-            _textCell(_itemLabel(item, null), strong: true),
-            _textCell(_itemDescription(item, null)),
-            _numberCell(ordered),
-            _numberCell(operational),
-            _numberCell(invoiced),
-            _numberCell(remaining),
-            _numberCell(item[_unitField]),
-            _numberCell(item['lineTotal']),
-            _textCell(order['currency']),
-            _textCell(_warehouseForLine(item, null, null)),
-          ],
-        ),
-      );
-    }
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: AppText(
-              _bi(
-                'دورة البنود: المطلوب ← الحركة المخزنية ← المفوتر',
-                'Item lifecycle: Ordered → Warehouse movement → Invoiced',
-              ),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+  Widget _itemLifecycleTable(Map<String, Object?> _) {
+  final lifecycleRows = _items.map((item) {
+    final itemId = _firstValue(item, const [
+      'id',
+      'itemId',
+      'productId',
+      'carId',
+    ]);
+    final reconciliation = _reconciliationFor(itemId);
+    return <String, Object?>{
+      ...item,
+      if (reconciliation != null) ...reconciliation,
+      'lineId': itemId,
+      'itemId': itemId,
+      'description': _itemDescription(item, null),
+      'displayLabel': _itemLabel(item, null),
+    };
+  }).toList(growable: false);
+
+  return Card(
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: AppText(
+            _bi(
+              'دورة البنود: المطلوب ← الحركة المخزنية ← المفوتر',
+              'Item lifecycle: Requested → Logistics → Invoiced',
+            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          _operationalTable(
-            columns: [
-              _column('المادة / المنتج', 'Item / Product'),
-              _column('الوصف', 'Description'),
-              _column('الكمية المطلوبة', 'Ordered qty', numeric: true),
-              _column(
-                widget.purchase ? 'المستلم مخزنياً' : 'المجهز مخزنياً',
-                widget.purchase ? 'Warehouse received' : 'Warehouse issued',
-                numeric: true,
-              ),
-              _column('الكمية المفوترة', 'Invoiced qty', numeric: true),
-              _column('المتبقي', 'Remaining qty', numeric: true),
-              _column('سعر الوحدة', 'Unit price', numeric: true),
-              _column('الإجمالي', 'Total', numeric: true),
-              _column('العملة', 'Currency'),
-              _column('المخزن', 'Warehouse'),
-            ],
-            rows: rows,
-            emptyText: _bi('لا توجد بنود في الأمر.', 'No order items.'),
+        ),
+        OperationalLifecycleTable(
+          rows: lifecycleRows,
+          itemLabel: _bi('المادة / المنتج', 'Item / Product'),
+          descriptionLabel: _bi('الوصف', 'Description'),
+          requestedLabel: _bi('المطلوب', 'Requested'),
+          logisticsLabel: _bi(
+            widget.purchase ? 'المستلم' : 'المجهز',
+            widget.purchase ? 'Receipt' : 'Delivery',
           ),
-        ],
-      ),
-    );
-  }
+          invoicedLabel: _bi('المفوتر', 'Invoiced'),
+          remainingLogisticsLabel: _bi(
+            'المتبقي لوجستيًا',
+            'Remaining logistics',
+          ),
+          remainingInvoiceLabel: _bi(
+            'المتبقي للفوترة',
+            'Remaining invoice',
+          ),
+          emptyLabel: _bi(
+            'لا توجد بنود في الأمر.',
+            'No order items.',
+          ),
+          itemTextBuilder: (line) =>
+              line.raw['displayLabel']?.toString() ??
+              (line.itemId.isEmpty ? '-' : line.itemId),
+          descriptionTextBuilder: (line) =>
+              line.description.isEmpty ? '-' : line.description,
+          quantityFormatter: (value) => _money.format(value),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _warehouseDocumentsTable(Map<String, Object?> order) {
     final rows = <DataRow>[];
