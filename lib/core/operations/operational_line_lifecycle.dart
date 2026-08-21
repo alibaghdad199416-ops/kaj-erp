@@ -51,6 +51,7 @@ class OperationalLineLifecycle {
       'remainingLogistics',
       'remainingOperational',
       'remainingExecutionQuantity',
+      'remainingQuantity',
     ];
     final parsedLogistics = _nullableNumber(map, logisticsKeys);
     final explicitRemainingLogistics = _nullableNumber(
