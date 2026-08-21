@@ -1,0 +1,62 @@
+name: R100 accounting runtime verify
+
+on:
+  push:
+    branches:
+      - current-local-r92-20260820
+    paths:
+      - .github/workflows/r100-accounting-runtime-verify.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - name: Install repository tooling
+        run: npm ci
+      - name: Verify accounting UI projection
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed test/features/accounting/accounting_trial_balance_projection_test.dart
+          flutter test test/features/accounting/accounting_trial_balance_projection_test.dart
+      - name: Start LOCAL Supabase
+        run: npx supabase start
+      - name: Run canonical LOCAL PostgreSQL runtime gates through R100
+        run: python -B tool/run_r89_r92_local_runtime_tests.py
+      - name: Stop LOCAL Supabase
+        if: always()
+        run: npx supabase stop --no-backup
+      - name: Record successful R100 verification
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --ff-only origin "$branch"
+          rm -f -- .github/workflows/r100-accounting-runtime-verify.yml
+          rm -f -- .github/workflows/r99-sales-maintenance-runtime-verify.yml
+          git add -A -- .github/workflows/r100-accounting-runtime-verify.yml .github/workflows/r99-sales-maintenance-runtime-verify.yml
+          git diff --cached --check
+          git commit -m 'test(runtime): verify invoices and accounting through R100'
+          git push origin HEAD:"$branch"
