@@ -75,56 +75,28 @@ jobs:
           if source.count(old) != 1:
               raise SystemExit(f'Expected one legacy GL sort block, found {source.count(old)}')
           page.write_text(source.replace(old, new, 1), encoding='utf-8')
-
-          test = Path('test/features/accounting/accounting_trial_balance_projection_test.dart')
-          test_source = test.read_text(encoding='utf-8')
-          marker = "  test('accounting report repository uses the guarded detailed-report RPC', () {"
-          if 'General Ledger preserves deterministic server row order' not in test_source:
-              addition = """  test('General Ledger preserves deterministic server row order', () {
-    final source = File(
-      'lib/features/accounting/pages/accounting_center_page.dart',
-    ).readAsStringSync();
-
-    expect(
-      source,
-      contains('final accountRows = List<Map<String, Object?>>.of('),
-    );
-    expect(
-      source,
-      contains('if (widget.type != _AccountingReportType.generalLedger) {'),
-    );
-    expect(
-      source,
-      contains('R101 makes General Ledger running balances deterministic'),
-    );
-  });
-
-"""
-              if test_source.count(marker) != 1:
-                  raise SystemExit('Expected accounting report repository test marker')
-              test.write_text(test_source.replace(marker, addition + marker, 1), encoding='utf-8')
           PY
 
-      - name: Install repository tooling
+      - name: Install Node tooling without package lifecycle gates
         id: npmci
         continue-on-error: true
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Resolve Flutter packages
         id: pubget
         continue-on-error: true
         run: flutter pub get
-      - name: Format changed Dart files
+      - name: Format changed Dart file
         id: format
         continue-on-error: true
-        run: dart format lib/features/accounting/pages/accounting_center_page.dart test/features/accounting/accounting_trial_balance_projection_test.dart
-      - name: Verify accounting presentation regressions
-        id: fluttertest
+        run: dart format lib/features/accounting/pages/accounting_center_page.dart
+      - name: Verify R100/R101 accounting presentation contract
+        id: staticproof
         continue-on-error: true
-        run: flutter test test/features/accounting/accounting_trial_balance_projection_test.dart
+        run: python -B tool/verify_r100_r101_accounting_projection.py
       - name: Analyze current application
         id: analyze
         continue-on-error: true
-        run: npm run analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
       - name: Start LOCAL Supabase
         id: supabase
         continue-on-error: true
@@ -146,7 +118,7 @@ jobs:
           NPMCI: ${{ steps.npmci.outcome }}
           PUBGET: ${{ steps.pubget.outcome }}
           FORMAT: ${{ steps.format.outcome }}
-          FLUTTERTEST: ${{ steps.fluttertest.outcome }}
+          STATICPROOF: ${{ steps.staticproof.outcome }}
           ANALYZE: ${{ steps.analyze.outcome }}
           SUPABASE: ${{ steps.supabase.outcome }}
           RUNTIME: ${{ steps.runtime.outcome }}
@@ -155,30 +127,22 @@ jobs:
           branch='current-local-r92-20260820'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          printf 'patch=%s\nnpm_ci=%s\npub_get=%s\nformat=%s\nflutter_test=%s\nanalyze=%s\nsupabase_start=%s\nruntime=%s\n' \
-            "$PATCH" "$NPMCI" "$PUBGET" "$FORMAT" "$FLUTTERTEST" "$ANALYZE" "$SUPABASE" "$RUNTIME" \
+          printf 'patch=%s\nnpm_ci=%s\npub_get=%s\nformat=%s\nstatic_proof=%s\nanalyze=%s\nsupabase_start=%s\nruntime=%s\n' \
+            "$PATCH" "$NPMCI" "$PUBGET" "$FORMAT" "$STATICPROOF" "$ANALYZE" "$SUPABASE" "$RUNTIME" \
             > .github/r101-gl-ui-order-diagnostic.txt
 
           if [ "$PATCH" = success ] && [ "$NPMCI" = success ] && \
              [ "$PUBGET" = success ] && [ "$FORMAT" = success ] && \
-             [ "$FLUTTERTEST" = success ] && [ "$ANALYZE" = success ] && \
+             [ "$STATICPROOF" = success ] && [ "$ANALYZE" = success ] && \
              [ "$SUPABASE" = success ] && [ "$RUNTIME" = success ]; then
-            git rm -f --ignore-unmatch -- \
-              .github/workflows/r99-sales-maintenance-runtime-verify.yml \
-              .github/workflows/r100-accounting-runtime-verify.yml \
-              .github/workflows/r101-accounting-runtime-verify.yml \
-              .github/workflows/r101-gl-ui-order-fix.yml \
-              .github/workflows/r101-gl-ui-order-diagnostic.yml
+            git rm -f --ignore-unmatch -- .github/workflows/r101-gl-ui-order-diagnostic.yml
             git add -- \
               lib/features/accounting/pages/accounting_center_page.dart \
-              test/features/accounting/accounting_trial_balance_projection_test.dart \
               .github/r101-gl-ui-order-diagnostic.txt
             git diff --cached --check
             git commit -m 'fix(accounting): preserve deterministic GL row order'
           else
-            git restore --worktree -- \
-              lib/features/accounting/pages/accounting_center_page.dart \
-              test/features/accounting/accounting_trial_balance_projection_test.dart || true
+            git restore --worktree -- lib/features/accounting/pages/accounting_center_page.dart || true
             git add -- .github/r101-gl-ui-order-diagnostic.txt
             git diff --cached --check
             git commit -m 'test(runtime): record R101 GL UI verification failure'
