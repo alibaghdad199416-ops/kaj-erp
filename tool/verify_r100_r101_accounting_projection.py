@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
+# This verifier deliberately lives under tool/: package sanity forbids reading
+# implementation source from Flutter tests. It is also the focused PR runtime
+# trigger used to expose R100/R101 validation logs without changing product logic.
 ROOT = Path(__file__).resolve().parents[1]
 
 
