@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/localization/operational_status_label.dart';
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/widgets/commercial_workflow_order_card.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
 
 /// Dense operational document table used by Sales and Purchases.
 ///
-/// Status is informational. Only real workflow operations are exposed through
-/// [actionsBuilder], so presentation-only states never become action buttons.
+/// The row itself is the primary navigation surface. Status is informational;
+/// only real workflow operations are exposed through [actionsBuilder].
 class CommercialWorkflowOrderTable extends StatefulWidget {
   const CommercialWorkflowOrderTable({
     super.key,
@@ -57,19 +57,15 @@ class _CommercialWorkflowOrderTableState
     return text.isEmpty ? '—' : text;
   }
 
-  String _amount(Object? value) {
-    final number = value is num ? value.toDouble() : double.tryParse('$value');
+  String _amount(Object? value, Object? currency) {
+    final number = value is num ? value : num.tryParse('$value');
     return number == null
         ? _text(value)
-        : NumberFormat('#,##0.##').format(number);
+        : ErpDisplayFormatter.formatMoney(number, currency);
   }
 
-  String _dateTime(Object? value) {
-    final parsed = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
-    return parsed == null
-        ? _text(value)
-        : DateFormat('yyyy/MM/dd  HH:mm').format(parsed);
-  }
+  String _dateTime(Object? value) =>
+      ErpDisplayFormatter.formatDateTime(value);
 
   String _stage(Map<String, Object?> row, bool ar) {
     final orderStatus = _text(
@@ -145,12 +141,12 @@ class _CommercialWorkflowOrderTableState
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        OutlinedButton.icon(
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: ar ? 'فتح الأمر' : 'Open order',
           onPressed: busy ? null : () => widget.onDetails(order),
-          icon: const Icon(Icons.table_rows_outlined, size: 17),
-          label: Text(ar ? 'التفاصيل والمواد' : 'Details & Items'),
+          icon: const Icon(Icons.open_in_new_rounded, size: 18),
         ),
-        const SizedBox(width: 6),
         if (busy)
           const SizedBox(
             width: 28,
@@ -243,10 +239,13 @@ class _CommercialWorkflowOrderTableState
                     rows: [
                       for (final order in widget.orders)
                         DataRow(
+                          onSelectChanged: widget.isBusy(order)
+                              ? null
+                              : (_) => widget.onDetails(order),
                           cells: [
                             DataCell(
                               Text(
-                                _text(
+                                ErpDisplayFormatter.formatReference(
                                   _first(order, const [
                                     'orderNumber',
                                     'order_number',
@@ -303,7 +302,7 @@ class _CommercialWorkflowOrderTableState
                             ),
                             DataCell(
                               Text(
-                                _text(
+                                ErpDisplayFormatter.normalizeCurrency(
                                   _first(order, const [
                                     'currency',
                                     'currencyCode',
@@ -322,6 +321,11 @@ class _CommercialWorkflowOrderTableState
                                       'grandTotal',
                                       'grand_total',
                                       'netTotal',
+                                    ]),
+                                    _first(order, const [
+                                      'currency',
+                                      'currencyCode',
+                                      'currency_code',
                                     ]),
                                   ),
                                   style: const TextStyle(
