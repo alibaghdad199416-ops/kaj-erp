@@ -15,6 +15,7 @@ class OperationalLineLifecycle {
     required this.remainingLogisticsQuantity,
     required this.remainingInvoiceQuantity,
     required this.requiresLogistics,
+    this.hasAuthoritativeReconciliation = false,
     required this.raw,
   });
 
@@ -32,26 +33,40 @@ class OperationalLineLifecycle {
         ],
       ),
     );
-    final logistics = requiresLogistics
-        ? _nonNegative(
-            _number(
-              map,
-              const <String>[
-                'logisticsQuantity',
-                'operationalQuantity',
-                'executedQuantity',
-                'receivedQuantity',
-                'deliveredQuantity',
-                'issuedQuantity',
-                'approvedQuantity',
-                'executedQty',
-                'receivedQty',
-                'deliveredQty',
-                'issuedQty',
-              ],
-            ),
-          )
-        : 0.0;
+    const logisticsKeys = <String>[
+      'logisticsQuantity',
+      'operationalQuantity',
+      'executedQuantity',
+      'receivedQuantity',
+      'deliveredQuantity',
+      'issuedQuantity',
+      'approvedQuantity',
+      'executedQty',
+      'receivedQty',
+      'deliveredQty',
+      'issuedQty',
+    ];
+    const remainingLogisticsKeys = <String>[
+      'remainingLogisticsQuantity',
+      'remainingLogistics',
+      'remainingOperational',
+      'remainingExecutionQuantity',
+    ];
+    final parsedLogistics = _nullableNumber(map, logisticsKeys);
+    final explicitRemainingLogistics = _nullableNumber(
+      map,
+      remainingLogisticsKeys,
+    );
+    final hasAuthoritativeReconciliation = requiresLogistics &&
+        (parsedLogistics != null || explicitRemainingLogistics != null);
+    final logistics = !requiresLogistics
+        ? 0.0
+        : _nonNegative(
+            parsedLogistics ??
+                (explicitRemainingLogistics == null
+                    ? 0.0
+                    : requested - explicitRemainingLogistics),
+          );
     final invoiced = _nonNegative(
       _number(
         map,
@@ -65,15 +80,6 @@ class OperationalLineLifecycle {
       ),
     );
 
-    final explicitRemainingLogistics = _nullableNumber(
-      map,
-      const <String>[
-        'remainingLogisticsQuantity',
-        'remainingLogistics',
-        'remainingOperational',
-        'remainingExecutionQuantity',
-      ],
-    );
     final explicitRemainingInvoice = _nullableNumber(
       map,
       const <String>[
@@ -82,7 +88,9 @@ class OperationalLineLifecycle {
         'remainingToInvoiceQuantity',
       ],
     );
-    final invoiceable = requiresLogistics ? logistics : requested;
+    final invoiceable = !requiresLogistics || !hasAuthoritativeReconciliation
+        ? requested
+        : logistics;
 
     return OperationalLineLifecycle(
       lineId: _text(
@@ -111,14 +119,17 @@ class OperationalLineLifecycle {
               explicitRemainingLogistics ?? (requested - logistics),
             )
           : 0,
-      // Stock lines become invoiceable only after approved logistics. Service
-      // lines have no inventory movement, so their requested quantity is the
-      // invoiceable quantity and must never be reported as over-invoiced merely
-      // because logisticsQuantity is intentionally zero.
+      // Stock lines become invoiceable from approved logistics only when the
+      // payload actually contains reconciliation data. Older draft/legacy rows
+      // can legitimately omit those fields; in that case requested quantity is
+      // the safe display fallback instead of treating an absent value as a
+      // confirmed logistics quantity of zero. Service lines never require stock
+      // logistics and therefore always reconcile invoices against requested.
       remainingInvoiceQuantity: _nonNegative(
         explicitRemainingInvoice ?? (invoiceable - invoiced),
       ),
       requiresLogistics: requiresLogistics,
+      hasAuthoritativeReconciliation: hasAuthoritativeReconciliation,
       raw: Map<String, Object?>.unmodifiable(map),
     );
   }
@@ -138,12 +149,19 @@ class OperationalLineLifecycle {
   final double remainingLogisticsQuantity;
   final double remainingInvoiceQuantity;
   final bool requiresLogistics;
+
+  /// True only when this stock/logistics line supplied an executed or remaining
+  /// logistics value. This distinguishes an authoritative zero execution from
+  /// a draft/legacy payload where reconciliation fields are absent entirely.
+  final bool hasAuthoritativeReconciliation;
   final Map<String, Object?> raw;
 
   static const double _epsilon = 0.000001;
 
   double get invoiceableQuantity =>
-      requiresLogistics ? logisticsQuantity : requestedQuantity;
+      !requiresLogistics || !hasAuthoritativeReconciliation
+          ? requestedQuantity
+          : logisticsQuantity;
 
   bool get hasOverLogistics =>
       requiresLogistics && logisticsQuantity > requestedQuantity + _epsilon;
