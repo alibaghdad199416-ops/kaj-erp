@@ -46,6 +46,9 @@ void main() {
       'requestedQuantity': 3,
       'issuedQuantity': 0,
       'invoicedQuantity': 2,
+      // Legacy reconciliation payloads may still report this from stock
+      // execution. Service lines must ignore it and use requested - invoiced.
+      'remainingInvoice': 0,
     });
 
     expect(line.requiresLogistics, isFalse);
