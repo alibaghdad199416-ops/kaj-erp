@@ -27,6 +27,9 @@ TESTS = [
     # R100 keeps detailed Trial Balance / GL fields visible through the guarded
     # R9 projection when accounting field restrictions are enabled.
     "supabase/tests/verify_r100_accounting_report_projection_runtime.sql",
+    # R101 makes GL running-balance window ordering deterministic even when
+    # journal lines share all transaction timestamps.
+    "supabase/tests/verify_r101_gl_running_balance_runtime.sql",
 ]
 
 
@@ -71,7 +74,7 @@ def main() -> None:
         if result.returncode != 0:
             fail(f"LOCAL PostgreSQL runtime verification failed: {rel}")
 
-    print("\nR58 + R89-R100 LOCAL PostgreSQL runtime verification PASS")
+    print("\nR58 + R89-R101 LOCAL PostgreSQL runtime verification PASS")
 
 
 if __name__ == "__main__":
