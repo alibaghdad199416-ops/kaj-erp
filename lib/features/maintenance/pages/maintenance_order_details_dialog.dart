@@ -8,6 +8,7 @@ import 'package:quality_line_erp/app/route_names.dart';
 import 'package:quality_line_erp/core/documents/document_nomenclature.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/operations/operational_lifecycle_table.dart';
 import 'package:quality_line_erp/core/printing/maintenance_document_pdf_service.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
@@ -115,16 +116,6 @@ class _MaintenanceOrderDetailsDialogState
     final index = _stages.indexOf(_order.workflowStage);
     return index < 0 ? 0 : index;
   }
-
-  Map<String, Object?>? _reconciliationLine(String lineId) {
-    for (final line in _costs?.lines ?? const <Map<String, Object?>>[]) {
-      if (line['lineId']?.toString() == lineId) return line;
-    }
-    return null;
-  }
-
-  num _lineQuantity(String lineId, String field, num fallback) =>
-      (_reconciliationLine(lineId)?[field] as num?) ?? fallback;
 
   @override
   void initState() {
@@ -878,91 +869,56 @@ class _MaintenanceOrderDetailsDialogState
     );
   }
 
-  Widget _maintenanceLinesTable(MaintenanceOrderModel order) {
-    if (_lines.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: AppText(
-            _bi('لا توجد بنود في هذا الأمر.', 'No items in this order.'),
-          ),
-        ),
-      );
-    }
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: <DataColumn>[
-            DataColumn(label: AppText(_bi('المادة/الخدمة', 'Item / Service'))),
-            DataColumn(label: AppText(_bi('الوصف', 'Description'))),
-            DataColumn(label: AppText(_bi('المطلوب:', 'Requested:'))),
-            DataColumn(label: AppText(_bi('المصروف:', 'Issued:'))),
-            DataColumn(label: AppText(_bi('المفوتر:', 'Invoiced:'))),
-            DataColumn(label: AppText(_bi('المتبقي', 'Remaining'))),
-            DataColumn(label: AppText(_bi('سعر الوحدة', 'Unit price'))),
-            DataColumn(label: AppText(_bi('الإجمالي', 'Total'))),
-            DataColumn(label: AppText(_bi('العملة', 'Currency'))),
-            DataColumn(label: AppText(_bi('المخزن', 'Warehouse'))),
-          ],
-          rows: _lines
-              .map((line) {
-                final issued = line.isService
-                    ? 0
-                    : _lineQuantity(line.id, 'issuedQuantity', 0);
-                final invoiced = _lineQuantity(line.id, 'invoicedQuantity', 0);
-                final remaining = line.isService
-                    ? (line.quantity - invoiced).clamp(0, line.quantity)
-                    : _lineQuantity(
-                        line.id,
-                        'remainingQuantity',
-                        line.quantity - issued,
-                      );
-                return DataRow(
-                  cells: <DataCell>[
-                    DataCell(AppText(line.productName)),
-                    DataCell(
-                      AppText(
-                        line.description.trim().isNotEmpty
-                            ? line.description.trim()
-                            : line.productName,
-                      ),
-                    ),
-                    DataCell(AppText('${line.quantity}')),
-                    DataCell(AppText(line.isService ? '—' : '$issued')),
-                    DataCell(AppText('$invoiced')),
-                    DataCell(AppText('$remaining')),
-                    DataCell(
-                      AppText(
-                        MoneyFormatter.withCurrency(
-                          line.unitPrice,
-                          order.currencyCode,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      AppText(
-                        MoneyFormatter.withCurrency(
-                          line.unitPrice * line.quantity,
-                          order.currencyCode,
-                        ),
-                      ),
-                    ),
-                    DataCell(AppText(order.currencyCode)),
-                    DataCell(
-                      AppText(
-                        line.isService ? '—' : (line.warehouseName ?? '—'),
-                      ),
-                    ),
-                  ],
-                );
-              })
-              .toList(growable: false),
-        ),
-      ),
-    );
+  Widget _maintenanceLinesTable(MaintenanceOrderModel _) {
+  final reconciliationByLine = <String, Map<String, Object?>>{};
+  for (final row in _costs?.lines ?? const <Map<String, Object?>>[]) {
+    final lineId = row['lineId']?.toString().trim() ?? '';
+    if (lineId.isNotEmpty) reconciliationByLine[lineId] = row;
   }
+  final lifecycleRows = _lines.map((line) {
+    final reconciliation = reconciliationByLine[line.id];
+    return <String, Object?>{
+      if (reconciliation != null) ...reconciliation,
+      'lineId': line.id,
+      'itemId': line.productId,
+      'productName': line.productName,
+      'description': line.description.trim().isNotEmpty
+          ? line.description.trim()
+          : line.productName,
+      'requestedQuantity': line.quantity,
+      'lineType': line.lineType,
+    };
+  }).toList(growable: false);
+
+  return Card(
+    clipBehavior: Clip.antiAlias,
+    child: OperationalLifecycleTable(
+      rows: lifecycleRows,
+      itemLabel: _bi('المادة / الخدمة', 'Item / Service'),
+      descriptionLabel: _bi('الوصف', 'Description'),
+      requestedLabel: _bi('المطلوب', 'Requested'),
+      logisticsLabel: _bi('المصروف', 'Issue'),
+      invoicedLabel: _bi('المفوتر', 'Invoiced'),
+      remainingLogisticsLabel: _bi(
+        'المتبقي للصرف',
+        'Remaining logistics',
+      ),
+      remainingInvoiceLabel: _bi(
+        'المتبقي للفوترة',
+        'Remaining invoice',
+      ),
+      emptyLabel: _bi(
+        'لا توجد بنود في هذا الأمر.',
+        'No items in this order.',
+      ),
+      itemTextBuilder: (line) =>
+          line.raw['productName']?.toString() ??
+          (line.itemId.isEmpty ? '-' : line.itemId),
+      descriptionTextBuilder: (line) =>
+          line.description.isEmpty ? '-' : line.description,
+    ),
+  );
+}
 
   Widget _summary(MaintenanceOrderModel order) => Card(
     child: Padding(
