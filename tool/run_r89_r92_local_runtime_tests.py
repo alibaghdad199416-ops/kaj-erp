@@ -24,6 +24,9 @@ TESTS = [
     # Current wrapper-chain proof prevents regressions from R99/R90/R88/R37 into
     # the R87 maintenance invoice accounting + material-issue ownership contract.
     "supabase/tests/verify_r99_maintenance_invoice_current_workflow_runtime.sql",
+    # R100 keeps detailed Trial Balance / GL fields visible through the guarded
+    # R9 projection when accounting field restrictions are enabled.
+    "supabase/tests/verify_r100_accounting_report_projection_runtime.sql",
 ]
 
 
@@ -68,7 +71,7 @@ def main() -> None:
         if result.returncode != 0:
             fail(f"LOCAL PostgreSQL runtime verification failed: {rel}")
 
-    print("\nR58 + R89-R99 LOCAL PostgreSQL runtime verification PASS")
+    print("\nR58 + R89-R100 LOCAL PostgreSQL runtime verification PASS")
 
 
 if __name__ == "__main__":
