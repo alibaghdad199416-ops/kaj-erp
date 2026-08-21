@@ -21,6 +21,23 @@ void main() {
     expect(line.progress, OperationalLineProgress.partiallyInvoiced);
   });
 
+  test('maintenance remainingQuantity derives authoritative issued quantity', () {
+    final line = OperationalLineLifecycle.fromMap(<String, Object?>{
+      'lineId': 'part-1',
+      'lineType': 'stock',
+      'requestedQuantity': 8,
+      'remainingQuantity': 3,
+      'invoicedQuantity': 4,
+    });
+
+    expect(line.hasAuthoritativeReconciliation, isTrue);
+    expect(line.logisticsQuantity, 5);
+    expect(line.remainingLogisticsQuantity, 3);
+    expect(line.invoiceableQuantity, 5);
+    expect(line.remainingInvoiceQuantity, 1);
+    expect(line.hasOverInvoice, isFalse);
+  });
+
   test('service line is invoiceable without warehouse logistics', () {
     final line = OperationalLineLifecycle.fromMap(<String, Object?>{
       'lineId': 'svc-1',
