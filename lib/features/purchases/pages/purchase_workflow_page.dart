@@ -498,12 +498,13 @@ class _PurchaseWorkflowPageState extends State<PurchaseWorkflowPage> {
 
   bool _allowsGranularAction(String action) {
     final access = context.read<AccessController>();
-    final hasLegacy = _legacyPermissionsForAction(
-      action,
-    ).any(access.hasPermission);
-    if (!hasLegacy) return false;
-    if (!access.hasRestrictedActions('purchases')) return true;
-    return access.hasPermission('purchases.$action');
+    return _legacyPermissionsForAction(action).any(
+      (legacyPermission) => access.canPerformAction(
+        'purchases',
+        action,
+        legacyPermission: legacyPermission,
+      ),
+    );
   }
 
   Future<bool> _requireWorkflowAction(String action) async {
