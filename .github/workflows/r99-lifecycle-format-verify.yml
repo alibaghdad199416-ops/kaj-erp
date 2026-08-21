@@ -1,0 +1,61 @@
+name: R99 lifecycle format and verify
+
+on:
+  push:
+    branches:
+      - current-local-r92-20260820
+    paths:
+      - .github/workflows/r99-lifecycle-format-verify.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - name: Format and verify lifecycle migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          sales='lib/features/sales/workflow/pages/order_details_dialog.dart'
+          maintenance='lib/features/maintenance/pages/maintenance_order_details_dialog.dart'
+          shared='lib/core/operations/operational_lifecycle_table.dart'
+          contract='lib/core/operations/operational_line_lifecycle.dart'
+          tests='test/core/operations/operational_line_lifecycle_test.dart'
+
+          git fetch origin "$branch"
+          git checkout "$branch"
+          git pull --ff-only origin "$branch"
+
+          grep -q "OperationalLifecycleTable" "$sales"
+          grep -q "OperationalLifecycleTable" "$maintenance"
+          grep -q "remainingInvoiceQuantity" "$contract"
+          test -f "$shared"
+          test -f "$tests"
+
+          dart format "$sales" "$maintenance" "$shared" "$contract" "$tests"
+          dart format --output=none --set-exit-if-changed "$sales" "$maintenance" "$shared" "$contract" "$tests"
+          git diff --check -- "$sales" "$maintenance" "$shared" "$contract" "$tests"
+
+          flutter pub get
+          flutter test "$tests"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -- .github/workflows/r99-lifecycle-format-verify.yml
+          git add -- "$sales" "$maintenance" "$shared" "$contract" "$tests" .github/workflows/r99-lifecycle-format-verify.yml
+          git diff --cached --check
+          git commit -m 'style(operations): format shared lifecycle migration'
+          git push origin HEAD:"$branch"
