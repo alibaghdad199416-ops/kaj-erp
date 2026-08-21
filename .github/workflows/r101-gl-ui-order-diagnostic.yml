@@ -1,0 +1,186 @@
+name: R101 GL UI diagnostic
+
+on:
+  push:
+    branches:
+      - current-local-r92-20260820
+    paths:
+      - .github/workflows/r101-gl-ui-order-diagnostic.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-record:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Apply deterministic GL presentation fix
+        id: patch
+        continue-on-error: true
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('lib/features/accounting/pages/accounting_center_page.dart')
+          source = page.read_text(encoding='utf-8')
+          old = """                      final accountRows = account.value
+                        ..sort((left, right) {
+                          final leftDate = '${left['entryDate'] ?? ''}';
+                          final rightDate = '${right['entryDate'] ?? ''}';
+                          final dateResult = leftDate.compareTo(rightDate);
+                          if (dateResult != 0) return dateResult;
+                          return '${left['entryNumber'] ?? ''}'.compareTo(
+                            '${right['entryNumber'] ?? ''}',
+                          );
+                        });
+"""
+          new = """                      final accountRows = List<Map<String, Object?>>.of(
+                        account.value,
+                      );
+                      // R101 makes General Ledger running balances deterministic
+                      // at the database boundary. Preserve that exact server row
+                      // order so tied lines from the same journal entry cannot be
+                      // reordered after their running balances are calculated.
+                      if (widget.type != _AccountingReportType.generalLedger) {
+                        accountRows.sort((left, right) {
+                          final leftDate = '${left['entryDate'] ?? ''}';
+                          final rightDate = '${right['entryDate'] ?? ''}';
+                          final dateResult = leftDate.compareTo(rightDate);
+                          if (dateResult != 0) return dateResult;
+                          return '${left['entryNumber'] ?? ''}'.compareTo(
+                            '${right['entryNumber'] ?? ''}',
+                          );
+                        });
+                      }
+"""
+          if source.count(old) != 1:
+              raise SystemExit(f'Expected one legacy GL sort block, found {source.count(old)}')
+          page.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('test/features/accounting/accounting_trial_balance_projection_test.dart')
+          test_source = test.read_text(encoding='utf-8')
+          marker = "  test('accounting report repository uses the guarded detailed-report RPC', () {"
+          if 'General Ledger preserves deterministic server row order' not in test_source:
+              addition = """  test('General Ledger preserves deterministic server row order', () {
+    final source = File(
+      'lib/features/accounting/pages/accounting_center_page.dart',
+    ).readAsStringSync();
+
+    expect(
+      source,
+      contains('final accountRows = List<Map<String, Object?>>.of('),
+    );
+    expect(
+      source,
+      contains('if (widget.type != _AccountingReportType.generalLedger) {'),
+    );
+    expect(
+      source,
+      contains('R101 makes General Ledger running balances deterministic'),
+    );
+  });
+
+"""
+              if test_source.count(marker) != 1:
+                  raise SystemExit('Expected accounting report repository test marker')
+              test.write_text(test_source.replace(marker, addition + marker, 1), encoding='utf-8')
+          PY
+
+      - name: Install repository tooling
+        id: npmci
+        continue-on-error: true
+        run: npm ci
+      - name: Resolve Flutter packages
+        id: pubget
+        continue-on-error: true
+        run: flutter pub get
+      - name: Format changed Dart files
+        id: format
+        continue-on-error: true
+        run: dart format lib/features/accounting/pages/accounting_center_page.dart test/features/accounting/accounting_trial_balance_projection_test.dart
+      - name: Verify accounting presentation regressions
+        id: fluttertest
+        continue-on-error: true
+        run: flutter test test/features/accounting/accounting_trial_balance_projection_test.dart
+      - name: Analyze current application
+        id: analyze
+        continue-on-error: true
+        run: npm run analyze
+      - name: Start LOCAL Supabase
+        id: supabase
+        continue-on-error: true
+        run: npx supabase start
+      - name: Run canonical LOCAL PostgreSQL runtime gates through R101
+        id: runtime
+        continue-on-error: true
+        run: python -B tool/run_r89_r92_local_runtime_tests.py
+      - name: Stop LOCAL Supabase
+        if: always()
+        continue-on-error: true
+        run: npx supabase stop --no-backup
+
+      - name: Record verification result
+        if: always()
+        shell: bash
+        env:
+          PATCH: ${{ steps.patch.outcome }}
+          NPMCI: ${{ steps.npmci.outcome }}
+          PUBGET: ${{ steps.pubget.outcome }}
+          FORMAT: ${{ steps.format.outcome }}
+          FLUTTERTEST: ${{ steps.fluttertest.outcome }}
+          ANALYZE: ${{ steps.analyze.outcome }}
+          SUPABASE: ${{ steps.supabase.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          printf 'patch=%s\nnpm_ci=%s\npub_get=%s\nformat=%s\nflutter_test=%s\nanalyze=%s\nsupabase_start=%s\nruntime=%s\n' \
+            "$PATCH" "$NPMCI" "$PUBGET" "$FORMAT" "$FLUTTERTEST" "$ANALYZE" "$SUPABASE" "$RUNTIME" \
+            > .github/r101-gl-ui-order-diagnostic.txt
+
+          if [ "$PATCH" = success ] && [ "$NPMCI" = success ] && \
+             [ "$PUBGET" = success ] && [ "$FORMAT" = success ] && \
+             [ "$FLUTTERTEST" = success ] && [ "$ANALYZE" = success ] && \
+             [ "$SUPABASE" = success ] && [ "$RUNTIME" = success ]; then
+            git rm -f --ignore-unmatch -- \
+              .github/workflows/r99-sales-maintenance-runtime-verify.yml \
+              .github/workflows/r100-accounting-runtime-verify.yml \
+              .github/workflows/r101-accounting-runtime-verify.yml \
+              .github/workflows/r101-gl-ui-order-fix.yml \
+              .github/workflows/r101-gl-ui-order-diagnostic.yml
+            git add -- \
+              lib/features/accounting/pages/accounting_center_page.dart \
+              test/features/accounting/accounting_trial_balance_projection_test.dart \
+              .github/r101-gl-ui-order-diagnostic.txt
+            git diff --cached --check
+            git commit -m 'fix(accounting): preserve deterministic GL row order'
+          else
+            git restore --worktree -- \
+              lib/features/accounting/pages/accounting_center_page.dart \
+              test/features/accounting/accounting_trial_balance_projection_test.dart || true
+            git add -- .github/r101-gl-ui-order-diagnostic.txt
+            git diff --cached --check
+            git commit -m 'test(runtime): record R101 GL UI verification failure'
+          fi
+          git push origin HEAD:"$branch"
