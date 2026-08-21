@@ -1,8 +1,7 @@
 R101 focused workflow probe
-found=true
-run_id=32507888349
-status=completed
-conclusion=failure
-head_sha=e867a9a4103837167bc17119083509b203004920
+id=32508125116
+status=in_progress
+conclusion=None
+head_sha=e04827885dd48225cfb1164e1cf2067b9f2167d2
 event=push
-run_number=4
+run_number=6
