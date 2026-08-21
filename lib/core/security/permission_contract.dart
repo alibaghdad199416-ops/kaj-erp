@@ -40,17 +40,25 @@ abstract final class PermissionContract {
     return permissionCodes.contains(actionRestriction(resource));
   }
 
-  /// Preserves the Phase 11 migration contract: broad legacy permission first,
-  /// then explicit granular action permission once action restrictions are on.
+  /// Resolves the Phase 11 compatibility boundary in one place.
+  ///
+  /// Legacy roles keep using the broad permission until action restrictions are
+  /// explicitly enabled for the resource. Once `<resource>.actions.restrict`
+  /// is present, the granular action becomes authoritative and is intentionally
+  /// independent from the broad legacy permission. This matches the permission
+  /// catalog and prevents a restricted role from needing both permission eras.
   static bool canPerformAction(
     Set<String> permissionCodes, {
     required String resource,
     required String actionName,
     required String legacyPermission,
+    bool isSystemAdmin = false,
   }) {
-    if (!permissionCodes.contains(legacyPermission)) return false;
-    if (!hasRestrictedActions(permissionCodes, resource)) return true;
-    return permissionCodes.contains(action(resource, actionName));
+    if (isSystemAdmin) return true;
+    if (hasRestrictedActions(permissionCodes, resource)) {
+      return permissionCodes.contains(action(resource, actionName));
+    }
+    return permissionCodes.contains(legacyPermission);
   }
 
   /// Mirrors PostgreSQL R84 record-scope precedence exactly.

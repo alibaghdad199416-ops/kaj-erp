@@ -58,13 +58,10 @@ void main() {
       isTrue,
     );
 
-    const restrictedWithoutAction = {
-      'sales.approve',
-      'sales.actions.restrict',
-    };
+    const noPermission = <String>{};
     expect(
       PermissionContract.canPerformAction(
-        restrictedWithoutAction,
+        noPermission,
         resource: 'sales',
         actionName: 'order.approve',
         legacyPermission: 'sales.approve',
@@ -72,17 +69,41 @@ void main() {
       isFalse,
     );
 
-    const restrictedWithAction = {
+    const restrictedLegacyOnly = {
       'sales.approve',
+      'sales.actions.restrict',
+    };
+    expect(
+      PermissionContract.canPerformAction(
+        restrictedLegacyOnly,
+        resource: 'sales',
+        actionName: 'order.approve',
+        legacyPermission: 'sales.approve',
+      ),
+      isFalse,
+    );
+
+    const restrictedGranularOnly = {
       'sales.actions.restrict',
       'sales.order.approve',
     };
     expect(
       PermissionContract.canPerformAction(
-        restrictedWithAction,
+        restrictedGranularOnly,
         resource: 'sales',
         actionName: 'order.approve',
         legacyPermission: 'sales.approve',
+      ),
+      isTrue,
+    );
+
+    expect(
+      PermissionContract.canPerformAction(
+        const <String>{},
+        resource: 'sales',
+        actionName: 'order.approve',
+        legacyPermission: 'sales.approve',
+        isSystemAdmin: true,
       ),
       isTrue,
     );
