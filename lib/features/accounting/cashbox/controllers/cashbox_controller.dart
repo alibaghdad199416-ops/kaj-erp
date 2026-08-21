@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_account_model.dart';
+import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_filter.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/repositories/cashbox_repository.dart';
 
@@ -25,7 +27,7 @@ class CashboxController extends ChangeNotifier {
   bool _isLoading = false;
   Future<void>? _refreshInFlight;
   bool _refreshRequested = false;
-  String _activeSearchQuery = '';
+  UnifiedFilterCriteria _transactionFilter = const UnifiedFilterCriteria();
   String? _errorMessage;
   Map<String, double> _usdSummary = const {
     'receipts': 0,
@@ -42,6 +44,7 @@ class CashboxController extends ChangeNotifier {
       List.unmodifiable(_transactions);
   List<CashAccountModel> get cashAccounts => List.unmodifiable(_cashAccounts);
   List<AccountModel> get ledgerAccounts => List.unmodifiable(_ledgerAccounts);
+  UnifiedFilterCriteria get transactionFilter => _transactionFilter;
   List<AccountModel> get postableLedgerAccounts {
     final parentIds = _ledgerAccounts
         .map((account) => account.parentId?.trim())
@@ -244,11 +247,50 @@ class CashboxController extends ChangeNotifier {
     }
   }
 
+  /// Backward-compatible search entry point now routed through the enterprise
+  /// unified filter engine, including Arabic text normalization.
   Future<void> searchTransactions(String query) {
-    _activeSearchQuery = query.trim().toLowerCase();
-    _applySearch();
-    notifyListeners();
+    setTransactionFilter(
+      _transactionFilter.copyWith(searchText: query, offset: 0),
+    );
     return Future<void>.value();
+  }
+
+  /// Applies one canonical criteria object for search + filters + sort + paging.
+  /// UI tables, charts and exports can share this exact criteria instance.
+  void setTransactionFilter(UnifiedFilterCriteria criteria) {
+    _transactionFilter = criteria.copyWith(offset: 0);
+    _applyTransactionFilter();
+    notifyListeners();
+  }
+
+  void clearTransactionFilters({bool keepSearchText = false}) {
+    _transactionFilter = UnifiedFilterCriteria(
+      searchText: keepSearchText ? _transactionFilter.searchText : '',
+    );
+    _applyTransactionFilter();
+    notifyListeners();
+  }
+
+  /// Resolves a cashbox workspace from the authoritative unfiltered source,
+  /// while preserving every active global criterion and adding the cashbox
+  /// dimension. This keeps summary cards, transaction table and chart capable
+  /// of consuming one filtered dataset.
+  List<CashTransactionModel> transactionsForCashbox(
+    String cashboxId, {
+    UnifiedFilterCriteria? criteria,
+  }) {
+    final normalizedId = cashboxId.trim();
+    if (normalizedId.isEmpty) return const <CashTransactionModel>[];
+    final base = criteria ?? _transactionFilter;
+    final dimensions = <String, Set<String>>{
+      ...base.dimensions,
+      'cashbox': <String>{normalizedId},
+    };
+    return CashboxTransactionFilter.apply(
+      _allTransactions,
+      base.copyWith(dimensions: dimensions, offset: 0),
+    );
   }
 
   Future<void> _refresh({bool force = false}) {
@@ -283,7 +325,7 @@ class CashboxController extends ChangeNotifier {
       _repository.getCashLedgerReconciliation(),
     ]);
     _allTransactions = results[0] as List<CashTransactionModel>;
-    _applySearch();
+    _applyTransactionFilter();
     _cashAccounts = results[1] as List<CashAccountModel>;
     _ledgerAccounts = results[2] as List<AccountModel>;
     _balances = results[3] as Map<String, double>;
@@ -293,22 +335,11 @@ class CashboxController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _applySearch() {
-    final query = _activeSearchQuery;
-    if (query.isEmpty) {
-      _transactions = List<CashTransactionModel>.of(_allTransactions);
-      return;
-    }
-    _transactions = _allTransactions
-        .where((item) {
-          return item.voucherNumber.toLowerCase().contains(query) ||
-              item.category.toLowerCase().contains(query) ||
-              item.currency.toLowerCase().contains(query) ||
-              item.type.toLowerCase().contains(query) ||
-              (item.partyName ?? '').toLowerCase().contains(query) ||
-              (item.notes ?? '').toLowerCase().contains(query);
-        })
-        .toList(growable: false);
+  void _applyTransactionFilter() {
+    _transactions = CashboxTransactionFilter.apply(
+      _allTransactions,
+      _transactionFilter,
+    );
   }
 
   void _setLoading(bool value) {
