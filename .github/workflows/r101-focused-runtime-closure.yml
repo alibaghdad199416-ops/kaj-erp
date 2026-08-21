@@ -49,7 +49,43 @@ jobs:
       - name: Start LOCAL Supabase
         run: npx supabase start
       - name: Run canonical LOCAL PostgreSQL runtime gates through R101
-        run: python -B tool/run_r89_r92_local_runtime_tests.py
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          python -B tool/run_r89_r92_local_runtime_tests.py 2>&1 | tee /tmp/r101-runtime.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            {
+              echo 'R101 focused canonical runtime failure evidence'
+              echo "run_id=${GITHUB_RUN_ID}"
+              echo "head_sha=${GITHUB_SHA}"
+              echo "runner_exit=${status}"
+              echo
+              echo '--- matched failure/runtime lines ---'
+              grep -nEi 'ERROR|psql:|FAIL|verify_r(58|89|90|91|92|99|100|101)|maintenance|runtime' /tmp/r101-runtime.log | tail -n 160 || true
+              echo
+              echo '--- final 120 log lines ---'
+              tail -n 120 /tmp/r101-runtime.log
+            } > /tmp/r101-runtime-failure.txt
+
+            branch='current-local-r92-20260820'
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git fetch origin "$branch"
+            git rebase --autostash "origin/$branch"
+            cp /tmp/r101-runtime-failure.txt .github/r101-runtime-failure.txt
+            git add -- .github/r101-runtime-failure.txt
+            git diff --cached --check
+            if ! git diff --cached --quiet; then
+              git commit -m 'chore(ci): record canonical R101 runtime failure'
+              git push origin HEAD:"$branch"
+            fi
+          fi
+
+          exit "$status"
       - name: Stop LOCAL Supabase
         if: always()
         run: npx supabase stop --no-backup
