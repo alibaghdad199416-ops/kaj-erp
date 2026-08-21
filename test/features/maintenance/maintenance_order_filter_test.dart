@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_filter.dart';
@@ -121,5 +123,26 @@ void main() {
     );
 
     expect(result.map((value) => value.id), <String>['m2', 'm1']);
+  });
+
+  test('maintenance workspace delegates query state to the unified contract', () {
+    final source = File(
+      'lib/features/maintenance/pages/maintenance_page.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('UnifiedFilterCriteria _criteria ='));
+    expect(source, contains('MaintenanceOrderFilter.apply('));
+    expect(source, isNot(contains('List<MaintenanceOrderModel> _visible')));
+    expect(source, contains('onChanged: _setSearchCriteria'));
+    expect(source, contains('onSelected: (_) => _setStageCriteria(stage)'));
+    expect(source, contains('onSelectChanged: (_) => _openDetails(order)'));
+    expect(
+      source,
+      contains('ErpDisplayFormatter.formatReference(\n                              order.orderNumber,'),
+    );
+    expect(source, contains('ErpDisplayFormatter.formatDateTime('));
+    expect(source, contains('ErpDisplayFormatter.formatMoney('));
+    expect(source, isNot(contains("package:intl/intl.dart")));
+    expect(source, isNot(contains('core/utils/money_formatter.dart')));
   });
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/finance/invoice_payment_batch_dialog.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/printing/maintenance_document_pdf_service.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
-import 'package:quality_line_erp/core/utils/money_formatter.dart';
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/widgets/app_module_action_icon.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
@@ -18,8 +18,9 @@ import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
 import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';
 import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';
-import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_cost_reconciliation.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_filter.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'add_maintenance_order_page.dart';
@@ -36,10 +37,28 @@ class MaintenancePage extends StatefulWidget {
 
 class _MaintenancePageState extends State<MaintenancePage> {
   final _search = TextEditingController();
-  String _stage = 'all';
+  UnifiedFilterCriteria _criteria = const UnifiedFilterCriteria();
   final Set<String> _busyOrderIds = <String>{};
   bool get ar => context.l10n.isArabic;
   String t(String a, String e) => ar ? a : e;
+
+  String get _stage =>
+      _criteria.statuses.length == 1 ? _criteria.statuses.first : 'all';
+
+  void _setSearchCriteria(String value) {
+    setState(() {
+      _criteria = _criteria.copyWith(searchText: value, offset: 0);
+    });
+  }
+
+  void _setStageCriteria(String stage) {
+    setState(() {
+      _criteria = _criteria.copyWith(
+        statuses: stage == 'all' ? const <String>{} : <String>{stage},
+        offset: 0,
+      );
+    });
+  }
 
   bool _canAction(String action, String legacyPermission) =>
       context.read<AccessController>().canPerformAction(
@@ -379,20 +398,6 @@ class _MaintenancePageState extends State<MaintenancePage> {
         _ => Icons.arrow_forward_rounded,
       };
 
-  List<MaintenanceOrderModel> _visible(List<MaintenanceOrderModel> source) {
-    final q = _search.text.trim().toLowerCase();
-    return source
-        .where(
-          (o) =>
-              (_stage == 'all' || o.workflowStage == _stage) &&
-              (q.isEmpty ||
-                  '${o.orderNumber} ${o.carName} ${o.customerName ?? ''} ${o.invoiceNumber ?? ''}'
-                      .toLowerCase()
-                      .contains(q)),
-        )
-        .toList();
-  }
-
   Widget _maintenanceOrdersTable(List<MaintenanceOrderModel> orders) {
     final scheme = Theme.of(context).colorScheme;
     return KajSurface(
@@ -420,27 +425,24 @@ class _MaintenancePageState extends State<MaintenancePage> {
               ],
               rows: orders
                   .map((order) {
-                    final parsed = DateTime.tryParse(
+                    final dateText = ErpDisplayFormatter.formatDateTime(
                       order.maintenanceDate,
-                    )?.toLocal();
-                    final dateText = parsed == null
-                        ? order.maintenanceDate
-                        : DateFormat('yyyy-MM-dd HH:mm').format(parsed);
+                    );
                     return DataRow(
+                      onSelectChanged: (_) => _openDetails(order),
                       cells: <DataCell>[
                         DataCell(
-                          InkWell(
-                            onTap: () => _openDetails(order),
-                            child: AppText(
+                          AppText(
+                            ErpDisplayFormatter.formatReference(
                               order.orderNumber,
-                              style: TextStyle(
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w900,
-                              ),
+                            ),
+                            style: TextStyle(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                        DataCell(AppText(dateText.isEmpty ? '—' : dateText)),
+                        DataCell(AppText(dateText)),
                         DataCell(
                           AppText(
                             order.customerName?.trim().isNotEmpty == true
@@ -465,10 +467,19 @@ class _MaintenancePageState extends State<MaintenancePage> {
                                 : '—',
                           ),
                         ),
-                        DataCell(AppText(order.currencyCode)),
                         DataCell(
                           AppText(
-                            '${MoneyFormatter.format(order.salePrice, currency: order.currencyCode)} ${order.currencyCode}',
+                            ErpDisplayFormatter.normalizeCurrency(
+                              order.currencyCode,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          AppText(
+                            ErpDisplayFormatter.formatMoney(
+                              order.salePrice,
+                              order.currencyCode,
+                            ),
                           ),
                         ),
                         DataCell(
@@ -580,7 +591,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<MaintenanceController>();
-    final orders = _visible(controller.orders);
+    final orders = MaintenanceOrderFilter.apply(controller.orders, _criteria);
     final shellOwnsIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
     final stages = <String>[
       'all',
@@ -675,19 +686,19 @@ class _MaintenancePageState extends State<MaintenancePage> {
           );
           final search = TextField(
             controller: _search,
-            onChanged: (_) => setState(() {}),
+            onChanged: _setSearchCriteria,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
               hintText: t(
                 'بحث برقم الأمر أو السيارة أو العميل',
                 'Search by order, vehicle, or customer',
               ),
-              suffixIcon: _search.text.isEmpty
+              suffixIcon: _criteria.searchText.trim().isEmpty
                   ? null
                   : IconButton(
                       onPressed: () {
                         _search.clear();
-                        setState(() {});
+                        _setSearchCriteria('');
                       },
                       icon: const Icon(Icons.close_rounded),
                     ),
@@ -720,7 +731,7 @@ class _MaintenancePageState extends State<MaintenancePage> {
                                 )
                               : Theme.of(context).colorScheme.outlineVariant,
                         ),
-                        onSelected: (_) => setState(() => _stage = stage),
+                        onSelected: (_) => _setStageCriteria(stage),
                       ),
                     ),
                   )
