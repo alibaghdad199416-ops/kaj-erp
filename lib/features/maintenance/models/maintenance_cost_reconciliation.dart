@@ -1,3 +1,5 @@
+import 'package:quality_line_erp/core/operations/operational_line_lifecycle.dart';
+
 class MaintenanceCostReconciliation {
   const MaintenanceCostReconciliation({
     required this.currency,
@@ -125,6 +127,12 @@ class MaintenanceCostReconciliation {
   final bool crossCurrencyMaterials;
   final List<Map<String, Object?>> issueEvents;
   final Map<String, Object?> issueDraft;
+
+  /// Normalized quantity lifecycle for maintenance material lines.
+  /// This uses the same typed contract as sales/purchases so UI and reporting
+  /// code no longer needs module-specific quantity key interpretation.
+  List<OperationalLineLifecycle> get lifecycleLines =>
+      OperationalLineLifecycle.fromRows(lines);
 }
 
 MaintenanceCostReconciliation mergeMaintenanceReconciliationPayloads({

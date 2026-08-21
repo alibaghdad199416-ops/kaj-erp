@@ -1,3 +1,5 @@
+import 'package:quality_line_erp/core/operations/operational_line_lifecycle.dart';
+
 class CommercialOrderDetails {
   const CommercialOrderDetails({
     required this.order,
@@ -132,6 +134,14 @@ class CommercialOrderDetails {
   final List<Map<String, Object?>> auditTrail;
   final List<Map<String, Object?>> reconciliation;
   final Map<String, Object?>? opportunity;
+
+  /// Typed line lifecycle shared with maintenance and future operational modules.
+  /// Reconciliation is authoritative when available because it is derived from
+  /// actual logistics/invoice documents; raw order items are the safe fallback.
+  List<OperationalLineLifecycle> get lifecycleLines =>
+      OperationalLineLifecycle.fromRows(
+        reconciliation.isNotEmpty ? reconciliation : items,
+      );
 
   CommercialOrderDetails withReconciliation(List<Map<String, Object?>> value) =>
       CommercialOrderDetails(
