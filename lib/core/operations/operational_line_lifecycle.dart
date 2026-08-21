@@ -92,6 +92,9 @@ class OperationalLineLifecycle {
     final invoiceable = !requiresLogistics || !hasAuthoritativeReconciliation
         ? requested
         : logistics;
+    final remainingInvoice = !requiresLogistics
+        ? requested - invoiced
+        : explicitRemainingInvoice ?? (invoiceable - invoiced);
 
     return OperationalLineLifecycle(
       lineId: _text(
@@ -125,10 +128,9 @@ class OperationalLineLifecycle {
       // can legitimately omit those fields; in that case requested quantity is
       // the safe display fallback instead of treating an absent value as a
       // confirmed logistics quantity of zero. Service lines never require stock
-      // logistics and therefore always reconcile invoices against requested.
-      remainingInvoiceQuantity: _nonNegative(
-        explicitRemainingInvoice ?? (invoiceable - invoiced),
-      ),
+      // logistics, so stale server-side remaining-invoice values based on zero
+      // stock execution are ignored and requested - invoiced remains canonical.
+      remainingInvoiceQuantity: _nonNegative(remainingInvoice),
       requiresLogistics: requiresLogistics,
       hasAuthoritativeReconciliation: hasAuthoritativeReconciliation,
       raw: Map<String, Object?>.unmodifiable(map),
