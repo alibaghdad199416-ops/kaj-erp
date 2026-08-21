@@ -1,5 +1,6 @@
 name: R99-R101 focused runtime closure
 
+# R101 GL order plus current analyzer blockers are verified before Local Supabase.
 on:
   push:
     branches:
