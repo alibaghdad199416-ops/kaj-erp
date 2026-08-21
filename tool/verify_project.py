@@ -40,6 +40,7 @@ GATES = (
     "verify_r93_final_closure.py",
     "verify_r94_legacy_endpoint_acl_closure.py",
     "verify_r95_current_source.py",
+    "verify_r96_typed_display_contract.py",
 )
 
 

@@ -1,7 +1,11 @@
 import 'package:intl/intl.dart';
 
-/// Locale-aware final display formatter. Identifiers are never parsed as
-/// floating point numbers, preventing account-code corruption.
+/// Canonical typed display contract for ERP values.
+///
+/// Callers must choose the semantic type they are rendering instead of sending
+/// every value through a generic decimal formatter. This keeps money,
+/// quantities and rates numeric while identifiers, years and references remain
+/// text and can never become values such as `2026.00` or `INV-101.00`.
 abstract final class ErpDisplayFormatter {
   static String normalizeCurrency(Object? value) {
     final code = (value ?? '').toString().trim().toUpperCase();
@@ -54,6 +58,79 @@ abstract final class ErpDisplayFormatter {
     final digits = code == 'IQD' ? 0 : 2;
     return '${number(value, locale: locale, maxDecimals: digits)} $code'.trim();
   }
+
+  /// Typed alias used by new code. IQD renders with zero fractional digits;
+  /// USD and other currencies retain up to two fractional digits.
+  static String formatMoney(
+    num? value,
+    Object? currency, {
+    String locale = 'en_US',
+  }) => money(value, currency, locale: locale);
+
+  /// Quantities are numeric measurements, not identifiers.
+  static String formatQuantity(
+    num? value, {
+    String locale = 'en_US',
+    int maxDecimals = 3,
+  }) => number(value, locale: locale, maxDecimals: maxDecimals);
+
+  /// Rates may require more precision than user-facing money.
+  static String formatRate(
+    num? value, {
+    String locale = 'en_US',
+    int maxDecimals = 6,
+  }) => number(value, locale: locale, maxDecimals: maxDecimals);
+
+  static String formatPercentage(
+    num? value, {
+    String locale = 'en_US',
+    int maxDecimals = 2,
+    bool includeSymbol = true,
+  }) {
+    final formatted = number(value, locale: locale, maxDecimals: maxDecimals);
+    if (value == null || !includeSymbol) return formatted;
+    return '$formatted%';
+  }
+
+  /// Integer counters may be grouped for readability, but fractional input is
+  /// never silently rounded into a different business value.
+  static String formatInteger(Object? value, {String locale = 'en_US'}) {
+    if (value == null) return '-';
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return '-';
+    final parsed = value is num ? value : num.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null || !parsed.isFinite || parsed != parsed.truncateToDouble()) {
+      return raw;
+    }
+    return NumberFormat('#,##0', locale).format(parsed.toInt());
+  }
+
+  /// References, VINs, phone numbers, IDs, serials and document numbers are
+  /// semantic text. Never parse or decimal-format them.
+  static String formatReference(Object? value) {
+    final raw = (value ?? '').toString().trim();
+    return raw.isEmpty ? '-' : raw;
+  }
+
+  /// Years are integer-like identifiers and deliberately have no grouping or
+  /// decimal suffix. Legacy numeric text such as `2026.00` is normalized only
+  /// when it is exactly integral.
+  static String formatYear(Object? value) {
+    if (value == null) return '-';
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return '-';
+    final parsed = value is num ? value : num.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null || !parsed.isFinite || parsed != parsed.truncateToDouble()) {
+      return raw;
+    }
+    return parsed.toInt().toString();
+  }
+
+  static String formatDate(Object? value, {String locale = 'en_US'}) =>
+      dateTimeValue(value, locale: locale, includeTime: false);
+
+  static String formatDateTime(Object? value, {String locale = 'en_US'}) =>
+      dateTimeValue(value, locale: locale, includeTime: true);
 
   static String dateTimeValue(
     Object? value, {
