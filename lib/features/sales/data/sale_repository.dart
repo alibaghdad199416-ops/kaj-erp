@@ -4,6 +4,7 @@ import 'package:quality_line_erp/core/cloud/cloud_master_data_service.dart';
 import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/features/accounting/installments/models/installment_model.dart';
 import 'package:quality_line_erp/features/sales/models/sale_model.dart';
+import 'package:quality_line_erp/features/sales/models/sales_workflow_order_model.dart';
 
 /// Supabase-only sales repository.
 ///
@@ -95,6 +96,19 @@ class SaleRepository {
       ),
     );
     return rows.map(SaleModel.fromMap).toList(growable: false);
+  }
+
+  Future<List<SalesWorkflowOrder>> getSalesWorkflowOrders() async {
+    final rows = await _client.rpc(
+      'erp_list_cloud_sales_workflow_orders',
+      params: {'p_company_id': _companyId},
+    );
+    rows.sort(
+      (a, b) => (b['createdAt']?.toString() ?? '').compareTo(
+        a['createdAt']?.toString() ?? '',
+      ),
+    );
+    return rows.map(SalesWorkflowOrder.fromMap).toList(growable: false);
   }
 
   void _validateSale(SaleModel sale, List<InstallmentModel> installments) {

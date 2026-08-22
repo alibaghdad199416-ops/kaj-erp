@@ -1602,8 +1602,15 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
                     ),
                     const SizedBox(height: 10),
                     ...orderedAccounts.map((account) {
-                      final accountRows = account.value
-                        ..sort((left, right) {
+                      final accountRows = List<Map<String, Object?>>.of(
+                        account.value,
+                      );
+                      // R101 makes General Ledger running balances deterministic
+                      // at the database boundary. Preserve that exact server row
+                      // order so tied lines from the same journal entry cannot be
+                      // reordered after their running balances are calculated.
+                      if (widget.type != _AccountingReportType.generalLedger) {
+                        accountRows.sort((left, right) {
                           final leftDate = '${left['entryDate'] ?? ''}';
                           final rightDate = '${right['entryDate'] ?? ''}';
                           final dateResult = leftDate.compareTo(rightDate);
@@ -1612,6 +1619,7 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
                             '${right['entryNumber'] ?? ''}',
                           );
                         });
+                      }
                       final sample = samples[account.key] ?? accountRows.first;
                       final columns = preferredColumns
                           .where(

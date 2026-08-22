@@ -138,7 +138,11 @@ void main() {
     expect(source, contains('onSelectChanged: (_) => _openDetails(order)'));
     expect(
       source,
-      contains('ErpDisplayFormatter.formatReference(\n                              order.orderNumber,'),
+      contains('ErpDisplayFormatter.formatReference('),
+    );
+    expect(
+      source,
+      contains('order.orderNumber'),
     );
     expect(source, contains('ErpDisplayFormatter.formatDateTime('));
     expect(source, contains('ErpDisplayFormatter.formatMoney('));

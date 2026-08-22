@@ -1,0 +1,1 @@
+test/features/business_partners/phase3_compact_workspaces_contract_test.dart

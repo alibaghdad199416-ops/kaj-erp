@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/features/sales/models/sale_model.dart';
+import 'package:quality_line_erp/features/sales/models/sales_workflow_order_model.dart';
 
 class SaleCard extends StatelessWidget {
   const SaleCard({
     super.key,
-    required this.sale,
+    required this.order,
     this.onEdit,
     required this.onDelete,
     required this.onPrint,
@@ -18,7 +19,7 @@ class SaleCard extends StatelessWidget {
     this.carName,
   });
 
-  final SaleModel sale;
+  final SalesWorkflowOrder order;
   final VoidCallback? onEdit;
   final VoidCallback onDelete;
   final VoidCallback onPrint;
@@ -41,10 +42,10 @@ class SaleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final invoice = (sale.invoiceNumber ?? '').trim();
-    final title = invoice.isEmpty
-        ? AppTranslation.translate('فاتورة بيع')
-        : '${AppTranslation.translate('فاتورة')} $invoice';
+    final orderNumber = order.orderNumber;
+    final title = orderNumber.isNotEmpty
+        ? '${AppTranslation.translate('أمر بيع')} $orderNumber'
+        : AppTranslation.translate('فاتورة بيع');
     final customer = _visible(
       customerName,
       AppTranslation.translate('عميل غير محدد'),
@@ -67,7 +68,7 @@ class SaleCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 9, 7),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -83,7 +84,7 @@ class SaleCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _field(
-                          'invoice',
+                          'order',
                           AppText(
                             title,
                             maxLines: 1,
@@ -113,7 +114,8 @@ class SaleCard extends StatelessWidget {
                   _field(
                     'status',
                     _Status(
-                      label: sale.remainingAmount <= 0
+                      label: order.status.contains('paid') ||
+                              order.status.contains('completed')
                           ? AppTranslation.translate('مدفوعة')
                           : AppTranslation.translate('غير مكتملة'),
                     ),
@@ -138,7 +140,7 @@ class SaleCard extends StatelessWidget {
                     _Metric(
                       icon: Icons.schedule_rounded,
                       label: AppTranslation.translate('التاريخ'),
-                      value: sale.saleDate,
+                      value: ErpDisplayFormatter.formatDateTime(order.createdAt),
                     ),
                   ),
                   _field(
@@ -147,8 +149,8 @@ class SaleCard extends StatelessWidget {
                       icon: Icons.payments_outlined,
                       label: AppTranslation.translate('السعر'),
                       value: MoneyFormatter.withCurrency(
-                        sale.salePrice,
-                        sale.currencyCode,
+                        order.total,
+                        order.currency,
                       ),
                     ),
                   ),
@@ -158,18 +160,19 @@ class SaleCard extends StatelessWidget {
                       icon: Icons.account_balance_wallet_outlined,
                       label: AppTranslation.translate('المتبقي'),
                       value: MoneyFormatter.withCurrency(
-                        sale.remainingAmount,
-                        sale.currencyCode,
+                        order.invoiceRemaining ?? 0,
+                        order.currency,
                       ),
                     ),
                   ),
-                  if ((sale.createdByUserName ?? '').trim().isNotEmpty)
+                  if (order.customerName.isNotEmpty ||
+                      order.customerId.isNotEmpty)
                     _field(
                       'createdBy',
                       _Metric(
                         icon: Icons.badge_outlined,
                         label: AppTranslation.translate('المنفذ'),
-                        value: sale.createdByUserName!.trim(),
+                        value: order.customerName,
                       ),
                     ),
                 ],

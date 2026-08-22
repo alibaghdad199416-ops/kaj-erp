@@ -295,7 +295,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                   decimal: true,
                 ),
                 inputFormatters: <TextInputFormatter>[
-                  ThousandsInputFormatter(decimalDigits: 2),
+                  ThousandsInputFormatter(currency: _currency),
                 ],
                 decoration: InputDecoration(
                   labelText: AppTranslation.translate(

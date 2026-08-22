@@ -663,7 +663,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                       controller: _labor,
                       keyboardType: TextInputType.number,
                       inputFormatters: <TextInputFormatter>[
-                        ThousandsInputFormatter(decimalDigits: 2),
+                        ThousandsInputFormatter(currency: _currency),
                       ],
                       decoration: InputDecoration(
                         labelText: t('كلفة العمل', 'Labor cost'),
@@ -680,7 +680,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                       controller: _price,
                       keyboardType: TextInputType.number,
                       inputFormatters: <TextInputFormatter>[
-                        ThousandsInputFormatter(decimalDigits: 2),
+                        ThousandsInputFormatter(currency: _currency),
                       ],
                       enabled: _pricingType == 'paid',
                       decoration: InputDecoration(

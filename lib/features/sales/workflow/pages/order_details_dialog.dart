@@ -2138,7 +2138,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
           final reconciliation = _reconciliationFor(itemId);
           return <String, Object?>{
             ...item,
-            if (reconciliation != null) ...reconciliation,
+            ...?reconciliation,
             'lineId': itemId,
             'itemId': itemId,
             'description': _itemDescription(item, null),

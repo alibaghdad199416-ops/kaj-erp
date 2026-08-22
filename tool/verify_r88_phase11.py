@@ -8,7 +8,19 @@ checks = {
     'cashbox workspace': ('lib/features/accounting/cashbox/pages/cashbox_page.dart', ['Current Balance', 'Related document', 'Counter account']),
     'notification deep links': ('lib/features/notifications/pages/notification_center_page.dart', ["notification['deepLink']", 'report']),
     'report event persistence': ('lib/features/settings/reports/data/reports_repository.dart', ['erp_r88_record_report_event']),
-    'granular client actions': ('lib/features/settings/access/controllers/access_controller.dart', ['actions.restrict', 'hasLegacy &&']),
+    'granular client actions': (
+        'lib/features/settings/access/controllers/access_controller.dart',
+        ['PermissionContract.hasRestrictedActions', 'PermissionContract.canPerformAction'],
+    ),
+    'canonical granular action contract': (
+        'lib/core/security/permission_contract.dart',
+        [
+            'actionRestriction(resource)',
+            'hasRestrictedActions(permissionCodes, resource)',
+            'permissionCodes.contains(action(resource, actionName))',
+            'permissionCodes.contains(legacyPermission)',
+        ],
+    ),
     'phase11 migration': ('supabase/migrations/20260819210000_r88_phase11_operational_financial_closure.sql', [
         'erp_manage_commercial_order_component_v3', "'receipt','logistics'", 'erp_r88_filter_trial_balance_row',
         "x->>'cashIn'", 'erp_vehicle_maintenance_schedules', 'erp_maintenance_history_details',

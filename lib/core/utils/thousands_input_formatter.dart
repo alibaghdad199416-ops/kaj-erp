@@ -10,10 +10,19 @@ import 'package:intl/intl.dart';
 /// a user can enter IQD (or any other numeric amount) without the keystrokes
 /// being discarded by an ASCII-only formatter.
 class ThousandsInputFormatter extends TextInputFormatter {
-  ThousandsInputFormatter({this.decimalDigits = 2, this.allowNegative = false});
+  ThousandsInputFormatter({
+    int? decimalDigits,
+    this.allowNegative = false,
+    String? currency,
+  }) : decimalDigits = _resolveDecimalDigits(currency, decimalDigits);
 
   final int decimalDigits;
   final bool allowNegative;
+
+  static int _resolveDecimalDigits(String? currency, int? decimalDigits) {
+    if (currency?.toUpperCase() == 'IQD') return 0;
+    return decimalDigits ?? 2;
+  }
   static final NumberFormat _integer = NumberFormat('#,##0', 'en_US');
 
   static const String _arabicIndicDigits = '٠١٢٣٤٥٦٧٨٩';

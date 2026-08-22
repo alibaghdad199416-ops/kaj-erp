@@ -14,7 +14,36 @@ try {
 python -B tool/verify_r76_local_current_database.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "`nRunning canonical current source verification (through R95)..." -ForegroundColor Cyan
+Write-Host "`nRunning canonical current source verification (through R97)..." -ForegroundColor Cyan
+Write-Host "`nRunning R78 complete-requirements preflight..." -ForegroundColor Cyan
+python -B tool/verify_r78_complete_requirements.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "`nRunning R79 media/export stabilization preflight..." -ForegroundColor Cyan
+python -B tool/verify_r79_media_export_stabilization.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Host "`nRunning explicit Phase 11 R88-R94 source gates..." -ForegroundColor Cyan
+python -B tool/verify_r88_phase11.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r89_phase11_completion.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r90_phase11_final_acceptance.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r91_phase11_material_issue_acceptance.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r92_comprehensive_module_audit.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r93_final_closure.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+python -B tool/verify_r94_legacy_endpoint_acl_closure.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 python -B tool/verify_project.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

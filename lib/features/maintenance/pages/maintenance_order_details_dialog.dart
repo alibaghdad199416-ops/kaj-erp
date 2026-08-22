@@ -879,7 +879,7 @@ class _MaintenanceOrderDetailsDialogState
         .map((line) {
           final reconciliation = reconciliationByLine[line.id];
           return <String, Object?>{
-            if (reconciliation != null) ...reconciliation,
+            ...?reconciliation,
             'lineId': line.id,
             'itemId': line.productId,
             'productName': line.productName,
@@ -1568,6 +1568,17 @@ class _MaintenanceOrderDetailsDialogState
         ),
       ),
     );
+  }
+
+  Map<String, Object?>? _reconciliationLine(String lineId) {
+    final normalizedId = lineId.trim();
+    if (normalizedId.isEmpty) return null;
+    for (final row in _costs?.lines ?? const <Map<String, Object?>>[]) {
+      if ((row['lineId']?.toString().trim() ?? '') == normalizedId) {
+        return row;
+      }
+    }
+    return null;
   }
 
   Widget _maintenanceInvoiceTable(MaintenanceOrderModel order) {
