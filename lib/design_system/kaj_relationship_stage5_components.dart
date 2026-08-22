@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
@@ -29,10 +31,40 @@ class KajRelationshipHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final insideOperationalWorkspace =
+        AppWorkspaceWindowScope.maybeOf(context) != null;
+    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(
+      context,
+    );
+    if (insideOperationalWorkspace || shellOwnsModuleIdentity) {
+      final functionalChrome = <Widget>[
+        ?trailing,
+        ?secondaryAction,
+        ?primaryAction,
+        ...metrics,
+      ];
+      if (functionalChrome.isEmpty) return const SizedBox.shrink();
+      return Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var index = 0; index < functionalChrome.length; index++) ...[
+                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+                functionalChrome[index],
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return KajShellSurface(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(18),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 860;
@@ -40,20 +72,20 @@ class KajRelationshipHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      KajDesignTokens.champagne.withValues(alpha: .94),
-                      scheme.primary.withValues(alpha: .88),
+                      KajDesignTokens.champagne.withValues(alpha: .90),
+                      scheme.primary.withValues(alpha: .84),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                child: Icon(icon, color: scheme.onPrimary, size: 26),
+                child: Icon(icon, color: scheme.onPrimary, size: 23),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,35 +93,37 @@ class KajRelationshipHero extends StatelessWidget {
                     AppText(
                       eyebrow.toUpperCase(),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        letterSpacing: 1.25,
+                        letterSpacing: 1.05,
                         fontWeight: FontWeight.w800,
                         color: scheme.primary,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: AppText(
                             title,
-                            style: theme.textTheme.headlineSmall?.copyWith(
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: compact ? 19 : 21,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
                         if (trailing != null) ...[
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           trailing!,
                         ],
                       ],
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 5),
                     AppText(
                       subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 12.6,
                         color: scheme.onSurfaceVariant,
-                        height: 1.55,
+                        height: 1.42,
                       ),
                     ),
                   ],
@@ -98,17 +132,10 @@ class KajRelationshipHero extends StatelessWidget {
             ],
           );
           final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             alignment: WrapAlignment.end,
-            children: [
-              // Keep explicit conditions for compatibility with the current
-              // Flutter/Dart collection-element syntax.
-              // ignore: use_null_aware_elements
-              if (secondaryAction != null) secondaryAction!,
-              // ignore: use_null_aware_elements
-              if (primaryAction != null) primaryAction!,
-            ],
+            children: [?secondaryAction, ?primaryAction],
           );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,7 +143,7 @@ class KajRelationshipHero extends StatelessWidget {
               if (compact) ...[
                 identity,
                 if (primaryAction != null || secondaryAction != null) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   actions,
                 ],
               ] else
@@ -124,13 +151,15 @@ class KajRelationshipHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: identity),
-                    const SizedBox(width: 20),
-                    actions,
+                    if (primaryAction != null || secondaryAction != null) ...[
+                      const SizedBox(width: 16),
+                      actions,
+                    ],
                   ],
                 ),
               if (metrics.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                Wrap(spacing: 10, runSpacing: 10, children: metrics),
+                const SizedBox(height: 14),
+                Wrap(spacing: 8, runSpacing: 8, children: metrics),
               ],
             ],
           );
@@ -160,14 +189,14 @@ class KajRelationshipSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return KajShellSurface(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, color: theme.colorScheme.primary, size: 21),
+                Icon(icon, color: theme.colorScheme.primary, size: 20),
                 const SizedBox(width: 9),
               ],
               Expanded(
@@ -192,11 +221,10 @@ class KajRelationshipSection extends StatelessWidget {
                   ],
                 ),
               ),
-              // ignore: use_null_aware_elements
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           child,
         ],
       ),
@@ -238,7 +266,7 @@ class KajRelationshipState extends StatelessWidget {
     if (loading) {
       return Center(
         child: KajShellSurface(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -286,14 +314,14 @@ class KajWorkflowRibbon extends StatelessWidget {
               AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 9,
+                  horizontal: 12,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: active
                       ? scheme.primaryContainer
                       : scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(13),
                   border: Border.all(
                     color: active
                         ? scheme.primary.withValues(alpha: .34)
@@ -306,7 +334,7 @@ class KajWorkflowRibbon extends StatelessWidget {
                       active
                           ? Icons.check_circle_rounded
                           : Icons.radio_button_unchecked_rounded,
-                      size: 17,
+                      size: 16,
                       color: active ? scheme.primary : scheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 7),
@@ -320,7 +348,7 @@ class KajWorkflowRibbon extends StatelessWidget {
                 ),
               ),
               if (index < steps.length - 1)
-                Container(width: 22, height: 1, color: scheme.outlineVariant),
+                Container(width: 20, height: 1, color: scheme.outlineVariant),
             ],
           );
         }),

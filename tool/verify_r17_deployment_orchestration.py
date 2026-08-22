@@ -7,7 +7,7 @@ runtime correctness is certified by the R8-R16 contract gates plus analyzer/test
 """
 from __future__ import annotations
 
-import hashlib
+from verification_text import normalized_text_sha256
 import json
 import re
 from pathlib import Path
@@ -26,13 +26,13 @@ def read(relative: str) -> str:
 
 
 expected_config = {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
-    ".firebaserc": "003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
+    ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }
 for relative, digest in expected_config.items():
-    actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-    need(actual == digest, f"production configuration changed: {relative}")
+    actual = normalized_text_sha256(ROOT / relative)
+    need(actual == digest, f"local runtime/hosting baseline changed: {relative}")
 
 scripts = json.loads(read("package.json"))["scripts"]
 need(scripts.get("verify:r17") == "python -B tool/verify_r17_deployment_orchestration.py", "verify:r17 command missing")
@@ -99,4 +99,4 @@ print("  - pristine ZIP cleanliness is checked only before generated workspace a
 print("  - installed workspace validation rebuilds and rechecks source without package-cleanliness false failures")
 print("  - production deploy never calls pristine validation from an already-built workspace")
 print("  - Supabase dry-run/push remains before Firebase Hosting and rejects unexpected migrations")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

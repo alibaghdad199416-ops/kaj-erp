@@ -2,7 +2,6 @@ import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-import 'package:quality_line_erp/features/sales/models/sale_model.dart';
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 import 'package:quality_line_erp/features/customer_service/repositories/opportunity_repository.dart';
@@ -10,7 +9,10 @@ import 'package:quality_line_erp/features/customer_service/repositories/opportun
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 
 class OpportunitiesController extends ChangeNotifier {
-  final OpportunityRepository _repository = OpportunityRepository();
+  OpportunitiesController({OpportunityRepository? repository})
+    : _repository = repository ?? OpportunityRepository();
+
+  final OpportunityRepository _repository;
   List<OpportunityModel> _items = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -72,10 +74,8 @@ class OpportunitiesController extends ChangeNotifier {
   Future<void> update(OpportunityModel item) async {
     await _repository.update(item);
     // Read back the canonical server projection after every edit. PostgreSQL
-    // triggers own the business reference and sales-workflow reconciliation,
-    // while field permissions can also preserve server-owned values. Keeping
-    // the submitted Dart object here would expose stale data until a later
-    // screen refresh.
+    // owns the business reference and sales-workflow reconciliation, while
+    // field permissions can also preserve server-owned values.
     await loadOpportunities();
     AppDataChangeBus.instance.publish(
       'opportunities',
@@ -102,23 +102,19 @@ class OpportunitiesController extends ChangeNotifier {
     await loadOpportunities();
   }
 
-  Future<SaleModel> markWonAndCreateInvoice({
-    required OpportunityModel opportunity,
-    required String carId,
-    required String carName,
-    required double salePrice,
-    required double paidAmount,
-    required String paymentMethod,
-  }) async {
-    final sale = await _repository.markWonAndCreateInvoice(
-      opportunity: opportunity,
-      carId: carId,
-      carName: carName,
-      salePrice: salePrice,
-      paidAmount: paidAmount,
-      paymentMethod: paymentMethod,
-    );
+  Future<void> saveAsLost(OpportunityModel item, {required bool isNew}) async {
+    if (isNew) {
+      await _repository.add(item);
+    } else {
+      await _repository.update(item);
+    }
+    final saved = (await _repository.getOpportunities())
+        .where((value) => value.id == item.id)
+        .firstOrNull;
+    if (saved == null) {
+      throw StateError('Opportunity read-back missing before mark_lost.');
+    }
+    await _repository.markLost(saved);
     await loadOpportunities();
-    return sale;
   }
 }

@@ -17,24 +17,11 @@ class ProfessionalAccountingRepository {
     return id;
   }
 
-  Future<List<Map<String, Object?>>> getFiscalYears() => _listData(
-    'erp_fiscal_years',
-    orderColumn: 'data->>startDate',
-    ascending: false,
-  );
+  Future<List<Map<String, Object?>>> getFiscalYears() =>
+      _listProfessionalRecords('fiscal_years');
 
-  Future<List<Map<String, Object?>>> getFiscalPeriods(
-    String fiscalYearId,
-  ) async {
-    final rows = await _client
-        .from('erp_fiscal_periods')
-        .select('data')
-        .eq('company_id', _companyId)
-        .eq('is_deleted', false)
-        .eq('data->>fiscalYearId', fiscalYearId)
-        .order('data->>periodNumber');
-    return _unwrap(rows);
-  }
+  Future<List<Map<String, Object?>>> getFiscalPeriods(String fiscalYearId) =>
+      _listProfessionalRecords('fiscal_periods', parentId: fiscalYearId);
 
   Future<Map<String, Object?>> resolveOpenPeriod(DateTime entryDate) async {
     final result = await _client.rpc(
@@ -87,16 +74,29 @@ class ProfessionalAccountingRepository {
   }
 
   Future<List<Map<String, Object?>>> getBranches() async {
-    final result = await _client.rpc('erp_list_cloud_branches');
+    final result = await _client.rpc(
+      'erp_r92_list_accounting_branches',
+      params: {'p_company_id': _companyId},
+    );
     return List<Map<String, Object?>>.from(
       (result as List).map((e) => Map<String, Object?>.from(e as Map)),
     );
   }
 
   Future<List<Map<String, Object?>>> getCostCenters() =>
-      _listData('erp_cost_centers', orderColumn: 'data->>code');
+      _listProfessionalRecords('cost_centers');
   Future<List<Map<String, Object?>>> getProjects() =>
-      _listData('erp_accounting_projects', orderColumn: 'data->>code');
+      _listProfessionalRecords('accounting_projects');
+
+  Future<List<Map<String, Object?>>> getCashFlowCashboxes() async {
+    final result = await _client.rpc(
+      'erp_r89_list_cashboxes_for_cash_flow',
+      params: {'p_company_id': _companyId},
+    );
+    return List<Map<String, Object?>>.from(
+      (result as List).map((row) => Map<String, Object?>.from(row as Map)),
+    );
+  }
 
   Future<String> addBranch({
     required String code,
@@ -216,6 +216,7 @@ class ProfessionalAccountingRepository {
   Future<List<Map<String, Object?>>> loadReport({
     required String type,
     String currency = 'ALL',
+    String? cashAccountId,
     String? branchId,
     String? costCenterId,
     DateTime? fromDate,
@@ -235,12 +236,13 @@ class ProfessionalAccountingRepository {
     final result = await _client
         .rpc(
           type == 'cashFlow'
-              ? 'erp_r22_cloud_cash_flow_hierarchy'
+              ? 'erp_r89_cloud_cash_flow_hierarchy'
               : 'erp_r22_cloud_detailed_accounting_report',
           params: type == 'cashFlow'
               ? {
                   'p_company_id': _companyId,
                   'p_currency': currency,
+                  'p_cash_account_id': cashAccountId,
                   'p_branch_id': branchId,
                   'p_cost_center_id': costCenterId,
                   'p_from_date': fromDate?.toUtc().toIso8601String(),
@@ -276,25 +278,20 @@ class ProfessionalAccountingRepository {
     }
   }
 
-  Future<List<Map<String, Object?>>> _listData(
-    String table, {
-    String? orderColumn,
-    bool ascending = true,
+  Future<List<Map<String, Object?>>> _listProfessionalRecords(
+    String kind, {
+    String? parentId,
   }) async {
-    dynamic query = _client
-        .from(table)
-        .select('data')
-        .eq('company_id', _companyId)
-        .eq('is_deleted', false);
-    if (orderColumn != null)
-      query = query.order(orderColumn, ascending: ascending);
-    return _unwrap(await query);
+    final result = await _client.rpc(
+      'erp_r92_list_professional_accounting_records',
+      params: {
+        'p_company_id': _companyId,
+        'p_kind': kind,
+        'p_parent_id': parentId,
+      },
+    );
+    return List<Map<String, Object?>>.from(
+      (result as List).map((e) => Map<String, Object?>.from(e as Map)),
+    );
   }
-
-  List<Map<String, Object?>> _unwrap(Object rows) =>
-      List<Map<String, Object?>>.from(
-        (rows as List).map(
-          (e) => Map<String, Object?>.from((e as Map)['data'] as Map),
-        ),
-      );
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify V7.3.2 operational state repair, shell cleanup, and linked reports."""
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase/migrations/20260804213000_v732_operational_state_repair.sql"
@@ -8,6 +9,7 @@ INVENTORY = ROOT / "lib/features/inventory/pages/inventory_page.dart"
 ERRORS = ROOT / "lib/core/errors/user_facing_error.dart"
 REPORTS = ROOT / "lib/features/settings/reports/pages/reports_page.dart"
 EXPORT = ROOT / "lib/features/settings/reports/services/report_export_service.dart"
+PDF_EXPORT = ROOT / "lib/core/exporting/pdf_export_service.dart"
 ACTION = ROOT / "lib/core/widgets/app_module_action_icon.dart"
 SALES = ROOT / "lib/features/sales/workflow/pages/order_details_dialog.dart"
 MAINT = ROOT / "lib/features/maintenance/pages/maintenance_order_details_dialog.dart"
@@ -21,22 +23,26 @@ PUBSPEC = ROOT / "pubspec.yaml"
 
 errors: list[str] = []
 
+
 def read(path: Path) -> str:
     if not path.exists():
         errors.append(f"missing file: {path.relative_to(ROOT)}")
         return ""
     return path.read_text(encoding="utf-8")
 
+
 def require(haystack: str, needles: tuple[str, ...], label: str) -> None:
     missing = [needle for needle in needles if needle not in haystack]
     if missing:
         errors.append(f"{label}: missing {', '.join(missing)}")
+
 
 migration = read(MIGRATION)
 inventory = read(INVENTORY)
 errors_ui = read(ERRORS)
 reports = read(REPORTS)
 export = read(EXPORT)
+pdf_export = read(PDF_EXPORT)
 action = read(ACTION)
 sales = read(SALES)
 maintenance = read(MAINT)
@@ -80,7 +86,21 @@ require(sales + maintenance, ("AppModuleActionIcon",), "document action integrat
 if "class _PremiumOrderAction" in sales or "class _HeaderAction" in maintenance:
     errors.append("old wide document action classes still exist")
 require(reports, ("_relatedModuleLinks", "_contextCellWidth", "SelectableText"), "linked report UI")
-require(export, ("AdaptivePdfTable.build", "maxColumnsPerGroup: 5", "maxRowsPerChunk: 12"), "wrapped PDF reports")
+# R82 centralizes report PDF wrapping in PdfExportService. The Reports service
+# must delegate to it, and the shared renderer must preserve the original V7.3.2
+# readability contract: five columns per group and twelve rows per chunk.
+require(export, ("PdfExportService().build",), "report PDF delegation")
+require(
+    pdf_export,
+    (
+        "AdaptivePdfTable.build",
+        "int maxColumnsPerGroup = 5",
+        "int maxRowsPerChunk = 12",
+        "maxColumnsPerGroup: effectiveColumnGroup",
+        "maxRowsPerChunk: maxRowsPerChunk",
+    ),
+    "wrapped PDF reports",
+)
 if "class _TopBar" in dashboard:
     errors.append("dashboard duplicate top bar still exists")
 if "KajSectionHeader" in sales_ops or "KajSectionHeader" in purchase_ops:
@@ -89,14 +109,13 @@ if "Customer Service')," in customer and "fontSize: 20" in customer:
     errors.append("customer-service duplicate title appears to remain")
 
 # Verify global signup is off while email/password provider stays on.
-import re
-
 def section(name: str) -> str:
     match = re.search(
         rf"(?ms)^\[{re.escape(name)}\]\s*(.*?)(?=^\[[^\]]+\]\s*$|\Z)",
         config,
     )
     return match.group(1) if match else ""
+
 
 auth = section("auth")
 email = section("auth.email")

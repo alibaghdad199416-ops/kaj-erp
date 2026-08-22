@@ -1,0 +1,106 @@
+name: R99-R101 focused runtime closure
+
+# R101 GL order plus current analyzer blockers are verified before Local Supabase.
+on:
+  push:
+    branches:
+      - current-local-r92-20260820
+    paths:
+      - .github/workflows/r101-focused-runtime-closure.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: current-local-r92-20260820
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - name: Apply R101 GL presentation fix
+        run: python -B tool/apply_r101_gl_server_order_fix.py
+      - name: Apply current analyzer blockers needed for runtime closure
+        run: python -B tool/apply_r101_analyzer_blocker_fixes.py
+      - name: Install Node tooling without lifecycle gates
+        run: npm ci --ignore-scripts
+      - name: Resolve Flutter packages
+        run: flutter pub get
+      - name: Format changed Flutter sources
+        run: dart format lib/features/accounting/pages/accounting_center_page.dart lib/features/maintenance/pages/maintenance_order_details_dialog.dart lib/features/sales/workflow/pages/order_details_dialog.dart
+      - name: Verify R100/R101 static accounting contract
+        run: python -B tool/verify_r100_r101_accounting_projection.py
+      - name: Analyze current Flutter application
+        run: flutter analyze --fatal-infos --fatal-warnings
+      - name: Start LOCAL Supabase
+        run: npx supabase start
+      - name: Run canonical LOCAL PostgreSQL runtime gates through R101
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          python -B tool/run_r89_r92_local_runtime_tests.py 2>&1 | tee /tmp/r101-runtime.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            {
+              echo 'R101 focused canonical runtime failure evidence'
+              echo "run_id=${GITHUB_RUN_ID}"
+              echo "head_sha=${GITHUB_SHA}"
+              echo "runner_exit=${status}"
+              echo
+              echo '--- matched failure/runtime lines ---'
+              grep -nEi 'ERROR|psql:|FAIL|verify_r(58|89|90|91|92|99|100|101)|maintenance|runtime' /tmp/r101-runtime.log | tail -n 160 || true
+              echo
+              echo '--- final 120 log lines ---'
+              tail -n 120 /tmp/r101-runtime.log
+            } > /tmp/r101-runtime-failure.txt
+
+            branch='current-local-r92-20260820'
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git fetch origin "$branch"
+            git rebase --autostash "origin/$branch"
+            cp /tmp/r101-runtime-failure.txt .github/r101-runtime-failure.txt
+            git add -- .github/r101-runtime-failure.txt
+            git diff --cached --check
+            if ! git diff --cached --quiet; then
+              git commit -m 'chore(ci): record canonical R101 runtime failure'
+              git push origin HEAD:"$branch"
+            fi
+          fi
+
+          exit "$status"
+      - name: Stop LOCAL Supabase
+        if: always()
+        run: npx supabase stop --no-backup
+      - name: Publish verified Phase 11 closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='current-local-r92-20260820'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase --autostash origin "$branch"
+          git add -- \
+            lib/features/accounting/pages/accounting_center_page.dart \
+            lib/features/maintenance/pages/maintenance_order_details_dialog.dart \
+            lib/features/sales/workflow/pages/order_details_dialog.dart
+          git diff --cached --check
+          git commit -m 'fix(phase11): preserve GL order and restore analyzer clean state'
+          git push origin HEAD:"$branch"

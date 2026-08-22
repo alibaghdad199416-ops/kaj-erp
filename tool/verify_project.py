@@ -28,6 +28,20 @@ GATES = (
     "verify_v738_full_requirements.py",
     "verify_v741_complete_requirements.py",
     "verify_v742_final_audit.py",
+    "verify_r78_complete_requirements.py",
+    "verify_r79_media_export_stabilization.py",
+    "verify_r84_user_media_scope_ui_exports.py",
+    "verify_r85_secondary_record_scope.py",
+    "verify_r88_phase11.py",
+    "verify_r89_phase11_completion.py",
+    "verify_r90_phase11_final_acceptance.py",
+    "verify_r91_phase11_material_issue_acceptance.py",
+    "verify_r92_comprehensive_module_audit.py",
+    "verify_r93_final_closure.py",
+    "verify_r94_legacy_endpoint_acl_closure.py",
+    "verify_r95_current_source.py",
+    "verify_r96_typed_display_contract.py",
+    "verify_r97_semantic_action_system.py",
 )
 
 

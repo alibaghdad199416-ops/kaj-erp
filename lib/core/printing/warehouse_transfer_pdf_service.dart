@@ -3,18 +3,17 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
 
 import 'package:quality_line_erp/core/cloud/cloud_feature_command.dart';
+import 'package:quality_line_erp/core/exporting/pdf_print_service.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
-import 'package:quality_line_erp/core/printing/premium_document_theme.dart';
 import 'package:quality_line_erp/core/printing/pdf_text_support.dart';
+import 'package:quality_line_erp/core/printing/unified_pdf_document.dart';
+import 'package:quality_line_erp/core/printing/unified_pdf_identity.dart';
 
-/// Official printable warehouse-transfer document used by both vehicles and
-/// inventory products. It intentionally shares the same company identity,
-/// header hierarchy, tables and signature layout as commercial documents.
+/// Official bilingual warehouse-transfer document using the same visual chrome
+/// as commercial documents, accounting reports and vouchers.
 class WarehouseTransferPdfService {
   const WarehouseTransferPdfService();
 
@@ -31,20 +30,19 @@ class WarehouseTransferPdfService {
   }) async {
     language = PdfTextSupport.canonicalPdfLanguage(language);
     final arabic = language == 'ar';
-    final fontPack = arabic ? await PdfTextSupport.loadFonts() : null;
-    final regular = fontPack?.regular ?? pw.Font.helvetica();
-    final bold = fontPack?.bold ?? pw.Font.helveticaBold();
+    final fonts = await PdfTextSupport.loadFonts();
+    final regular = fonts.regular;
+    final bold = fonts.bold;
     final branding = await _loadBranding(language);
-    final direction = arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
-    final border = PdfColor.fromHex('#D3D5D7');
-    final surface = PdfColor.fromHex('#F5F6F6');
-    final accent = PremiumDocumentTheme.accent;
-    final primary = PdfColor.fromHex('#000000');
-    final secondary = PdfColor.fromHex('#5F6266');
     final number = documentNumber.trim().isEmpty ? '—' : documentNumber.trim();
+    String value(Object? raw) {
+      final text = raw?.toString().trim() ?? '';
+      return text.isEmpty || text.toLowerCase() == 'null' ? '—' : text;
+    }
+
     final normalizedItems = items.isEmpty
         ? <Map<String, Object?>>[
-            <String, Object?>{
+            {
               'code': '—',
               'name': _t('No items', language),
               'details': '—',
@@ -55,60 +53,7 @@ class WarehouseTransferPdfService {
             },
           ]
         : items;
-
-    final document = pw.Document(
-      title: '${_t('Warehouse transfer order', language)} $number',
-      author: branding.companyName,
-      creator: 'Quality Line ERP',
-    );
-
-    String value(Object? raw) {
-      final text = raw?.toString().trim() ?? '';
-      return text.isEmpty || text.toLowerCase() == 'null' ? '—' : text;
-    }
-
-    pw.Widget warehousePanel(String title, Map<String, Object?> warehouse) =>
-        pw.Expanded(
-          child: pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: border, width: .7),
-              color: PdfColors.white,
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Container(
-                  width: double.infinity,
-                  padding: const pw.EdgeInsets.symmetric(vertical: 5),
-                  decoration: pw.BoxDecoration(
-                    color: primary,
-                    border: pw.Border(
-                      bottom: pw.BorderSide(color: accent, width: 2),
-                    ),
-                  ),
-                  child: pw.Text(
-                    _t(title, language),
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      font: bold,
-                      color: PdfColors.white,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                _line(_t('Warehouse code', language), warehouse['code'], bold),
-                _line(_t('Warehouse name', language), warehouse['name'], bold),
-                _line(_t('Address', language), warehouse['address'], bold),
-                _line(_t('Manager', language), warehouse['managerName'], bold),
-                _line(_t('Phone', language), warehouse['phone'], bold),
-              ],
-            ),
-          ),
-        );
-
-    final machinePayload = jsonEncode(<String, Object?>{
+    final machinePayload = jsonEncode({
       'documentNumber': number,
       'transferDate': transferDate,
       'fromWarehouseId': sourceWarehouse['id'],
@@ -116,171 +61,86 @@ class WarehouseTransferPdfService {
       'itemCount': normalizedItems.length,
     });
 
+    final document = pw.Document(
+      title: '${_t('Warehouse transfer order', language)} $number',
+      author: branding.companyName,
+      creator: 'Quality Line ERP',
+      theme: pw.ThemeData.withFont(base: regular, bold: bold),
+    );
     document.addPage(
       pw.MultiPage(
-        pageTheme: pw.PageTheme(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.fromLTRB(28, 24, 28, 26),
-          theme: pw.ThemeData.withFont(base: regular, bold: bold),
+        pageTheme: UnifiedPdfDocument.pageTheme(
+          fonts,
+          textDirection: arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr,
         ),
-        textDirection: direction,
-        header: (_) => pw.Column(
-          children: [
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.SizedBox(
-                  width: 72,
-                  height: 52,
-                  child: branding.logo == null
-                      ? pw.Container(
-                          alignment: pw.Alignment.center,
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border.all(color: border),
-                          ),
-                          child: pw.Text(
-                            'QL',
-                            style: pw.TextStyle(font: bold, fontSize: 18),
-                          ),
-                        )
-                      : pw.Image(branding.logo!, fit: pw.BoxFit.contain),
-                ),
-                pw.SizedBox(width: 12),
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        branding.companyName,
-                        style: pw.TextStyle(font: bold, fontSize: 16),
-                      ),
-                      if (branding.address.isNotEmpty)
-                        pw.Text(
-                          branding.address,
-                          style: pw.TextStyle(fontSize: 8, color: secondary),
-                        ),
-                      if (branding.phone.isNotEmpty)
-                        pw.Text(
-                          '${_t('Phone', language)}: ${branding.phone}',
-                          style: pw.TextStyle(fontSize: 8, color: secondary),
-                        ),
-                    ],
-                  ),
-                ),
-                pw.Container(
-                  width: 190,
-                  padding: const pw.EdgeInsets.all(10),
-                  decoration: pw.BoxDecoration(
-                    color: primary,
-                    border: pw.Border(
-                      bottom: pw.BorderSide(color: accent, width: 3),
-                    ),
-                  ),
-                  child: pw.Column(
-                    children: [
-                      pw.Text(
-                        _t('Warehouse transfer order', language),
-                        style: pw.TextStyle(
-                          font: bold,
-                          color: PdfColors.white,
-                          fontSize: 13,
-                        ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        number,
-                        style: pw.TextStyle(
-                          font: bold,
-                          color: accent,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 10),
-            pw.Divider(color: border, thickness: .7),
-          ],
+        header: (_) => UnifiedPdfDocument.documentHeader(
+          bold: bold,
+          documentType: _t('Warehouse transfer order', language),
+          documentNumber: number,
+          logo: branding.logo,
+          companyName: branding.companyName,
         ),
-        footer: (context) => pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text(
-              '${_t('Printed from Quality Line ERP', language)} • ${DateTime.now().toLocal().toIso8601String()}',
-              style: pw.TextStyle(fontSize: 6.5, color: secondary),
-            ),
-            pw.Text(
-              '${_t('Page', language)} ${context.pageNumber}/${context.pagesCount}',
-              style: pw.TextStyle(fontSize: 6.5, color: secondary),
-            ),
-          ],
+        footer: (context) => UnifiedPdfDocument.footer(
+          regular: regular,
+          pageNumber: context.pageNumber,
+          pageCount: context.pagesCount,
+          arabic: arabic,
         ),
-        build: (_) => [
+        build: (_) => <pw.Widget>[
+          UnifiedPdfDocument.titleBlock(
+            bold: bold,
+            title: _t('Warehouse transfer order', language),
+            subtitle:
+                '${_t('Transfer date', language)}: ${value(transferDate)}',
+            status: number,
+          ),
           pw.Wrap(
-            spacing: 8,
-            runSpacing: 6,
+            spacing: 7,
+            runSpacing: 7,
             children: [
-              _summaryBox(
-                _t('Transfer date', language),
-                value(transferDate),
-                border,
-                bold,
+              UnifiedPdfDocument.summaryTile(
+                bold: bold,
+                label: _t('Prepared by', language),
+                value: value(preparedBy),
               ),
-              _summaryBox(
-                _t('Prepared by', language),
-                value(preparedBy),
-                border,
-                bold,
-              ),
-              _summaryBox(
-                _t('Items count', language),
-                normalizedItems.length.toString(),
-                border,
-                bold,
+              UnifiedPdfDocument.summaryTile(
+                bold: bold,
+                label: _t('Items count', language),
+                value: normalizedItems.length.toString(),
               ),
             ],
           ),
-          pw.SizedBox(height: 12),
+          UnifiedPdfDocument.sectionHeader(
+            bold: bold,
+            title: _t('Warehouses', language),
+          ),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              warehousePanel('Source warehouse', sourceWarehouse),
+              _warehousePanel(
+                _t('Source warehouse', language),
+                sourceWarehouse,
+                bold,
+                language,
+              ),
               pw.SizedBox(width: 10),
-              warehousePanel('Destination warehouse', destinationWarehouse),
+              _warehousePanel(
+                _t('Destination warehouse', language),
+                destinationWarehouse,
+                bold,
+                language,
+              ),
             ],
           ),
-          pw.SizedBox(height: 14),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: pw.BoxDecoration(
-              color: primary,
-              border: pw.Border(bottom: pw.BorderSide(color: accent, width: 2)),
-            ),
-            child: pw.Text(
-              _t('Transfer items', language),
-              style: pw.TextStyle(
-                font: bold,
-                color: PdfColors.white,
-                fontSize: 11,
-              ),
-            ),
+          UnifiedPdfDocument.sectionHeader(
+            bold: bold,
+            title: _t('Transfer items', language),
+            trailing: normalizedItems.length.toString(),
           ),
-          pw.TableHelper.fromTextArray(
-            border: pw.TableBorder.all(color: border, width: .45),
-            headerDecoration: pw.BoxDecoration(color: secondary),
-            oddRowDecoration: pw.BoxDecoration(color: surface),
-            headerStyle: pw.TextStyle(
-              font: bold,
-              color: PdfColors.white,
-              fontSize: 7.5,
-            ),
-            cellStyle: const pw.TextStyle(fontSize: 7.2),
-            cellAlignment: arabic
-                ? pw.Alignment.centerRight
-                : pw.Alignment.centerLeft,
+          UnifiedPdfDocument.table(
+            regular: regular,
+            bold: bold,
+            arabic: arabic,
             headers: [
               '#',
               _t('Code', language),
@@ -291,7 +151,7 @@ class WarehouseTransferPdfService {
               _t('Cost', language),
               _t('Currency', language),
             ],
-            data: [
+            rows: [
               for (var index = 0; index < normalizedItems.length; index++)
                 [
                   '${index + 1}',
@@ -306,70 +166,68 @@ class WarehouseTransferPdfService {
             ],
           ),
           if ((notes ?? '').trim().isNotEmpty) ...[
-            pw.SizedBox(height: 12),
+            UnifiedPdfDocument.sectionHeader(
+              bold: bold,
+              title: _t('Notes', language),
+            ),
             pw.Container(
               width: double.infinity,
               padding: const pw.EdgeInsets.all(9),
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: border),
-                color: surface,
+                color: UnifiedPdfIdentity.surface,
+                border: pw.Border.all(color: UnifiedPdfIdentity.border),
               ),
-              child: pw.Text(
-                '${_t('Notes', language)}: ${notes!.trim()}',
-                style: const pw.TextStyle(fontSize: 8),
-              ),
+              child: PdfTextSupport.text(notes!.trim()),
             ),
           ],
-          pw.SizedBox(height: 18),
-          if (includeMachineCode)
+          if (includeMachineCode) ...[
+            UnifiedPdfDocument.sectionHeader(
+              bold: bold,
+              title: _t('Document verification', language),
+            ),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      _t('Document verification', language),
-                      style: pw.TextStyle(font: bold, fontSize: 8),
-                    ),
-                    pw.SizedBox(height: 5),
-                    pw.BarcodeWidget(
-                      barcode: pw.Barcode.code128(),
-                      data: number,
-                      width: 190,
-                      height: 38,
-                      drawText: true,
-                      textStyle: const pw.TextStyle(fontSize: 7),
-                    ),
-                  ],
+                pw.BarcodeWidget(
+                  barcode: pw.Barcode.code128(),
+                  data: number,
+                  width: 190,
+                  height: 38,
+                  drawText: false,
                 ),
                 pw.BarcodeWidget(
                   barcode: pw.Barcode.qrCode(),
                   data: machinePayload,
                   width: 70,
                   height: 70,
+                  drawText: false,
                 ),
               ],
             ),
-          pw.SizedBox(height: 22),
+          ],
+          pw.SizedBox(height: 18),
           pw.Row(
             children: [
-              _signature(_t('Prepared by', language), border, bold),
-              pw.SizedBox(width: 12),
-              _signature(
-                _t('Source warehouse signature', language),
-                border,
-                bold,
+              UnifiedPdfDocument.signatureBox(
+                bold: bold,
+                title: _t('Prepared by', language),
               ),
-              pw.SizedBox(width: 12),
-              _signature(
-                _t('Destination warehouse signature', language),
-                border,
-                bold,
+              pw.SizedBox(width: 8),
+              UnifiedPdfDocument.signatureBox(
+                bold: bold,
+                title: _t('Source warehouse signature', language),
               ),
-              pw.SizedBox(width: 12),
-              _signature(_t('Approval signature', language), border, bold),
+              pw.SizedBox(width: 8),
+              UnifiedPdfDocument.signatureBox(
+                bold: bold,
+                title: _t('Destination warehouse signature', language),
+              ),
+              pw.SizedBox(width: 8),
+              UnifiedPdfDocument.signatureBox(
+                bold: bold,
+                title: _t('Approval signature', language),
+              ),
             ],
           ),
         ],
@@ -406,68 +264,47 @@ class WarehouseTransferPdfService {
     );
   }
 
-  static pw.Widget _line(String label, Object? raw, pw.Font bold) {
-    final value = raw?.toString().trim() ?? '';
-    if (value.isEmpty || value.toLowerCase() == 'null') return pw.SizedBox();
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
-      child: pw.RichText(
-        text: pw.TextSpan(
-          children: [
-            pw.TextSpan(
-              text: '$label: ',
-              style: pw.TextStyle(font: bold),
-            ),
-            pw.TextSpan(text: value),
-          ],
-          style: const pw.TextStyle(fontSize: 8),
-        ),
-      ),
-    );
-  }
-
-  static pw.Widget _summaryBox(
-    String label,
-    String value,
-    PdfColor border,
+  pw.Widget _warehousePanel(
+    String title,
+    Map<String, Object?> warehouse,
     pw.Font bold,
-  ) => pw.Container(
-    width: 165,
-    padding: const pw.EdgeInsets.all(8),
-    decoration: pw.BoxDecoration(
-      border: pw.Border.all(color: border, width: .6),
-    ),
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(label, style: pw.TextStyle(font: bold, fontSize: 7)),
-        pw.SizedBox(height: 3),
-        pw.Text(value, style: const pw.TextStyle(fontSize: 8.5)),
-      ],
+    String language,
+  ) => pw.Expanded(
+    child: pw.Container(
+      padding: const pw.EdgeInsets.all(9),
+      decoration: pw.BoxDecoration(
+        color: UnifiedPdfIdentity.surface,
+        border: pw.Border.all(color: UnifiedPdfIdentity.border),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          PdfTextSupport.text(
+            title,
+            style: pw.TextStyle(font: bold, fontSize: 9),
+          ),
+          pw.SizedBox(height: 5),
+          _line(_t('Warehouse code', language), warehouse['code'], bold),
+          _line(_t('Warehouse name', language), warehouse['name'], bold),
+          _line(_t('Address', language), warehouse['address'], bold),
+          _line(_t('Manager', language), warehouse['managerName'], bold),
+          _line(_t('Phone', language), warehouse['phone'], bold),
+        ],
+      ),
     ),
   );
 
-  static pw.Widget _signature(String title, PdfColor border, pw.Font bold) =>
-      pw.Expanded(
-        child: pw.Container(
-          height: 70,
-          padding: const pw.EdgeInsets.all(7),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: border, width: .6),
-          ),
-          child: pw.Column(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                title,
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(font: bold, fontSize: 7),
-              ),
-              pw.Container(height: .5, color: border),
-            ],
-          ),
-        ),
-      );
+  pw.Widget _line(String label, Object? raw, pw.Font bold) {
+    final text = raw?.toString().trim() ?? '';
+    if (text.isEmpty || text.toLowerCase() == 'null') return pw.SizedBox();
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 3),
+      child: PdfTextSupport.text(
+        '$label: $text',
+        style: pw.TextStyle(font: bold, fontSize: 7.5),
+      ),
+    );
+  }
 
   Future<_WarehouseTransferBranding> _loadBranding(String language) async {
     Map<String, dynamic> row = <String, dynamic>{};
@@ -486,7 +323,7 @@ class WarehouseTransferPdfService {
     };
     pw.MemoryImage? logo;
     if (!kIsWeb) {
-      for (final path in const <String>[
+      for (final path in const [
         'assets/images/khat_al_jawda_logo.jpg',
         'assets/images/logo.png',
       ]) {
@@ -494,9 +331,7 @@ class WarehouseTransferPdfService {
           final data = await rootBundle.load(path);
           logo = pw.MemoryImage(data.buffer.asUint8List());
           break;
-        } catch (_) {
-          // Try the next configured logo.
-        }
+        } catch (_) {}
       }
     }
     final arabic = language == 'ar';
@@ -508,17 +343,16 @@ class WarehouseTransferPdfService {
           : (values['company_name_en']?.trim().isNotEmpty == true
                 ? values['company_name_en']!
                 : 'Quality Line'),
-      address: values['company_address'] ?? '',
-      phone: values['company_phone'] ?? '',
       logo: logo,
     );
   }
 
-  static String _t(String value, String language) {
+  String _t(String value, String language) {
     if (language != 'ar') return value;
     return const <String, String>{
           'Warehouse transfer order': 'أمر نقل مخزني',
           'No items': 'لا توجد عناصر',
+          'Warehouses': 'المخازن',
           'Warehouse code': 'رمز المخزن',
           'Warehouse name': 'اسم المخزن',
           'Address': 'العنوان',
@@ -542,8 +376,6 @@ class WarehouseTransferPdfService {
           'Source warehouse signature': 'توقيع المخزن المصدر',
           'Destination warehouse signature': 'توقيع المخزن المستلم',
           'Approval signature': 'الاعتماد',
-          'Printed from Quality Line ERP': 'طبع من نظام خط الجودة ERP',
-          'Page': 'الصفحة',
         }[value] ??
         value;
   }
@@ -552,13 +384,8 @@ class WarehouseTransferPdfService {
 class _WarehouseTransferBranding {
   const _WarehouseTransferBranding({
     required this.companyName,
-    required this.address,
-    required this.phone,
     required this.logo,
   });
-
   final String companyName;
-  final String address;
-  final String phone;
   final pw.MemoryImage? logo;
 }

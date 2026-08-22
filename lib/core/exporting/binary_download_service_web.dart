@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
-import 'dart:async';
 import 'dart:html' as html;
 import 'dart:typed_data';
+
+import 'browser_download_lifecycle.dart';
 
 Future<void> saveBinary({
   required String fileName,
@@ -13,17 +14,10 @@ Future<void> saveBinary({
   final anchor = html.AnchorElement(href: url)
     ..download = fileName
     ..style.display = 'none';
-  html.document.body?.children.add(anchor);
-  try {
-    anchor.click();
-  } finally {
-    anchor.remove();
-    // Edge/Chrome may start the actual download asynchronously after click().
-    // Revoking the Blob URL immediately can produce a silent failed export.
-    unawaited(
-      Future<void>.delayed(const Duration(seconds: 10), () {
-        html.Url.revokeObjectUrl(url);
-      }),
-    );
-  }
+  triggerBrowserDownload(
+    attach: () => html.document.body?.children.add(anchor),
+    click: anchor.click,
+    detach: anchor.remove,
+    revoke: () => html.Url.revokeObjectUrl(url),
+  );
 }

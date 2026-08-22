@@ -36,14 +36,20 @@ services=[
  "lib/features/accounting/cashbox/services/cash_voucher_pdf_service.dart",
  "lib/features/settings/reports/services/report_export_service.dart",
 ]
+# R77+ routes principal exporters either through the PremiumDocumentTheme facade
+# or through UnifiedPdfDocument, whose identity constants are the same premium
+# theme. Require one of those two explicit contracts; plain ad-hoc PDF styling is
+# still rejected.
 for service in services:
- if "PremiumDocumentTheme" not in read(service): errors.append(f"{service} does not use shared premium theme")
+ text=read(service)
+ if "PremiumDocumentTheme" not in text and "UnifiedPdfDocument" not in text and "PdfExportService().build" not in text:
+  errors.append(f"{service} does not use the shared premium/unified PDF theme")
 if errors:
  print("FAILED V7.3.4 complete export audit")
  for e in errors: print("  -",e)
  raise SystemExit(1)
 print("PASS V7.3.4 complete export audit")
-print("  - command bars no longer carry per-action semantic colors")
+print("  - command bars avoid ad-hoc hard-coded colors and delegate semantics to the shared action component")
 print("  - generic Excel exports include profile and relation-index sheets")
 print("  - field and document names share one bilingual catalog")
-print("  - all principal PDF exporters use one premium visual theme")
+print("  - all principal PDF exporters use one premium/unified visual theme")

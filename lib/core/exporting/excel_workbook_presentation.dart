@@ -139,18 +139,24 @@ abstract final class ExcelWorkbookPresentation {
       final row = startRow + offset;
       final style = dataStyle(arabic: arabic, alternate: offset.isOdd);
       for (var column = 0; column < columnCount; column++) {
-        sheet
-                .cell(
-                  CellIndex.indexByColumnRow(
-                    columnIndex: column,
-                    rowIndex: row,
-                  ),
-                )
-                .cellStyle =
-            style;
+        styleCell(
+          sheet.cell(
+            CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row),
+          ),
+          style,
+        );
       }
       sheet.setRowHeight(row, 24);
     }
+  }
+
+  /// Applying a visual style must not replace the native number format that
+  /// belongs to dates, times, integers, or decimals. The excel package rejects
+  /// a DateTime cell paired with the generic numeric `General` format.
+  static void styleCell(Data cell, CellStyle style) {
+    final format =
+        cell.cellStyle?.numberFormat ?? NumFormat.defaultFor(cell.value);
+    cell.cellStyle = style.copyWith(numberFormat: format);
   }
 
   /// Converts a raw report value to the native XLSX cell type expected by
@@ -163,6 +169,16 @@ abstract final class ExcelWorkbookPresentation {
     ExportValueType? type,
   }) {
     if (value == null) return TextCellValue('');
+
+    String safeText(Object raw) {
+      final text = raw.toString();
+      final trimmedLeft = text.trimLeft();
+      if (trimmedLeft.isNotEmpty &&
+          const <String>{'=', '+', '-', '@'}.contains(trimmedLeft[0])) {
+        return "'$text";
+      }
+      return text;
+    }
 
     DateTime? asDateTime(Object raw) {
       if (raw is DateTime) return raw;
@@ -178,19 +194,19 @@ abstract final class ExcelWorkbookPresentation {
       case ExportValueType.integer:
         final number = asNumber(value);
         return number == null
-            ? TextCellValue(value.toString())
+            ? TextCellValue(safeText(value))
             : IntCellValue(number.toInt());
       case ExportValueType.decimal:
       case ExportValueType.money:
         final number = asNumber(value);
         return number == null
-            ? TextCellValue(value.toString())
+            ? TextCellValue(safeText(value))
             : DoubleCellValue(number.toDouble());
       case ExportValueType.date:
       case ExportValueType.dateTime:
         final date = asDateTime(value);
         return date == null
-            ? TextCellValue(value.toString())
+            ? TextCellValue(safeText(value))
             : DateTimeCellValue.fromDateTime(date);
       case ExportValueType.boolean:
         if (value is bool) return BoolCellValue(value);
@@ -201,9 +217,9 @@ abstract final class ExcelWorkbookPresentation {
         if (normalized == '0' || normalized == 'false' || normalized == 'no') {
           return BoolCellValue(false);
         }
-        return TextCellValue(value.toString());
+        return TextCellValue(safeText(value));
       case ExportValueType.text:
-        return TextCellValue(value.toString());
+        return TextCellValue(safeText(value));
       case null:
         break;
     }
@@ -254,6 +270,6 @@ abstract final class ExcelWorkbookPresentation {
         }
       }
     }
-    return TextCellValue(value.toString());
+    return TextCellValue(safeText(value));
   }
 }

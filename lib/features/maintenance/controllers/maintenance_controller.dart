@@ -4,12 +4,17 @@ import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_cost_reconciliation.dart';
 
 class MaintenanceController extends ChangeNotifier {
-  final MaintenanceRepository _repository = MaintenanceRepository();
+  MaintenanceController({MaintenanceRepository? repository})
+    : _repository = repository ?? MaintenanceRepository();
+
+  final MaintenanceRepository _repository;
   List<MaintenanceOrderModel> _orders = [];
   bool _isLoading = false;
   Future<void>? _ordersLoadInFlight;
+  bool _ordersReloadRequested = false;
   DateTime? _ordersLoadedAt;
   static const Duration _ordersTtl = Duration(seconds: 20);
   List<MaintenanceVehicleOption> _eligibleVehicles = [];
@@ -72,15 +77,25 @@ class MaintenanceController extends ChangeNotifier {
       return Future<void>.value();
     }
     final active = _ordersLoadInFlight;
-    if (active != null) return active;
+    if (active != null) {
+      if (force) _ordersReloadRequested = true;
+      return active;
+    }
 
-    final request = _loadOrdersNow();
+    final request = _loadOrdersLoop();
     _ordersLoadInFlight = request;
     return request.whenComplete(() {
       if (identical(_ordersLoadInFlight, request)) {
         _ordersLoadInFlight = null;
       }
     });
+  }
+
+  Future<void> _loadOrdersLoop() async {
+    do {
+      _ordersReloadRequested = false;
+      await _loadOrdersNow();
+    } while (_ordersReloadRequested);
   }
 
   Future<void> _loadOrdersNow() async {
@@ -104,6 +119,7 @@ class MaintenanceController extends ChangeNotifier {
     required List<MaintenancePartRequest> parts,
     required String currencyCode,
     String? maintenanceExpenseAccountId,
+    String? opportunityId,
     String? notes,
     DateTime? effectiveAt,
   }) async {
@@ -116,6 +132,7 @@ class MaintenanceController extends ChangeNotifier {
       parts: parts,
       currencyCode: currencyCode,
       maintenanceExpenseAccountId: maintenanceExpenseAccountId,
+      opportunityId: opportunityId,
       notes: notes,
       effectiveAt: effectiveAt,
     );
@@ -155,6 +172,12 @@ class MaintenanceController extends ChangeNotifier {
 
   Future<List<MaintenanceLineModel>> getOrderLines(String orderId) =>
       _repository.getOrderLines(orderId);
+
+  Future<MaintenanceCostReconciliation> getCostReconciliation(String orderId) =>
+      _repository.getCostReconciliation(orderId);
+
+  Future<MaintenanceOrderModel?> findByOpportunity(String opportunityId) =>
+      _repository.findByOpportunity(opportunityId);
 
   Future<void> deleteOrder(String orderId, {String? reason}) async {
     await _repository.deleteOrder(orderId, reason: reason);
@@ -238,8 +261,19 @@ class MaintenanceController extends ChangeNotifier {
     (order) => order.salePrice,
   );
 
-  Map<String, double> get totalCostByCurrency =>
-      _sumByCurrency(_orders, (order) => order.totalCost);
+  Map<String, double> get totalCostByCurrency {
+    final totals = <String, double>{};
+    for (final order in _orders) {
+      for (final entry in order.operationalCostTotalsByCurrency.entries) {
+        totals.update(
+          entry.key,
+          (value) => value + entry.value,
+          ifAbsent: () => entry.value,
+        );
+      }
+    }
+    return Map<String, double>.unmodifiable(totals);
+  }
 
   Map<String, double> get inventoryCarCostAddedByCurrency =>
       _sumByCurrency(_orders, (order) => order.carCostAdded);

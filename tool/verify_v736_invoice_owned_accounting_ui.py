@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify V7.3.6 invoice-owned accounting, headless UI and cache repair."""
+"""Verify V7.3.6 invoice-owned accounting and current premium UI contracts."""
 from __future__ import annotations
 
 import json
@@ -260,7 +260,8 @@ require(
 require(
     pill_tabs,
     (
-        "no surrounding segmented-control rectangle",
+        "indicatorSize: TabBarIndicatorSize.tab",
+        "indicator: BoxDecoration(",
         "dividerColor: Colors.transparent",
         "borderRadius: BorderRadius.circular(999)",
         "isScrollable: true",
@@ -272,17 +273,22 @@ require(pill_surface, ("AppPillTabBar",), "module pill tab integration")
 for arabic_label in ("السيارات", "العملاء", "أوامر البيع", "أوامر الشراء"):
     if arabic_label not in pill_surface:
         errors.append(f"module pill tab integration: missing localized label {arabic_label!r}")
+
+# R78+ intentionally replaced the old nested inline-metric container with one
+# continuous module workspace: a connected command/metric rail followed by the
+# unboxed business body. Assert implementation markers rather than comments.
 require(
     entity_page + horizontal_strip,
     (
         "mergeHiddenHeaderActionsAndStatistics",
-        "class _InlineCommandMetricsRow",
+        "module-command-rail",
+        "module-continuous-workspace",
         "AppHorizontalStrip",
         "scrollDirection: Axis.horizontal",
-        "statistics!",
         "SingleChildScrollView(",
+        "ConstrainedBox(",
     ),
-    "one-line actions and metrics",
+    "continuous command/metric workspace",
 )
 require(
     product_page + car_page + maintenance_page + accounting_page + customer_stats,
@@ -294,40 +300,65 @@ require(
     ),
     "module one-line command/metric rows",
 )
+# R86 accounting now owns one tight full-height root directly instead of
+# routing through AppEntityPage. This is the stronger no-ruler-frame contract:
+# there is no generic framed toolbar in the accounting workspace at all.
 require(
     accounting_page,
     (
-        "toolbarFramed: false",
+        "accounting-root-tight-viewport",
+        "accounting-root-full-height-column",
         "ChoiceChip(",
         "scrollDirection: Axis.horizontal",
     ),
-    "accounting pill sections without ruler frame",
+    "accounting continuous pill sections without nested ruler frame",
 )
+
+# R86 supersedes the historical movable/resizable window experiment with one
+# bounded operational workspace. The route owns the single header, promotes
+# legacy actions into it and normalizes the body without nested window chrome.
 require(
     window + back,
     (
-        "The window has no title header, footer",
-        "class _ScaffoldAsWindow",
-        "class _AlertDialogAsWindow",
-        "...?appBar?.actions",
-        "scaffold.floatingActionButton",
-        "closeDock",
+        "Desktop workspaces intentionally remain bounded",
+        "class _PremiumWorkspaceTheme",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "appBar?.actions",
+        "source.floatingActionButton",
+        "if (child is AlertDialog)",
+        "module-workspace-window",
+        "Clip.antiAlias",
         "AppWorkspaceWindowScope.maybeOf(context) != null",
     ),
-    "headless internal windows and hidden back control",
+    "bounded integrated internal workspaces",
 )
-if "module-window-control-strip" in window:
-    errors.append("separate module window header strip is still present")
+for forbidden in (
+    "class _PremiumWindowTheme",
+    "class _WindowHeader",
+    "class _WindowFooter",
+    "class _ScaffoldAsWindow",
+    "class _AlertDialogAsWindow",
+    "closeDock",
+    "module-window-control-strip",
+):
+    if forbidden in window:
+        errors.append(f"legacy module-window chrome is still active: {forbidden}")
 
-require(
-    customer_card + supplier_card,
-    (
-        "maxLines: 2",
-        "PartnerStatusBadge(",
-        "const SizedBox(height: 3)",
-    ),
-    "partner status below full name",
-)
+# The current compact partner-card geometry uses a 2px vertical separator
+# between the two-line name and its status badge. Assert placement/compactness
+# rather than the superseded Phase-7 literal 3px gap.
+for card_name, card_source in (("customer", customer_card), ("supplier", supplier_card)):
+    require(
+        card_source,
+        (
+            "maxLines: 2",
+            "PartnerStatusBadge(",
+            "const SizedBox(height: 2)",
+        ),
+        f"{card_name} status below full name",
+    )
 
 require(
     opportunity_model + opportunity_card + sales_repo + realtime + migration,
@@ -391,5 +422,5 @@ print("  - invoice quantities match approved multi-warehouse logistics exactly")
 print("  - IQD/USD revenue and cost-currency journals are separated")
 print("  - invoice cancellation restores journals, FIFO and valuation snapshots")
 print("  - maintenance and opportunities follow the same invoice lifecycle")
-print("  - pill navigation, one-line commands and headless windows are enforced")
+print("  - pill navigation, continuous command rails and bounded workspaces are enforced")
 print("  - web runtime assets bypass stale service-worker/browser caches")

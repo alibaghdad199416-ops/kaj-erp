@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
@@ -10,12 +12,15 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
-import 'package:quality_line_erp/features/settings/access/models/user_model.dart';
 import 'package:quality_line_erp/features/business_partners/customers/controllers/customers_controller.dart';
 import 'package:quality_line_erp/features/business_partners/customers/models/customer_model.dart';
 import 'package:quality_line_erp/features/business_partners/customers/pages/add_customer_page.dart';
 import 'package:quality_line_erp/features/sales/workflow/pages/sales_order_draft_page.dart';
 import 'package:quality_line_erp/features/sales/workflow/repositories/sales_workflow_repository.dart';
+import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';
+import 'package:quality_line_erp/features/maintenance/pages/add_maintenance_order_page.dart';
+import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
+import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/customer_service/controllers/opportunities_controller.dart';
 import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
 import 'package:quality_line_erp/core/utils/thousands_input_formatter.dart';
@@ -31,6 +36,8 @@ class AddOpportunityPage extends StatefulWidget {
 
 class _AddOpportunityPageState extends State<AddOpportunityPage> {
   final _key = GlobalKey<FormState>();
+
+  String t(String ar, String en) => context.l10n.isArabic ? ar : en;
 
   String get _writePermission => widget.opportunity == null
       ? 'customer_service.create'
@@ -55,9 +62,13 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
   String _currency = 'USD';
   String _stage = 'new';
   CustomerModel? _customer;
-  UserModel? _assigned;
+  String _assignedUserId = '';
+  String _assignedUserName = '';
   DateTime? _followUp;
   DateTime? _expectedClose;
+  String? _carId;
+  String? _carName;
+  List<MaintenanceVehicleOption> _vehicleOptions = const [];
   bool _saving = false;
 
   @override
@@ -81,24 +92,39 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       stored: o?.currency,
     );
     _stage = o?.stage ?? 'new';
+    _assignedUserId = o?.assignedUserId.trim() ?? '';
+    _assignedUserName = o?.assignedUserName.trim() ?? '';
     _expectedClose = o?.expectedCloseDate;
     _source = (o?.source ?? '').trim().isEmpty ? null : o!.source;
     _followUp = o?.followUpDate;
+    _carId = o?.carId;
+    _carName = o?.carName;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final access = context.read<AccessController>();
-      final customers = context.read<CustomersController>().customers;
-      final assignedMatches = o == null || o.assignedUserId.trim().isEmpty
-          ? <UserModel>[]
-          : access.users.where((u) => u.id == o.assignedUserId).toList();
-      final customerMatches = o?.customerId == null
-          ? <CustomerModel>[]
-          : customers.where((c) => c.id == o!.customerId).toList();
-      if (mounted) {
-        setState(() {
-          _assigned = assignedMatches.isEmpty ? null : assignedMatches.first;
-          _customer = customerMatches.isEmpty ? null : customerMatches.first;
-        });
+      unawaited(_initializeDependencies(o));
+    });
+  }
+
+  Future<void> _initializeDependencies(OpportunityModel? opportunity) async {
+    final customersController = context.read<CustomersController>();
+    await Future.wait<void>([
+      customersController.loadCustomers(),
+      _loadVehicleOptions(),
+    ]);
+    if (!mounted) return;
+    final access = context.read<AccessController>();
+    final customerMatches = opportunity?.customerId == null
+        ? <CustomerModel>[]
+        : customersController.customers
+              .where((customer) => customer.id == opportunity!.customerId)
+              .toList(growable: false);
+    setState(() {
+      final assignedMatches = access.users.where(
+        (user) => user.id == _assignedUserId,
+      );
+      if (assignedMatches.isNotEmpty) {
+        _assignedUserName = assignedMatches.first.fullName;
       }
+      _customer = customerMatches.isEmpty ? null : customerMatches.first;
     });
   }
 
@@ -117,6 +143,18 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
 
   @override
   Widget build(BuildContext context) {
+    const standardSources = [
+      'زيارة المعرض',
+      'اتصال هاتفي',
+      'واتساب',
+      'إعلان',
+      'إحالة',
+      'أخرى',
+    ];
+    final sourceOptions = <String>[
+      ...standardSources,
+      if (_source != null && !standardSources.contains(_source)) _source!,
+    ];
     final customers = context.watch<CustomersController>().customers;
     final access = context.watch<AccessController>();
     final users = access.users.where((u) => u.isActive).toList();
@@ -128,36 +166,38 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            KajPhaseHero(
-              eyebrow: t('إدارة رحلة العميل', 'CUSTOMER JOURNEY DESIGN'),
-              title: widget.opportunity == null
-                  ? t(
-                      'إنشاء فرصة تجارية جديدة',
-                      'Create a new commercial opportunity',
-                    )
-                  : t(
-                      'تطوير الفرصة التجارية',
-                      'Refine the commercial opportunity',
-                    ),
-              subtitle: t(
-                'سجّل العميل ومصدر الاهتمام والقيمة المتوقعة والمسؤول وموعد المتابعة، ثم حوّل الفرصة إلى مسودة بيع دون فقدان السياق.',
-                'Capture the customer, source, expected value, owner, and follow-up date, then convert the opportunity into a sales draft without losing context.',
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              KajPhaseHero(
+                eyebrow: t('إدارة رحلة العميل', 'CUSTOMER JOURNEY DESIGN'),
+                title: widget.opportunity == null
+                    ? t(
+                        'إنشاء فرصة تجارية جديدة',
+                        'Create a new commercial opportunity',
+                      )
+                    : t(
+                        'تطوير الفرصة التجارية',
+                        'Refine the commercial opportunity',
+                      ),
+                subtitle: t(
+                  'سجّل العميل ومصدر الاهتمام والقيمة المتوقعة والمسؤول وموعد المتابعة، ثم حوّل الفرصة إلى مسودة بيع دون فقدان السياق.',
+                  'Capture the customer, source, expected value, owner, and follow-up date, then convert the opportunity into a sales draft without losing context.',
+                ),
+                icon: Icons.track_changes_rounded,
+                accent: KajDesignTokens.champagne,
+                trailing: KajStatusBadge(
+                  label: widget.opportunity == null
+                      ? t('فرصة جديدة', 'NEW LEAD')
+                      : t('تحديث الفرصة', 'OPPORTUNITY UPDATE'),
+                  color: widget.opportunity == null
+                      ? KajDesignTokens.electricBlue
+                      : KajDesignTokens.warning,
+                  icon: widget.opportunity == null
+                      ? Icons.add_chart_rounded
+                      : Icons.edit_note_rounded,
+                ),
               ),
-              icon: Icons.track_changes_rounded,
-              accent: KajDesignTokens.champagne,
-              trailing: KajStatusBadge(
-                label: widget.opportunity == null
-                    ? t('فرصة جديدة', 'NEW LEAD')
-                    : t('تحديث الفرصة', 'OPPORTUNITY UPDATE'),
-                color: widget.opportunity == null
-                    ? KajDesignTokens.electricBlue
-                    : KajDesignTokens.warning,
-                icon: widget.opportunity == null
-                    ? Icons.add_chart_rounded
-                    : Icons.edit_note_rounded,
-              ),
-            ),
-            const SizedBox(height: 12),
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              const SizedBox(height: 12),
             KajWorkflowStepper(
               currentIndex: widget.opportunity == null ? 0 : 2,
               compact: MediaQuery.sizeOf(context).width < 980,
@@ -249,13 +289,13 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             _securedField(
               'value',
               TextFormField(
+                key: const ValueKey('opportunity-expected-value-field'),
                 controller: _value,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-
                 inputFormatters: <TextInputFormatter>[
-                  ThousandsInputFormatter(decimalDigits: 2),
+                  ThousandsInputFormatter(currency: _currency),
                 ],
                 decoration: InputDecoration(
                   labelText: AppTranslation.translate(
@@ -275,6 +315,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             _securedField(
               'currency',
               DropdownButtonFormField<String>(
+                key: const ValueKey('opportunity-currency-field'),
                 isExpanded: true,
                 initialValue: SupportedCurrency.normalize(_currency),
                 validator: (value) => SupportedCurrency.isSupported(value)
@@ -296,36 +337,57 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
             const SizedBox(height: 14),
             _securedField(
               'stage',
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: _stage,
-                decoration: InputDecoration(
-                  labelText: t('مرحلة الفرصة', 'Opportunity stage'),
-                  border: const OutlineInputBorder(),
-                ),
-                items:
-                    <MapEntry<String, String>>[
-                          MapEntry('new', t('جديدة', 'New')),
-                          MapEntry('contacted', t('تم التواصل', 'Contacted')),
-                          MapEntry('qualified', t('مؤهلة', 'Qualified')),
-                          MapEntry(
-                            'proposal',
-                            t('عرض/تسعير', 'Proposal / Quotation'),
-                          ),
-                          MapEntry('negotiation', t('تفاوض', 'Negotiation')),
-                          MapEntry('won', t('رابحة', 'Won')),
-                          MapEntry('lost', t('خاسرة', 'Lost')),
-                          MapEntry('closed', t('مغلقة', 'Closed')),
-                        ]
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (v) => setState(() => _stage = v ?? 'new'),
-              ),
+              _stage == 'won' || _stage == 'closed'
+                  ? TextFormField(
+                      key: const ValueKey('opportunity-terminal-stage-field'),
+                      initialValue: _stage == 'won'
+                          ? t('رابحة', 'Won')
+                          : t('مغلقة', 'Closed'),
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: t('مرحلة الفرصة', 'Opportunity stage'),
+                        helperText: t(
+                          'هذه النتيجة مملوكة لمسار المبيعات المعتمد.',
+                          'This result is owned by the canonical sales workflow.',
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                    )
+                  : DropdownButtonFormField<String>(
+                      key: const ValueKey('opportunity-stage-field'),
+                      isExpanded: true,
+                      initialValue: _stage,
+                      decoration: InputDecoration(
+                        labelText: t('مرحلة الفرصة', 'Opportunity stage'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items:
+                          <MapEntry<String, String>>[
+                                MapEntry('new', t('جديدة', 'New')),
+                                MapEntry(
+                                  'contacted',
+                                  t('تم التواصل', 'Contacted'),
+                                ),
+                                MapEntry('qualified', t('مؤهلة', 'Qualified')),
+                                MapEntry(
+                                  'proposal',
+                                  t('عرض/تسعير', 'Proposal / Quotation'),
+                                ),
+                                MapEntry(
+                                  'negotiation',
+                                  t('تفاوض', 'Negotiation'),
+                                ),
+                                MapEntry('lost', t('خاسرة', 'Lost')),
+                              ]
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e.key,
+                                  child: Text(e.value),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (v) => setState(() => _stage = v ?? 'new'),
+                    ),
             ),
             const SizedBox(height: 14),
             _securedField(
@@ -373,43 +435,56 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                   labelText: AppTranslation.translate('مصدر الفرصة (اختياري)'),
                   border: OutlineInputBorder(),
                 ),
-                items:
-                    [
-                          'زيارة المعرض',
-                          'اتصال هاتفي',
-                          'واتساب',
-                          'إعلان',
-                          'إحالة',
-                          'أخرى',
-                        ]
-                        .map(
-                          (v) => DropdownMenuItem(value: v, child: AppText(v)),
-                        )
-                        .toList(),
+                items: sourceOptions
+                    .map((v) => DropdownMenuItem(value: v, child: AppText(v)))
+                    .toList(),
                 onChanged: (v) => setState(() => _source = v),
               ),
             ),
             const SizedBox(height: 14),
             _securedField(
               'assignedUserId',
-              DropdownButtonFormField<UserModel>(
+              DropdownButtonFormField<String>(
+                key: const ValueKey('opportunity-assigned-user-field'),
                 isExpanded: true,
-                initialValue: _assigned,
+                initialValue: _assignedUserId,
                 decoration: InputDecoration(
                   labelText: AppTranslation.translate(
                     'المستخدم المسؤول (اختياري)',
                   ),
                   border: OutlineInputBorder(),
                 ),
-                items: users
-                    .map(
-                      (u) => DropdownMenuItem(
-                        value: u,
-                        child: AppText(u.fullName),
+                items: <DropdownMenuItem<String>>[
+                  DropdownMenuItem(
+                    value: '',
+                    child: AppText(t('غير مسندة', 'Unassigned')),
+                  ),
+                  ...users.map(
+                    (u) => DropdownMenuItem(
+                      value: u.id,
+                      child: AppText(u.fullName),
+                    ),
+                  ),
+                  if (_assignedUserId.isNotEmpty &&
+                      !users.any((u) => u.id == _assignedUserId))
+                    DropdownMenuItem(
+                      value: _assignedUserId,
+                      child: AppText(
+                        _assignedUserName.isEmpty
+                            ? _assignedUserId
+                            : _assignedUserName,
                       ),
-                    )
-                    .toList(),
-                onChanged: (u) => setState(() => _assigned = u),
+                    ),
+                ],
+                onChanged: (userId) => setState(() {
+                  _assignedUserId = userId ?? '';
+                  _assignedUserName =
+                      users
+                          .where((u) => u.id == _assignedUserId)
+                          .map((u) => u.fullName)
+                          .firstOrNull ??
+                      '';
+                }),
               ),
             ),
             const SizedBox(height: 14),
@@ -481,12 +556,51 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 14),
+            _securedField(
+              'carId',
+              DropdownButtonFormField<String>(
+                key: const ValueKey('opportunity-maintenance-vehicle'),
+                isExpanded: true,
+                initialValue:
+                    _vehicleOptions.any((vehicle) => vehicle.carId == _carId)
+                    ? _carId
+                    : null,
+                decoration: InputDecoration(
+                  labelText: t(
+                    'المركبة المرتبطة (اختياري)',
+                    'Linked vehicle (optional)',
+                  ),
+                  prefixIcon: const Icon(Icons.directions_car_outlined),
+                ),
+                items: _vehicleOptions
+                    .map(
+                      (vehicle) => DropdownMenuItem(
+                        value: vehicle.carId,
+                        child: AppText(vehicle.displayName),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  final matches = _vehicleOptions.where(
+                    (vehicle) => vehicle.carId == value,
+                  );
+                  setState(() {
+                    _carId = value;
+                    _carName = matches.isEmpty
+                        ? null
+                        : matches.first.displayName;
+                  });
+                },
+              ),
+            ),
             const SizedBox(height: 24),
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: [
                 OutlinedButton.icon(
+                  key: const ValueKey('opportunity-save-button'),
                   onPressed: _saving ? null : () => _save(),
                   icon: const Icon(Icons.save_outlined),
                   label: const AppText('حفظ الفرصة'),
@@ -504,6 +618,24 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
                           )
                         : const Icon(Icons.edit_note_outlined),
                     label: const AppText('حفظ وإنشاء مسودة أمر بيع'),
+                  ),
+                if (access.hasPermission('maintenance.create') &&
+                    access.hasPermission('maintenance.view') &&
+                    access.hasPermission('customer_service.update'))
+                  FilledButton.tonalIcon(
+                    key: const ValueKey(
+                      'opportunity-save-create-maintenance-draft',
+                    ),
+                    onPressed: _saving
+                        ? null
+                        : () => _save(createMaintenanceDraft: true),
+                    icon: const Icon(Icons.car_repair_outlined),
+                    label: AppText(
+                      t(
+                        'حفظ وإنشاء مسودة صيانة',
+                        'Save & Create Maintenance Draft',
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -530,6 +662,15 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       _name.text = created.name;
       _phone.text = created.phone;
     });
+  }
+
+  Future<void> _loadVehicleOptions() async {
+    try {
+      final values = await MaintenanceRepository().getEligibleVehicles();
+      if (mounted) setState(() => _vehicleOptions = values);
+    } catch (_) {
+      // The opportunity remains editable when maintenance data is unavailable.
+    }
   }
 
   Future<void> _pickDate() async {
@@ -587,7 +728,10 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
     return created;
   }
 
-  Future<void> _save({bool createSalesDraft = false}) async {
+  Future<void> _save({
+    bool createSalesDraft = false,
+    bool createMaintenanceDraft = false,
+  }) async {
     if (_saving || !(_key.currentState?.validate() ?? false)) return;
     if (!await PermissionAction.require(context, _writePermission)) return;
     if (!mounted) return;
@@ -597,6 +741,17 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       if (!mounted || !await PermissionAction.require(context, 'sales.create'))
         return;
     }
+    if (createMaintenanceDraft) {
+      if (!mounted) return;
+      if (!await PermissionAction.require(context, 'customer_service.update'))
+        return;
+      if (!mounted ||
+          !await PermissionAction.require(context, 'maintenance.create'))
+        return;
+      if (!mounted ||
+          !await PermissionAction.require(context, 'maintenance.view'))
+        return;
+    }
     if (!mounted) return;
     setState(() => _saving = true);
     try {
@@ -604,8 +759,10 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
       if (!mounted) return;
       final access = context.read<AccessController>();
       final current = access.currentUser!;
-      final assigned = _assigned;
       final old = widget.opportunity;
+      final marksLost =
+          _stage == 'lost' && old?.status != OpportunityStatus.lost;
+      final savedStage = marksLost ? (old?.stage ?? 'new') : _stage;
       final item = OpportunityModel(
         id: old?.id ?? const Uuid().v4(),
         opportunityNumber:
@@ -618,19 +775,19 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         source: _source ?? '',
         expectedValue: ThousandsInputFormatter.parse(_value.text) ?? 0,
         currency: _currency,
-        stage: _stage,
+        stage: savedStage,
         probability:
             double.tryParse(_probability.text.replaceAll(',', '')) ?? 0,
         description: _description.text.trim(),
         expectedCloseDate: _expectedClose,
         winLossReason: _winLossReason.text.trim(),
         status: old?.status ?? OpportunityStatus.pending,
-        carId: old?.carId,
-        carName: old?.carName,
+        carId: _carId,
+        carName: _carName,
         saleId: old?.saleId,
         invoiceNumber: old?.invoiceNumber,
-        assignedUserId: assigned?.id ?? '',
-        assignedUserName: assigned?.fullName ?? '',
+        assignedUserId: _assignedUserId,
+        assignedUserName: _assignedUserName,
         createdByUserId: old?.createdByUserId ?? current.id,
         createdByUserName: old?.createdByUserName ?? current.fullName,
         createdAt: old?.createdAt ?? DateTime.now(),
@@ -639,13 +796,40 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
         notes: _notes.text.trim(),
         updatedAt: old?.updatedAt,
       );
-      if (old == null) {
-        await context.read<OpportunitiesController>().add(item);
+      final opportunities = context.read<OpportunitiesController>();
+      if (marksLost) {
+        await opportunities.saveAsLost(item, isNew: old == null);
+      } else if (old == null) {
+        await opportunities.add(item);
       } else {
-        await context.read<OpportunitiesController>().update(item);
+        await opportunities.update(item);
       }
       if (!mounted) return;
-      if (createSalesDraft) {
+      if (createMaintenanceDraft) {
+        final authoritative = opportunities.opportunities
+            .where((value) => value.id == item.id)
+            .firstOrNull;
+        final carId = authoritative?.carId?.trim();
+        final existing = await context
+            .read<MaintenanceController>()
+            .findByOpportunity(item.id);
+        if (!mounted) return;
+        await showAppModuleDialog<bool>(
+          context: context,
+          title: t('مسودة صيانة مرتبطة', 'Linked Maintenance Draft'),
+          maxWidth: 1080,
+          maxHeight: 780,
+          builder: (_) => AddMaintenanceOrderPage(
+            // A cancelled Maintenance order is preserved as history. The
+            // explicit "Create Maintenance Draft" action starts a new active
+            // lifecycle instead of trying to edit the cancelled document.
+            order: existing?.isCancelled == true ? null : existing,
+            initialCarId: carId == null || carId.isEmpty ? null : carId,
+            opportunityId: item.id,
+          ),
+        );
+        if (mounted) AppWorkspaceWindowScope.closeCurrent(context, true);
+      } else if (createSalesDraft) {
         final linked = await SalesWorkflowRepository().findOrderByOpportunity(
           item.id,
         );
@@ -658,6 +842,7 @@ class _AddOpportunityPageState extends State<AddOpportunityPage> {
           maxHeight: 760,
           builder: (_) => SalesOrderDraftPage(
             initialCustomerId: customer.id,
+            initialCurrency: item.currency,
             opportunityId: item.id,
             orderId: orderId == null || orderId.isEmpty ? null : orderId,
           ),

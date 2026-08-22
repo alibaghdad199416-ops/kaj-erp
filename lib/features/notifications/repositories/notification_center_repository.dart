@@ -71,6 +71,17 @@ class NotificationCenterRepository {
     int limit = 100,
     int offset = 0,
   }) async {
+    // Idempotently materialize due vehicle-maintenance reminders before the
+    // authoritative inbox is read. The RPC remains safe to call repeatedly.
+    try {
+      await _client.rpc(
+        'erp_r88_materialize_maintenance_schedule_reminders',
+        params: {'p_company_id': _companyId},
+      );
+    } catch (_) {
+      // Older/local schemas can still show the persistent inbox; Phase 11
+      // migration availability is verified independently during runtime tests.
+    }
     final rows = await _client.rpc(
       'erp_r49_list_cloud_notifications',
       params: {
@@ -116,6 +127,36 @@ class NotificationCenterRepository {
       'erp_r49_archive_cloud_notification',
       params: {'p_company_id': _companyId, 'p_notification_id': id},
     );
+  }
+
+  Future<bool> deleteNotification(String id) async {
+    final result = await _client.rpc(
+      'erp_r66_delete_cloud_notification',
+      params: {'p_company_id': _companyId, 'p_notification_id': id},
+    );
+    final payload = result is Map
+        ? Map<String, Object?>.from(result)
+        : const {};
+    final wasUnread = payload['wasUnread'] == true;
+    if (wasUnread) {
+      NotificationUnreadState.update(NotificationUnreadState.count.value - 1);
+    }
+    return wasUnread;
+  }
+
+  Future<Map<String, Object?>> clearAllNotifications() async {
+    final result = await _client.rpc(
+      'erp_r68_clear_cloud_notifications',
+      params: {'p_company_id': _companyId},
+    );
+    final payload = result is Map
+        ? Map<String, Object?>.from(result)
+        : <String, Object?>{};
+    if (payload['ok'] != true) {
+      throw StateError('Notification bulk clear did not complete.');
+    }
+    NotificationUnreadState.update(0);
+    return payload;
   }
 
   static NotificationSeverity _severity(String? value) => switch (value) {

@@ -9,6 +9,8 @@ class JournalEntryModel {
     this.referenceId,
     required this.totalDebit,
     required this.totalCredit,
+    this.balanceDifference,
+    this.balanceVerified,
     required this.status,
     required this.createdAt,
     this.updatedAt,
@@ -23,11 +25,21 @@ class JournalEntryModel {
   final String? referenceId;
   final double totalDebit;
   final double totalCredit;
+  final double? balanceDifference;
+  final bool? balanceVerified;
   final String status;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
-  bool get isBalanced => (totalDebit - totalCredit).abs() <= 0.01;
+  double get journalBalance => balanceDifference ?? (totalDebit - totalCredit);
+  bool get hasVerifiedBalance => balanceVerified != null;
+  bool get isBalanced =>
+      balanceVerified ??
+      (totalDebit > 0 && (totalDebit - totalCredit).abs() <= 0.01);
+  String get sourceReferenceLabel => [
+    referenceType?.trim(),
+    referenceId?.trim(),
+  ].whereType<String>().where((value) => value.isNotEmpty).join(' • ');
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -58,6 +70,12 @@ class JournalEntryModel {
       referenceId: referenceId.isEmpty ? null : referenceId,
       totalDebit: _double(map['totalDebit']),
       totalCredit: _double(map['totalCredit']),
+      balanceDifference: map.containsKey('balanceDifference')
+          ? _double(map['balanceDifference'])
+          : null,
+      balanceVerified: map.containsKey('isBalanced')
+          ? _bool(map['isBalanced'])
+          : null,
       status: _text(map['status']),
       createdAt: _requiredDate(map, 'createdAt', fallbackKey: 'entryDate'),
       updatedAt: _date(map['updatedAt']),
@@ -84,6 +102,17 @@ class JournalEntryModel {
       if (fallback != null) return fallback;
     }
     throw FormatException('Missing or invalid required timestamp: $key');
+  }
+
+  static bool _bool(Object? value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return const {
+      '1',
+      'true',
+      'yes',
+      'on',
+    }.contains(value?.toString().trim().toLowerCase() ?? '');
   }
 
   static DateTime? _date(Object? value) => value is DateTime

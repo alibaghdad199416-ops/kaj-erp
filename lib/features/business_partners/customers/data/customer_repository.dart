@@ -3,18 +3,33 @@ import 'package:quality_line_erp/features/business_partners/customers/models/cus
 
 /// Supabase-only customer repository.
 ///
-/// PostgreSQL is authoritative. A failed cloud request is surfaced to the UI;
-/// customer data is read from and written to Supabase only.
+/// PostgreSQL is authoritative. Media is verified after every write so a field
+/// permission mapper, stale migration, or payload regression can never silently
+/// accept the customer while dropping the selected photo.
 class CustomerRepository {
   static const String _table = 'erp_customers';
 
+  Future<void> _saveAndVerify(CustomerModel customer) async {
+    final cloud = CloudMasterDataService.instance;
+    await cloud.upsert(_table, customer.id, customer.toCloudMap());
+    final persisted = await cloud.getById(_table, customer.id);
+    if (persisted == null) {
+      throw StateError('تم إرسال بيانات العميل ولكن تعذر قراءتها بعد الحفظ.');
+    }
+    final expected = customer.photoBase64?.trim() ?? '';
+    final actual = (persisted['photo_base64'] ?? persisted['photoBase64'] ?? '')
+        .toString()
+        .trim();
+    if (actual != expected) {
+      throw StateError(
+        'لم يتم تثبيت صورة العميل في Supabase. تم إيقاف الحفظ لمنع نجاح شكلي بدون الصورة.',
+      );
+    }
+  }
+
   Future<void> insertCustomer(CustomerModel customer) async {
     customer.validate();
-    await CloudMasterDataService.instance.upsert(
-      _table,
-      customer.id,
-      customer.toCloudMap(),
-    );
+    await _saveAndVerify(customer);
   }
 
   Future<void> updateCustomer(CustomerModel customer) async {
@@ -26,11 +41,7 @@ class CustomerRepository {
     if (existing == null) {
       throw StateError('تعذر العثور على العميل المطلوب تحديثه.');
     }
-    await CloudMasterDataService.instance.upsert(
-      _table,
-      customer.id,
-      customer.toCloudMap(),
-    );
+    await _saveAndVerify(customer);
   }
 
   Future<void> deleteCustomer(String id) async {

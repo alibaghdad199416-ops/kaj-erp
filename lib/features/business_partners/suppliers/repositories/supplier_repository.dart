@@ -1,11 +1,27 @@
 import 'package:quality_line_erp/core/cloud/cloud_master_data_service.dart';
 import 'package:quality_line_erp/features/business_partners/suppliers/models/supplier_model.dart';
 
-/// Supabase-only supplier repository.
-///
-/// Supabase is the sole source of truth for supplier master data on every device.
+/// Supabase-only supplier repository with fail-closed media verification.
 class SupplierRepository {
   static const String _table = 'erp_suppliers';
+
+  Future<void> _saveAndVerify(SupplierModel supplier) async {
+    final cloud = CloudMasterDataService.instance;
+    await cloud.upsert(_table, supplier.id, supplier.toCloudMap());
+    final persisted = await cloud.getById(_table, supplier.id);
+    if (persisted == null) {
+      throw StateError('تم إرسال بيانات المورد ولكن تعذر قراءتها بعد الحفظ.');
+    }
+    final expected = supplier.photoBase64?.trim() ?? '';
+    final actual = (persisted['photo_base64'] ?? persisted['photoBase64'] ?? '')
+        .toString()
+        .trim();
+    if (actual != expected) {
+      throw StateError(
+        'لم يتم تثبيت صورة المورد في Supabase. تم إيقاف الحفظ لمنع نجاح شكلي بدون الصورة.',
+      );
+    }
+  }
 
   Future<List<SupplierModel>> getSuppliers() async {
     final rows = await CloudMasterDataService.instance.list(_table);
@@ -47,11 +63,7 @@ class SupplierRepository {
 
   Future<void> addSupplier(SupplierModel supplier) async {
     supplier.validate();
-    await CloudMasterDataService.instance.upsert(
-      _table,
-      supplier.id,
-      supplier.toCloudMap(),
-    );
+    await _saveAndVerify(supplier);
   }
 
   Future<void> updateSupplier(SupplierModel supplier) async {
@@ -61,11 +73,7 @@ class SupplierRepository {
       throw StateError('تعذر العثور على المورد المطلوب تحديثه.');
     }
     final updated = supplier.copyWith(updatedAt: DateTime.now().toUtc());
-    await CloudMasterDataService.instance.upsert(
-      _table,
-      updated.id,
-      updated.toCloudMap(),
-    );
+    await _saveAndVerify(updated);
   }
 
   Future<void> deleteSupplier(String id) async {

@@ -15,11 +15,17 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
 
 const publicErrorCodes = new Set([
   'unauthenticated',
+  'company_context_required',
+  'membership_not_found',
   'permission_denied',
   'target_membership_not_found',
   'email_already_exists',
   'user_delete_blocked',
   'invalid_input',
+  'invalid_media_payload',
+  'media_payload_too_large',
+  'media_readback_mismatch',
+  'profile_readback_mismatch',
   'target_identity_mismatch',
   'cannot_modify_current_user',
   'erp_user_id_mismatch',
@@ -35,18 +41,47 @@ function publicErrorCode(error: unknown) {
 
 function statusFor(code: string) {
   if (code === 'unauthenticated') return 401
-  if (code === 'permission_denied') return 403
+  if (['membership_not_found', 'permission_denied'].includes(code)) return 403
   if (code === 'target_membership_not_found') return 404
+  if (code === 'media_payload_too_large') return 413
   if (['email_already_exists', 'user_delete_blocked'].includes(code)) return 409
-  if (['server_configuration_missing', 'company_slug_missing', 'request_failed'].includes(code)) {
-    return 500
-  }
+  if (
+    [
+      'server_configuration_missing',
+      'company_slug_missing',
+      'media_readback_mismatch',
+      'profile_readback_mismatch',
+      'request_failed',
+    ].includes(code)
+  ) return 500
   return 422
+}
+
+function validImagePayload(value: string | null) {
+  if (value == null || value.trim() === '') return true
+  if (value.length > 500000) return false
+  if (!value.trimStart().startsWith('data:')) return true
+  return /^data:image\/(png|jpe?g|webp);base64,[a-z0-9+/=\s]+$/i.test(value.trim())
+}
+
+async function hasPermission(
+  caller: ReturnType<typeof createClient>,
+  companyId: string,
+  code: string,
+) {
+  const { data, error } = await caller.rpc('erp_cloud_current_user_has_permission', {
+    p_company_id: companyId,
+    p_permission_code: code,
+  })
+  if (error) throw error
+  return data === true
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return jsonResponse({ ok: false, error: 'method_not_allowed' }, 405)
+  if (req.method !== 'POST') {
+    return jsonResponse({ ok: false, error: 'method_not_allowed' }, 405)
+  }
 
   try {
     const url = Deno.env.get('SUPABASE_URL')
@@ -61,20 +96,26 @@ Deno.serve(async (req) => {
     const { data: authData, error: authError } = await callerClient.auth.getUser()
     if (authError || !authData.user) throw new Error('unauthenticated')
 
+    const body = await req.json()
+    const requestedCompanyId = String(body.company_id ?? '').trim()
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        requestedCompanyId,
+      )
+    ) {
+      throw new Error('company_context_required')
+    }
+
     const admin = createClient(url, serviceKey)
     const { data: callerMembership, error: callerError } = await admin
       .from('company_memberships')
       .select('company_id,role_code,is_system_admin,companies!inner(slug)')
       .eq('user_id', authData.user.id)
+      .eq('company_id', requestedCompanyId)
       .eq('is_active', true)
-      .limit(1)
       .maybeSingle()
-    if (callerError || !callerMembership) throw new Error('permission_denied')
-    if (!callerMembership.is_system_admin && !['owner', 'admin'].includes(callerMembership.role_code)) {
-      throw new Error('permission_denied')
-    }
+    if (callerError || !callerMembership) throw new Error('membership_not_found')
 
-    const body = await req.json()
     const action = String(body.action ?? '').trim()
     const targetUserId = String(body.target_user_id ?? '').trim()
     const localUserId = String(body.local_user_id ?? '').trim()
@@ -82,21 +123,37 @@ Deno.serve(async (req) => {
       throw new Error('invalid_input')
     }
 
+    const isAdministrator = callerMembership.is_system_admin ||
+      ['owner', 'admin'].includes(callerMembership.role_code)
+    if (!isAdministrator) {
+      const requiredPermission = action === 'delete' ? 'users.delete' : 'users.update'
+      if (!await hasPermission(callerClient, requestedCompanyId, requiredPermission)) {
+        throw new Error('permission_denied')
+      }
+    }
+
     const { data: targetMembership, error: targetError } = await admin
       .from('company_memberships')
-      .select('company_id,user_id,local_user_id,role_code,is_system_admin')
-      .eq('company_id', callerMembership.company_id)
+      .select('company_id,user_id,local_user_id,user_email,role_code,is_system_admin,is_active,updated_at')
+      .eq('company_id', requestedCompanyId)
       .eq('user_id', targetUserId)
       .maybeSingle()
     if (targetError || !targetMembership) throw new Error('target_membership_not_found')
     if (String(targetMembership.local_user_id ?? '') !== localUserId) {
       throw new Error('target_identity_mismatch')
     }
+
     const modifiesSelf = targetUserId === authData.user.id
-    if (!modifiesSelf && targetMembership.role_code === 'owner') {
+    if (
+      !modifiesSelf &&
+      (targetMembership.role_code === 'owner' || targetMembership.is_system_admin)
+    ) {
       throw new Error('permission_denied')
     }
-    if (!modifiesSelf && targetMembership.role_code === 'admin' && callerMembership.role_code !== 'owner') {
+    if (
+      !modifiesSelf && targetMembership.role_code === 'admin' &&
+      callerMembership.role_code !== 'owner'
+    ) {
       throw new Error('permission_denied')
     }
 
@@ -110,10 +167,6 @@ Deno.serve(async (req) => {
     if (action === 'delete') {
       if (modifiesSelf) throw new Error('cannot_modify_current_user')
 
-      // Preserve the ERP row state so a failed Auth deletion can be rolled back.
-      // Membership/profile rows are not disabled before deleting Auth: their
-      // foreign keys cascade after a successful deletion, while historical
-      // actor references are retained with ON DELETE SET NULL.
       const { data: previousRecord, error: readRecordError } = await admin
         .from('erp_records')
         .select('payload,is_deleted,deleted_at')
@@ -151,12 +204,10 @@ Deno.serve(async (req) => {
         throw new Error('user_delete_blocked')
       }
 
-      // These normally disappear through ON DELETE CASCADE. Explicit cleanup
-      // keeps the operation idempotent for databases upgraded from old schemas.
       const { error: membershipCleanupError } = await admin
         .from('company_memberships')
         .delete()
-        .eq('company_id', callerMembership.company_id)
+        .eq('company_id', requestedCompanyId)
         .eq('user_id', targetUserId)
       if (membershipCleanupError) console.error('Membership cleanup failed', membershipCleanupError)
 
@@ -176,9 +227,35 @@ Deno.serve(async (req) => {
     const erpUser = body.erp_user && typeof body.erp_user === 'object'
       ? { ...body.erp_user }
       : null
-    if (!email.includes('@') || !fullName || !['owner', 'admin', 'user'].includes(roleCode) || !erpUser) {
+    if (
+      !email.includes('@') || !fullName ||
+      !['owner', 'admin', 'user'].includes(roleCode) || !erpUser
+    ) {
       throw new Error('invalid_input')
     }
+
+    const hasAvatarField = Object.prototype.hasOwnProperty.call(body, 'avatar_base64')
+    const avatar = hasAvatarField && body.avatar_base64 != null
+      ? String(body.avatar_base64)
+      : null
+    if (hasAvatarField && avatar != null && avatar.length > 500000) {
+      throw new Error('media_payload_too_large')
+    }
+    if (hasAvatarField && !validImagePayload(avatar)) {
+      throw new Error('invalid_media_payload')
+    }
+
+    const previousEmail = String(targetMembership.user_email ?? '').trim().toLowerCase()
+    if (email !== previousEmail && !isAdministrator) {
+      if (!await hasPermission(callerClient, requestedCompanyId, 'users.credentials.update')) {
+        throw new Error('permission_denied')
+      }
+    }
+
+    if (!isAdministrator && roleCode !== targetMembership.role_code) {
+      throw new Error('permission_denied')
+    }
+
     if (modifiesSelf) {
       if (!isActive || roleCode !== targetMembership.role_code) {
         throw new Error('cannot_modify_current_user')
@@ -195,39 +272,36 @@ Deno.serve(async (req) => {
       throw new Error('role_mapping_mismatch')
     }
 
-    const { error: authUpdateError } = await admin.auth.admin.updateUserById(targetUserId, {
-      email,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-    })
-    if (authUpdateError) {
-      if (String(authUpdateError.message ?? '').toLowerCase().includes('already')) {
-        throw new Error('email_already_exists')
-      }
-      throw authUpdateError
+    const { data: previousProfile, error: previousProfileError } = await admin
+      .from('profiles')
+      .select('id,full_name,is_active,updated_at')
+      .eq('id', targetUserId)
+      .maybeSingle()
+    if (previousProfileError) throw previousProfileError
+
+    const { data: previousRecord, error: previousRecordError } = await admin
+      .from('erp_records')
+      .select('company_id,entity_type,record_id,payload,is_deleted,updated_at,deleted_at')
+      .eq('company_id', companySlug)
+      .eq('entity_type', 'users')
+      .eq('record_id', localUserId)
+      .maybeSingle()
+    if (previousRecordError) throw previousRecordError
+
+    const previousAvatar = String(previousRecord?.payload?.avatarBase64 ?? '').trim()
+    const expectedAvatar = String(avatar ?? '').trim()
+    const avatarChanged = hasAvatarField && previousAvatar !== expectedAvatar
+    if (
+      avatarChanged && !isAdministrator &&
+      !await hasPermission(callerClient, requestedCompanyId, 'users.image.update')
+    ) {
+      throw new Error('permission_denied')
     }
 
-    const { error: profileError } = await admin.from('profiles').upsert({
-      id: targetUserId,
-      full_name: fullName,
-      is_active: isActive,
-      updated_at: now,
-    }, { onConflict: 'id' })
-    if (profileError) throw profileError
-
-    const { error: membershipError } = await admin.from('company_memberships').update({
-      user_email: email,
-      role_code: roleCode,
-      is_system_admin: roleCode === 'admin' || roleCode === 'owner',
-      is_active: isActive,
-      updated_at: now,
-    })
-      .eq('company_id', callerMembership.company_id)
-      .eq('user_id', targetUserId)
-    if (membershipError) throw membershipError
-
-    const payload = {
-      ...erpUser,
+    const normalizedErpUser = { ...erpUser }
+    delete normalizedErpUser.avatarBase64
+    const payload: Record<string, unknown> = {
+      ...normalizedErpUser,
       id: localUserId,
       email,
       fullName,
@@ -238,18 +312,126 @@ Deno.serve(async (req) => {
       isActive: isActive ? 1 : 0,
       updatedAt: now,
     }
-    const { error: recordError } = await admin.from('erp_records').upsert({
-      company_id: companySlug,
-      entity_type: 'users',
-      record_id: localUserId,
-      payload,
-      is_deleted: false,
-      updated_at: now,
-      deleted_at: null,
-    }, { onConflict: 'company_id,entity_type,record_id' })
-    if (recordError) throw recordError
+    if (hasAvatarField) {
+      if (expectedAvatar !== '') payload.avatarBase64 = avatar
+    } else if (previousAvatar !== '') {
+      payload.avatarBase64 = previousRecord?.payload?.avatarBase64
+    }
 
-    return jsonResponse({ ok: true, action: 'update' }, 200)
+    const previousMembership = { ...targetMembership }
+    let databaseMutationStarted = false
+    try {
+      databaseMutationStarted = true
+      const { error: profileError } = await admin.from('profiles').upsert({
+        id: targetUserId,
+        full_name: fullName,
+        is_active: isActive,
+        updated_at: now,
+      }, { onConflict: 'id' })
+      if (profileError) throw profileError
+
+      const { error: membershipError } = await admin.from('company_memberships').update({
+        user_email: email,
+        role_code: roleCode,
+        is_system_admin: roleCode === 'admin' || roleCode === 'owner',
+        is_active: isActive,
+        updated_at: now,
+      })
+        .eq('company_id', requestedCompanyId)
+        .eq('user_id', targetUserId)
+      if (membershipError) throw membershipError
+
+      const { error: recordError } = await admin.from('erp_records').upsert({
+        company_id: companySlug,
+        entity_type: 'users',
+        record_id: localUserId,
+        payload,
+        is_deleted: false,
+        updated_at: now,
+        deleted_at: null,
+      }, { onConflict: 'company_id,entity_type,record_id' })
+      if (recordError) throw recordError
+
+      const { data: persisted, error: persistedError } = await admin
+        .from('erp_records')
+        .select('payload')
+        .eq('company_id', companySlug)
+        .eq('entity_type', 'users')
+        .eq('record_id', localUserId)
+        .maybeSingle()
+      if (persistedError || !persisted) {
+        throw persistedError ?? new Error('profile_readback_mismatch')
+      }
+      if (
+        String(persisted.payload?.email ?? '').trim().toLowerCase() !== email ||
+        String(persisted.payload?.fullName ?? '').trim() !== fullName
+      ) {
+        throw new Error('profile_readback_mismatch')
+      }
+      if (
+        hasAvatarField &&
+        String(persisted.payload?.avatarBase64 ?? '').trim() !== expectedAvatar
+      ) {
+        throw new Error('media_readback_mismatch')
+      }
+
+      // Auth is updated only after the complete ERP/profile/media state has
+      // passed read-back. Therefore an Auth failure can still compensate all
+      // database mutations without leaving a half-applied image/profile edit.
+      const { error: authUpdateError } = await admin.auth.admin.updateUserById(targetUserId, {
+        email,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      })
+      if (authUpdateError) {
+        if (String(authUpdateError.message ?? '').toLowerCase().includes('already')) {
+          throw new Error('email_already_exists')
+        }
+        throw authUpdateError
+      }
+    } catch (updateError) {
+      if (databaseMutationStarted) {
+        const { error: membershipRollbackError } = await admin
+          .from('company_memberships')
+          .update({
+            user_email: previousMembership.user_email,
+            role_code: previousMembership.role_code,
+            is_system_admin: previousMembership.is_system_admin,
+            is_active: previousMembership.is_active,
+            updated_at: previousMembership.updated_at,
+          })
+          .eq('company_id', requestedCompanyId)
+          .eq('user_id', targetUserId)
+        if (membershipRollbackError) {
+          console.error('Membership update rollback failed', membershipRollbackError)
+        }
+
+        const profileRollback = previousProfile
+          ? admin.from('profiles').upsert(previousProfile, { onConflict: 'id' })
+          : admin.from('profiles').delete().eq('id', targetUserId)
+        const { error: profileRollbackError } = await profileRollback
+        if (profileRollbackError) console.error('Profile update rollback failed', profileRollbackError)
+
+        const recordRollback = previousRecord
+          ? admin.from('erp_records').upsert(previousRecord, {
+            onConflict: 'company_id,entity_type,record_id',
+          })
+          : admin.from('erp_records')
+            .delete()
+            .eq('company_id', companySlug)
+            .eq('entity_type', 'users')
+            .eq('record_id', localUserId)
+        const { error: recordRollbackError } = await recordRollback
+        if (recordRollbackError) console.error('ERP user update rollback failed', recordRollbackError)
+      }
+      throw updateError
+    }
+
+    return jsonResponse({
+      ok: true,
+      action: 'update',
+      avatar_changed: avatarChanged,
+    }, 200)
   } catch (error) {
     const code = publicErrorCode(error)
     console.error('admin-manage-user failed', error)

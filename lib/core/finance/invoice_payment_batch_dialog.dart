@@ -101,7 +101,7 @@ Future<List<InvoicePaymentDraft>?> showInvoicePaymentBatchDialog({
   return showAppWorkspaceDialogBuilder<List<InvoicePaymentDraft>>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => _InvoicePaymentBatchDialog(
+    builder: (_) => InvoicePaymentBatchDialog(
       invoiceCurrency: invoiceCurrency,
       remainingAmount: remainingAmount,
       cashAccounts: cashAccounts,
@@ -113,8 +113,9 @@ Future<List<InvoicePaymentDraft>?> showInvoicePaymentBatchDialog({
   );
 }
 
-class _InvoicePaymentBatchDialog extends StatefulWidget {
-  const _InvoicePaymentBatchDialog({
+class InvoicePaymentBatchDialog extends StatefulWidget {
+  const InvoicePaymentBatchDialog({
+    super.key,
     required this.invoiceCurrency,
     required this.remainingAmount,
     required this.cashAccounts,
@@ -133,12 +134,11 @@ class _InvoicePaymentBatchDialog extends StatefulWidget {
   final String? documentLabelEnglish;
 
   @override
-  State<_InvoicePaymentBatchDialog> createState() =>
+  State<InvoicePaymentBatchDialog> createState() =>
       _InvoicePaymentBatchDialogState();
 }
 
-class _InvoicePaymentBatchDialogState
-    extends State<_InvoicePaymentBatchDialog> {
+class _InvoicePaymentBatchDialogState extends State<InvoicePaymentBatchDialog> {
   final _formKey = GlobalKey<FormState>();
   final List<_PaymentRowController> _rows = [];
 
@@ -356,6 +356,7 @@ class _InvoicePaymentBatchDialogState
 
   @override
   Widget build(BuildContext context) {
+    final wideActions = MediaQuery.sizeOf(context).width >= 1100;
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -370,73 +371,126 @@ class _InvoicePaymentBatchDialogState
                         ? 'Purchase invoice payments'
                         : 'Sales invoice payments')),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Center(
-              child: AppText(
-                '${AppTranslation.translate('المتبقي')}: ${MoneyFormatter.format(widget.remainingAmount, currency: widget.invoiceCurrency)} ${widget.invoiceCurrency}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+        actions: wideActions ? _appBarActions() : null,
+      ),
+      body: Column(
+        children: <Widget>[
+          if (!wideActions) _compactActionBar(),
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: _usableCashAccounts.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: AppText(
+                          AppTranslation.translate(
+                            'لا توجد صناديق نقدية معرفة.',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _rows.length,
+                      itemBuilder: (context, index) {
+                        final row = _rows[index];
+                        return _PaymentRowCard(
+                          index: index,
+                          row: row,
+                          invoiceCurrency: widget.invoiceCurrency,
+                          cashAccounts: _usableCashAccounts,
+                          settlementAccounts: widget.settlementAccounts,
+                          canRemove: _rows.length > 1,
+                          onRemove: () => _removeRow(index),
+                          onPickPaymentDate: () => _pickPaymentDate(row),
+                          onChanged: () {
+                            _recalculate(row);
+                            setState(() {});
+                          },
+                        );
+                      },
+                    ),
             ),
           ),
-          OutlinedButton.icon(
-            onPressed: _usableCashAccounts.isEmpty || _remainingAfterRows <= .01
-                ? null
-                : _addRow,
-            icon: const Icon(Icons.add),
-            label: AppText(AppTranslation.translate('إضافة دفعة أخرى')),
-          ),
-          const SizedBox(width: 6),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: AppText(AppTranslation.translate('إلغاء')),
-          ),
-          const SizedBox(width: 6),
-          FilledButton.icon(
-            onPressed: _rows.isEmpty ? null : _submit,
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            label: AppText(AppTranslation.translate('تسجيل جميع الدفعات')),
-          ),
-          const SizedBox(width: 8),
         ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: _usableCashAccounts.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: AppText(
-                    AppTranslation.translate('لا توجد صناديق نقدية معرفة.'),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _rows.length,
-                itemBuilder: (context, index) {
-                  final row = _rows[index];
-                  return _PaymentRowCard(
-                    index: index,
-                    row: row,
-                    invoiceCurrency: widget.invoiceCurrency,
-                    cashAccounts: _usableCashAccounts,
-                    settlementAccounts: widget.settlementAccounts,
-                    canRemove: _rows.length > 1,
-                    onRemove: () => _removeRow(index),
-                    onPickPaymentDate: () => _pickPaymentDate(row),
-                    onChanged: () {
-                      _recalculate(row);
-                      setState(() {});
-                    },
-                  );
-                },
-              ),
       ),
     );
   }
+
+  List<Widget> _appBarActions() => <Widget>[
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Center(
+        child: AppText(
+          '${AppTranslation.translate('المتبقي')}: ${MoneyFormatter.format(widget.remainingAmount, currency: widget.invoiceCurrency)} ${widget.invoiceCurrency}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+    ),
+    OutlinedButton.icon(
+      onPressed: _usableCashAccounts.isEmpty || _remainingAfterRows <= .01
+          ? null
+          : _addRow,
+      icon: const Icon(Icons.add),
+      label: AppText(AppTranslation.translate('إضافة دفعة أخرى')),
+    ),
+    const SizedBox(width: 6),
+    TextButton(
+      onPressed: () => Navigator.pop(context),
+      child: AppText(AppTranslation.translate('إلغاء')),
+    ),
+    const SizedBox(width: 6),
+    FilledButton.icon(
+      onPressed: _rows.isEmpty ? null : _submit,
+      icon: const Icon(Icons.account_balance_wallet_outlined),
+      label: AppText(AppTranslation.translate('تسجيل جميع الدفعات')),
+    ),
+    const SizedBox(width: 8),
+  ];
+
+  Widget _compactActionBar() => Material(
+    color: Theme.of(context).colorScheme.surfaceContainerLow,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          AppText(
+            '${AppTranslation.translate('المتبقي')}: ${MoneyFormatter.format(widget.remainingAmount, currency: widget.invoiceCurrency)} ${widget.invoiceCurrency}',
+            maxLines: 2,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: <Widget>[
+              OutlinedButton.icon(
+                onPressed:
+                    _usableCashAccounts.isEmpty || _remainingAfterRows <= .01
+                    ? null
+                    : _addRow,
+                icon: const Icon(Icons.add),
+                label: AppText(AppTranslation.translate('إضافة دفعة أخرى')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: AppText(AppTranslation.translate('إلغاء')),
+              ),
+              FilledButton.icon(
+                onPressed: _rows.isEmpty ? null : _submit,
+                icon: const Icon(Icons.account_balance_wallet_outlined),
+                label: AppText(AppTranslation.translate('تسجيل جميع الدفعات')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _PaymentRowController {
@@ -528,245 +582,261 @@ class _PaymentRowCard extends StatelessWidget {
                   ),
               ],
             ),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                SizedBox(
-                  width: 260,
-                  child: InkWell(
-                    onTap: onPickPaymentDate,
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: AppTranslation.translate(
-                          'تاريخ ووقت الدفعة',
+            LayoutBuilder(
+              builder: (context, constraints) {
+                double width(double preferred) =>
+                    preferred.clamp(0, constraints.maxWidth).toDouble();
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: width(260),
+                      child: InkWell(
+                        onTap: onPickPaymentDate,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: AppTranslation.translate(
+                              'تاريخ ووقت الدفعة',
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.event_available_outlined,
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                          child: AppText(
+                            DateFormat(
+                              'yyyy-MM-dd HH:mm',
+                            ).format(row.paymentDate),
+                          ),
                         ),
-                        prefixIcon: const Icon(Icons.event_available_outlined),
-                        border: const OutlineInputBorder(),
-                      ),
-                      child: AppText(
-                        DateFormat('yyyy-MM-dd HH:mm').format(row.paymentDate),
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(
-                  width: 260,
-                  child: DropdownButtonFormField<InvoicePaymentType>(
-                    isExpanded: true,
-                    initialValue: row.paymentType,
-                    decoration: InputDecoration(
-                      labelText: AppTranslation.translate('نوع الدفعة'),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: InvoicePaymentType.partial,
-                        child: AppText(AppTranslation.translate('دفعة جزئية')),
-                      ),
-                      DropdownMenuItem(
-                        value: InvoicePaymentType.full,
-                        child: AppText(AppTranslation.translate('دفعة كلية')),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      row.paymentType = value ?? InvoicePaymentType.partial;
-                      onChanged();
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 300,
-                  child: DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: row.cashAccountId,
-                    decoration: InputDecoration(
-                      labelText: AppTranslation.translate('الصندوق المالي'),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: cashAccounts
-                        .map(
-                          (account) => DropdownMenuItem(
-                            value: account['id'].toString(),
+                    SizedBox(
+                      width: width(260),
+                      child: DropdownButtonFormField<InvoicePaymentType>(
+                        isExpanded: true,
+                        initialValue: row.paymentType,
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('نوع الدفعة'),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: InvoicePaymentType.partial,
                             child: AppText(
-                              '${account['name']} (${account['currency']})',
+                              AppTranslation.translate('دفعة جزئية'),
                             ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      final account = cashAccounts.firstWhere(
-                        (item) => item['id'].toString() == value,
-                      );
-                      row.cashAccountId = value;
-                      row.paymentCurrency = _normalizedCashboxCurrency(
-                        account['currency'],
-                      );
-                      if (row.paymentCurrency == invoiceCurrency) {
-                        row.linkedCashAccountId = null;
-                        row.exchangeRateController.text = '1';
-                      } else {
-                        row.linkedCashAccountId = _configuredLinkedCashboxFor(
-                          source: account,
-                          cashAccounts: cashAccounts,
-                          invoiceCurrency: invoiceCurrency,
-                        );
-                      }
-                      onChanged();
-                    },
-                  ),
-                ),
-                if (row.paymentCurrency != invoiceCurrency)
-                  SizedBox(
-                    width: 300,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: row.linkedCashAccountId,
-                      decoration: InputDecoration(
-                        labelText: AppTranslation.translate(
-                          'الصندوق المرتبط بعملة الفاتورة $invoiceCurrency',
-                        ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: cashAccounts
-                          .where(
-                            (account) =>
-                                (account['currency']?.toString() ?? '')
-                                    .toUpperCase() ==
-                                invoiceCurrency.toUpperCase(),
-                          )
-                          .map(
-                            (account) => DropdownMenuItem(
-                              value: account['id'].toString(),
-                              child: AppText(
-                                '${account['name']} (${account['currency']})',
-                              ),
+                          DropdownMenuItem(
+                            value: InvoicePaymentType.full,
+                            child: AppText(
+                              AppTranslation.translate('دفعة كلية'),
                             ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        row.linkedCashAccountId = value;
-                        onChanged();
-                      },
-                      validator: (value) =>
-                          row.paymentCurrency != invoiceCurrency &&
-                              (value == null || value.isEmpty)
-                          ? AppTranslation.translate('اختر الصندوق المرتبط')
-                          : null,
-                    ),
-                  ),
-                SizedBox(
-                  width: 210,
-                  child: TextFormField(
-                    controller: row.invoiceAmountController,
-                    enabled: row.paymentType == InvoicePaymentType.partial,
-
-                    inputFormatters: <TextInputFormatter>[
-                      ThousandsInputFormatter(decimalDigits: 2),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: AppTranslation.translate(
-                        'المبلغ بعملة الفاتورة $invoiceCurrency',
+                          ),
+                        ],
+                        onChanged: (value) {
+                          row.paymentType = value ?? InvoicePaymentType.partial;
+                          onChanged();
+                        },
                       ),
-                      border: const OutlineInputBorder(),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    onChanged: (_) => onChanged(),
-                    validator: (_) => row.invoiceAmount <= 0
-                        ? AppTranslation.translate('أدخل مبلغًا صحيحًا')
-                        : null,
-                  ),
-                ),
-                SizedBox(
-                  width: 210,
-                  child: TextFormField(
-                    controller: row.cashAmountController,
-
-                    inputFormatters: <TextInputFormatter>[
-                      ThousandsInputFormatter(decimalDigits: 2),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: AppTranslation.translate(
-                        'مبلغ الصندوق ${row.paymentCurrency}',
-                      ),
-                      border: const OutlineInputBorder(),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    validator: (_) => row.cashAmount <= 0
-                        ? AppTranslation.translate('أدخل مبلغ الصندوق')
-                        : null,
-                  ),
-                ),
-                SizedBox(
-                  width: 180,
-                  child: TextFormField(
-                    controller: row.exchangeRateController,
-
-                    inputFormatters: <TextInputFormatter>[
-                      ThousandsInputFormatter(decimalDigits: 20),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: AppTranslation.translate('معامل التحويل'),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    onChanged: (_) => onChanged(),
-                    validator: (_) => row.exchangeRate <= 0
-                        ? AppTranslation.translate('أدخل معاملًا صحيحًا')
-                        : null,
-                  ),
-                ),
-                if (row.paymentType == InvoicePaymentType.settlement)
-                  SizedBox(
-                    width: 300,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: row.settlementAccountId,
-                      decoration: InputDecoration(
-                        labelText: AppTranslation.translate(
-                          'حساب التسوية في الشجرة المحاسبية',
+                    SizedBox(
+                      width: width(300),
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: row.cashAccountId,
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('الصندوق المالي'),
+                          border: OutlineInputBorder(),
                         ),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: settlementAccounts
-                          .map(
-                            (account) => DropdownMenuItem(
-                              value: account['id'].toString(),
-                              child: AppText(
-                                '${account['code'] ?? ''} - ${account['name'] ?? ''}',
+                        items: cashAccounts
+                            .map(
+                              (account) => DropdownMenuItem(
+                                value: account['id'].toString(),
+                                child: AppText(
+                                  '${account['name']} (${account['currency']})',
+                                ),
                               ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          final account = cashAccounts.firstWhere(
+                            (item) => item['id'].toString() == value,
+                          );
+                          row.cashAccountId = value;
+                          row.paymentCurrency = _normalizedCashboxCurrency(
+                            account['currency'],
+                          );
+                          if (row.paymentCurrency == invoiceCurrency) {
+                            row.linkedCashAccountId = null;
+                            row.exchangeRateController.text = '1';
+                          } else {
+                            row.linkedCashAccountId =
+                                _configuredLinkedCashboxFor(
+                                  source: account,
+                                  cashAccounts: cashAccounts,
+                                  invoiceCurrency: invoiceCurrency,
+                                );
+                          }
+                          onChanged();
+                        },
+                      ),
+                    ),
+                    if (row.paymentCurrency != invoiceCurrency)
+                      SizedBox(
+                        width: width(300),
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: row.linkedCashAccountId,
+                          decoration: InputDecoration(
+                            labelText: AppTranslation.translate(
+                              'الصندوق المرتبط بعملة الفاتورة $invoiceCurrency',
                             ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        row.settlementAccountId = value;
-                        onChanged();
-                      },
-                      validator: (value) =>
-                          row.paymentType == InvoicePaymentType.settlement &&
-                              (value == null || value.isEmpty)
-                          ? AppTranslation.translate('اختر حساب التسوية')
-                          : null,
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: cashAccounts
+                              .where(
+                                (account) =>
+                                    (account['currency']?.toString() ?? '')
+                                        .toUpperCase() ==
+                                    invoiceCurrency.toUpperCase(),
+                              )
+                              .map(
+                                (account) => DropdownMenuItem(
+                                  value: account['id'].toString(),
+                                  child: AppText(
+                                    '${account['name']} (${account['currency']})',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            row.linkedCashAccountId = value;
+                            onChanged();
+                          },
+                          validator: (value) =>
+                              row.paymentCurrency != invoiceCurrency &&
+                                  (value == null || value.isEmpty)
+                              ? AppTranslation.translate('اختر الصندوق المرتبط')
+                              : null,
+                        ),
+                      ),
+                    SizedBox(
+                      width: width(210),
+                      child: TextFormField(
+                        controller: row.invoiceAmountController,
+                        enabled: row.paymentType == InvoicePaymentType.partial,
+
+                        inputFormatters: <TextInputFormatter>[
+                          ThousandsInputFormatter(decimalDigits: 2),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate(
+                            'المبلغ بعملة الفاتورة $invoiceCurrency',
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (_) => onChanged(),
+                        validator: (_) => row.invoiceAmount <= 0
+                            ? AppTranslation.translate('أدخل مبلغًا صحيحًا')
+                            : null,
+                      ),
                     ),
-                  ),
-                SizedBox(
-                  width: 420,
-                  child: TextFormField(
-                    controller: row.notesController,
-                    decoration: InputDecoration(
-                      labelText: AppTranslation.translate('ملاحظات الدفعة'),
-                      border: OutlineInputBorder(),
+                    SizedBox(
+                      width: width(210),
+                      child: TextFormField(
+                        controller: row.cashAmountController,
+
+                        inputFormatters: <TextInputFormatter>[
+                          ThousandsInputFormatter(decimalDigits: 2),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate(
+                            'مبلغ الصندوق ${row.paymentCurrency}',
+                          ),
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (_) => row.cashAmount <= 0
+                            ? AppTranslation.translate('أدخل مبلغ الصندوق')
+                            : null,
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                    SizedBox(
+                      width: width(180),
+                      child: TextFormField(
+                        controller: row.exchangeRateController,
+
+                        inputFormatters: <TextInputFormatter>[
+                          ThousandsInputFormatter(decimalDigits: 20),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('معامل التحويل'),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (_) => onChanged(),
+                        validator: (_) => row.exchangeRate <= 0
+                            ? AppTranslation.translate('أدخل معاملًا صحيحًا')
+                            : null,
+                      ),
+                    ),
+                    if (row.paymentType == InvoicePaymentType.settlement)
+                      SizedBox(
+                        width: width(300),
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: row.settlementAccountId,
+                          decoration: InputDecoration(
+                            labelText: AppTranslation.translate(
+                              'حساب التسوية في الشجرة المحاسبية',
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: settlementAccounts
+                              .map(
+                                (account) => DropdownMenuItem(
+                                  value: account['id'].toString(),
+                                  child: AppText(
+                                    '${account['code'] ?? ''} - ${account['name'] ?? ''}',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            row.settlementAccountId = value;
+                            onChanged();
+                          },
+                          validator: (value) =>
+                              row.paymentType ==
+                                      InvoicePaymentType.settlement &&
+                                  (value == null || value.isEmpty)
+                              ? AppTranslation.translate('اختر حساب التسوية')
+                              : null,
+                        ),
+                      ),
+                    SizedBox(
+                      width: width(420),
+                      child: TextFormField(
+                        controller: row.notesController,
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('ملاحظات الدفعة'),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),

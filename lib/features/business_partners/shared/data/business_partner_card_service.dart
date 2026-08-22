@@ -14,7 +14,7 @@ class BusinessPartnerCardService {
     if (companyId == null || companyId.isEmpty) return const {};
     try {
       final result = await Supabase.instance.client.rpc(
-        'erp_r49_business_partner_card_summary',
+        'erp_r56_business_partner_360',
         params: {
           'p_company_id': companyId,
           'p_partner_kind': kind,

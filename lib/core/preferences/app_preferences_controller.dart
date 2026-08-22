@@ -14,11 +14,17 @@ import 'user_interface_preferences_repository.dart';
 export 'app_preferences_types.dart';
 
 class AppPreferencesController extends ChangeNotifier {
-  AppPreferencesController({SupabaseClient? client})
-    : _client = client ?? _resolveClient() {
+  AppPreferencesController({
+    SupabaseClient? client,
+    UserInterfacePreferencesRemoteStore? repositoryForTesting,
+    String? Function()? currentUserIdForTesting,
+  }) : _client = client ?? _resolveClient(),
+       // ignore: prefer_initializing_formals
+       _currentUserIdForTesting = currentUserIdForTesting {
+    _repository = repositoryForTesting;
     final activeClient = _client;
     if (activeClient != null) {
-      _repository = UserInterfacePreferencesRepository(activeClient);
+      _repository ??= UserInterfacePreferencesRepository(activeClient);
       _authSubscription = activeClient.auth.onAuthStateChange.listen((event) {
         unawaited(_activateUser(event.session?.user.id));
       });
@@ -38,7 +44,8 @@ class AppPreferencesController extends ChangeNotifier {
   ];
 
   final SupabaseClient? _client;
-  UserInterfacePreferencesRepository? _repository;
+  final String? Function()? _currentUserIdForTesting;
+  UserInterfacePreferencesRemoteStore? _repository;
   StreamSubscription<AuthState>? _authSubscription;
   SharedPreferences? _preferences;
   Future<void>? _loadFuture;
@@ -47,6 +54,7 @@ class AppPreferencesController extends ChangeNotifier {
   Future<void> _writeQueue = Future<void>.value();
   int _activationGeneration = 0;
   String? _activeUserId;
+  final Map<String, String> _lastRemoteSnapshotByUser = <String, String>{};
 
   Locale _locale = const Locale('en');
   ThemeMode _themeMode = ThemeMode.dark;
@@ -72,11 +80,20 @@ class AppPreferencesController extends ChangeNotifier {
   double get sideNavigationScrollOffset => _sideNavigationScrollOffset;
   String? get activeUserId => _activeUserId;
 
-  Future<void> load() =>
-      _loadFuture ??= _activateUser(_client?.auth.currentUser?.id, force: true);
+  String? get _currentUserId =>
+      _currentUserIdForTesting?.call() ?? _client?.auth.currentUser?.id;
 
-  Future<void> synchronizeForCurrentUser() =>
-      _activateUser(_client?.auth.currentUser?.id);
+  Future<void> load() =>
+      _loadFuture ??= _activateUser(_currentUserId, force: true);
+
+  Future<void> synchronizeForCurrentUser() async {
+    final userId = _currentUserId;
+    final active = _activationInFlight;
+    if (active != null && _activationTarget == userId) {
+      await active;
+    }
+    await _activateUser(userId, force: true);
+  }
 
   Future<void> useGuestPreferences() => _activateUser(null, force: true);
 
@@ -89,13 +106,15 @@ class AppPreferencesController extends ChangeNotifier {
 
     final request = _activateUserNow(userId, force: force);
     _activationTarget = userId;
-    _activationInFlight = request;
-    return request.whenComplete(() {
-      if (identical(_activationInFlight, request)) {
+    late final Future<void> tracked;
+    tracked = request.whenComplete(() {
+      if (identical(_activationInFlight, tracked)) {
         _activationInFlight = null;
         _activationTarget = null;
       }
     });
+    _activationInFlight = tracked;
+    return tracked;
   }
 
   Future<void> _activateUserNow(String? userId, {bool force = false}) async {
@@ -147,10 +166,12 @@ class AppPreferencesController extends ChangeNotifier {
           await _repository?.save(userId, resolved);
           await store.setBool(visualMarkerKey, true);
         }
+        _lastRemoteSnapshotByUser[userId] = resolved.toJson();
         notifyListeners();
       } else {
         final snapshot = _snapshot();
         await _repository?.save(userId, snapshot);
+        _lastRemoteSnapshotByUser[userId] = snapshot.toJson();
         if (needsV4VisualMigration) {
           await store.setString(_localKey(userId), snapshot.toJson());
           await store.setBool(visualMarkerKey, true);
@@ -205,15 +226,18 @@ class AppPreferencesController extends ChangeNotifier {
   Future<void> _persistCurrent() {
     final userId = _activeUserId;
     final snapshot = _snapshot();
+    final serialized = snapshot.toJson();
     final operation = _writeQueue.then((_) async {
       final store = _preferences ??= await SharedPreferences.getInstance();
-      final saved = await store.setString(_localKey(userId), snapshot.toJson());
+      final saved = await store.setString(_localKey(userId), serialized);
       if (!saved) {
         throw StateError('Unable to save user interface preferences locally.');
       }
       if (userId != null) {
+        if (_lastRemoteSnapshotByUser[userId] == serialized) return;
         try {
           await _repository?.save(userId, snapshot);
+          _lastRemoteSnapshotByUser[userId] = serialized;
         } catch (error, stackTrace) {
           AppLogger.debug('User UI preferences cloud save failed: $error');
           AppLogger.stack(stackTrace);

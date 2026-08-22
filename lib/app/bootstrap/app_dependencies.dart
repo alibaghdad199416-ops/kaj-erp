@@ -127,7 +127,22 @@ class AppDependencies {
     AppDataRefreshRule(
       id: 'cars',
       sources: const {'cars'},
-      refresh: (_) => cars.hasLoaded ? cars.loadCars() : Future<void>.value(),
+      refresh: (events) {
+        const locallyReconciled = <String>{
+          'insert',
+          'insert-reconciled',
+          'update',
+          'delete',
+          'status',
+        };
+        final requiresRefresh = requiresRefreshBeyondLocalOperations(
+          events,
+          locallyReconciled,
+        );
+        return cars.hasLoaded && requiresRefresh
+            ? cars.loadCars(force: true)
+            : Future<void>.value();
+      },
     ),
     AppDataRefreshRule(
       id: 'car-images-cache',
@@ -178,7 +193,18 @@ class AppDependencies {
     AppDataRefreshRule(
       id: 'maintenance',
       sources: const {'maintenance'},
-      refresh: (_) async {
+      refresh: (events) async {
+        const locallyReconciled = <String>{
+          'insert',
+          'update',
+          'delete',
+          'workflow',
+          'payment',
+          'cancel',
+        };
+        if (!requiresRefreshBeyondLocalOperations(events, locallyReconciled)) {
+          return;
+        }
         maintenance.invalidateEligibleVehicles();
         if (maintenance.hasLoaded) await maintenance.loadOrders(force: true);
       },

@@ -85,10 +85,10 @@ require(
         "class AppLazyTabView",
         "IndexedStack",
         "AppLazyTabView",
-        "CarsPage()",
+        "CarsPage(initialCarId: initialCarId)",
         "CustomersPage()",
-        "SalesWorkflowPage()",
-        "PurchaseWorkflowPage()",
+        "SalesWorkflowPage(initialOrderId: initialOrderId)",
+        "PurchaseWorkflowPage(initialOrderId: initialOrderId)",
     ),
     "lazy module loading",
 )
@@ -101,19 +101,27 @@ require(
         "AppWindowCloseButton",
         "module-inline-close",
         "child is AppEntityPage",
-        "showCloseOverlay: false",
-        "scrollbars: false",
-        "overscroll: false",
+        "Desktop workspaces intentionally remain bounded",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "module-workspace-window",
+        "Clip.antiAlias",
     ),
-    "one-line commands and headless module windows",
+    "one-line commands and bounded module workspaces",
 )
+# The accounting workspace now owns its section strip directly (R86+) instead
+# of wrapping the pills in AppHorizontalStrip. Keep the contract on actual
+# behavior: scrollable pill navigation, stadium filter geometry, and the
+# accounting ChoiceChip section rail.
 require(
     pills + filter_bar + accounting,
     (
         "borderRadius: BorderRadius.circular(999)",
         "dividerColor: Colors.transparent",
         "shape: const StadiumBorder()",
-        "AppHorizontalStrip",
+        "scrollDirection: Axis.horizontal",
+        "ChoiceChip(",
         "إدخال محاسبي جديد",
     ),
     "pill-only navigation",
@@ -202,7 +210,9 @@ require(
 require(
     workflow_card,
     (
-        "كمية فقط",
+        "Delivery",
+        "Receipt",
+        "Not posted",
         "القيد المحاسبي",
         "Accounting entry",
         "accountingOwner",
@@ -274,7 +284,7 @@ if errors:
 
 print("PASS V7.3.8 full requirements verification")
 print("  - heavy module tabs are lazy and hidden controllers are not refreshed")
-print("  - command/metric rows stay horizontal and windows are headless")
+print("  - command/metric rows stay horizontal and internal workspaces stay bounded")
 print("  - active workflow documents drive invoice/payment controls")
 print("  - warehouse approval is quantity-only; invoices own accounting/valuation")
 print("  - opportunity, payment, naming and cross-device cache links are verified")

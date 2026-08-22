@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 class PdfFontPack {
   const PdfFontPack({required this.regular, required this.bold});
@@ -11,48 +12,89 @@ class PdfFontPack {
 
 abstract final class PdfTextSupport {
   static Future<PdfFontPack>? _fontFuture;
+  static PdfFontPack? _loadedFonts;
 
-  /// Browser PDF output is canonical English. The built-in browser-safe PDF
-  /// fonts cover Latin reliably and avoid AssetManifest/font-CDN failures.
-  /// Arabic PDF output remains available on non-Web platforms where Noto can
-  /// be loaded without the Flutter Web asset-manifest path.
+  static const Map<int, int> _windows1252Bytes = <int, int>{
+    0x20AC: 0x80,
+    0x201A: 0x82,
+    0x0192: 0x83,
+    0x201E: 0x84,
+    0x2026: 0x85,
+    0x2020: 0x86,
+    0x2021: 0x87,
+    0x02C6: 0x88,
+    0x2030: 0x89,
+    0x0160: 0x8A,
+    0x2039: 0x8B,
+    0x0152: 0x8C,
+    0x017D: 0x8E,
+    0x2018: 0x91,
+    0x2019: 0x92,
+    0x201C: 0x93,
+    0x201D: 0x94,
+    0x2022: 0x95,
+    0x2013: 0x96,
+    0x2014: 0x97,
+    0x02DC: 0x98,
+    0x2122: 0x99,
+    0x0161: 0x9A,
+    0x203A: 0x9B,
+    0x0153: 0x9C,
+    0x017E: 0x9E,
+    0x0178: 0x9F,
+  };
+
   static String canonicalPdfLanguage(String requested) =>
-      kIsWeb ? 'en' : (requested.toLowerCase().startsWith('ar') ? 'ar' : 'en');
+      requested.toLowerCase().startsWith('ar') ? 'ar' : 'en';
 
-  static bool canonicalPdfArabic(bool requested) => !kIsWeb && requested;
+  static bool canonicalPdfArabic(bool requested) => requested;
 
   static Future<PdfFontPack> loadFonts() => _fontFuture ??= _loadFonts();
 
   static Future<PdfFontPack> _loadFonts() async {
-    // PdfGoogleFonts consults AssetManifest.json on Flutter Web. Modern Flutter
-    // debug servers expose AssetManifest.bin instead, which produced a noisy
-    // 404 and could abort exports. Browser exports are English-first and use
-    // built-in PDF fonts; Arabic/native exports keep Noto support.
-    if (kIsWeb) {
-      return PdfFontPack(
-        regular: pw.Font.helvetica(),
-        bold: pw.Font.helveticaBold(),
-      );
+    // Bundle the fonts so Edge exports do not depend on popup/CDN policy or
+    // the deprecated JSON AssetManifest endpoint.
+    final regular = await rootBundle.load(
+      'assets/fonts/NotoNaskhArabic-Regular.ttf',
+    );
+    final bold = await rootBundle.load('assets/fonts/NotoNaskhArabic-Bold.ttf');
+    final pack = PdfFontPack(
+      regular: pw.Font.ttf(regular),
+      bold: pw.Font.ttf(bold),
+    );
+    _loadedFonts = pack;
+    return pack;
+  }
+
+  static String _repairUtf8Mojibake(String text) {
+    if (!text.contains('Ø') &&
+        !text.contains('Ù') &&
+        !text.contains('Ã') &&
+        !text.contains('Â')) {
+      return text;
     }
+
+    final bytes = <int>[];
+    for (final rune in text.runes) {
+      final windowsByte = _windows1252Bytes[rune];
+      if (windowsByte != null) {
+        bytes.add(windowsByte);
+      } else if (rune <= 0xFF) {
+        bytes.add(rune);
+      } else {
+        return text;
+      }
+    }
+
     try {
-      // Noto Naskh contains Arabic and Latin glyphs. Using one font family for
-      // both languages avoids mixed baselines and missing-glyph squares inside
-      // the same table cell.
-      return PdfFontPack(
-        regular: await PdfGoogleFonts.notoNaskhArabicRegular(),
-        bold: await PdfGoogleFonts.notoNaskhArabicBold(),
-      );
-    } catch (_) {
-      // Native Arabic output must never silently fall back to a Latin-only
-      // font because that produces corrupted Arabic glyphs. Let the caller
-      // surface a localized error instead. Browser output never reaches this
-      // branch because canonicalPdfLanguage/canonicalPdfArabic force English.
-      rethrow;
+      return utf8.decode(bytes, allowMalformed: false);
+    } on FormatException {
+      return text;
     }
   }
 
   static String sanitize(Object? value, {bool singleLine = false}) {
-    var text = value?.toString() ?? '';
+    var text = _repairUtf8Mojibake(value?.toString() ?? '');
     text = text
         .replaceAll('\uFFFD', '')
         .replaceAll(RegExp(r'[\u200B-\u200F\u202A-\u202E\u2066-\u2069]'), '')
@@ -95,9 +137,13 @@ abstract final class PdfTextSupport {
   }) {
     final clean = sanitize(value);
     final arabic = containsArabic(clean);
+    final regular = _loadedFonts?.regular;
+    final effectiveStyle = regular != null && style?.font == null
+        ? (style ?? const pw.TextStyle()).copyWith(font: regular)
+        : style;
     return pw.Text(
       clean,
-      style: style,
+      style: effectiveStyle,
       maxLines: maxLines,
       textDirection: arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr,
       textAlign: textAlign ?? (arabic ? pw.TextAlign.right : pw.TextAlign.left),

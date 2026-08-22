@@ -424,19 +424,21 @@ class _PurchaseOrderDraftPageState extends State<PurchaseOrderDraftPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            KajCommercialDocumentHeader(
-              title: _bi(
-                widget.orderId == null ? 'أمر شراء جديد' : 'تعديل أمر الشراء',
-                widget.orderId == null
-                    ? 'New purchase order'
-                    : 'Edit purchase order',
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              KajCommercialDocumentHeader(
+                title: _bi(
+                  widget.orderId == null ? 'أمر شراء جديد' : 'تعديل أمر الشراء',
+                  widget.orderId == null
+                      ? 'New purchase order'
+                      : 'Edit purchase order',
+                ),
+                subtitle: _bi(
+                  'المورد والبنود والكلف والتاريخ التشغيلي ضمن نموذج واضح ومتجاوب.',
+                  'Supplier, items, costs, and operational date in a clear responsive form.',
+                ),
               ),
-              subtitle: _bi(
-                'المورد والبنود والكلف والتاريخ التشغيلي ضمن نموذج واضح ومتجاوب.',
-                'Supplier, items, costs, and operational date in a clear responsive form.',
-              ),
-            ),
-            const SizedBox(height: 12),
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              const SizedBox(height: 12),
             if (widget.orderId != null) ...[
               Card(
                 color: Theme.of(context).colorScheme.primaryContainer,

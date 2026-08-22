@@ -12,13 +12,18 @@ formatter = read('lib/core/utils/display_number_formatter.dart')
 
 assert ('version: 18.9.' in pub) or ('version: 22.9.8+229008' in pub)
 assert ("static const String version = '18.9." in release) or ("static const String version = '22.9.8'" in release)
-assert 'BoxFit.contain' in full_page and 'BoxFit.fill' not in full_page
-assert 'effectiveMaxWidth' in full_page and 'preferredSize.aspectRatio' in full_page
+assert 'Desktop workspaces intentionally remain bounded' in full_page
+assert 'double maxWidth = 1320' in full_page and 'double maxHeight = 840' in full_page
+assert 'double minWidth = 760' in full_page and 'double minHeight = 520' in full_page
+assert 'module-workspace-window' in full_page
+assert 'class _WorkspaceHeader' in full_page and 'class _WorkspacePresentation' in full_page
+assert "ValueKey('module-page-close')" in full_page
+assert 'Clip.antiAlias' in full_page
+assert 'closeDock' not in full_page and '_PlainContentAsWindow' not in full_page
 assert "class AppSelectableText extends StatelessWidget" in l10n
 assert 'DisplayNumberFormatter.formatText(translated)' in l10n
 assert "NumberFormat('#,##0'" in formatter
 assert 'minWidth: 380' in theme and 'maxWidth: 720' in theme
-assert 'closeDock' in full_page and "ValueKey('module-page-close')" in full_page
 
 # Runtime design-system text must pass through AppText so technical tokens and
 # embedded quantities follow the active locale and number formatter.
@@ -30,4 +35,4 @@ for target in (
     text = read(target)
     assert 'AppText(' in text, target
 
-print('PASS V7.6.5 proportional module windows, unified close rail, localized selectable values, and thousands formatting')
+print('PASS V7.6.5 bounded module workspaces, unified close header, localized selectable values, and thousands formatting')

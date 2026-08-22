@@ -10,11 +10,15 @@ formatter = (root / 'lib/core/utils/display_number_formatter.dart').read_text(en
 
 assert ('version: 18.9.' in pubspec) or ('version: 22.9.8+229008' in pubspec)
 assert ("static const String version = '18.9." in release) or ("static const String version = '22.9.8'" in release)
-assert 'final aspectRatio = widget.preferredSize.aspectRatio;' in route
-assert 'height: 56,' in route and 'Expanded(child: child)' in route
+assert 'Desktop workspaces intentionally remain bounded' in route
+assert 'double maxWidth = 1320' in route and 'double maxHeight = 840' in route
+assert 'module-workspace-window' in route
+assert 'class _WorkspaceHeader' in route
+assert 'height: compact ? 54 : 58' in route
+assert 'Expanded(child: presentation.content)' in route
 assert 'minWidth:' in theme and 'maxWidth:' in theme and 'dialogTheme: DialogThemeData(' in theme
 assert 'DisplayNumberFormatter.formatText(translated)' in localization
 assert '_translateTechnicalIdentifier' in localization
 assert "NumberFormat('#,##0'" in formatter
 assert 'Document identifiers, dates, times, versions and account codes' in formatter
-print('PASS V7.6.4 adaptive dialog proportions, unified close rail, localized technical terms, and thousands separators')
+print('PASS V7.6.4 bounded adaptive workspace, unified close header, localized technical terms, and thousands separators')

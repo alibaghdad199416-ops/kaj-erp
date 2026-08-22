@@ -396,16 +396,17 @@ class _SearchState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 52, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 14),
+            Icon(icon, size: 38, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 10),
             AppText(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 5),
             AppText(message, textAlign: TextAlign.center),
           ],
         ),

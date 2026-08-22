@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 // Removed unused import: 'package:quality_line_erp/app/brand_identity.dart'
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/cloud/supabase_config.dart';
 import 'package:quality_line_erp/core/preferences/app_preferences_controller.dart';
 import 'package:quality_line_erp/design_system/kaj_brand_motif.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
@@ -365,9 +366,7 @@ class _LaunchFormPanel extends StatelessWidget {
               content,
               const SizedBox(height: 20),
               AppText(
-                ar
-                    ? 'اتصال آمن عبر Supabase • استضافة Firebase'
-                    : 'Secure Supabase connection • Firebase Hosting',
+                SupabaseConfig.environmentLabel(isArabic: ar),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(fontSize: 10.5),
               ),

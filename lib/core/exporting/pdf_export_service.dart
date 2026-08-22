@@ -1,16 +1,28 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'adaptive_pdf_table.dart';
-import 'export_document.dart';
-import 'report_template_engine.dart';
-import '../printing/premium_document_theme.dart';
-import '../printing/pdf_text_support.dart';
-import 'binary_download_service.dart';
-import 'pdf_print_service.dart';
+import 'package:quality_line_erp/core/cloud/cloud_feature_command.dart';
+import 'package:quality_line_erp/core/logging/app_logger.dart';
 
+import 'adaptive_pdf_table.dart';
+import 'binary_download_service.dart';
+import 'export_document.dart';
+import 'pdf_print_service.dart';
+import 'report_template_engine.dart';
+import '../printing/pdf_text_support.dart';
+import '../printing/premium_document_theme.dart';
+import '../printing/unified_pdf_document.dart';
+import '../printing/unified_pdf_identity.dart';
+
+/// Canonical PDF renderer shared by reports and generic exports.
+///
+/// [PremiumDocumentTheme] is the compatibility facade over the newer
+/// [UnifiedPdfIdentity], so older commercial-document contracts and the unified
+/// header/footer pipeline continue to resolve to one visual identity.
 class PdfExportService {
   PdfExportService({ReportTemplateEngine? templateEngine})
     : _template = templateEngine ?? const ReportTemplateEngine();
@@ -20,27 +32,17 @@ class PdfExportService {
   Future<Uint8List> build(
     ExportDocument document, {
     ExportPageFormat pageFormat = ExportPageFormat.a4Portrait,
+    int maxColumnsPerGroup = 5,
+    int maxRowsPerChunk = 12,
   }) async {
     document.validate();
-    document = ExportDocument(
-      title: document.title,
-      subtitle: document.subtitle,
-      columns: document.columns,
-      rows: document.rows,
-      metadata: document.metadata,
-      language: 'en',
-      currency: document.currency,
-      generatedAt: document.generatedAt,
-    );
-    final pdf = pw.Document(
-      title: document.title,
-      author: 'Quality Line ERP',
-      creator: 'Quality Line ERP',
-      subject: document.subtitle,
-    );
     final fonts = await PdfTextSupport.loadFonts();
     final regular = fonts.regular;
     final bold = fonts.bold;
+    final arabic = document.isArabic;
+    final direction = arabic ? pw.TextDirection.rtl : pw.TextDirection.ltr;
+    final generatedAt = document.generatedAt ?? DateTime.now();
+    final branding = await _loadBranding(arabic);
     final format = switch (pageFormat) {
       ExportPageFormat.a4Portrait => PdfPageFormat.a4,
       ExportPageFormat.a4Landscape => PdfPageFormat.a4.landscape,
@@ -50,195 +52,114 @@ class PdfExportService {
         marginAll: 4 * PdfPageFormat.mm,
       ),
     };
-    final direction = document.isArabic
-        ? pw.TextDirection.rtl
-        : pw.TextDirection.ltr;
-    final ink = PremiumDocumentTheme.ink;
-    final accent = PremiumDocumentTheme.accent;
-    final accentSoft = PremiumDocumentTheme.accentSoft;
-    final surface = PremiumDocumentTheme.surface;
-    final border = PremiumDocumentTheme.border;
-    final generatedAt = document.generatedAt ?? DateTime.now();
+    final landscape = pageFormat == ExportPageFormat.a4Landscape;
+    final receipt = pageFormat == ExportPageFormat.receipt80mm;
+    final effectiveColumnGroup = receipt
+        ? maxColumnsPerGroup.clamp(1, 2).toInt()
+        : maxColumnsPerGroup.clamp(1, 12).toInt();
+    final pdf = pw.Document(
+      title: document.title,
+      author: branding.companyName,
+      creator: 'Quality Line ERP',
+      subject: document.subtitle,
+      theme: pw.ThemeData.withFont(base: regular, bold: bold),
+    );
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: format,
-        margin: const pw.EdgeInsets.fromLTRB(26, 24, 26, 24),
+        margin: receipt
+            ? const pw.EdgeInsets.all(10)
+            : const pw.EdgeInsets.fromLTRB(
+                UnifiedPdfIdentity.pageMarginHorizontal,
+                UnifiedPdfIdentity.pageMarginTop,
+                UnifiedPdfIdentity.pageMarginHorizontal,
+                UnifiedPdfIdentity.pageMarginBottom,
+              ),
         textDirection: direction,
         theme: pw.ThemeData.withFont(base: regular, bold: bold),
-        header: (_) => pw.Container(
-          padding: const pw.EdgeInsets.only(bottom: 8),
-          decoration: pw.BoxDecoration(
-            border: pw.Border(bottom: pw.BorderSide(color: accent, width: 1.2)),
-          ),
-          child: pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.center,
-            children: [
-              pw.Container(
-                width: 28,
-                height: 28,
-                decoration: pw.BoxDecoration(
-                  color: ink,
-                  borderRadius: pw.BorderRadius.circular(7),
-                ),
-                alignment: pw.Alignment.center,
-                child: pw.Text(
-                  'QL',
-                  style: pw.TextStyle(font: bold, fontSize: 10, color: accent),
-                ),
-              ),
-              pw.SizedBox(width: 8),
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    document.isArabic ? 'نظام خط الجودة' : 'QUALITY LINE ERP',
-                    style: pw.TextStyle(font: bold, fontSize: 10, color: ink),
-                  ),
-                  pw.Text(
-                    document.isArabic
-                        ? 'وثيقة إلكترونية معتمدة'
-                        : 'Official electronic document',
-                    style: const pw.TextStyle(
-                      fontSize: 6.5,
-                      color: PdfColors.grey700,
+        header: receipt
+            ? null
+            : (_) => UnifiedPdfDocument.documentHeader(
+                bold: bold,
+                documentType: document.title,
+                documentNumber: document.metadata.entries
+                    .map((entry) => '${entry.value ?? ''}'.trim())
+                    .firstWhere(
+                      (value) => value.isNotEmpty && value.length <= 28,
+                      orElse: () => '',
                     ),
-                  ),
-                ],
+                companyName: branding.companyName,
+                logo: branding.logo,
               ),
-              pw.Spacer(),
-              pw.Text(
+        footer: receipt
+            ? null
+            : (context) => UnifiedPdfDocument.footer(
+                regular: regular,
+                pageNumber: context.pageNumber,
+                pageCount: context.pagesCount,
+                arabic: arabic,
+              ),
+        build: (_) => <pw.Widget>[
+          if (receipt)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(8),
+              color: PremiumDocumentTheme.ink,
+              child: PdfTextSupport.text(
                 document.title,
-                style: pw.TextStyle(font: bold, fontSize: 12, color: ink),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-        footer: (context) => pw.Container(
-          padding: const pw.EdgeInsets.only(top: 7),
-          decoration: pw.BoxDecoration(
-            border: pw.Border(top: pw.BorderSide(color: border, width: .5)),
-          ),
-          child: pw.Row(
-            children: [
-              pw.Text(
-                _template.formatValue(
-                  generatedAt,
-                  const ExportColumn(
-                    key: 'generatedAt',
-                    label: 'Generated at',
-                    type: ExportValueType.dateTime,
-                  ),
-                  document,
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  font: bold,
+                  fontSize: 12,
+                  color: UnifiedPdfIdentity.white,
                 ),
-                style: const pw.TextStyle(fontSize: 6.5),
               ),
-              pw.Spacer(),
-              pw.Text(
-                '${context.pageNumber}/${context.pagesCount}',
-                style: pw.TextStyle(font: bold, fontSize: 7, color: ink),
-              ),
-            ],
-          ),
-        ),
-        build: (_) => [
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(14),
-            decoration: pw.BoxDecoration(
-              color: ink,
-              borderRadius: pw.BorderRadius.circular(10),
+            )
+          else
+            UnifiedPdfDocument.titleBlock(
+              bold: bold,
+              title: document.title,
+              subtitle: document.subtitle,
+              status: document.currency,
             ),
-            child: pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        document.title,
-                        style: pw.TextStyle(
-                          font: bold,
-                          fontSize: 20,
-                          color: PdfColors.white,
-                        ),
-                      ),
-                      if (document.subtitle?.trim().isNotEmpty == true) ...[
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          document.subtitle!.trim(),
-                          style: pw.TextStyle(fontSize: 8.5, color: accentSoft),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (document.currency?.trim().isNotEmpty == true)
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: pw.BoxDecoration(
-                      color: accent,
-                      borderRadius: pw.BorderRadius.circular(7),
-                    ),
-                    child: pw.Text(
-                      document.currency!,
-                      style: pw.TextStyle(font: bold, fontSize: 10, color: ink),
-                    ),
-                  ),
-              ],
-            ),
-          ),
           if (document.metadata.isNotEmpty) ...[
-            pw.SizedBox(height: 10),
             pw.Wrap(
               spacing: 7,
               runSpacing: 7,
-              children: document.metadata.entries
-                  .map(
-                    (entry) => pw.Container(
-                      width: pageFormat == ExportPageFormat.a4Landscape
-                          ? 155
-                          : 125,
-                      padding: const pw.EdgeInsets.all(7),
-                      decoration: pw.BoxDecoration(
-                        color: surface,
-                        border: pw.Border.all(color: border, width: .45),
-                        borderRadius: pw.BorderRadius.circular(6),
+              children: [
+                for (final entry in document.metadata.entries)
+                  UnifiedPdfDocument.summaryTile(
+                    bold: bold,
+                    label: entry.key,
+                    value: '${entry.value ?? ''}',
+                    width: receipt ? 115 : (landscape ? 155 : 125),
+                  ),
+                if (!receipt)
+                  UnifiedPdfDocument.summaryTile(
+                    bold: bold,
+                    label: arabic ? 'تاريخ الإنشاء' : 'Generated at',
+                    value: _template.formatValue(
+                      generatedAt,
+                      const ExportColumn(
+                        key: 'generatedAt',
+                        label: 'Generated at',
+                        type: ExportValueType.dateTime,
                       ),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            entry.key,
-                            style: pw.TextStyle(
-                              font: bold,
-                              fontSize: 6.5,
-                              color: PdfColors.grey700,
-                            ),
-                          ),
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            '${entry.value ?? ''}',
-                            style: pw.TextStyle(
-                              font: bold,
-                              fontSize: 8.5,
-                              color: ink,
-                            ),
-                            maxLines: 4,
-                          ),
-                        ],
-                      ),
+                      document,
                     ),
-                  )
-                  .toList(),
+                    width: landscape ? 155 : 125,
+                  ),
+              ],
             ),
+            pw.SizedBox(height: 10),
           ],
-          pw.SizedBox(height: 12),
+          if (!receipt)
+            UnifiedPdfDocument.sectionHeader(
+              bold: bold,
+              title: arabic ? 'البيانات' : 'Data',
+              trailing: '${document.rows.length}',
+            ),
           ...AdaptivePdfTable.build(
             headers: document.columns.map((column) => column.label).toList(),
             rows: document.rows
@@ -252,15 +173,14 @@ class PdfExportService {
                     ),
                   ),
                 )
-                .toList(),
+                .toList(growable: false),
             regular: regular,
             bold: bold,
-            arabic: document.isArabic,
-            headerColor: ink,
-            alternateColor: accentSoft,
-            maxColumnsPerGroup: pageFormat == ExportPageFormat.a4Landscape
-                ? 8
-                : 6,
+            arabic: arabic,
+            headerColor: PremiumDocumentTheme.ink,
+            alternateColor: PremiumDocumentTheme.surface,
+            maxColumnsPerGroup: effectiveColumnGroup,
+            maxRowsPerChunk: maxRowsPerChunk,
           ),
         ],
       ),
@@ -284,11 +204,52 @@ class PdfExportService {
     ExportPageFormat pageFormat = ExportPageFormat.a4Portrait,
   }) async {
     final bytes = await build(document, pageFormat: pageFormat);
-    final name = _template.fileName(document, 'pdf');
     await BinaryDownloadService.save(
-      fileName: name,
+      fileName: _template.fileName(document, 'pdf'),
       bytes: bytes,
       mimeType: 'application/pdf',
     );
   }
+
+  Future<_PdfBranding> _loadBranding(bool arabic) async {
+    Map<String, dynamic> row = <String, dynamic>{};
+    try {
+      row = await CloudFeatureCommand.instance.map(
+        'company_settings',
+        'branding',
+      );
+    } catch (error, stackTrace) {
+      AppLogger.debug('PDF branding fallback: $error\n$stackTrace');
+    }
+    final values = <String, String>{
+      for (final entry in row.entries) entry.key: entry.value?.toString() ?? '',
+    };
+    pw.MemoryImage? logo;
+    if (!kIsWeb) {
+      for (final path in const [
+        'assets/images/khat_al_jawda_logo.jpg',
+        'assets/images/logo.png',
+      ]) {
+        try {
+          final data = await rootBundle.load(path);
+          logo = pw.MemoryImage(data.buffer.asUint8List());
+          break;
+        } catch (_) {}
+      }
+    }
+    final companyName = arabic
+        ? (values['company_name']?.trim().isNotEmpty == true
+              ? values['company_name']!
+              : 'شركة خط الجودة')
+        : (values['company_name_en']?.trim().isNotEmpty == true
+              ? values['company_name_en']!
+              : 'Quality Line');
+    return _PdfBranding(companyName: companyName, logo: logo);
+  }
+}
+
+class _PdfBranding {
+  const _PdfBranding({required this.companyName, required this.logo});
+  final String companyName;
+  final pw.MemoryImage? logo;
 }

@@ -8,9 +8,12 @@ node_modules/
 coverage/
 
 backups/
+.local_backups/
+dart_defines.local.generated.json
 __pycache__/
 *.py[cod]
 supabase/.temp/
+supabase/.branches/
 
 # Local tooling, debug, crash, and packaged snapshot artifacts
 .idea/

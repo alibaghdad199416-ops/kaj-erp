@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_account_model.dart';
+import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_filter.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/repositories/cashbox_repository.dart';
 
@@ -17,12 +19,15 @@ class CashboxController extends ChangeNotifier {
 
   final CashboxRepository _repository;
   List<CashTransactionModel> _transactions = [];
+  List<CashTransactionModel> _allTransactions = [];
   List<CashAccountModel> _cashAccounts = [];
   List<AccountModel> _ledgerAccounts = [];
   Map<String, double> _balances = {};
   Map<String, Map<String, double>> _reconciliation = {};
   bool _isLoading = false;
   Future<void>? _refreshInFlight;
+  bool _refreshRequested = false;
+  UnifiedFilterCriteria _transactionFilter = const UnifiedFilterCriteria();
   String? _errorMessage;
   Map<String, double> _usdSummary = const {
     'receipts': 0,
@@ -39,6 +44,20 @@ class CashboxController extends ChangeNotifier {
       List.unmodifiable(_transactions);
   List<CashAccountModel> get cashAccounts => List.unmodifiable(_cashAccounts);
   List<AccountModel> get ledgerAccounts => List.unmodifiable(_ledgerAccounts);
+  UnifiedFilterCriteria get transactionFilter => _transactionFilter;
+  List<AccountModel> get postableLedgerAccounts {
+    final parentIds = _ledgerAccounts
+        .map((account) => account.parentId?.trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return List.unmodifiable(
+      _ledgerAccounts.where(
+        (account) => account.isActive && !parentIds.contains(account.id),
+      ),
+    );
+  }
+
   Map<String, double> get balances => Map.unmodifiable(_balances);
   Map<String, Map<String, double>> get reconciliation =>
       Map.unmodifiable(_reconciliation);
@@ -70,7 +89,7 @@ class CashboxController extends ChangeNotifier {
     try {
       await _repository.saveCashAccount(account);
       AppDataChangeBus.instance.publish('cashbox', operation: 'account_save');
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -95,7 +114,7 @@ class CashboxController extends ChangeNotifier {
         operation: 'account_delete',
         entityId: id,
       );
-      await _refresh();
+      await _refresh(force: true);
     } finally {
       _setLoading(false);
     }
@@ -123,7 +142,7 @@ class CashboxController extends ChangeNotifier {
         notes: notes,
       );
       AppDataChangeBus.instance.publish('cashbox', operation: 'transfer');
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -147,7 +166,7 @@ class CashboxController extends ChangeNotifier {
         'cashbox',
         operation: 'transfer_delete',
       );
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
       _errorMessage = userFacingError(
@@ -166,12 +185,12 @@ class CashboxController extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
-      if (await _repository.voucherNumberExists(transaction.voucherNumber)) {
-        throw StateError('رقم السند مستخدم مسبقًا.');
-      }
+      // PostgreSQL's active-voucher unique index is the race-safe authority.
+      // A preflight getTransactions() duplicated a full cash read and could
+      // still lose a race between the check and the atomic posting RPC.
       await _repository.addTransaction(transaction);
       AppDataChangeBus.instance.publish('cashbox', operation: 'insert');
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -191,19 +210,13 @@ class CashboxController extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
-      if (await _repository.voucherNumberExists(
-        transaction.voucherNumber,
-        excludeId: transaction.id,
-      )) {
-        throw StateError('رقم السند مستخدم في حركة أخرى.');
-      }
       await _repository.updateTransaction(transaction);
       AppDataChangeBus.instance.publish(
         'cashbox',
         operation: 'update',
         entityId: transaction.id,
       );
-      await _refresh();
+      await _refresh(force: true);
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
 
@@ -228,29 +241,77 @@ class CashboxController extends ChangeNotifier {
         operation: 'delete',
         entityId: id,
       );
-      await _refresh();
+      await _refresh(force: true);
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<void> searchTransactions(String query) async {
-    _setLoading(true);
-    try {
-      _transactions = await _repository.searchTransactions(query);
-    } finally {
-      _setLoading(false);
-    }
+  /// Backward-compatible search entry point now routed through the enterprise
+  /// unified filter engine, including Arabic text normalization.
+  Future<void> searchTransactions(String query) {
+    setTransactionFilter(
+      _transactionFilter.copyWith(searchText: query, offset: 0),
+    );
+    return Future<void>.value();
   }
 
-  Future<void> _refresh() {
+  /// Applies one canonical criteria object for search + filters + sort + paging.
+  /// UI tables, charts and exports can share this exact criteria instance.
+  void setTransactionFilter(UnifiedFilterCriteria criteria) {
+    _transactionFilter = criteria.copyWith(offset: 0);
+    _applyTransactionFilter();
+    notifyListeners();
+  }
+
+  void clearTransactionFilters({bool keepSearchText = false}) {
+    _transactionFilter = UnifiedFilterCriteria(
+      searchText: keepSearchText ? _transactionFilter.searchText : '',
+    );
+    _applyTransactionFilter();
+    notifyListeners();
+  }
+
+  /// Resolves a cashbox workspace from the authoritative unfiltered source,
+  /// while preserving every active global criterion and adding the cashbox
+  /// dimension. This keeps summary cards, transaction table and chart capable
+  /// of consuming one filtered dataset.
+  List<CashTransactionModel> transactionsForCashbox(
+    String cashboxId, {
+    UnifiedFilterCriteria? criteria,
+  }) {
+    final normalizedId = cashboxId.trim();
+    if (normalizedId.isEmpty) return const <CashTransactionModel>[];
+    final base = criteria ?? _transactionFilter;
+    final dimensions = <String, Set<String>>{
+      ...base.dimensions,
+      'cashbox': <String>{normalizedId},
+    };
+    return CashboxTransactionFilter.apply(
+      _allTransactions,
+      base.copyWith(dimensions: dimensions, offset: 0),
+    );
+  }
+
+  Future<void> _refresh({bool force = false}) {
+    if (force) _refreshRequested = true;
     final active = _refreshInFlight;
     if (active != null) return active;
-    final request = _performRefresh();
+
+    final request = _runRefreshLoop();
     _refreshInFlight = request;
     return request.whenComplete(() {
       if (identical(_refreshInFlight, request)) _refreshInFlight = null;
     });
+  }
+
+  Future<void> _runRefreshLoop() async {
+    var refreshAgain = true;
+    while (refreshAgain) {
+      _refreshRequested = false;
+      await _performRefresh();
+      refreshAgain = _refreshRequested;
+    }
   }
 
   Future<void> _performRefresh() async {
@@ -263,7 +324,8 @@ class CashboxController extends ChangeNotifier {
       _repository.getCurrencySummary('IQD'),
       _repository.getCashLedgerReconciliation(),
     ]);
-    _transactions = results[0] as List<CashTransactionModel>;
+    _allTransactions = results[0] as List<CashTransactionModel>;
+    _applyTransactionFilter();
     _cashAccounts = results[1] as List<CashAccountModel>;
     _ledgerAccounts = results[2] as List<AccountModel>;
     _balances = results[3] as Map<String, double>;
@@ -271,6 +333,13 @@ class CashboxController extends ChangeNotifier {
     _iqdSummary = results[5] as Map<String, double>;
     _reconciliation = results[6] as Map<String, Map<String, double>>;
     notifyListeners();
+  }
+
+  void _applyTransactionFilter() {
+    _transactions = CashboxTransactionFilter.apply(
+      _allTransactions,
+      _transactionFilter,
+    );
   }
 
   void _setLoading(bool value) {

@@ -20,6 +20,9 @@ class CarRepository {
     await _cloud.upsert('erp_cars', car.id, car.toCloudMap());
   }
 
+  Future<bool> carExists(String id) async =>
+      await _cloud.getById('erp_cars', id) != null;
+
   Future<void> updateCar(CarModel car) async {
     AppLogger.debug('CarRepository.updateCar() [Supabase only]');
     car.validate();

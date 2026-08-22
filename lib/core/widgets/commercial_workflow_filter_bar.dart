@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 
 class CommercialWorkflowFilterBar extends StatelessWidget {
   const CommercialWorkflowFilterBar({
@@ -20,7 +19,7 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
   final String status;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onStatusChanged;
-  final VoidCallback onCreate;
+  final VoidCallback? onCreate;
   final String createLabel;
   final int resultCount;
 
@@ -44,6 +43,7 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
           showCheckmark: false,
           shape: const StadiumBorder(),
           visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           onSelected: (_) => onStatusChanged(entry.$1),
           selectedColor: KajDesignTokens.electricBlue.withValues(alpha: .20),
           side: BorderSide(
@@ -63,27 +63,31 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
           '${AppTranslation.translateForLocale('النتائج', Localizations.localeOf(context).languageCode)}: $resultCount',
           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
         ),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: const StadiumBorder(),
         side: BorderSide(color: scheme.outlineVariant),
       ),
-      FilledButton.icon(
-        onPressed: onCreate,
-        icon: const Icon(Icons.add_rounded, size: 16),
-        label: AppText(
-          createLabel,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+      if (onCreate != null)
+        FilledButton.icon(
+          onPressed: onCreate,
+          icon: const Icon(Icons.add_rounded, size: 16),
+          label: AppText(
+            createLabel,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+          ),
+          style: FilledButton.styleFrom(
+            shape: const StadiumBorder(),
+            minimumSize: const Size(0, 34),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
-        style: FilledButton.styleFrom(
-          shape: const StadiumBorder(),
-          minimumSize: const Size(0, 36),
-          padding: const EdgeInsets.symmetric(horizontal: 13),
-          visualDensity: VisualDensity.compact,
-        ),
-      ),
     ];
 
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 5),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 5, 12, 4),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final search = TextField(
@@ -99,7 +103,7 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
               filled: true,
               fillColor: scheme.surfaceContainerLowest.withValues(alpha: .54),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(11),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -107,18 +111,31 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
               ),
             ),
           );
-          final strip = AppHorizontalStrip(spacing: 6, children: filterButtons);
-          if (constraints.maxWidth < 780) {
+          final controls = Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: filterButtons,
+          );
+
+          if (constraints.maxWidth < 980) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[search, const SizedBox(height: 8), strip],
+              children: <Widget>[search, const SizedBox(height: 6), controls],
             );
           }
           return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              SizedBox(width: 310, child: search),
+              Expanded(flex: 5, child: search),
               const SizedBox(width: 10),
-              Expanded(child: strip),
+              Expanded(
+                flex: 7,
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: controls,
+                ),
+              ),
             ],
           );
         },

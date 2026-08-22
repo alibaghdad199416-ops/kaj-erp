@@ -11,7 +11,10 @@ import 'package:quality_line_erp/features/inventory/models/warehouse_stock_model
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 class InventoryController extends ChangeNotifier {
-  final InventoryRepository _repository = InventoryRepository();
+  InventoryController({InventoryRepository? repository})
+    : _repository = repository ?? InventoryRepository();
+
+  final InventoryRepository _repository;
 
   List<InventoryModel> _items = [];
   List<InventoryModel> _maintenanceItems = [];
@@ -19,6 +22,7 @@ class InventoryController extends ChangeNotifier {
   Future<void>? _maintenanceCatalogLoad;
   Future<void>? _inventoryLoad;
   String? _inventoryLoadWarehouseId;
+  bool _inventoryReloadRequested = false;
   final Map<String, DateTime> _inventoryLoadedAt = <String, DateTime>{};
   List<WarehouseModel> _warehouses = [];
   List<WarehouseModel> _allWarehouses = [];
@@ -78,11 +82,12 @@ class InventoryController extends ChangeNotifier {
       return Future<void>.value();
     }
     final active = _inventoryLoad;
-    if (!force && active != null && _inventoryLoadWarehouseId == warehouseId) {
+    if (active != null && _inventoryLoadWarehouseId == warehouseId) {
+      if (force) _inventoryReloadRequested = true;
       return active;
     }
 
-    final future = _loadInventoryNow(warehouseId, cacheKey);
+    final future = _loadInventoryLoop(warehouseId, cacheKey);
     _inventoryLoad = future;
     _inventoryLoadWarehouseId = warehouseId;
     return future.whenComplete(() {
@@ -91,6 +96,13 @@ class InventoryController extends ChangeNotifier {
         _inventoryLoadWarehouseId = null;
       }
     });
+  }
+
+  Future<void> _loadInventoryLoop(String? warehouseId, String cacheKey) async {
+    do {
+      _inventoryReloadRequested = false;
+      await _loadInventoryNow(warehouseId, cacheKey);
+    } while (_inventoryReloadRequested && _selectedWarehouseId == warehouseId);
   }
 
   Future<void> _loadInventoryNow(String? warehouseId, String cacheKey) async {
@@ -180,12 +192,26 @@ class InventoryController extends ChangeNotifier {
     required int openingQuantity,
     List<String> imagesBase64 = const [],
   }) async {
-    await _repository.addInventory(
-      item,
-      warehouseId: warehouseId,
-      openingQuantity: openingQuantity,
-      imagesBase64: imagesBase64,
-    );
+    try {
+      await _repository.addInventory(
+        item,
+        warehouseId: warehouseId,
+        openingQuantity: openingQuantity,
+        imagesBase64: imagesBase64,
+      );
+    } catch (error, stackTrace) {
+      // A network response can fail after PostgreSQL committed. Reconcile the
+      // new UUID against the canonical store before reporting a failed save;
+      // otherwise the user sees an error and later finds a "ghost" selector
+      // entry that was actually committed.
+      var committed = false;
+      try {
+        committed = await _repository.inventoryProductExists(item.id);
+      } catch (_) {
+        committed = false;
+      }
+      if (!committed) Error.throwWithStackTrace(error, stackTrace);
+    }
     invalidateMaintenanceCatalog();
     invalidateInventoryCache();
     AppDataChangeBus.instance.publish('inventory', operation: 'insert');
@@ -224,6 +250,10 @@ class InventoryController extends ChangeNotifier {
 
   Future<List<String>> getProductImages(String productId) {
     return _repository.getProductImages(productId);
+  }
+
+  Future<Map<String, Object?>> getProductMaintenanceCard(String productId) {
+    return _repository.getProductMaintenanceCard(productId);
   }
 
   Future<List<WarehouseStockModel>> getProductStocks(String productId) {
@@ -284,38 +314,6 @@ class InventoryController extends ChangeNotifier {
     invalidateInventoryCache();
     if (_selectedGroupId == id) _selectedGroupId = null;
     AppDataChangeBus.instance.publish('inventory', operation: 'group-delete');
-    await loadInventory(force: true);
-  }
-
-  Future<void> receiveStock({
-    required String productId,
-    required String warehouseId,
-    required int quantity,
-    required double unitPurchasePrice,
-    required double freightCost,
-    required double customsCost,
-    required double insuranceCost,
-    required double otherCost,
-    String? supplierId,
-    String? supplierName,
-    String? notes,
-  }) async {
-    await _repository.receiveStock(
-      productId: productId,
-      warehouseId: warehouseId,
-      quantity: quantity,
-      unitPurchasePrice: unitPurchasePrice,
-      freightCost: freightCost,
-      customsCost: customsCost,
-      insuranceCost: insuranceCost,
-      otherCost: otherCost,
-      supplierId: supplierId,
-      supplierName: supplierName,
-      notes: notes,
-    );
-    invalidateMaintenanceCatalog();
-    invalidateInventoryCache();
-    AppDataChangeBus.instance.publish('inventory', operation: 'receive');
     await loadInventory(force: true);
   }
 
@@ -443,28 +441,6 @@ class InventoryController extends ChangeNotifier {
     invalidateMaintenanceCatalog();
     invalidateInventoryCache();
     AppDataChangeBus.instance.publish('inventory', operation: 'plan');
-    await loadInventory(force: true);
-  }
-
-  Future<void> sellStock({
-    required String productId,
-    required String warehouseId,
-    required int quantity,
-    required double unitSalePrice,
-    String? customerName,
-    String? notes,
-  }) async {
-    await _repository.sellStock(
-      productId: productId,
-      warehouseId: warehouseId,
-      quantity: quantity,
-      unitSalePrice: unitSalePrice,
-      customerName: customerName,
-      notes: notes,
-    );
-    invalidateMaintenanceCatalog();
-    invalidateInventoryCache();
-    AppDataChangeBus.instance.publish('inventory', operation: 'sale');
     await loadInventory(force: true);
   }
 

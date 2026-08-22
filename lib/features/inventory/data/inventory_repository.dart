@@ -163,22 +163,66 @@ class InventoryRepository {
     QueryPage page = const QueryPage(),
     String? productId,
   }) async {
-    final raw = await Supabase.instance.client.rpc(
-      'erp_r28_inventory_movement_log',
-      params: <String, Object?>{
-        'p_company_id': CloudTenantContext.instance.companyUuid,
-        'p_product_id': productId,
-      },
-    );
+    final results = await Future.wait<Object?>([
+      Supabase.instance.client.rpc(
+        'erp_r28_inventory_movement_log',
+        params: <String, Object?>{
+          'p_company_id': CloudTenantContext.instance.companyUuid,
+          'p_product_id': productId,
+        },
+      ),
+      _cloud.list('erp_inventory'),
+    ]);
+    final raw = results[0];
+    final products = (results[1] as List<Map<String, dynamic>>);
+    final productCurrencyById = <String, String>{
+      for (final product in products)
+        if ((product['id']?.toString().trim() ?? '').isNotEmpty)
+          product['id'].toString(): _textValue(product, const [
+            'costCurrency',
+            'cost_currency',
+            'currency',
+          ]).toUpperCase(),
+    };
     final rows = (raw as List)
         .whereType<Map>()
-        .map((row) => Map<String, dynamic>.from(row))
+        .map((row) {
+          final mapped = Map<String, dynamic>.from(row);
+          final movementCurrency = _textValue(mapped, const [
+            'currency',
+            'costCurrency',
+            'cost_currency',
+          ]);
+          if (movementCurrency.isEmpty) {
+            final movementProductId = _textValue(mapped, const [
+              'productId',
+              'product_id',
+            ]);
+            mapped['currency'] = productCurrencyById[movementProductId] ?? '';
+          }
+          return mapped;
+        })
         .toList(growable: false);
     return rows
         .skip(page.offset)
         .take(page.limit)
         .map(InventoryMovementModel.fromMap)
         .toList(growable: false);
+  }
+
+  Future<Map<String, Object?>> getProductMaintenanceCard(
+    String productId,
+  ) async {
+    final result = await _client.rpc(
+      'erp_r57_product_maintenance_card',
+      params: <String, Object?>{
+        'p_company_id': _companyId,
+        'p_product_id': productId,
+      },
+    );
+    return result is Map
+        ? Map<String, Object?>.from(result)
+        : const <String, Object?>{};
   }
 
   Future<List<WarehouseModel>> getWarehouses({
@@ -267,6 +311,9 @@ class InventoryRepository {
     );
   }
 
+  Future<bool> inventoryProductExists(String id) async =>
+      await _cloud.getById('erp_inventory', id) != null;
+
   Future<void> updateInventory(
     InventoryModel item, {
     List<String> imagesBase64 = const [],
@@ -316,6 +363,7 @@ class InventoryRepository {
 
   Future<void> createWarehouse(WarehouseModel warehouse) async {
     await _cloud.upsert('erp_warehouses', warehouse.id, warehouse.toMap());
+    await _verifyWarehousePersistence(warehouse);
   }
 
   Future<void> createGroup(InventoryGroupModel group) async {
@@ -331,6 +379,36 @@ class InventoryRepository {
       warehouse.id,
       warehouse.toMap()..remove('createdAt'),
     );
+    await _verifyWarehousePersistence(warehouse);
+  }
+
+  Future<void> _verifyWarehousePersistence(WarehouseModel expected) async {
+    final raw = await _cloud.getById('erp_warehouses', expected.id);
+    if (raw == null) throw StateError('warehouse_persistence_readback_failed');
+    final actual = WarehouseModel.fromMap(raw);
+    String? normalized(String? value) {
+      final text = value?.trim() ?? '';
+      return text.isEmpty ? null : text;
+    }
+
+    if (actual.id != expected.id ||
+        actual.code.trim() != expected.code.trim() ||
+        actual.name.trim() != expected.name.trim() ||
+        normalized(actual.branchId) != normalized(expected.branchId) ||
+        actual.address.trim() != expected.address.trim() ||
+        normalized(actual.notes) != normalized(expected.notes) ||
+        actual.isActive != expected.isActive ||
+        actual.warehouseType != expected.warehouseType ||
+        normalized(actual.inventoryAccountId) !=
+            normalized(expected.inventoryAccountId) ||
+        normalized(actual.scrapExpenseAccountId) !=
+            normalized(expected.scrapExpenseAccountId) ||
+        normalized(actual.scrapExpenseIqdAccountId) !=
+            normalized(expected.scrapExpenseIqdAccountId) ||
+        normalized(actual.scrapExpenseUsdAccountId) !=
+            normalized(expected.scrapExpenseUsdAccountId)) {
+      throw StateError('warehouse_persistence_readback_mismatch');
+    }
   }
 
   Future<void> deleteWarehouse(String id) async {
@@ -373,48 +451,6 @@ class InventoryRepository {
       throw StateError('لا يمكن حذف مجموعة مرتبطة بمنتجات');
     await _cloud.delete('erp_inventory_groups', id);
     _lookupCache.invalidate();
-  }
-
-  Future<void> receiveStock({
-    required String productId,
-    required String warehouseId,
-    required int quantity,
-    required double unitPurchasePrice,
-    required double freightCost,
-    required double customsCost,
-    required double insuranceCost,
-    required double otherCost,
-    String? supplierId,
-    String? supplierName,
-    String? notes,
-  }) async {
-    if (quantity <= 0) throw ArgumentError('يجب أن تكون الكمية أكبر من صفر');
-    if ([
-      unitPurchasePrice,
-      freightCost,
-      customsCost,
-      insuranceCost,
-      otherCost,
-    ].any((value) => value < 0)) {
-      throw ArgumentError('تكاليف الشراء والوصول لا يمكن أن تكون سالبة');
-    }
-    await _client.rpc(
-      'erp_r49_receive_inventory_stock',
-      params: {
-        'p_company_id': _companyId,
-        'p_product_id': productId,
-        'p_warehouse_id': warehouseId,
-        'p_quantity': quantity,
-        'p_unit_purchase_price': unitPurchasePrice,
-        'p_freight_cost': freightCost,
-        'p_customs_cost': customsCost,
-        'p_insurance_cost': insuranceCost,
-        'p_other_cost': otherCost,
-        'p_supplier_id': supplierId,
-        'p_supplier_name': supplierName,
-        'p_notes': notes,
-      },
-    );
   }
 
   Future<Map<String, Object?>> transferCar({
@@ -580,30 +616,6 @@ class InventoryRepository {
         'p_warehouse_id': warehouseId,
         'p_incoming': incoming,
         'p_quantity': quantity,
-        'p_notes': notes,
-      },
-    );
-  }
-
-  Future<void> sellStock({
-    required String productId,
-    required String warehouseId,
-    required int quantity,
-    required double unitSalePrice,
-    String? customerName,
-    String? notes,
-  }) async {
-    if (quantity <= 0) throw ArgumentError('يجب أن تكون الكمية أكبر من صفر');
-    if (unitSalePrice < 0) throw ArgumentError('سعر البيع غير صحيح');
-    await _client.rpc(
-      'erp_sell_inventory_stock',
-      params: {
-        'p_company_id': _companyId,
-        'p_product_id': productId,
-        'p_warehouse_id': warehouseId,
-        'p_quantity': quantity,
-        'p_unit_sale_price': unitSalePrice,
-        'p_customer_name': customerName,
         'p_notes': notes,
       },
     );

@@ -6,6 +6,13 @@ import json
 import re
 from pathlib import Path
 
+from verification_gate_contract import (
+    CANONICAL_CHECK_COMMAND,
+    CURRENT_PHASE_VERIFY_SCRIPTS,
+    verify_all_errors,
+    workflow_errors,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_VERSION = "22.9.8+229008"
 GENERATED_FILES = {
@@ -31,6 +38,24 @@ GENERATED_DIRS = {
     "release_logs",
 }
 
+# These source-inspection Flutter tests pre-date the clean-package rule. Keep the
+# baseline explicit and frozen so R70+ cannot add more implementation-reading
+# tests while the historical cases are migrated to tool/verify_*.py over time.
+LEGACY_SOURCE_INSPECTION_TESTS = {
+    "test/core/exporting/enterprise_document_presentation_contract_test.dart",
+    "test/features/dashboard/dashboard_authoritative_snapshot_test.dart",
+    "test/features/maintenance/maintenance_order_snapshot_test.dart",
+    "test/features/maintenance/maintenance_partial_issue_ui_contract_test.dart",
+    "test/features/maintenance/maintenance_pdf_privacy_contract_test.dart",
+    "test/features/maintenance/maintenance_warehouse_issue_pdf_rows_test.dart",
+    "test/partial_commercial_fulfillment_contract_test.dart",
+    "test/r61_commercial_lifecycle_contract_test.dart",
+    "test/r66_authenticated_runtime_defect_contract_test.dart",
+    "test/r67_cancelled_order_purge_contract_test.dart",
+    "test/r68_governed_bulk_financial_family_contract_test.dart",
+    "test/r69_financial_family_runtime_convergence_contract_test.dart",
+}
+
 errors: list[str] = []
 
 gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
@@ -44,20 +69,12 @@ for local_config in (".env",):
     if path.exists():
         errors.append(f"local runtime configuration must not be packaged: {local_config}")
 
-# This delivery intentionally carries the browser-safe production dart defines
-# so the operator is not forced to re-enter Supabase configuration. The
-# deployment verifier separately guarantees that only the publishable browser
-# key is present and that the supplied project identifiers are unchanged.
-
 for generated_file in GENERATED_FILES:
     path = ROOT / generated_file
     if path.exists():
         errors.append(f"generated or local file must not be packaged: {generated_file}")
 
 for generated in GENERATED_DIRS:
-    # Repository metadata is expected when this source-package verifier runs
-    # from a real Git working tree. Keep it excluded from recursive content
-    # inspection, but do not treat its presence as packaged project content.
     if generated == ".git":
         continue
     path = ROOT / generated
@@ -73,8 +90,6 @@ for path in sorted(ROOT.rglob("*.json")):
         errors.append(f"invalid JSON {path.relative_to(ROOT)}: {error}")
 
 pubspec_text = (ROOT / "pubspec.yaml").read_text(encoding="utf-8")
-
-
 version_match = re.search(r"(?m)^version:\s*([^\s#]+)", pubspec_text)
 version = version_match.group(1).strip("\"'") if version_match else ""
 if version != EXPECTED_VERSION:
@@ -93,20 +108,22 @@ runtime_text = "\n".join(
     if path.is_file()
 )
 
-# Every direct hosted runtime package must be referenced by application/test source.
-# SDK dependencies are excluded because they do not use package imports in the same way.
 dependency_block = re.search(
     r"(?ms)^dependencies:\n(?P<body>.*?)(?=^dev_dependencies:)",
     pubspec_text,
 )
 if dependency_block:
     direct_packages = set(
-        re.findall(r"(?m)^  ([a-zA-Z0-9_]+):\s*(?:\^|>=|[0-9])", dependency_block.group("body"))
+        re.findall(
+            r"(?m)^  ([a-zA-Z0-9_]+):\s*(?:\^|>=|[0-9])",
+            dependency_block.group("body"),
+        )
     )
-    imported_packages = set(
-        re.findall(r"package:([a-zA-Z0-9_]+)/", runtime_text)
+    imported_packages = set(re.findall(r"package:([a-zA-Z0-9_]+)/", runtime_text))
+    asset_only_packages = {"cupertino_icons"}
+    unused_direct_packages = sorted(
+        direct_packages - imported_packages - asset_only_packages
     )
-    unused_direct_packages = sorted(direct_packages - imported_packages)
     if unused_direct_packages:
         errors.append(
             "unused direct runtime dependencies: " + ", ".join(unused_direct_packages)
@@ -162,12 +179,15 @@ if len(flutter_tests) < 25:
     errors.append(f"too few executable Flutter test files: {len(flutter_tests)}")
 for path in flutter_tests:
     text = path.read_text(encoding="utf-8", errors="ignore")
-    if ("readAsStringSync" in text or "import 'dart:io'" in text) and (
-        "lib/" in text or "supabase/" in text or "web/" in text
+    relative = path.relative_to(ROOT).as_posix()
+    if (
+        ("readAsStringSync" in text or "import 'dart:io'" in text)
+        and ("lib/" in text or "supabase/" in text or "web/" in text)
+        and relative not in LEGACY_SOURCE_INSPECTION_TESTS
     ):
         errors.append(
-            "implementation-source inspection must live in tool/verify_*.py, not Flutter tests: "
-            + str(path.relative_to(ROOT))
+            "implementation-source inspection must live in tool/verify_*.py, "
+            "not Flutter tests: " + relative
         )
 
 scripts = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["scripts"]
@@ -191,13 +211,15 @@ expected_scripts = {
     "verify:delivery",
     "verify:preinstall",
     "verify:workspace",
+    "verify:all",
     "verify:r13",
+    *CURRENT_PHASE_VERIFY_SCRIPTS,
 }
 missing_scripts = expected_scripts.difference(scripts)
 if missing_scripts:
     errors.append("missing package commands: " + ", ".join(sorted(missing_scripts)))
+
 build_web = scripts.get("build:web", "")
-# Ignore Python bytecode-suppression spelling when validating build order.
 build_web_semantic = build_web.replace("python -B tool/", "python tool/")
 required_build_steps = (
     "python tool/prepare_web_release.py",
@@ -207,33 +229,60 @@ required_build_steps = (
 )
 positions = [build_web_semantic.find(step) for step in required_build_steps]
 if any(position < 0 for position in positions):
-    errors.append("build:web must prepare metadata, build, validate CanvasKit, and verify output")
+    errors.append(
+        "build:web must prepare metadata, build, validate CanvasKit, and verify output"
+    )
 elif positions != sorted(positions):
     errors.append("build:web release steps are in the wrong order")
 if "--no-wasm-dry-run" not in build_web:
-    errors.append("browser JavaScript release build must suppress irrelevant Wasm dry-run noise")
-if scripts.get("verify:delivery") != "npm run verify:package && npm run verify:deployment-target":
+    errors.append(
+        "browser JavaScript release build must suppress irrelevant Wasm dry-run noise"
+    )
+
+if (
+    scripts.get("verify:delivery")
+    != "npm run verify:package && npm run verify:deployment-target"
+):
     errors.append("verify:delivery must validate clean package and deployment target")
 if scripts.get("check:delivery") != "npm run verify:delivery":
     errors.append("check:delivery must run the clean pre-install delivery gate")
-if scripts.get("check") != "npm run verify:workspace && npm run format:check && npm run analyze && npm run test":
-    errors.append("check must run workspace verification, formatting, analyzer, and tests")
+if scripts.get("check") != CANONICAL_CHECK_COMMAND:
+    errors.append(
+        "check must run the complete verification chain, formatting, analyzer, and tests"
+    )
+errors.extend(verify_all_errors(scripts))
 
 if scripts.get("check:release") != "npm run format && npm run check && npm run build:web":
-    errors.append("check:release must format, run all source gates, then build the production web release")
+    errors.append(
+        "check:release must format, run all source gates, then build the production web release"
+    )
 if scripts.get("format") != "dart format lib test integration_test":
     errors.append("format command must include explicit Dart source paths")
-if scripts.get("validate:r10:windows") != "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r10_windows.ps1":
-    errors.append("validate:r10:windows must use the fail-fast Windows Flutter validation script")
-if scripts.get("validate:r12:windows") != "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r12_windows.ps1":
-    errors.append("validate:r12:windows must use the R12 fail-fast Windows Flutter validation script")
+if (
+    scripts.get("validate:r10:windows")
+    != "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r10_windows.ps1"
+):
+    errors.append(
+        "validate:r10:windows must use the fail-fast Windows Flutter validation script"
+    )
+if (
+    scripts.get("validate:r12:windows")
+    != "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r12_windows.ps1"
+):
+    errors.append(
+        "validate:r12:windows must use the R12 fail-fast Windows Flutter validation script"
+    )
 if scripts.get("verify:preinstall") != "npm run verify:delivery":
     errors.append("verify:preinstall must run the pristine delivery gate")
-if scripts.get("verify:all") != "npm run verify:workspace":
-    errors.append("verify:all must alias verify:workspace")
-if "verify:package" in scripts.get("verify:workspace", "") or "verify:delivery" in scripts.get("verify:workspace", ""):
+if (
+    "verify:package" in scripts.get("verify:workspace", "")
+    or "verify:delivery" in scripts.get("verify:workspace", "")
+):
     errors.append("verify:workspace must not invoke clean-package checks")
-if scripts.get("validate:r13:windows") != "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r13_windows.ps1":
+if (
+    scripts.get("validate:r13:windows")
+    != "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r13_windows.ps1"
+):
     errors.append("validate:r13:windows must use the R13 fail-fast Windows validator")
 
 workflow_path = ROOT / ".github/workflows/quality-gates.yml"
@@ -243,6 +292,7 @@ if workflow_path.is_file():
         errors.append("GitHub Actions must use the canonical build:web command")
     if "python tool/prepare_local_canvaskit.py" in workflow:
         errors.append("GitHub Actions must not validate CanvasKit before the web build")
+    errors.extend(workflow_errors(workflow))
 
 if errors:
     print("FAILED clean package sanity verification")
@@ -255,4 +305,5 @@ print(f"  - pubspec version: {EXPECTED_VERSION}")
 print("  - generated/local paths are excluded by .gitignore")
 print("  - Supabase is the application backend; Firebase is Hosting only")
 print("  - local credentials and generated folders are excluded")
-print("  - root command surface is concise and explicit")
+print("  - new source-inspection tests are blocked outside tool/verify_*.py")
+print("  - authoritative verify:all/check/CI topology comes from one contract")

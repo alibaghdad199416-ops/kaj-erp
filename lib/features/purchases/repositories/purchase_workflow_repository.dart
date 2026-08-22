@@ -108,15 +108,12 @@ class PurchaseWorkflowRepository {
     required String warehouseId,
     String? notes,
   }) async {
-    final id = (await _client.rpc(
-      'erp_r49_create_purchase_receipt',
-      params: {
-        'p_company_id': _companyId,
-        'p_order_id': orderId,
-        'p_warehouse_id': warehouseId,
-        'p_notes': notes,
-      },
-    )).toString();
+    final id = (await _rpcValue('erp_r49_create_purchase_receipt', {
+      'p_company_id': _companyId,
+      'p_order_id': orderId,
+      'p_warehouse_id': warehouseId,
+      'p_notes': notes,
+    })).toString();
     _publishCommittedChange('erp_r49_create_purchase_receipt');
     return id;
   }
@@ -126,37 +123,16 @@ class PurchaseWorkflowRepository {
   Future<void> cancelReceipt(String receiptId) =>
       _void('erp_cancel_cloud_purchase_receipt', {'p_receipt_id': receiptId});
   Future<String> createInvoiceDraft(String orderId) async {
-    final id = (await _client.rpc(
-      'erp_create_cloud_purchase_workflow_invoice',
-      params: {'p_company_id': _companyId, 'p_order_id': orderId},
-    )).toString();
+    final id = (await _rpcValue('erp_create_cloud_purchase_workflow_invoice', {
+      'p_company_id': _companyId,
+      'p_order_id': orderId,
+    })).toString();
     _publishCommittedChange('erp_create_cloud_purchase_workflow_invoice');
     return id;
   }
 
   Future<void> approveInvoice(String invoiceId) =>
       _void('erp_r22_approve_purchase_invoice', {'p_invoice_id': invoiceId});
-  Future<void> addInvoicePayment(
-    String invoiceId,
-    PurchaseInvoicePaymentInput payment,
-  ) async {
-    if (invoiceId.trim().isEmpty) throw ArgumentError('مرجع الفاتورة غير صالح');
-    payment.validate();
-    await _void('erp_pay_cloud_purchase_workflow_invoice', {
-      'p_invoice_id': invoiceId,
-      'p_payment': {
-        'cashAccountId': payment.cashAccountId,
-        'paymentCurrency': payment.paymentCurrency,
-        'invoiceAmount': payment.invoiceAmount,
-        'cashAmount': payment.cashAmount,
-        'exchangeRate': payment.exchangeRate,
-        'paymentDate': payment.paymentDate?.toUtc().toIso8601String(),
-        'notes': payment.notes,
-        'settlementMode': payment.settlementMode.name,
-      },
-    });
-  }
-
   Future<void> cancelInvoice(
     String invoiceId, {
     String reason = 'إلغاء فاتورة الشراء',
@@ -211,8 +187,15 @@ class PurchaseWorkflowRepository {
         'p_effective_at': value.toUtc().toIso8601String(),
       });
 
-  Future<void> deleteOrderCascade(String orderId) =>
-      _void('erp_delete_cloud_purchase_order_v3', {'p_order_id': orderId});
+  Future<void> deleteOrderCascade(String orderId) => _void(
+    'erp_r67_delete_commercial_order',
+    {'p_order_id': orderId, 'p_module': 'purchases'},
+  );
+
+  Future<void> cancelOrder(String orderId, {String? reason}) => _void(
+    'erp_r62_cancel_commercial_order',
+    {'p_order_id': orderId, 'p_module': 'purchases', 'p_reason': reason},
+  );
 
   Future<void> manageOrderComponent({
     required String orderId,
@@ -246,7 +229,7 @@ class PurchaseWorkflowRepository {
     String orderId,
   ) async {
     final value = await _client.rpc(
-      'erp_r49_get_commercial_order_allocation_context',
+      'erp_r92_get_commercial_order_allocation_context',
       params: {
         'p_company_id': _companyId,
         'p_order_id': orderId,
@@ -266,15 +249,12 @@ class PurchaseWorkflowRepository {
     if (allocations.isEmpty) {
       throw ArgumentError('يجب توزيع بند واحد على الأقل على المخازن');
     }
-    final id = (await _client.rpc(
-      'erp_r49_create_purchase_receipt_multi',
-      params: {
-        'p_company_id': _companyId,
-        'p_order_id': orderId,
-        'p_allocations': allocations,
-        'p_notes': notes,
-      },
-    )).toString();
+    final id = (await _rpcValue('erp_r49_create_purchase_receipt_multi', {
+      'p_company_id': _companyId,
+      'p_order_id': orderId,
+      'p_allocations': allocations,
+      'p_notes': notes,
+    })).toString();
     _publishCommittedChange('erp_r49_create_purchase_receipt_multi');
     return id;
   }
@@ -287,20 +267,20 @@ class PurchaseWorkflowRepository {
   );
   Future<List<Map<String, Object?>>> listWarehouses() async => _rows(
     await _client.rpc(
-      'erp_r49_list_cloud_active_warehouses',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_warehouses',
+      params: {'p_company_id': _companyId, 'p_module': 'purchases'},
     ),
   );
   Future<List<Map<String, Object?>>> listCashAccounts() async => _rows(
     await _client.rpc(
-      'erp_r49_list_cloud_active_cash_accounts',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_cash_accounts',
+      params: {'p_company_id': _companyId, 'p_module': 'purchases'},
     ),
   );
   Future<List<Map<String, Object?>>> listSettlementAccounts() async => _rows(
     await _client.rpc(
-      'erp_list_cloud_settlement_accounts',
-      params: {'p_company_id': _companyId},
+      'erp_r92_list_workflow_settlement_accounts',
+      params: {'p_company_id': _companyId, 'p_module': 'purchases'},
     ),
   );
   Future<List<Map<String, Object?>>> purchaseCatalog({String? orderId}) async {

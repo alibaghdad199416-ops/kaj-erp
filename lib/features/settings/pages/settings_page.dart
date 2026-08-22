@@ -71,11 +71,13 @@ class _SettingsPageState extends State<SettingsPage>
           );
         }
         return Column(
+          key: const ValueKey('system-model-full-height-workspace'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              height: 42,
+              key: const ValueKey('system-model-horizontal-sections'),
+              height: 38,
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
                 scrollDirection: Axis.horizontal,
                 itemCount: sections.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 7),
@@ -97,16 +99,20 @@ class _SettingsPageState extends State<SettingsPage>
                         onSelected: (_) => _tabController.animateTo(index),
                         avatar: Icon(section.icon, size: 17),
                         label: AppText(isArabic ? section.ar : section.en),
-                        visualDensity: VisualDensity.compact,
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -3,
+                        ),
                       ),
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Expanded(
               child: TabBarView(
+                key: const ValueKey('system-model-active-section-viewport'),
                 controller: _tabController,
                 children: [
                   FieldPermissionVisibility(
@@ -255,132 +261,190 @@ class _CompanyTabState extends State<_CompanyTab> {
           'language',
           viewPermission: PermissionCodes.settingsView,
         );
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    _field(_name, 'اسم الشركة بالعربية', required: true),
-                    const SizedBox(height: 16),
-                    _field(_nameEn, 'اسم الشركة بالإنجليزية'),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(child: _field(_phone, 'الهاتف')),
-                        const SizedBox(width: 16),
-                        Expanded(child: _field(_email, 'البريد الإلكتروني')),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _field(_address, 'العنوان'),
-                    const SizedBox(height: 16),
-                    _field(_tax, 'الرقم الضريبي'),
-                    const SizedBox(height: 16),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 620;
-                        final width = compact
-                            ? constraints.maxWidth
-                            : (constraints.maxWidth - 16) / 2;
-                        return Wrap(
-                          spacing: 16,
-                          runSpacing: 12,
-                          children: [
-                            SizedBox(
-                              width: width,
-                              child: FieldPermissionControl(
-                                resource: 'settings',
-                                field: 'financialDefaults',
-                                viewPermission: 'settings.view',
-                                writePermission: 'settings.view',
-                                child: DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: _currency,
-                                  decoration: InputDecoration(
-                                    labelText: AppTranslation.translate(
-                                      'العملة الافتراضية',
-                                    ),
-                                    border: const OutlineInputBorder(),
-                                  ),
-                                  items: widget.controller.currencies
-                                      .where((e) => e.isActive)
-                                      .map(
-                                        (e) => DropdownMenuItem(
-                                          value: e.code,
-                                          child: AppText(
-                                            '${e.name} (${e.code})',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (value) => setState(
-                                    () => _currency = value ?? 'USD',
-                                  ),
-                                ),
-                              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 12.0;
+        final compact = constraints.maxWidth < 760;
+        final fieldWidth = compact
+            ? constraints.maxWidth
+            : (constraints.maxWidth - gap) / 2;
+
+        Widget sized(Widget child) => SizedBox(width: fieldWidth, child: child);
+
+        return SingleChildScrollView(
+          key: const ValueKey('settings-company-full-page-scroll'),
+          padding: const EdgeInsets.fromLTRB(2, 2, 2, 12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight > 14
+                  ? constraints.maxHeight - 14
+                  : 0.0,
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(compact ? 14 : 18),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            SizedBox(
-                              width: width,
-                              child: FieldPermissionControl(
-                                resource: 'settings',
-                                field: 'language',
-                                viewPermission: 'settings.view',
-                                writePermission: 'settings.view',
-                                child: DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: _language,
-                                  decoration: InputDecoration(
-                                    labelText: AppTranslation.translate(
-                                      'لغة النظام',
-                                    ),
-                                    border: const OutlineInputBorder(),
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'ar',
-                                      child: AppText('العربية'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'en',
-                                      child: AppText('English'),
-                                    ),
-                                  ],
-                                  onChanged: (value) =>
-                                      setState(() => _language = value ?? 'en'),
-                                ),
-                              ),
+                            child: Icon(
+                              Icons.business_outlined,
+                              size: 19,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: FilledButton.icon(
-                        onPressed: widget.controller.isLoading || !canSave
-                            ? null
-                            : _save,
-                        icon: const Icon(Icons.save_outlined),
-                        label: const AppText('حفظ الإعدادات'),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AppText(
+                                  context.l10n.isArabic
+                                      ? 'هوية الشركة والإعدادات الافتراضية'
+                                      : 'Company identity and defaults',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 2),
+                                AppText(
+                                  context.l10n.isArabic
+                                      ? 'بيانات موحدة للطباعة والعملات واللغة.'
+                                      : 'Shared identity, currency, print and language defaults.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          FilledButton.icon(
+                            onPressed: widget.controller.isLoading || !canSave
+                                ? null
+                                : _save,
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              minimumSize: const Size(0, 38),
+                            ),
+                            icon: const Icon(Icons.save_outlined, size: 18),
+                            label: AppText(
+                              context.l10n.isArabic ? 'حفظ' : 'Save',
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: gap,
+                        runSpacing: 12,
+                        children: [
+                          sized(
+                            _field(
+                              _name,
+                              'اسم الشركة بالعربية',
+                              required: true,
+                            ),
+                          ),
+                          sized(_field(_nameEn, 'اسم الشركة بالإنجليزية')),
+                          sized(_field(_phone, 'الهاتف')),
+                          sized(_field(_email, 'البريد الإلكتروني')),
+                          sized(_field(_address, 'العنوان')),
+                          sized(_field(_tax, 'الرقم الضريبي')),
+                          sized(
+                            FieldPermissionControl(
+                              resource: 'settings',
+                              field: 'financialDefaults',
+                              viewPermission: 'settings.view',
+                              writePermission: 'settings.view',
+                              child: DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: _currency,
+                                decoration: InputDecoration(
+                                  labelText: AppTranslation.translate(
+                                    'العملة الافتراضية',
+                                  ),
+                                  border: const OutlineInputBorder(),
+                                ),
+                                items: widget.controller.currencies
+                                    .where((e) => e.isActive)
+                                    .map(
+                                      (e) => DropdownMenuItem(
+                                        value: e.code,
+                                        child: AppText(
+                                          '${e.name} (${e.code})',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) =>
+                                    setState(() => _currency = value ?? 'USD'),
+                              ),
+                            ),
+                          ),
+                          sized(
+                            FieldPermissionControl(
+                              resource: 'settings',
+                              field: 'language',
+                              viewPermission: 'settings.view',
+                              writePermission: 'settings.view',
+                              child: DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue: _language,
+                                decoration: InputDecoration(
+                                  labelText: AppTranslation.translate(
+                                    'لغة النظام',
+                                  ),
+                                  border: const OutlineInputBorder(),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'ar',
+                                    child: AppText('العربية'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'en',
+                                    child: AppText('English'),
+                                  ),
+                                ],
+                                onChanged: (value) =>
+                                    setState(() => _language = value ?? 'en'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -422,47 +486,224 @@ class _BranchesTab extends StatelessWidget {
         viewPermission: PermissionCodes.settingsView,
       ),
     );
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: FilledButton.icon(
-            onPressed: canEdit ? () => _showBranchDialog(context) : null,
-            icon: const Icon(Icons.add),
-            label: const AppText('إضافة فرع'),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...controller.branches.map(
-          (branch) => Card(
-            child: ListTile(
-              leading: Icon(branch.isMain ? Icons.star : Icons.store_outlined),
-              title: AppText(branch.name),
-              subtitle: AppText(
-                '${branch.code} • ${branch.address}\n${branch.isActive ? 'نشط' : 'غير نشط'}',
-              ),
-              isThreeLine: true,
-              trailing: Wrap(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        const minCardWidth = 300.0;
+        final columns = ((constraints.maxWidth + gap) / (minCardWidth + gap))
+            .floor()
+            .clamp(1, 4);
+        final activeCount = controller.branches.where((b) => b.isActive).length;
+
+        Widget branchCard(BranchModel branch) {
+          final scheme = Theme.of(context).colorScheme;
+          return Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 9),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  IconButton(
-                    onPressed: canEdit
-                        ? () => _showBranchDialog(context, branch: branch)
-                        : null,
-                    icon: const Icon(Icons.edit_outlined),
+                  Row(
+                    children: [
+                      Icon(
+                        branch.isMain
+                            ? Icons.star_rounded
+                            : Icons.store_outlined,
+                        size: 18,
+                        color: branch.isMain
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: AppText(
+                          branch.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.isArabic
+                            ? 'تعديل الفرع'
+                            : 'Edit branch',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: canEdit
+                            ? () => _showBranchDialog(context, branch: branch)
+                            : null,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.isArabic
+                            ? 'حذف الفرع'
+                            : 'Delete branch',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: !canEdit || branch.isMain
+                            ? null
+                            : () => _deleteBranch(context, branch),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: !canEdit || branch.isMain
-                        ? null
-                        : () => _deleteBranch(context, branch),
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  const SizedBox(height: 5),
+                  AppText(
+                    branch.code,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Expanded(
+                    child: AppText(
+                      branch.address.trim().isEmpty
+                          ? (context.l10n.isArabic
+                                ? 'بدون عنوان'
+                                : 'No address')
+                          : branch.address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: branch.isActive
+                              ? Colors.green.withValues(alpha: .08)
+                              : scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: AppText(
+                          branch.isActive
+                              ? (context.l10n.isArabic ? 'نشط' : 'Active')
+                              : (context.l10n.isArabic
+                                    ? 'غير نشط'
+                                    : 'Inactive'),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      if (branch.isMain) ...[
+                        const SizedBox(width: 6),
+                        AppText(
+                          context.l10n.isArabic ? 'رئيسي' : 'Main',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      ],
+          );
+        }
+
+        return CustomScrollView(
+          key: const ValueKey('settings-branches-full-page-scroll'),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(2, 2, 2, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          AppText(
+                            context.l10n.isArabic ? 'الفروع' : 'Branches',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            label: AppText(
+                              context.l10n.isArabic
+                                  ? '${controller.branches.length} إجمالي'
+                                  : '${controller.branches.length} total',
+                            ),
+                          ),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            label: AppText(
+                              context.l10n.isArabic
+                                  ? '$activeCount نشط'
+                                  : '$activeCount active',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton.icon(
+                      onPressed: canEdit
+                          ? () => _showBranchDialog(context)
+                          : null,
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        minimumSize: const Size(0, 38),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: AppText(
+                        context.l10n.isArabic ? 'إضافة فرع' : 'Add branch',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (controller.branches.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: AppText(
+                    context.l10n.isArabic
+                        ? 'لا توجد فروع معرفة.'
+                        : 'No branches have been defined.',
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: gap,
+                    mainAxisSpacing: gap,
+                    mainAxisExtent: 132,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => branchCard(controller.branches[index]),
+                    childCount: controller.branches.length,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -590,48 +831,221 @@ class _CurrenciesTab extends StatelessWidget {
         viewPermission: PermissionCodes.settingsView,
       ),
     );
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: FilledButton.icon(
-            onPressed: canEdit ? () => _showCurrencyDialog(context) : null,
-            icon: const Icon(Icons.add),
-            label: const AppText('إضافة عملة'),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...controller.currencies.map(
-          (currency) => Card(
-            child: ListTile(
-              leading: CircleAvatar(child: AppText(currency.symbol)),
-              title: AppText('${currency.name} (${currency.code})'),
-              subtitle: AppText(
-                context.l10n.isArabic
-                    ? 'سعر الصرف: ${currency.exchangeRate} • ${currency.isActive ? 'نشطة' : 'غير نشطة'}'
-                    : 'Exchange rate: ${currency.exchangeRate} • ${currency.isActive ? 'Active' : 'Inactive'}',
-              ),
-              trailing: Wrap(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        const minCardWidth = 280.0;
+        final columns = ((constraints.maxWidth + gap) / (minCardWidth + gap))
+            .floor()
+            .clamp(1, 4);
+        final activeCount = controller.currencies
+            .where((c) => c.isActive)
+            .length;
+
+        Widget currencyCard(CurrencyModel currency) {
+          final scheme = Theme.of(context).colorScheme;
+          return Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 9),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (currency.isBase) const Chip(label: AppText('الأساسية')),
-                  IconButton(
-                    onPressed: () =>
-                        _showCurrencyDialog(context, currency: currency),
-                    icon: const Icon(Icons.edit_outlined),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: scheme.primary.withValues(alpha: .08),
+                        child: AppText(
+                          currency.symbol,
+                          style: TextStyle(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: AppText(
+                          '${currency.name} (${currency.code})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.isArabic
+                            ? 'تعديل العملة'
+                            : 'Edit currency',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: canEdit
+                            ? () => _showCurrencyDialog(
+                                context,
+                                currency: currency,
+                              )
+                            : null,
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.isArabic
+                            ? 'حذف العملة'
+                            : 'Delete currency',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: !canEdit || currency.isBase
+                            ? null
+                            : () => _deleteCurrency(context, currency),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: !canEdit || currency.isBase
-                        ? null
-                        : () => _deleteCurrency(context, currency),
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  const SizedBox(height: 7),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppText(
+                          context.l10n.isArabic
+                              ? 'سعر الصرف: ${currency.exchangeRate}'
+                              : 'Exchange rate: ${currency.exchangeRate}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                      if (currency.isBase)
+                        Chip(
+                          visualDensity: const VisualDensity(
+                            horizontal: -3,
+                            vertical: -3,
+                          ),
+                          label: AppText(
+                            context.l10n.isArabic ? 'الأساسية' : 'Base',
+                          ),
+                        ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: currency.isActive
+                            ? Colors.green.withValues(alpha: .08)
+                            : scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: AppText(
+                        currency.isActive
+                            ? (context.l10n.isArabic ? 'نشطة' : 'Active')
+                            : (context.l10n.isArabic ? 'غير نشطة' : 'Inactive'),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      ],
+          );
+        }
+
+        return CustomScrollView(
+          key: const ValueKey('settings-currencies-full-page-scroll'),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(2, 2, 2, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          AppText(
+                            context.l10n.isArabic ? 'العملات' : 'Currencies',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            label: AppText(
+                              context.l10n.isArabic
+                                  ? '${controller.currencies.length} إجمالي'
+                                  : '${controller.currencies.length} total',
+                            ),
+                          ),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            label: AppText(
+                              context.l10n.isArabic
+                                  ? '$activeCount نشطة'
+                                  : '$activeCount active',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton.icon(
+                      onPressed: canEdit
+                          ? () => _showCurrencyDialog(context)
+                          : null,
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        minimumSize: const Size(0, 38),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: AppText(
+                        context.l10n.isArabic ? 'إضافة عملة' : 'Add currency',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (controller.currencies.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: AppText(
+                    context.l10n.isArabic
+                        ? 'لا توجد عملات معرفة.'
+                        : 'No currencies have been defined.',
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(2, 0, 2, 12),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: gap,
+                    mainAxisSpacing: gap,
+                    mainAxisExtent: 118,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        currencyCard(controller.currencies[index]),
+                    childCount: controller.currencies.length,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -769,11 +1183,15 @@ class _BackupsTab extends StatelessWidget {
     );
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      key: const ValueKey('settings-backups-full-page-scroll'),
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 12),
       children: [
         if (!canManageBackups || !canRestoreBackups) ...[
           Card(
+            margin: EdgeInsets.zero,
             child: ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
               leading: const Icon(Icons.lock_outline),
               title: const AppText('صلاحيات النسخ الاحتياطية'),
               subtitle: AppText(
@@ -785,11 +1203,12 @@ class _BackupsTab extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
         Card(
+          margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(14),
             child: Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -799,7 +1218,7 @@ class _BackupsTab extends StatelessWidget {
                   width: AppResponsive.dialogWidth(context, 520),
                   child: const AppText(
                     'أنشئ نسخة داخلية أو استورد ملف نسخة محمولًا. يمكن تصدير أي نسخة وحفظها خارج النظام ثم استيرادها على جهاز آخر.',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(fontSize: 14),
                   ),
                 ),
                 FieldPermissionControl(
@@ -832,18 +1251,21 @@ class _BackupsTab extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         if (controller.backups.isEmpty)
           const Center(
             child: Padding(
-              padding: EdgeInsets.all(40),
+              padding: EdgeInsets.all(22),
               child: AppText('لا توجد نسخ احتياطية بعد'),
             ),
           )
         else
           ...controller.backups.map(
             (backup) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
                 leading: const Icon(Icons.storage_outlined),
                 title: AppText(backup.name),
                 subtitle: Column(

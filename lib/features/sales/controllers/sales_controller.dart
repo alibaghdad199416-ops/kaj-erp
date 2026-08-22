@@ -3,22 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/features/accounting/installments/models/installment_model.dart';
 import 'package:quality_line_erp/features/sales/data/sale_repository.dart';
 import 'package:quality_line_erp/features/sales/models/sale_model.dart';
+import 'package:quality_line_erp/features/sales/models/sales_workflow_order_model.dart';
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 class SalesController extends ChangeNotifier {
   final SaleRepository _repository = SaleRepository();
 
   List<SaleModel> _sales = [];
+  List<SalesWorkflowOrder> _salesWorkflowOrders = [];
   bool _isSaving = false;
   bool _hasLoaded = false;
 
   List<SaleModel> get sales => List.unmodifiable(_sales);
+  List<SalesWorkflowOrder> get salesWorkflowOrders => List.unmodifiable(_salesWorkflowOrders);
   bool get isSaving => _isSaving;
   bool get hasLoaded => _hasLoaded;
 
   Future<void> loadSales() async {
     _sales = await _repository.getSales();
     _hasLoaded = true;
+    notifyListeners();
+  }
+
+  Future<void> loadSalesWorkflowOrders() async {
+    _salesWorkflowOrders = await _repository.getSalesWorkflowOrders();
     notifyListeners();
   }
 

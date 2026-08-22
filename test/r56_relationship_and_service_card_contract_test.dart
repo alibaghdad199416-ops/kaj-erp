@@ -1,0 +1,411 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/printing/vehicle_service_card_pdf_service.dart';
+import 'package:quality_line_erp/features/business_partners/shared/data/partner_record_route.dart';
+import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
+import 'package:quality_line_erp/features/inventory/cars/models/car_model.dart';
+import 'package:quality_line_erp/features/inventory/cars/pages/vehicle_service_card_page.dart';
+import 'package:quality_line_erp/features/maintenance/pages/add_maintenance_order_page.dart';
+import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const service = VehicleServiceCardPdfService();
+  final fixture = <String, Object?>{
+    'vehicle': <String, Object?>{
+      'id': '11111111-1111-4111-8111-111111111111',
+      'carNumber': 'CAR-R56-1',
+      'brand': 'KAJ',
+      'model': 'Acceptance',
+      'year': 2026,
+      'chassis': 'VIN-R56-1',
+      'purchasePrice': 987654.32,
+      'inventoryValue': 876543.21,
+    },
+    'maintenanceHistory': <Object?>[
+      <String, Object?>{
+        'id': '22222222-2222-4222-8222-222222222222',
+        'orderNumber': 'MO-R56-1',
+        'opportunityNumber': 'OPP-R56-1',
+        'maintenanceDate': '2026-08-11T10:30:00Z',
+        'workflowStage': 'invoice_approved',
+        'currencyCode': 'USD',
+        'salePrice': 125,
+        'paidAmount': 50,
+        'invoiceNumber': 'MINV-R56-1',
+        'laborCost': 40.25,
+        'partsCost': 84.75,
+        'totalCost': 125,
+        'profit': 765432.10,
+        'carCostAdded': 654321.09,
+        'items': <Object?>[
+          <String, Object?>{
+            'name': 'Customer service',
+            'quantity': 1,
+            'unitPrice': 125,
+            'unitCost': 876543.21,
+          },
+        ],
+      },
+    ],
+  };
+
+  test('print presentation excludes every internal-cost sentinel', () {
+    final presentation = service.buildPresentation(fixture);
+    final encoded = jsonEncode(presentation);
+    expect(encoded, contains('CAR-R56-1'));
+    expect(encoded, contains('MO-R56-1'));
+    expect(encoded, contains('125'));
+    expect(encoded, contains('40.25'));
+    expect(encoded, contains('84.75'));
+    expect(encoded, isNot(contains('987654.32')));
+    expect(encoded, isNot(contains('876543.21')));
+    expect(encoded, isNot(contains('765432.1')));
+    expect(encoded, isNot(contains('654321.09')));
+  });
+
+  test(
+    'print presentation does not invent permission-filtered cost fields',
+    () {
+      final filteredFixture = Map<String, Object?>.from(fixture);
+      final history =
+          Map<String, Object?>.from(
+              (fixture['maintenanceHistory']! as List<Object?>).single!
+                  as Map<String, Object?>,
+            )
+            ..remove('laborCost')
+            ..remove('partsCost')
+            ..remove('totalCost');
+      filteredFixture['maintenanceHistory'] = <Object?>[history];
+
+      final encoded = jsonEncode(service.buildPresentation(filteredFixture));
+
+      expect(encoded, isNot(contains('laborCost')));
+      expect(encoded, isNot(contains('partsCost')));
+      expect(encoded, isNot(contains('totalCost')));
+    },
+  );
+
+  test('linked opportunity keeps its canonical existing car', () {
+    expect(
+      resolveInitialMaintenanceVehicle(
+        initialCarId: 'car-existing',
+        opportunityId: 'opportunity-r56',
+        eligibleCarIds: const ['car-first', 'car-existing'],
+      ),
+      'car-existing',
+    );
+  });
+
+  test('linked opportunity without car requires explicit selection', () {
+    expect(
+      resolveInitialMaintenanceVehicle(
+        initialCarId: null,
+        opportunityId: 'opportunity-r56',
+        eligibleCarIds: const ['car-first', 'car-second'],
+      ),
+      isNull,
+    );
+  });
+
+  test('partner record resolver maps canonical workflow documents', () {
+    for (final type in const [
+      'purchases_receipt',
+      'purchases_invoice',
+      'purchases_payment',
+    ]) {
+      final route = PartnerRecordRoute.resolve({
+        'entityType': type,
+        'id': 'child-id',
+        'parentId': 'purchase-order-id',
+      });
+      expect(route?.destination, PartnerRecordDestination.purchaseOrder);
+      expect(route?.id, 'purchase-order-id');
+    }
+    final purchaseOrder = PartnerRecordRoute.resolve(const {
+      'entityType': 'purchase_order',
+      'id': 'purchase-order-id',
+    });
+    expect(purchaseOrder?.destination, PartnerRecordDestination.purchaseOrder);
+    expect(purchaseOrder?.id, 'purchase-order-id');
+
+    for (final type in const [
+      'sales_delivery',
+      'sales_invoice',
+      'sales_payment',
+    ]) {
+      final route = PartnerRecordRoute.resolve({
+        'entityType': type,
+        'id': 'child-id',
+        'parentId': 'sales-order-id',
+      });
+      expect(route?.destination, PartnerRecordDestination.salesOrder);
+      expect(route?.id, 'sales-order-id');
+    }
+    expect(
+      PartnerRecordRoute.resolve(const {
+        'entityType': 'sales_order',
+        'id': 'sales-order-id',
+      })?.destination,
+      PartnerRecordDestination.salesOrder,
+    );
+    expect(
+      PartnerRecordRoute.resolve(const {
+        'entityType': 'opportunity',
+        'id': 'opportunity-id',
+      })?.destination,
+      PartnerRecordDestination.opportunity,
+    );
+    expect(
+      PartnerRecordRoute.resolve(const {
+        'entityType': 'maintenance',
+        'id': 'maintenance-id',
+      })?.destination,
+      PartnerRecordDestination.maintenance,
+    );
+  });
+
+  for (final arabic in <bool>[false, true]) {
+    test(
+      'vehicle service PDF builds in ${arabic ? 'Arabic' : 'English'}',
+      () async {
+        final bytes = await service.build(card: fixture, arabic: arabic);
+        expect(bytes.length, greaterThan(1000));
+        expect(utf8.decode(bytes.take(5).toList()), '%PDF-');
+      },
+    );
+  }
+
+  for (final locale in const <Locale>[Locale('ar'), Locale('en')]) {
+    for (final width in <double>[390, 760, 1280]) {
+      testWidgets(
+        'service card is structured and actionable in ${locale.languageCode} at $width',
+        (tester) async {
+          await tester.binding.setSurfaceSize(Size(width, 900));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          var opened = false;
+          await tester.pumpWidget(
+            ChangeNotifierProvider<AccessController>(
+              create: (_) => AccessController(),
+              child: MaterialApp(
+                locale: locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                home: VehicleServiceCardPage(
+                  car: const CarModel(
+                    id: 'car-r56',
+                    brand: 'Quality',
+                    model: 'Line',
+                    year: 2026,
+                    color: 'Black',
+                    chassis: 'VIN-R56',
+                    plateNumber: 'R56',
+                    carNumber: 'CAR-R56',
+                    purchasePrice: 0,
+                    salePrice: 0,
+                    status: 'sold',
+                    imagePath: '',
+                  ),
+                  cardLoader: (_) async => fixture,
+                  onOpenMaintenance: (_) async => opened = true,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final historyDetails = find.byKey(
+            const ValueKey(
+              'maintenance-history-22222222-2222-4222-8222-222222222222',
+            ),
+          );
+          expect(historyDetails, findsOneWidget);
+          await tester.ensureVisible(historyDetails);
+          await tester.pumpAndSettle();
+          await tester.tap(historyDetails);
+          await tester.pumpAndSettle();
+          final action = find.byKey(
+            const ValueKey(
+              'open-maintenance-22222222-2222-4222-8222-222222222222',
+            ),
+          );
+          expect(action, findsOneWidget);
+          await tester.ensureVisible(action);
+          await tester.pumpAndSettle();
+          await tester.tap(action);
+          await tester.pump();
+          expect(opened, isTrue);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  for (final partnerType in const <String>['Customer', 'Supplier']) {
+    for (final locale in const <Locale>[Locale('ar'), Locale('en')]) {
+      for (final width in <double>[390, 760, 1280]) {
+        testWidgets(
+          '$partnerType 360 accounting and routing in ${locale.languageCode} at $width',
+          (tester) async {
+            await tester.binding.setSurfaceSize(Size(width, 900));
+            addTearDown(() => tester.binding.setSurfaceSize(null));
+            Map<String, Object?>? opened;
+            final customer = partnerType == 'Customer';
+            final record = <String, Object?>{
+              'entityType': customer ? 'sales_invoice' : 'purchases_invoice',
+              'id': 'document-r56',
+              'parentId': 'order-r56',
+              'documentNumber': customer ? 'SINV-R56' : 'PINV-R56',
+              'status': 'approved',
+            };
+            await tester.pumpWidget(
+              MaterialApp(
+                locale: locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                home: Builder(
+                  builder: (context) => TextButton(
+                    onPressed: () => showBusinessPartnerProfileDialog(
+                      context: context,
+                      title: 'Business Partner',
+                      accountingSectionTitle: 'Accounting',
+                      paymentsSectionTitle: 'Payments',
+                      documentsSectionTitle: 'Documents',
+                      partnerId: 'partner-r56',
+                      partnerName: 'R56 Partner',
+                      partnerType: partnerType,
+                      icon: Icons.business,
+                      summary: <String, Object?>{
+                        'commercialChain': <Object?>[record],
+                        'accountsByCurrency': <Object?>[
+                          <String, Object?>{
+                            'accountId': 'account-usd',
+                            'accountCode': '1201',
+                            'accountName': 'Partner USD',
+                            'currencyCode': 'USD',
+                            'openingBalance': 10,
+                            'debit': 125,
+                            'credit': 25,
+                            'currentBalance': 110,
+                          },
+                          <String, Object?>{
+                            'accountId': 'account-iqd',
+                            'accountCode': '1202',
+                            'accountName': 'Partner IQD',
+                            'currencyCode': 'IQD',
+                            'openingBalance': 20,
+                            'debit': 75,
+                            'credit': 5,
+                            'currentBalance': 90,
+                          },
+                        ],
+                        'ledgerMovements': <Object?>[
+                          <String, Object?>{
+                            'entryId': 'entry-r56-2',
+                            'date': '2026-08-11',
+                            'entryNumber': 'JRN-R56-2',
+                            'documentType': customer
+                                ? 'sales_invoice'
+                                : 'purchases_invoice',
+                            'documentReference': customer
+                                ? 'SINV-R56'
+                                : 'PINV-R56',
+                            'debit': 125,
+                            'credit': 25,
+                            'currency': 'USD',
+                            'description': 'Partner ledger proof',
+                          },
+                        ],
+                      },
+                      onOpenRecord: (value) async => opened = value,
+                      canOpenRecord: (value) =>
+                          PartnerRecordRoute.resolve(value) != null,
+                    ),
+                    child: const Text('Open profile'),
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            await tester.tap(find.byType(TextButton));
+            await tester.pumpAndSettle();
+            final row = find.byKey(
+              ValueKey(
+                'related-${customer ? 'sales_invoice' : 'purchases_invoice'}-document-r56',
+              ),
+            );
+            final profileList = find.byType(ListView).last;
+            await tester.scrollUntilVisible(
+              row,
+              260,
+              scrollable: find
+                  .descendant(
+                    of: profileList,
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            );
+            expect(row, findsOneWidget);
+            final tile = tester.widget<ListTile>(row);
+            expect(tile.onTap, isNotNull);
+            tile.onTap!();
+            await tester.pump();
+            expect(opened?['parentId'], 'order-r56');
+            expect(
+              find.byKey(const ValueKey('partner-account-USD')),
+              findsOneWidget,
+            );
+            expect(
+              find.byKey(const ValueKey('partner-account-IQD')),
+              findsOneWidget,
+            );
+            for (final field in const ['code', 'debit', 'credit', 'current']) {
+              expect(
+                find.byKey(ValueKey('Partner USD-$field')),
+                findsOneWidget,
+              );
+            }
+            final ledger = find.byKey(
+              const ValueKey('partner-ledger-entry-r56-2'),
+            );
+            await tester.scrollUntilVisible(
+              ledger,
+              260,
+              scrollable: find
+                  .descendant(
+                    of: profileList,
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            );
+            expect(ledger, findsOneWidget);
+            expect(
+              find.byKey(const ValueKey('JRN-R56-2-journal-reference')),
+              findsOneWidget,
+            );
+            expect(
+              find.byKey(const ValueKey('JRN-R56-2-document-reference')),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  }
+}

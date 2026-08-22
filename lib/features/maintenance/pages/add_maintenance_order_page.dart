@@ -18,10 +18,28 @@ import 'package:quality_line_erp/features/maintenance/models/maintenance_order_m
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 
+String? resolveInitialMaintenanceVehicle({
+  required String? initialCarId,
+  required String? opportunityId,
+  required Iterable<String> eligibleCarIds,
+}) {
+  final explicit = initialCarId?.trim();
+  if (explicit != null && explicit.isNotEmpty) return explicit;
+  if ((opportunityId?.trim() ?? '').isNotEmpty) return null;
+  return eligibleCarIds.firstOrNull;
+}
+
 class AddMaintenanceOrderPage extends StatefulWidget {
-  const AddMaintenanceOrderPage({super.key, this.order});
+  const AddMaintenanceOrderPage({
+    super.key,
+    this.order,
+    this.initialCarId,
+    this.opportunityId,
+  });
 
   final MaintenanceOrderModel? order;
+  final String? initialCarId;
+  final String? opportunityId;
 
   @override
   State<AddMaintenanceOrderPage> createState() =>
@@ -61,6 +79,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
   void initState() {
     super.initState();
     final order = widget.order;
+    _carId = widget.initialCarId;
     if (order != null) {
       _carId = order.carId;
       _pricingType = order.pricingType;
@@ -111,7 +130,11 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
       }
       if (!mounted) return;
       final soldCars = maintenance.eligibleVehicles;
-      _carId ??= soldCars.isEmpty ? null : soldCars.first.carId;
+      _carId = resolveInitialMaintenanceVehicle(
+        initialCarId: _carId,
+        opportunityId: widget.opportunityId,
+        eligibleCarIds: soldCars.map((vehicle) => vehicle.carId),
+      );
     } catch (error) {
       if (!mounted) return;
       _loadError = userFacingError(
@@ -137,25 +160,32 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
   String _itemCurrency(InventoryModel item) =>
       (item.saleCurrency ?? item.currency).trim().toUpperCase();
 
-  List<InventoryModel> _currencyItems(InventoryController inventory) =>
+  List<InventoryModel> _availableItems(InventoryController inventory) =>
       inventory.maintenanceItems
-          .where((item) => item.isActive && _itemCurrency(item) == _currency)
+          .where((item) => item.isActive)
           .toList(growable: false);
+
+  double _defaultDocumentPrice(InventoryModel item) =>
+      _itemCurrency(item) == _currency ? item.salePrice : 0;
 
   void _changeCurrency(String? value) {
     final next = (value ?? 'USD').toUpperCase();
     if (next == _currency) return;
-    for (final line in _lines) line.dispose();
     setState(() {
       _currency = next;
-      _lines.clear();
+      for (final line in _lines) {
+        final item = _item(line.productId);
+        line.unitPrice.text = item == null
+            ? '0.00'
+            : _defaultDocumentPrice(item).toStringAsFixed(2);
+      }
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: AppText(
           t(
-            'تم مسح البنود لأن عملة أمر الصيانة تغيرت.',
-            'Items were cleared because the maintenance order currency changed.',
+            'تم الاحتفاظ بالمواد والخدمات وإعادة ضبط أسعار البنود لعملة المستند الجديدة. راجع الأسعار قبل الحفظ.',
+            'Items and services were retained and line prices were reset for the new document currency. Review prices before saving.',
           ),
         ),
       ),
@@ -164,7 +194,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
 
   Future<void> _addLine() async {
     final inventory = context.read<InventoryController>();
-    final available = _currencyItems(inventory);
+    final available = _availableItems(inventory);
     if (available.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +220,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
               ? null
               : inventory.warehouses.first.id,
           quantity: 1,
-          unitPrice: selected.salePrice,
+          unitPrice: _defaultDocumentPrice(selected),
         ),
       ),
     );
@@ -217,26 +247,6 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
     final carId = _carId;
     if (form == null || !form.validate() || carId == null || carId.isEmpty)
       return;
-    final inventory = context.read<InventoryController>();
-    final incompatible = _lines.any((line) {
-      final item = inventory.maintenanceItems.where(
-        (e) => e.id == line.productId,
-      );
-      return item.isEmpty || _itemCurrency(item.first) != _currency;
-    });
-    if (incompatible) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            t(
-              'كل مادة أو خدمة يجب أن تطابق عملة أمر الصيانة.',
-              'Every item or service must match the maintenance order currency.',
-            ),
-          ),
-        ),
-      );
-      return;
-    }
     for (final line in _lines) {
       final item = _item(line.productId);
       if (item == null || (!item.isService && line.warehouseId == null)) {
@@ -271,8 +281,9 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
           MaintenancePartRequest(
             productId: productId,
             warehouseId: item.isService ? null : line.warehouseId,
-            quantity: int.tryParse(line.quantity.text.trim()) ?? 0,
-            unitPrice: double.tryParse(line.unitPrice.text.trim()) ?? 0,
+            quantity:
+                ThousandsInputFormatter.parse(line.quantity.text)?.toInt() ?? 0,
+            unitPrice: ThousandsInputFormatter.parse(line.unitPrice.text) ?? 0,
           ),
         );
       }
@@ -289,8 +300,8 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
               )),
           warehouseId: _maintenanceWarehouseId(),
           pricingType: _pricingType,
-          laborCost: double.tryParse(_labor.text.trim()) ?? 0,
-          salePrice: double.tryParse(_price.text.trim()) ?? 0,
+          laborCost: ThousandsInputFormatter.parse(_labor.text) ?? 0,
+          salePrice: ThousandsInputFormatter.parse(_price.text) ?? 0,
           parts: requests,
           currencyCode: _currency,
           maintenanceExpenseAccountId: null,
@@ -310,11 +321,12 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
           carId: carId,
           warehouseId: _maintenanceWarehouseId(),
           pricingType: _pricingType,
-          laborCost: double.tryParse(_labor.text.trim()) ?? 0,
-          salePrice: double.tryParse(_price.text.trim()) ?? 0,
+          laborCost: ThousandsInputFormatter.parse(_labor.text) ?? 0,
+          salePrice: ThousandsInputFormatter.parse(_price.text) ?? 0,
           parts: requests,
           currencyCode: _currency,
           maintenanceExpenseAccountId: null,
+          opportunityId: widget.opportunityId,
           notes: _notes.text.trim(),
           effectiveAt: _maintenanceDate,
         );
@@ -651,7 +663,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                       controller: _labor,
                       keyboardType: TextInputType.number,
                       inputFormatters: <TextInputFormatter>[
-                        ThousandsInputFormatter(decimalDigits: 2),
+                        ThousandsInputFormatter(currency: _currency),
                       ],
                       decoration: InputDecoration(
                         labelText: t('كلفة العمل', 'Labor cost'),
@@ -668,7 +680,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                       controller: _price,
                       keyboardType: TextInputType.number,
                       inputFormatters: <TextInputFormatter>[
-                        ThousandsInputFormatter(decimalDigits: 2),
+                        ThousandsInputFormatter(currency: _currency),
                       ],
                       enabled: _pricingType == 'paid',
                       decoration: InputDecoration(
@@ -727,7 +739,7 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                             requestFocusOnTap: true,
                             initialSelection: line.productId,
                             label: AppText(t('المادة/الخدمة', 'Item/service')),
-                            dropdownMenuEntries: _currencyItems(inventory)
+                            dropdownMenuEntries: _availableItems(inventory)
                                 .map(
                                   (e) => DropdownMenuEntry(
                                     value: e.id,
@@ -738,13 +750,14 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                                 .toList(),
                             onSelected: (v) {
                               if (v == null) return;
-                              final selected = _currencyItems(
+                              final selected = _availableItems(
                                 inventory,
                               ).firstWhere((e) => e.id == v);
                               setState(() {
                                 line.productId = v;
-                                line.unitPrice.text = selected.salePrice
-                                    .toStringAsFixed(2);
+                                line.unitPrice.text = _defaultDocumentPrice(
+                                  selected,
+                                ).toStringAsFixed(2);
                                 if (selected.isService) {
                                   line.warehouseId = null;
                                 } else {
@@ -816,7 +829,10 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
                               ThousandsInputFormatter(decimalDigits: 2),
                             ],
                             decoration: InputDecoration(
-                              labelText: t('سعر المستخدم', 'User price'),
+                              labelText: t(
+                                'سعر المستخدم ($_currency)',
+                                'User price ($_currency)',
+                              ),
                             ),
                             validator: _nonNegative,
                           ),
@@ -1193,15 +1209,15 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
   }
 
   String? _nonNegative(String? value) {
-    final number = double.tryParse(value?.trim() ?? '');
+    final number = ThousandsInputFormatter.parse(value);
     return number == null || number < 0
         ? t('قيمة غير صحيحة', 'Invalid value')
         : null;
   }
 
   String? _positiveInteger(String? value) {
-    final number = int.tryParse(value?.trim() ?? '');
-    return number == null || number <= 0
+    final number = ThousandsInputFormatter.parse(value);
+    return number == null || number <= 0 || number != number.truncateToDouble()
         ? t('كمية غير صحيحة', 'Invalid quantity')
         : null;
   }

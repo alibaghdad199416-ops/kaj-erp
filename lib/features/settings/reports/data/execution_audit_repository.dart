@@ -9,12 +9,23 @@ class ExecutionAuditRepository {
       CloudTenantContext.instance.companyUuid ??
       (throw StateError('لم يتم تحديد شركة سحابية.'));
 
+  Future<bool> _hasPermission(String code) async {
+    final result = await _client.rpc(
+      'erp_cloud_current_user_has_permission',
+      params: {'p_company_id': _companyId, 'p_permission_code': code},
+    );
+    return result == true;
+  }
+
   Future<List<ExecutionAuditRow>> load(
     String module, {
     DateTime? startDate,
     DateTime? endDate,
     int limit = 10000,
   }) async {
+    if (!await _hasPermission('reports.audit.view')) {
+      return const <ExecutionAuditRow>[];
+    }
     final result = await _client.rpc(
       'erp_r9_cloud_report_audit',
       params: {

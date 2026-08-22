@@ -48,15 +48,15 @@ class InventoryCard extends StatelessWidget {
       child: InkWell(
         onTap: onView,
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(5),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               _field(
                 'image',
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(
                       KajDesignTokens.radiusMd,
@@ -69,7 +69,7 @@ class InventoryCard extends StatelessWidget {
                   child: _image(context),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,7 +84,7 @@ class InventoryCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 15,
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -93,10 +93,10 @@ class InventoryCard extends StatelessWidget {
                         _field('quantity', _StatusBadge(item: item)),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Wrap(
-                      spacing: 5,
-                      runSpacing: 4,
+                      spacing: 4,
+                      runSpacing: 3,
                       children: <Widget>[
                         _field(
                           'category',
@@ -137,33 +137,37 @@ class InventoryCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        _ActionButton(
-                          icon: Icons.visibility_outlined,
-                          label: _t(context, 'تفاصيل', 'Details'),
-                          onPressed: onView,
-                        ),
-                        _ActionButton(
-                          icon: Icons.edit_outlined,
-                          label: _t(context, 'تعديل', 'Edit'),
-                          onPressed: onEdit,
-                        ),
-                        _ActionButton(
-                          icon: Icons.history_rounded,
-                          label: _t(context, 'السجل', 'History'),
-                          onPressed: onHistory,
-                        ),
-                        IconButton(
-                          tooltip: _t(context, 'حذف', 'Delete'),
-                          onPressed: onDelete,
-                          icon: Icon(Icons.delete_outline, color: colors.error),
-                        ),
-                      ],
+                    const SizedBox(height: 2),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: Wrap(
+                        spacing: 1,
+                        runSpacing: 2,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: <Widget>[
+                          _ActionButton(
+                            icon: Icons.visibility_outlined,
+                            label: _t(context, 'تفاصيل', 'Details'),
+                            onPressed: onView,
+                          ),
+                          _ActionButton(
+                            icon: Icons.edit_outlined,
+                            label: _t(context, 'تعديل', 'Edit'),
+                            onPressed: onEdit,
+                          ),
+                          _ActionButton(
+                            icon: Icons.history_rounded,
+                            label: _t(context, 'السجل', 'History'),
+                            onPressed: onHistory,
+                          ),
+                          _ActionButton(
+                            icon: Icons.delete_outline,
+                            label: _t(context, 'حذف', 'Delete'),
+                            onPressed: onDelete,
+                            color: colors.error,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -180,12 +184,12 @@ class InventoryCard extends StatelessWidget {
     if (value == null || value.isEmpty) {
       return ColoredBox(
         color: Theme.of(context).colorScheme.primary.withValues(alpha: .06),
-        child: const Center(child: Icon(Icons.inventory_2_outlined, size: 38)),
+        child: const Center(child: Icon(Icons.inventory_2_outlined, size: 30)),
       );
     }
     final bytes = Base64ImageCache.instance.decode(value);
     if (bytes == null) {
-      return const Center(child: Icon(Icons.broken_image_outlined, size: 34));
+      return const Center(child: Icon(Icons.broken_image_outlined, size: 28));
     }
     return Image.memory(
       bytes,
@@ -193,7 +197,7 @@ class InventoryCard extends StatelessWidget {
       gaplessPlayback: true,
       filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) =>
-          const Center(child: Icon(Icons.broken_image_outlined, size: 34)),
+          const Center(child: Icon(Icons.broken_image_outlined, size: 28)),
     );
   }
 }
@@ -207,7 +211,7 @@ class _ValueChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(10),
@@ -216,7 +220,7 @@ class _ValueChip extends StatelessWidget {
         '$label: ${value.trim().isEmpty ? '—' : value}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+        style: const TextStyle(fontSize: 9.2, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -227,16 +231,22 @@ class _ActionButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.color,
   });
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final Color? color;
 
   @override
-  Widget build(BuildContext context) => TextButton.icon(
+  Widget build(BuildContext context) => IconButton(
+    tooltip: label,
     onPressed: onPressed,
-    icon: Icon(icon, size: 14),
-    label: AppText(label, style: const TextStyle(fontSize: 10)),
+    color: color,
+    visualDensity: VisualDensity.compact,
+    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+    padding: EdgeInsets.zero,
+    icon: Icon(icon, size: 16),
   );
 }
 
@@ -252,7 +262,7 @@ class _StatusBadge extends StatelessWidget {
         ? (warning ? 'منخفض' : 'متوفر')
         : (warning ? 'Low stock' : 'Available');
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(999),
@@ -262,7 +272,7 @@ class _StatusBadge extends StatelessWidget {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 9.5,
+          fontSize: 9.2,
           fontWeight: FontWeight.w900,
         ),
       ),

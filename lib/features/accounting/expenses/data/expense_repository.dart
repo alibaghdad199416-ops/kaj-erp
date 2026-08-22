@@ -83,12 +83,25 @@ class ExpenseRepository {
       'erp_r22_list_cloud_ledger_accounts',
       params: {'p_company_id': _companyId},
     );
-    return (rows as List)
+    final accounts = (rows as List)
         .map<Map<String, Object?>>(
           (raw) => Map<String, Object?>.from(raw as Map),
         )
+        .toList(growable: false);
+    final parentIds = accounts
+        .map(
+          (row) =>
+              (row['parentId'] ?? row['parent_id'])?.toString().trim() ?? '',
+        )
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return accounts
+        .where((row) => _bool(row['isActive'] ?? row['is_active']))
         .where((row) => row['type']?.toString().toLowerCase() == 'expense')
-        .where((row) => row['id']?.toString().trim().isNotEmpty ?? false)
+        .where((row) {
+          final id = row['id']?.toString().trim() ?? '';
+          return id.isNotEmpty && !parentIds.contains(id);
+        })
         .toList(growable: false);
   }
 

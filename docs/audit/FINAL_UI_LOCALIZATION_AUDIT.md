@@ -1,7 +1,7 @@
 # Final UI and localization audit
 
-- Dart files: 343
+- Dart files: 359
 - Raw `Text` UI candidates: 0
-- Runtime-localized `AppText` literals: 375
-- Color literals outside central visual layers: 76
-- Radius literals outside central visual layers: 112
+- Runtime-localized `AppText` literals: 315
+- Color literals outside central visual layers: 79
+- Radius literals outside central visual layers: 146

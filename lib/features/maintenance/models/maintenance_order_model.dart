@@ -26,7 +26,17 @@ class MaintenanceOrderModel {
     this.stockIssueNumber,
     this.cancelReason,
     this.maintenanceExpenseAccountId,
+    this.createdAt,
     this.updatedAt,
+    this.createdBy,
+    this.createdByName,
+    this.invoiceCreatedBy,
+    this.invoiceCreatedAt,
+    this.invoiceApprovedBy,
+    this.invoiceApprovedAt,
+    this.opportunityId,
+    this.opportunityNumber,
+    this.materialCostTotalsByCurrency = const <String, double>{},
   });
 
   final String id;
@@ -55,7 +65,30 @@ class MaintenanceOrderModel {
   final String? stockIssueNumber;
   final String? cancelReason;
   final String? maintenanceExpenseAccountId;
+  final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? createdBy;
+  final String? createdByName;
+  final String? invoiceCreatedBy;
+  final DateTime? invoiceCreatedAt;
+  final String? invoiceApprovedBy;
+  final DateTime? invoiceApprovedAt;
+  final String? opportunityId;
+  final String? opportunityNumber;
+  final Map<String, double> materialCostTotalsByCurrency;
+
+  Map<String, double> get operationalCostTotalsByCurrency {
+    final totals = <String, double>{...materialCostTotalsByCurrency};
+    final documentCurrency = currencyCode.trim().toUpperCase();
+    if (documentCurrency.isNotEmpty && laborCost != 0) {
+      totals.update(
+        documentCurrency,
+        (value) => value + laborCost,
+        ifAbsent: () => laborCost,
+      );
+    }
+    return Map<String, double>.unmodifiable(totals);
+  }
 
   bool get isCancelled => workflowStage == 'cancelled';
   bool get canEdit => workflowStage != 'cancelled';
@@ -110,6 +143,19 @@ class MaintenanceOrderModel {
     }
   }
 
+  static Map<String, double> _currencyTotals(Object? value) {
+    if (value is! Map) return const <String, double>{};
+    final totals = <String, double>{};
+    for (final entry in value.entries) {
+      final currency = entry.key.toString().trim().toUpperCase();
+      final amount = entry.value is num
+          ? (entry.value as num).toDouble()
+          : double.tryParse(entry.value?.toString() ?? '');
+      if (currency.isNotEmpty && amount != null) totals[currency] = amount;
+    }
+    return Map<String, double>.unmodifiable(totals);
+  }
+
   static bool _asBool(Object? value) {
     if (value is bool) return value;
     if (value is num) return value != 0;
@@ -152,7 +198,23 @@ class MaintenanceOrderModel {
     stockIssueNumber: map['stockIssueNumber']?.toString(),
     cancelReason: map['cancelReason']?.toString(),
     maintenanceExpenseAccountId: map['maintenanceExpenseAccountId']?.toString(),
+    createdAt: DateTime.tryParse(map['createdAt']?.toString() ?? ''),
     updatedAt: DateTime.tryParse(map['updatedAt']?.toString() ?? ''),
+    createdBy: map['createdBy']?.toString(),
+    createdByName: map['createdByName']?.toString(),
+    invoiceCreatedBy: map['invoiceCreatedBy']?.toString(),
+    invoiceCreatedAt: DateTime.tryParse(
+      map['invoiceCreatedAt']?.toString() ?? '',
+    ),
+    invoiceApprovedBy: map['invoiceApprovedBy']?.toString(),
+    invoiceApprovedAt: DateTime.tryParse(
+      map['invoiceApprovedAt']?.toString() ?? '',
+    ),
+    opportunityId: map['opportunityId']?.toString(),
+    opportunityNumber: map['opportunityNumber']?.toString(),
+    materialCostTotalsByCurrency: _currencyTotals(
+      map['materialCostTotalsByCurrency'],
+    ),
   );
 }
 
@@ -175,6 +237,7 @@ class MaintenanceLineModel {
     required this.id,
     required this.productId,
     required this.productName,
+    this.description = '',
     required this.quantity,
     required this.unitCost,
     required this.unitPrice,
@@ -186,6 +249,7 @@ class MaintenanceLineModel {
   final String id;
   final String productId;
   final String productName;
+  final String description;
   final String? warehouseId;
   final String? warehouseName;
   final int quantity;
@@ -200,6 +264,7 @@ class MaintenanceLineModel {
         id: map['id']?.toString() ?? '',
         productId: map['productId']?.toString() ?? '',
         productName: map['productName']?.toString() ?? '',
+        description: map['description']?.toString() ?? '',
         warehouseId: map['warehouseId']?.toString(),
         warehouseName: map['warehouseName']?.toString(),
         quantity: (map['quantity'] as num?)?.toInt() ?? 0,

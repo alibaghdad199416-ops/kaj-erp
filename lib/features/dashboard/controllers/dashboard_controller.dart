@@ -7,6 +7,8 @@ import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:quality_line_erp/features/dashboard/data/dashboard_repository.dart';
 import 'package:quality_line_erp/features/dashboard/models/dashboard_model.dart';
 
+enum DashboardPeriod { allTime, today, currentMonth, custom }
+
 class DashboardController extends ChangeNotifier {
   DashboardController({DashboardRepository? repository})
     : _repository = repository ?? DashboardRepository();
@@ -18,7 +20,11 @@ class DashboardController extends ChangeNotifier {
   bool _isLoading = false;
   bool _disposed = false;
   int _appliedRevision = 0;
+  int _requestRevision = 0;
   String? _errorMessage;
+  DashboardPeriod _period = DashboardPeriod.allTime;
+  DateTime? _fromDate;
+  DateTime _toDate = DateTime.now();
 
   DashboardModel get dashboard => _dashboard;
   bool get isLoading => _isLoading;
@@ -26,6 +32,9 @@ class DashboardController extends ChangeNotifier {
   DateTime get lastGeneratedAt => _dashboard.generatedAt;
   int get appliedRevision => _appliedRevision;
   bool get hasLoaded => _loadedAt != null;
+  DashboardPeriod get period => _period;
+  DateTime? get fromDate => _fromDate;
+  DateTime get toDate => _toDate;
 
   Future<void> refresh() => loadDashboard(force: true);
 
@@ -39,35 +48,73 @@ class DashboardController extends ChangeNotifier {
         DateTime.now().difference(loadedAt) < const Duration(seconds: 30)) {
       return Future<void>.value();
     }
-    final active = _loadInFlight;
-    if (active != null) return active;
-
-    final future = _loadNow();
+    final revision = ++_requestRevision;
+    final fromDate = _fromDate;
+    final toDate = _toDate;
+    final future = _loadNow(revision, fromDate, toDate);
     _loadInFlight = future;
     return future.whenComplete(() {
       if (identical(_loadInFlight, future)) _loadInFlight = null;
     });
   }
 
-  Future<void> _loadNow() async {
+  Future<void> setPeriod(DashboardPeriod value) async {
+    if (_disposed) return;
+    final today = DateTime.now();
+    _period = value;
+    _toDate = DateTime(today.year, today.month, today.day);
+    _fromDate = switch (value) {
+      DashboardPeriod.allTime => null,
+      DashboardPeriod.today => _toDate,
+      DashboardPeriod.currentMonth => DateTime(today.year, today.month),
+      DashboardPeriod.custom => _fromDate,
+    };
+    notifyListeners();
+    await loadDashboard(force: true);
+  }
+
+  Future<void> setCustomRange(DateTime fromDate, DateTime toDate) async {
+    final from = DateTime(fromDate.year, fromDate.month, fromDate.day);
+    final to = DateTime(toDate.year, toDate.month, toDate.day);
+    if (from.isAfter(to)) throw ArgumentError('invalid_dashboard_date_range');
+    _period = DashboardPeriod.custom;
+    _fromDate = from;
+    _toDate = to;
+    notifyListeners();
+    await loadDashboard(force: true);
+  }
+
+  Future<void> _loadNow(
+    int revision,
+    DateTime? fromDate,
+    DateTime toDate,
+  ) async {
     if (_disposed) return;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
-      _dashboard = await _repository.getDashboardData();
+      final next = await _repository.getDashboardData(
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+      if (_disposed || revision != _requestRevision) return;
+      _dashboard = next;
       _loadedAt = DateTime.now();
       _appliedRevision++;
     } catch (error) {
       AppLogger.debug('DashboardController.load failed: $error');
+      if (revision != _requestRevision) return;
       _errorMessage = userFacingError(
         error,
         isArabic: AppTranslation.isArabic,
         arabicFallback: 'تعذر تحميل لوحة التحكم.',
       );
     } finally {
-      _isLoading = false;
-      if (!_disposed) notifyListeners();
+      if (revision == _requestRevision) {
+        _isLoading = false;
+        if (!_disposed) notifyListeners();
+      }
     }
   }
 

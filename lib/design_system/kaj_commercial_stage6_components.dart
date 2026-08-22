@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 
-/// Unified luxury shell for sales, purchases, invoices, payments and approvals.
+/// Unified premium shell for sales, purchases, invoices, payments and approvals.
 class KajCommercialWorkspace extends StatelessWidget {
   const KajCommercialWorkspace({
     super.key,
@@ -24,12 +26,51 @@ class KajCommercialWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shellOwnsIdentity = AppWorkspaceChromeScope.hasTopBarOf(context);
+    if (shellOwnsIdentity) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (actions.isNotEmpty) ...<Widget>[
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(spacing: 6, runSpacing: 6, children: actions),
+            ),
+            const SizedBox(height: 6),
+          ],
+          Expanded(child: child),
+        ],
+      );
+    }
+
+    final insideOperationalWorkspace =
+        AppWorkspaceWindowScope.maybeOf(context) != null;
+    if (insideOperationalWorkspace) {
+      final functional = <Widget>[
+        ...actions,
+        ...metrics.map((metric) => _MetricTile(data: metric)),
+      ];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (functional.isNotEmpty) ...<Widget>[
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(spacing: 8, runSpacing: 8, children: functional),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Expanded(child: child),
+        ],
+      );
+    }
+
     final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         KajShellSurface(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 900;
@@ -37,29 +78,40 @@ class KajCommercialWorkspace extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: scheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(icon, color: scheme.onPrimaryContainer),
+                    child: Icon(
+                      icon,
+                      color: scheme.onPrimaryContainer,
+                      size: 21,
+                    ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         AppText(
                           title,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 20,
+                              ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         AppText(
                           subtitle,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: scheme.onSurfaceVariant),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                height: 1.4,
+                                fontSize: 12.6,
+                              ),
                         ),
                       ],
                     ),
@@ -72,14 +124,14 @@ class KajCommercialWorkspace extends StatelessWidget {
                   children: <Widget>[
                     heading,
                     if (actions.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 16),
-                      Wrap(spacing: 10, runSpacing: 10, children: actions),
+                      const SizedBox(height: 12),
+                      Wrap(spacing: 8, runSpacing: 8, children: actions),
                     ],
                     if (metrics.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: metrics
                             .map((e) => _MetricTile(data: e))
                             .toList(),
@@ -95,14 +147,14 @@ class KajCommercialWorkspace extends StatelessWidget {
                     children: <Widget>[
                       Expanded(child: heading),
                       if (actions.isNotEmpty)
-                        Wrap(spacing: 10, children: actions),
+                        Wrap(spacing: 8, runSpacing: 8, children: actions),
                     ],
                   ),
                   if (metrics.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 12),
                     Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: metrics
                           .map((e) => _MetricTile(data: e))
                           .toList(),
@@ -113,7 +165,7 @@ class KajCommercialWorkspace extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Expanded(child: child),
       ],
     );
@@ -141,18 +193,18 @@ class _MetricTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final accent = data.accent ?? scheme.primary;
     return Container(
-      constraints: const BoxConstraints(minWidth: 160),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      constraints: const BoxConstraints(minWidth: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: .55),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .65)),
+        color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .58)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(data.icon, color: accent, size: 20),
-          const SizedBox(width: 10),
+          Icon(data.icon, color: accent, size: 18),
+          const SizedBox(width: 9),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -160,11 +212,12 @@ class _MetricTile extends StatelessWidget {
                 data.value,
                 style: Theme.of(
                   context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
+              const SizedBox(height: 1),
               AppText(
                 data.label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
               ),
@@ -190,21 +243,26 @@ class KajCommercialDocumentHeader extends StatelessWidget {
   final Widget? trailing;
   @override
   Widget build(BuildContext context) {
+    if (AppWorkspaceWindowScope.maybeOf(context) != null) {
+      if (trailing == null) return const SizedBox.shrink();
+      return Align(alignment: AlignmentDirectional.centerEnd, child: trailing!);
+    }
+
     final scheme = Theme.of(context).colorScheme;
     return KajShellSurface(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: <Widget>[
           Container(
-            width: 46,
-            height: 46,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: scheme.onPrimaryContainer),
+            child: Icon(icon, color: scheme.onPrimaryContainer, size: 21),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,7 +276,7 @@ class KajCommercialDocumentHeader extends StatelessWidget {
                 const SizedBox(height: 3),
                 AppText(
                   subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -252,14 +310,14 @@ class KajCommercialSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return KajShellSurface(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Row(
             children: <Widget>[
               if (icon != null) ...<Widget>[
-                Icon(icon, size: 21),
+                Icon(icon, size: 20),
                 const SizedBox(width: 9),
               ],
               Expanded(
@@ -272,9 +330,6 @@ class KajCommercialSection extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    // Explicit control flow keeps this compatible with the project's
-                    // current Flutter/Dart collection-element syntax.
-                    // ignore: use_null_aware_elements
                     if (subtitle != null)
                       AppText(
                         subtitle!,
@@ -283,11 +338,10 @@ class KajCommercialSection extends StatelessWidget {
                   ],
                 ),
               ),
-              // ignore: use_null_aware_elements
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           child,
         ],
       ),
@@ -316,7 +370,7 @@ class KajCommercialWorkflowRibbon extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 9,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: active
@@ -333,7 +387,7 @@ class KajCommercialWorkflowRibbon extends StatelessWidget {
                       active
                           ? Icons.check_circle_rounded
                           : Icons.radio_button_unchecked,
-                      size: 17,
+                      size: 16,
                       color: active ? scheme.primary : scheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 7),
@@ -347,7 +401,7 @@ class KajCommercialWorkflowRibbon extends StatelessWidget {
                 ),
               ),
               if (index != steps.length - 1)
-                Container(width: 22, height: 1, color: scheme.outlineVariant),
+                Container(width: 20, height: 1, color: scheme.outlineVariant),
             ],
           );
         }),
@@ -386,14 +440,89 @@ class KajCommercialEmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+
   @override
-  Widget build(BuildContext context) => KajSystemState(
-    icon: Icons.receipt_long_outlined,
-    title: title,
-    message: message,
-    tone: Theme.of(context).colorScheme.onSurfaceVariant,
-    action: actionLabel != null && onAction != null
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final action = actionLabel != null && onAction != null
         ? KajPrimaryAction(label: actionLabel!, onPressed: onAction)
-        : null,
-  );
+        : null;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 620),
+      child: KajShellSurface(
+        emphasized: true,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final messageBlock = Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: scheme.onSurfaceVariant.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.receipt_long_outlined,
+                    size: 19,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      AppText(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      AppText(
+                        message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            if (action == null) return messageBlock;
+            if (constraints.maxWidth < 520) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  messageBlock,
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: action,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: <Widget>[
+                Expanded(child: messageBlock),
+                const SizedBox(width: 12),
+                action,
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }

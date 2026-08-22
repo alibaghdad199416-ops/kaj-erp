@@ -6,8 +6,9 @@ v5=(root/'supabase/migrations/20260806193000_v755_fx_transfer_unique_vouchers_au
 v2300=(root/'supabase/migrations/20260807180000_v2300_atomic_workflow_enterprise_audit.sql').read_text(encoding='utf-8')
 r9=(root/'supabase/migrations/20260807240000_r9_finance_read_write_field_enforcement.sql').read_text(encoding='utf-8')
 r22=(root/'supabase/migrations/20260808043000_r22_production_accounting_consolidation.sql').read_text(encoding='utf-8')
+r90=(root/'supabase/migrations/20260820113000_r90_phase11_final_acceptance_closure.sql').read_text(encoding='utf-8')
 checks={
- 'Flutter calls supported transfer RPC': (("'erp_transfer_cloud_cash_v3'" in repo) or ("'erp_v2300_transfer_cloud_cash'" in repo) or ("'erp_r9_transfer_cloud_cash'" in repo and 'erp_v2300_transfer_cloud_cash' in r9 and 'p_transfer_date' in r9) or ("'erp_r22_transfer_cloud_cash'" in repo and 'create or replace function public.erp_r22_transfer_cloud_cash' in r22 and 'cashTransactionId' in r22 and 'cashAccountId' in r22)),
+ 'Flutter calls supported transfer RPC': (("'erp_r90_transfer_cloud_cash'" in repo and 'create or replace function public.erp_r90_transfer_cloud_cash' in r90 and "'cashbox','transfer'" in r90) or ("'erp_r22_transfer_cloud_cash'" in repo and 'create or replace function public.erp_r22_transfer_cloud_cash' in r22 and 'cashTransactionId' in r22 and 'cashAccountId' in r22)),
  'Transfer RPC chain exists': ('erp_transfer_cloud_cash_v3' in sql) and ('erp_transfer_cloud_cash_v5' in v5) and ('erp_v2300_transfer_cloud_cash' in v2300) and ('erp_transfer_cloud_cash_v5(' in v2300),
  'No historical missing helper': 'erp_ensure_workflow_fx_accounts' not in sql,
  'Reciprocal link resolver used': 'erp_resolve_linked_cash_account' in sql,

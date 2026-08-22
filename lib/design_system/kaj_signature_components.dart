@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_brand_motif.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
-/// Signature-edition page hero used by the application entry and overview
-/// modules. It intentionally avoids business logic so every module can share
-/// the same premium composition without visual drift.
+/// Signature page identity used by overview modules.
+///
+/// The composition stays premium but intentionally compact so the first screen
+/// shows real business content at 100% browser zoom instead of spending most of
+/// the viewport on decorative chrome.
 class KajSignaturePageHero extends StatelessWidget {
   const KajSignaturePageHero({
     super.key,
@@ -27,6 +30,26 @@ class KajSignaturePageHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppWorkspaceChromeScope.hasTopBarOf(context)) {
+      final commandWidgets = <Widget>[
+        ...metrics.map((item) => KajSignatureMetric(data: item)),
+        ?trailing,
+      ];
+      if (commandWidgets.isEmpty) return const SizedBox.shrink();
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var index = 0; index < commandWidgets.length; index++) ...[
+              if (index > 0) const SizedBox(width: 8),
+              commandWidgets[index],
+            ],
+          ],
+        ),
+      );
+    }
+
     final brightness = Theme.of(context).brightness;
     final dark = brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF101619);
@@ -43,11 +66,11 @@ class KajSignaturePageHero extends StatelessWidget {
             : const LinearGradient(
                 begin: AlignmentDirectional.topStart,
                 end: AlignmentDirectional.bottomEnd,
-                colors: <Color>[Colors.white, Color(0xFFF1F6F7)],
+                colors: <Color>[Colors.white, Color(0xFFF4F8F8)],
               ),
-        borderRadius: BorderRadius.circular(KajDesignTokens.radiusXl),
+        borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
         border: Border.all(
-          color: KajDesignTokens.champagne.withValues(alpha: dark ? .30 : .38),
+          color: KajDesignTokens.champagne.withValues(alpha: dark ? .27 : .30),
         ),
         boxShadow: KajDesignTokens.softShadow(brightness),
       ),
@@ -56,13 +79,13 @@ class KajSignaturePageHero extends StatelessWidget {
         children: <Widget>[
           const Positioned.fill(
             child: KajBrandMotif(
-              opacity: .075,
+              opacity: .055,
               alignment: AlignmentDirectional.centerEnd,
               accent: KajDesignTokens.champagne,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 760;
@@ -70,8 +93,8 @@ class KajSignaturePageHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         gradient: KajDesignTokens.primaryGradient(brightness),
                         borderRadius: BorderRadius.circular(
@@ -82,9 +105,9 @@ class KajSignaturePageHero extends StatelessWidget {
                           accent: KajDesignTokens.electricBlue,
                         ),
                       ),
-                      child: Icon(icon, color: Colors.white, size: 23),
+                      child: Icon(icon, color: Colors.white, size: 21),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,31 +116,33 @@ class KajSignaturePageHero extends StatelessWidget {
                             eyebrow.toUpperCase(),
                             style: TextStyle(
                               color: KajDesignTokens.champagne,
-                              fontSize: 10.5,
-                              letterSpacing: 1.3,
+                              fontSize: 10.2,
+                              letterSpacing: 1.15,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          const SizedBox(height: 7),
+                          const SizedBox(height: 5),
                           AppText(
                             title,
                             style: TextStyle(
                               color: foreground,
-                              fontSize: compact ? 24 : 30,
+                              fontSize: compact ? 22 : 26,
                               height: 1.12,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: context.l10n.isArabic ? -.3 : -.8,
+                              letterSpacing: context.l10n.isArabic
+                                  ? -.25
+                                  : -.55,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 720),
+                            constraints: const BoxConstraints(maxWidth: 780),
                             child: AppText(
                               subtitle,
                               style: TextStyle(
                                 color: muted,
-                                fontSize: 13.5,
-                                height: 1.55,
+                                fontSize: 13,
+                                height: 1.42,
                               ),
                             ),
                           ),
@@ -125,7 +150,7 @@ class KajSignaturePageHero extends StatelessWidget {
                       ),
                     ),
                     if (!compact && trailing != null) ...<Widget>[
-                      const SizedBox(width: 18),
+                      const SizedBox(width: 16),
                       trailing!,
                     ],
                   ],
@@ -134,8 +159,8 @@ class KajSignaturePageHero extends StatelessWidget {
                 final metricStrip = metrics.isEmpty
                     ? const SizedBox.shrink()
                     : Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: metrics
                             .map((item) => KajSignatureMetric(data: item))
                             .toList(growable: false),
@@ -146,11 +171,11 @@ class KajSignaturePageHero extends StatelessWidget {
                   children: <Widget>[
                     intro,
                     if (compact && trailing != null) ...<Widget>[
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                       trailing!,
                     ],
                     if (metrics.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
                       metricStrip,
                     ],
                   ],
@@ -190,17 +215,17 @@ class KajSignatureMetric extends StatelessWidget {
     final foreground = dark ? Colors.white : const Color(0xFF101619);
 
     return Container(
-      width: 176,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      width: 164,
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
         color: KajDesignTokens.raisedSurface(brightness).withValues(alpha: .86),
         borderRadius: BorderRadius.circular(KajDesignTokens.radiusMd),
-        border: Border.all(color: data.accent.withValues(alpha: .24)),
+        border: Border.all(color: data.accent.withValues(alpha: .22)),
       ),
       child: Row(
         children: <Widget>[
           Icon(data.icon, color: data.accent, size: 18),
-          const SizedBox(width: 10),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,18 +236,18 @@ class KajSignatureMetric extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground.withValues(alpha: .58),
-                    fontSize: 9.5,
+                    fontSize: 9.6,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 AppText(
                   data.value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground,
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -239,7 +264,7 @@ class KajSignatureSearchSurface extends StatelessWidget {
   const KajSignatureSearchSurface({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(18),
+    this.padding = const EdgeInsets.all(16),
   });
 
   final Widget child;

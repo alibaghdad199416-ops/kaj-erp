@@ -30,220 +30,376 @@ class CashTransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isReceipt = transaction.isReceipt;
+    final accent = isReceipt ? Colors.green.shade700 : Colors.red.shade700;
+
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
+      color: scheme.surface,
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .78)),
+        borderRadius: BorderRadius.circular(13),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 25,
-              backgroundColor: isReceipt
-                  ? Colors.green.withValues(alpha: 0.12)
-                  : Colors.red.withValues(alpha: 0.12),
-              child: Icon(
-                isReceipt ? Icons.south_west_rounded : Icons.north_east_rounded,
-                color: isReceipt ? Colors.green.shade800 : Colors.red.shade800,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FieldPermissionVisibility(
-                          resource: 'cashbox',
-                          field: 'purpose',
-                          viewPermission: 'accounting.view',
-                          child: AppText(
-                            transaction.category,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      FieldPermissionVisibility(
-                        resource: 'cashbox',
-                        field: 'amount',
-                        viewPermission: 'accounting.view',
-                        child: AppText(
-                          '${isReceipt ? '+' : '-'}${MoneyFormatter.withCurrency(transaction.amount, transaction.currency)}',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: isReceipt
-                                ? Colors.green.shade800
-                                : Colors.red.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 14,
-                    runSpacing: 8,
-                    children: [
-                      FieldPermissionVisibility(
-                        resource: 'cashbox',
-                        field: 'documentNumber',
-                        viewPermission: 'accounting.view',
-                        child: _detail(
-                          Icons.receipt_long_outlined,
-                          transaction.voucherNumber,
-                        ),
-                      ),
-                      FieldPermissionVisibility(
-                        resource: 'cashbox',
-                        field: 'operationalDate',
-                        viewPermission: 'accounting.view',
-                        child: _detail(
-                          Icons.calendar_today_outlined,
-                          _date(transaction.transactionDate),
-                        ),
-                      ),
-                      _field(
-                        'paymentMethod',
-                        _detail(
-                          Icons.account_balance_wallet_outlined,
-                          _paymentMethodLabel(transaction.paymentMethod),
-                        ),
-                      ),
-                      if ((transaction.partyName ?? '').trim().isNotEmpty)
-                        FieldPermissionVisibility(
-                          resource: 'cashbox',
-                          field: 'partyName',
-                          viewPermission: 'accounting.view',
-                          child: _detail(
-                            Icons.person_outline,
-                            transaction.partyName!,
-                          ),
-                        ),
-                      if ((transaction.referenceType ?? '').trim().isNotEmpty ||
-                          (transaction.referenceId ?? '').trim().isNotEmpty)
-                        _field(
-                          'reference',
-                          _detail(
-                            Icons.link_outlined,
-                            [transaction.referenceType, transaction.referenceId]
-                                .where(
-                                  (value) => (value ?? '').trim().isNotEmpty,
-                                )
-                                .join(' • '),
-                          ),
-                        ),
-                      if ((transaction.journalEntryId ?? '').trim().isNotEmpty)
-                        _field(
-                          'journalEntryId',
-                          _detail(
-                            Icons.menu_book_outlined,
-                            transaction.journalEntryId!,
-                          ),
-                        ),
-                      _field(
-                        'auditMetadata',
-                        _detail(
-                          Icons.history_outlined,
-                          transaction.updatedAt == null
-                              ? _date(transaction.transactionDate)
-                              : '${_date(transaction.transactionDate)} → ${_date(transaction.updatedAt!)}',
-                        ),
-                      ),
-                    ],
-                  ),
-                  if ((transaction.notes ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    FieldPermissionVisibility(
-                      resource: 'cashbox',
-                      field: 'notes',
-                      viewPermission: 'accounting.view',
-                      child: AppText(
-                        transaction.notes!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.grey.shade700),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'view') onView();
-                if (value == 'print') onPrint();
-                if (value == 'edit') onEdit();
-                if (value == 'delete') onDelete?.call();
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'print',
-                  child: Row(
-                    children: [
-                      Icon(Icons.print_outlined),
-                      SizedBox(width: 10),
-                      AppText('طباعة السند'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'view',
-                  child: Row(
-                    children: [
-                      Icon(Icons.visibility_outlined),
-                      SizedBox(width: 10),
-                      AppText('عرض التفاصيل'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit_outlined),
-                      SizedBox(width: 10),
-                      AppText('تعديل'),
-                    ],
-                  ),
-                ),
-                if (onDelete != null)
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, color: Colors.red),
-                        SizedBox(width: 10),
-                        AppText('حذف', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ],
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final desktop = constraints.maxWidth >= 900;
+            if (desktop) {
+              return _desktopLayout(context, accent, isReceipt);
+            }
+            return _compactLayout(context, accent, isReceipt);
+          },
         ),
       ),
     );
   }
 
-  Widget _detail(IconData icon, String value) {
+  Widget _desktopLayout(BuildContext context, Color accent, bool isReceipt) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      key: const ValueKey('cash-transaction-desktop-row'),
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _directionIcon(accent, isReceipt),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 3,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FieldPermissionVisibility(
+                resource: 'cashbox',
+                field: 'purpose',
+                viewPermission: 'accounting.view',
+                child: AppText(
+                  transaction.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(height: 3),
+              FieldPermissionVisibility(
+                resource: 'cashbox',
+                field: 'documentNumber',
+                viewPermission: 'accounting.view',
+                child: AppText(
+                  transaction.voucherNumber,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              if ((transaction.notes ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
+                FieldPermissionVisibility(
+                  resource: 'cashbox',
+                  field: 'notes',
+                  viewPermission: 'accounting.view',
+                  child: AppText(
+                    transaction.notes!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          flex: 5,
+          child: Wrap(spacing: 13, runSpacing: 5, children: _details(context)),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(width: 150, child: _amount(context, accent, isReceipt)),
+        const SizedBox(width: 6),
+        _actions(context),
+      ],
+    );
+  }
+
+  Widget _compactLayout(BuildContext context, Color accent, bool isReceipt) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      key: const ValueKey('cash-transaction-compact-column'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            _directionIcon(accent, isReceipt),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FieldPermissionVisibility(
+                    resource: 'cashbox',
+                    field: 'purpose',
+                    viewPermission: 'accounting.view',
+                    child: AppText(
+                      transaction.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  FieldPermissionVisibility(
+                    resource: 'cashbox',
+                    field: 'documentNumber',
+                    viewPermission: 'accounting.view',
+                    child: AppText(
+                      transaction.voucherNumber,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _amount(context, accent, isReceipt),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 12, runSpacing: 6, children: _details(context)),
+        if ((transaction.notes ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 7),
+          FieldPermissionVisibility(
+            resource: 'cashbox',
+            field: 'notes',
+            viewPermission: 'accounting.view',
+            child: AppText(
+              transaction.notes!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+        const SizedBox(height: 5),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: _actions(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _directionIcon(Color accent, bool isReceipt) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Icon(
+        isReceipt ? Icons.south_west_rounded : Icons.north_east_rounded,
+        size: 18,
+        color: accent,
+      ),
+    );
+  }
+
+  Widget _amount(BuildContext context, Color accent, bool isReceipt) {
+    return FieldPermissionVisibility(
+      resource: 'cashbox',
+      field: 'amount',
+      viewPermission: 'accounting.view',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          AppText(
+            transaction.currency.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          AppText(
+            '${isReceipt ? '+' : '-'}${MoneyFormatter.withCurrency(transaction.amount, transaction.currency)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _details(BuildContext context) {
+    final result = <Widget>[
+      FieldPermissionVisibility(
+        resource: 'cashbox',
+        field: 'operationalDate',
+        viewPermission: 'accounting.view',
+        child: _detail(
+          context,
+          Icons.calendar_today_outlined,
+          _date(transaction.transactionDate),
+        ),
+      ),
+      _field(
+        'paymentMethod',
+        _detail(
+          context,
+          Icons.account_balance_wallet_outlined,
+          _paymentMethodLabel(transaction.paymentMethod),
+        ),
+      ),
+    ];
+
+    if ((transaction.partyName ?? '').trim().isNotEmpty) {
+      result.add(
+        FieldPermissionVisibility(
+          resource: 'cashbox',
+          field: 'partyName',
+          viewPermission: 'accounting.view',
+          child: _detail(context, Icons.person_outline, transaction.partyName!),
+        ),
+      );
+    }
+    if ((transaction.referenceType ?? '').trim().isNotEmpty ||
+        (transaction.referenceId ?? '').trim().isNotEmpty) {
+      result.add(
+        _field(
+          'reference',
+          _detail(
+            context,
+            Icons.link_outlined,
+            [
+              transaction.referenceType,
+              transaction.referenceId,
+            ].where((value) => (value ?? '').trim().isNotEmpty).join(' • '),
+          ),
+        ),
+      );
+    }
+    if ((transaction.journalEntryId ?? '').trim().isNotEmpty) {
+      result.add(
+        _field(
+          'journalEntryId',
+          _detail(
+            context,
+            Icons.menu_book_outlined,
+            transaction.journalEntryId!,
+          ),
+        ),
+      );
+    }
+    result.add(
+      _field(
+        'auditMetadata',
+        _detail(
+          context,
+          Icons.history_outlined,
+          transaction.updatedAt == null
+              ? _date(transaction.transactionDate)
+              : '${_date(transaction.transactionDate)} → ${_date(transaction.updatedAt!)}',
+        ),
+      ),
+    );
+    return result;
+  }
+
+  Widget _actions(BuildContext context) {
+    return Wrap(
+      spacing: 1,
+      children: [
+        _actionButton(
+          context,
+          tooltip: context.l10n.isArabic ? 'عرض التفاصيل' : 'View details',
+          icon: Icons.visibility_outlined,
+          onPressed: onView,
+        ),
+        _actionButton(
+          context,
+          tooltip: context.l10n.isArabic ? 'طباعة السند' : 'Print voucher',
+          icon: Icons.print_outlined,
+          onPressed: onPrint,
+        ),
+        _actionButton(
+          context,
+          tooltip: context.l10n.isArabic ? 'تعديل' : 'Edit',
+          icon: Icons.edit_outlined,
+          onPressed: onEdit,
+        ),
+        if (onDelete != null)
+          _actionButton(
+            context,
+            tooltip: context.l10n.isArabic ? 'حذف' : 'Delete',
+            icon: Icons.delete_outline,
+            onPressed: onDelete!,
+            danger: true,
+          ),
+      ],
+    );
+  }
+
+  Widget _actionButton(
+    BuildContext context, {
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool danger = false,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+      padding: EdgeInsets.zero,
+      icon: Icon(
+        icon,
+        size: 18,
+        color: danger ? Theme.of(context).colorScheme.error : null,
+      ),
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _detail(BuildContext context, IconData icon, String value) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 17, color: Colors.grey.shade700),
-        const SizedBox(width: 5),
-        AppText(value, style: TextStyle(color: Colors.grey.shade800)),
+        Icon(
+          icon,
+          size: 15,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 4),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 190),
+          child: AppText(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
       ],
     );
   }

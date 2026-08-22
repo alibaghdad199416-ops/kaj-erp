@@ -17,7 +17,7 @@ Widget localizedApp(Widget home) => MaterialApp(
 );
 
 void main() {
-  testWidgets('legacy Navigator.pop result closes the full-page route', (
+  testWidgets('legacy Navigator.pop result closes the bounded workspace', (
     tester,
   ) async {
     bool? result;
@@ -47,6 +47,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('pop-result')));
     await tester.pumpAndSettle();
     expect(result, isTrue);
-    expect(find.byKey(const ValueKey('module-full-page-route')), findsNothing);
+    expect(find.byKey(const ValueKey('module-workspace-window')), findsNothing);
   });
 }

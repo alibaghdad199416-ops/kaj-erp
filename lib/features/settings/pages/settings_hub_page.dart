@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
-import 'package:quality_line_erp/design_system/kaj_admin_stage8_components.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/features/settings/access/pages/users_page.dart';
 import 'package:quality_line_erp/features/settings/reports/pages/reports_page.dart';
@@ -23,6 +22,7 @@ class SettingsHubPage extends StatefulWidget {
 
 class _SettingsHubPageState extends State<SettingsHubPage> {
   late int _selected;
+  late final List<Widget?> _sectionCache;
 
   static const _sections = <({String ar, String en, IconData icon})>[
     (
@@ -53,6 +53,25 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
   void initState() {
     super.initState();
     _selected = widget.initialIndex.clamp(0, _sections.length - 1);
+    _sectionCache = List<Widget?>.filled(_sections.length, null);
+    _sectionCache[_selected] = _buildSection(_selected);
+  }
+
+  Widget _buildSection(int index) => _guardSection(index, switch (index) {
+    0 => const SettingsPage(embedded: true),
+    1 => const UsersPage(),
+    2 => const SystemMonitorPage(),
+    3 => const ReportsPage(),
+    4 => const OperationalPeriodsPage(),
+    5 => const RecycleBinPage(),
+    _ => const SizedBox.shrink(),
+  });
+
+  void _selectSection(int index) {
+    setState(() {
+      _selected = index;
+      _sectionCache[index] ??= _buildSection(index);
+    });
   }
 
   Widget _guardSection(int index, Widget child) {
@@ -97,6 +116,7 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
   Widget build(BuildContext context) {
     final isArabic = context.l10n.isArabic;
     return AppEntityPage(
+      key: const ValueKey('settings-hub-full-workspace'),
       hideHeader: true,
       title: 'الإعدادات والإدارة',
       subtitle: isArabic
@@ -104,8 +124,12 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
           : 'Manage the system, users, monitoring, and reports.',
       leading: const Icon(Icons.settings_suggest_outlined, size: 20),
       showBackButton: false,
+      maxWidth: double.infinity,
+      fillAvailableHeight: true,
+      bodyPadding: const EdgeInsetsDirectional.fromSTEB(12, 4, 12, 10),
       toolbar: SizedBox(
-        height: 34,
+        key: const ValueKey('settings-primary-horizontal-sections'),
+        height: 38,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _sections.length,
@@ -116,7 +140,7 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
               index,
               ChoiceChip(
                 selected: _selected == index,
-                onSelected: (_) => setState(() => _selected = index),
+                onSelected: (_) => _selectSection(index),
                 avatar: Icon(section.icon, size: 17),
                 label: AppText(isArabic ? section.ar : section.en),
                 visualDensity: const VisualDensity(
@@ -128,57 +152,15 @@ class _SettingsHubPageState extends State<SettingsHubPage> {
           },
         ),
       ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: KajAdminWorkspace(
-              title: isArabic
-                  ? 'مركز الإدارة والتحكم'
-                  : 'Administration & Control Center',
-              subtitle: isArabic
-                  ? 'إدارة الإعدادات والمستخدمين والصلاحيات والمراقبة والسجلات والنسخ الاحتياطية من مساحة موحدة.'
-                  : 'Manage settings, users, permissions, monitoring, audit records and backups from one unified workspace.',
-              icon: Icons.settings_suggest_outlined,
-              metrics: <KajAdminMetricData>[
-                KajAdminMetricData(
-                  label: isArabic ? 'الأقسام' : 'Sections',
-                  value: _sections.length.toString(),
-                  icon: Icons.dashboard_customize_outlined,
-                ),
-                KajAdminMetricData(
-                  label: isArabic ? 'الوصول' : 'Access',
-                  value: isArabic ? 'محكوم' : 'Governed',
-                  icon: Icons.verified_user_outlined,
-                ),
-                KajAdminMetricData(
-                  label: isArabic ? 'المراقبة' : 'Monitoring',
-                  value: isArabic ? 'مباشر' : 'Live',
-                  icon: Icons.monitor_heart_outlined,
-                ),
-                KajAdminMetricData(
-                  label: isArabic ? 'الاستعادة' : 'Recovery',
-                  value: isArabic ? 'جاهزة' : 'Ready',
-                  icon: Icons.settings_backup_restore_outlined,
-                ),
-              ],
-            ),
+      body: SizedBox.expand(
+        key: const ValueKey('settings-active-section-full-viewport'),
+        child: IndexedStack(
+          index: _selected,
+          children: List<Widget>.generate(
+            _sections.length,
+            (index) => _sectionCache[index] ?? const SizedBox.shrink(),
           ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: IndexedStack(
-              index: _selected,
-              children: [
-                _guardSection(0, const SettingsPage(embedded: true)),
-                _guardSection(1, const UsersPage()),
-                _guardSection(2, const SystemMonitorPage()),
-                _guardSection(3, const ReportsPage()),
-                _guardSection(4, const OperationalPeriodsPage()),
-                _guardSection(5, const RecycleBinPage()),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

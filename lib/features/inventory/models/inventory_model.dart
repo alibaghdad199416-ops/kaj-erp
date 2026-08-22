@@ -72,7 +72,7 @@ class InventoryModel {
   final String? salesRevenueUsdAccountId;
 
   bool get isService => itemType == 'service';
-  bool get isStockItem => !isService;
+  bool get isStockItem => itemType == 'stock';
 
   int get expectedQuantity => quantity + expectedIncoming - expectedOutgoing;
   int get availableQuantity => quantity - expectedOutgoing;
@@ -281,11 +281,13 @@ class InventoryModel {
         aliases: const ['image_base64'],
       ),
       notes: ModelValueReader.nullableString(map, 'notes'),
+      // Persisted records must not silently become stock items when the
+      // item-type field is removed by field-level permissions. An empty value
+      // means unknown/not-readable; only an explicit `stock` value is stock.
       itemType: ModelValueReader.string(
         map,
         'itemType',
         aliases: const ['item_type', 'productType', 'product_type'],
-        fallback: 'stock',
       ).toLowerCase(),
       inventoryAssetAccountId: ModelValueReader.nullableString(
         map,

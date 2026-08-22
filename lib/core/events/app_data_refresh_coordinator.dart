@@ -6,6 +6,13 @@ import 'package:quality_line_erp/core/logging/app_logger.dart';
 typedef AppDataRefreshCallback =
     Future<void> Function(List<AppDataChangeEvent> events);
 
+bool requiresRefreshBeyondLocalOperations(
+  Iterable<AppDataChangeEvent> events,
+  Set<String> locallyReconciledOperations,
+) => events.any(
+  (event) => !locallyReconciledOperations.contains(event.operation),
+);
+
 /// Declarative refresh rule for one controller or aggregate view.
 ///
 /// Feature modules declare the data sources that invalidate them instead of

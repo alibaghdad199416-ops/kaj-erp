@@ -1,3 +1,5 @@
+import 'package:quality_line_erp/core/models/model_value_reader.dart';
+
 enum OpportunityStatus { pending, won, lost }
 
 class OpportunityModel {
@@ -20,6 +22,7 @@ class OpportunityModel {
     this.carId,
     this.carName,
     this.saleId,
+    this.salesOrderNumber,
     this.invoiceNumber,
     this.salesOrderStatus,
     this.deliveryNumber,
@@ -28,6 +31,9 @@ class OpportunityModel {
     this.paymentStatus,
     this.paidAmount = 0,
     this.remainingAmount = 0,
+    this.maintenanceOrderId,
+    this.maintenanceOrderNumber,
+    this.maintenanceOrderStatus,
     required this.assignedUserId,
     required this.assignedUserName,
     required this.createdByUserId,
@@ -56,7 +62,12 @@ class OpportunityModel {
   final OpportunityStatus status;
   final String? carId;
   final String? carName;
+
+  /// Internal canonical Sales Order UUID. Never use as the primary daily label.
   final String? saleId;
+
+  /// Human Sales Order business reference, e.g. SO-... .
+  final String? salesOrderNumber;
   final String? invoiceNumber;
   final String? salesOrderStatus;
   final String? deliveryNumber;
@@ -65,6 +76,13 @@ class OpportunityModel {
   final String? paymentStatus;
   final double paidAmount;
   final double remainingAmount;
+
+  /// Canonical persisted Maintenance Order relation from
+  /// erp_maintenance_orders.opportunity_id.
+  final String? maintenanceOrderId;
+  final String? maintenanceOrderNumber;
+  final String? maintenanceOrderStatus;
+
   final String assignedUserId;
   final String assignedUserName;
   final String createdByUserId;
@@ -76,6 +94,9 @@ class OpportunityModel {
   final DateTime? updatedAt;
 
   String get statusValue => status.name;
+
+  bool get hasMaintenanceOrder =>
+      (maintenanceOrderId?.trim().isNotEmpty ?? false);
 
   OpportunityModel copyWith({
     String? customerId,
@@ -94,6 +115,7 @@ class OpportunityModel {
     String? carId,
     String? carName,
     String? saleId,
+    String? salesOrderNumber,
     String? invoiceNumber,
     String? salesOrderStatus,
     String? deliveryNumber,
@@ -102,6 +124,9 @@ class OpportunityModel {
     String? paymentStatus,
     double? paidAmount,
     double? remainingAmount,
+    String? maintenanceOrderId,
+    String? maintenanceOrderNumber,
+    String? maintenanceOrderStatus,
     String? assignedUserId,
     String? assignedUserName,
     DateTime? followUpDate,
@@ -127,6 +152,7 @@ class OpportunityModel {
     carId: carId ?? this.carId,
     carName: carName ?? this.carName,
     saleId: saleId ?? this.saleId,
+    salesOrderNumber: salesOrderNumber ?? this.salesOrderNumber,
     invoiceNumber: invoiceNumber ?? this.invoiceNumber,
     salesOrderStatus: salesOrderStatus ?? this.salesOrderStatus,
     deliveryNumber: deliveryNumber ?? this.deliveryNumber,
@@ -135,6 +161,11 @@ class OpportunityModel {
     paymentStatus: paymentStatus ?? this.paymentStatus,
     paidAmount: paidAmount ?? this.paidAmount,
     remainingAmount: remainingAmount ?? this.remainingAmount,
+    maintenanceOrderId: maintenanceOrderId ?? this.maintenanceOrderId,
+    maintenanceOrderNumber:
+        maintenanceOrderNumber ?? this.maintenanceOrderNumber,
+    maintenanceOrderStatus:
+        maintenanceOrderStatus ?? this.maintenanceOrderStatus,
     assignedUserId: assignedUserId ?? this.assignedUserId,
     assignedUserName: assignedUserName ?? this.assignedUserName,
     createdByUserId: createdByUserId,
@@ -165,6 +196,7 @@ class OpportunityModel {
     'carId': carId,
     'carName': carName,
     'saleId': saleId,
+    'salesOrderNumber': salesOrderNumber,
     'invoiceNumber': invoiceNumber,
     'salesOrderStatus': salesOrderStatus,
     'deliveryNumber': deliveryNumber,
@@ -173,6 +205,9 @@ class OpportunityModel {
     'paymentStatus': paymentStatus,
     'paidAmount': paidAmount,
     'remainingAmount': remainingAmount,
+    'maintenanceOrderId': maintenanceOrderId,
+    'maintenanceOrderNumber': maintenanceOrderNumber,
+    'maintenanceOrderStatus': maintenanceOrderStatus,
     'assignedUserId': assignedUserId,
     'assignedUserName': assignedUserName,
     'createdByUserId': createdByUserId,
@@ -189,6 +224,9 @@ class OpportunityModel {
       final result = value?.toString().trim() ?? '';
       return result.isEmpty ? fallback : result;
     }
+
+    Object? value(String key, {List<String> aliases = const []}) =>
+        ModelValueReader.raw(map, key, aliases: aliases);
 
     String? nullableText(Object? value) {
       final result = value?.toString().trim() ?? '';
@@ -210,50 +248,59 @@ class OpportunityModel {
       );
     }
 
-    final rawStatus = text(map['status']).toLowerCase();
+    final rawStatus = text(value('status')).toLowerCase();
     return OpportunityModel(
-      id: text(map['id']),
-      opportunityNumber: text(map['opportunityNumber'], fallback: '-'),
-      customerId: nullableText(map['customerId']),
-      customerName: text(map['customerName']),
-      customerPhone: text(map['customerPhone']),
-      title: text(map['title']),
-      source: text(map['source']),
-      expectedValue: number(map['expectedValue']),
-      currency: text(map['currency']).toUpperCase(),
-      stage: text(map['stage'], fallback: 'new').toLowerCase(),
-      probability: number(map['probability']).clamp(0, 100).toDouble(),
-      description: nullableText(map['description']),
-      expectedCloseDate: date(map['expectedCloseDate']),
-      winLossReason: nullableText(map['winLossReason']),
+      id: text(value('id')),
+      opportunityNumber: text(value('opportunityNumber'), fallback: '-'),
+      customerId: nullableText(value('customerId')),
+      customerName: text(value('customerName')),
+      customerPhone: text(value('customerPhone')),
+      title: text(value('title')),
+      source: text(value('source')),
+      expectedValue: number(value('expectedValue')),
+      currency: text(
+        value('currency', aliases: const ['currencyCode']),
+      ).toUpperCase(),
+      stage: text(value('stage'), fallback: 'new').toLowerCase(),
+      probability: number(value('probability')).clamp(0, 100).toDouble(),
+      description: nullableText(value('description')),
+      expectedCloseDate: date(value('expectedCloseDate')),
+      winLossReason: nullableText(value('winLossReason')),
       status: OpportunityStatus.values.firstWhere(
         (value) => value.name == rawStatus,
         orElse: () => OpportunityStatus.pending,
       ),
-      carId: nullableText(map['carId']),
-      carName: nullableText(map['carName']),
-      saleId: nullableText(map['salesOrderId'] ?? map['saleId']),
-      invoiceNumber: nullableText(map['invoiceNumber']),
-      salesOrderStatus: nullableText(map['salesOrderStatus']),
-      deliveryNumber: nullableText(map['deliveryNumber']),
-      deliveryStatus: nullableText(map['deliveryStatus']),
-      invoiceStatus: nullableText(map['invoiceStatus']),
-      paymentStatus: nullableText(map['paymentStatus']),
-      paidAmount: number(map['paidAmount']),
-      remainingAmount: number(map['remainingAmount']),
-      assignedUserId: text(map['assignedUserId']),
-      assignedUserName: text(map['assignedUserName']),
-      createdByUserId: text(map['createdByUserId']),
-      createdByUserName: text(map['createdByUserName']),
+      carId: nullableText(value('carId')),
+      carName: nullableText(value('carName')),
+      saleId: nullableText(value('salesOrderId', aliases: const ['saleId'])),
+      salesOrderNumber: nullableText(value('salesOrderNumber')),
+      invoiceNumber: nullableText(value('invoiceNumber')),
+      salesOrderStatus: nullableText(value('salesOrderStatus')),
+      deliveryNumber: nullableText(value('deliveryNumber')),
+      deliveryStatus: nullableText(value('deliveryStatus')),
+      invoiceStatus: nullableText(value('invoiceStatus')),
+      paymentStatus: nullableText(value('paymentStatus')),
+      paidAmount: number(value('paidAmount')),
+      remainingAmount: number(value('remainingAmount')),
+      maintenanceOrderId: nullableText(value('maintenanceOrderId')),
+      maintenanceOrderNumber: nullableText(value('maintenanceOrderNumber')),
+      maintenanceOrderStatus: nullableText(value('maintenanceOrderStatus')),
+      assignedUserId: text(value('assignedUserId')),
+      assignedUserName: text(value('assignedUserName')),
+      createdByUserId: text(value('createdByUserId')),
+      createdByUserName: text(value('createdByUserName')),
       createdAt: requiredDate(map, const [
         'createdAt',
+        'created_at',
         'updatedAt',
+        'updated_at',
         '_cloudUpdatedAt',
+        '_cloud_updated_at',
       ]),
-      followUpDate: date(map['followUpDate']),
-      closedAt: date(map['closedAt']),
-      notes: nullableText(map['notes']),
-      updatedAt: date(map['updatedAt']),
+      followUpDate: date(value('followUpDate')),
+      closedAt: date(value('closedAt')),
+      notes: nullableText(value('notes')),
+      updatedAt: date(value('updatedAt')),
     );
   }
 }

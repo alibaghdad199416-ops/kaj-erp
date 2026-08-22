@@ -22,12 +22,21 @@ def require(text: str, needles: tuple[str, ...], label: str) -> None:
         errors.append(f"{label}: missing {', '.join(missing)}")
 
 
+def require_code(text: str, needles: tuple[str, ...], label: str) -> None:
+    missing = [needle for needle in needles if not contains_code(text, needle)]
+    if missing:
+        errors.append(f"{label}: missing {', '.join(missing)}")
+
+
 migration = read(
     "supabase/migrations/20260805030000_v735_workflow_approval_performance_login_ui.sql"
 )
 action = read("lib/core/widgets/app_module_action_icon.dart")
 card = read("lib/core/widgets/commercial_workflow_order_card.dart")
 window = read("lib/core/widgets/app_full_page_route.dart")
+module_shell = read("lib/core/widgets/app_module_shell.dart")
+entity_page = read("lib/core/widgets/app_entity_page.dart")
+workspace_scope = read("lib/core/widgets/app_workspace_chrome_scope.dart")
 login = read("lib/features/auth/pages/login_page.dart")
 prefs = read("lib/core/preferences/app_preferences_controller.dart")
 access = read("lib/features/settings/access/controllers/access_controller.dart")
@@ -67,15 +76,14 @@ require(
 require(
     action,
     (
-        "const systemAccent = KajDesignTokens.electricBlue",
-        "Meaning is carried by the icon and tooltip",
+        "final semanticAccent = destructive",
+        "color ?? KajDesignTokens.electricBlue",
         "width: 38",
         "height: 38",
+        "KajDesignTokens.radiusSm",
     ),
-    "single-color module command icon",
+    "semantic module command icon with unified geometry",
 )
-if contains_code(action, "final moduleAccent = color"):
-    errors.append("legacy per-action command colors are still active")
 require(card, ("AppModuleActionIcon(", "tooltip:", "icon:"), "commercial cards")
 require(
     maintenance_page + maintenance_details + order_details,
@@ -87,21 +95,72 @@ if re.search(r"class _StageAction[\s\S]{0,900}FilledButton", maintenance_details
 if re.search(r"class _InlineComponentButton[\s\S]{0,900}FilledButton", order_details):
     errors.append("commercial component actions are still wide filled buttons")
 
+# R86 supersedes the older full-screen/movable-window experiments with one
+# bounded responsive operational workspace. The route owns the single window
+# header, promotes entity/scaffold/dialog actions into it, and normalizes the
+# legacy body without creating a window-inside-window hierarchy.
 require(
     window,
     (
-        "The window has no title header, footer",
-        "class _ScaffoldAsWindow",
-        "...?appBar?.actions",
-        "scaffold.floatingActionButton",
-        "class _AlertDialogAsWindow",
+        "Desktop workspaces intentionally remain bounded",
+        "class _PremiumWorkspaceTheme",
+        "class _WorkspaceHeader",
+        "class _WorkspacePresentation",
+        "_scaffoldAsHeaderlessWorkspace",
+        "appBar?.actions",
+        "source.floatingActionButton",
+        "if (child is AlertDialog)",
         "SingleChildScrollView(",
-        "closeDock",
+        "module-workspace-window",
+        "Clip.antiAlias",
     ),
-    "headless integrated window command row",
+    "bounded integrated module workspace",
 )
-if "module-window-control-strip" in window:
-    errors.append("legacy separate window control strip is still active")
+for forbidden in (
+    "class _PremiumWindowTheme",
+    "class _WindowFooter",
+    "class _ScaffoldAsWindow",
+    "module-window-control-strip",
+):
+    if forbidden in window:
+        errors.append(f"legacy module-window chrome is still active: {forbidden}")
+
+# The desktop AppWorkspaceTopBar is the only module identity header. Entity
+# pages underneath it must keep actions/statistics/toolbars on the same canvas
+# instead of rendering a second hero/header card. Compact/top-navigation layouts
+# remain self-describing because the scope explicitly reports no workspace bar.
+require(
+    workspace_scope,
+    (
+        "class AppWorkspaceChromeScope extends InheritedWidget",
+        "required this.hasWorkspaceTopBar",
+        "static bool hasTopBarOf(BuildContext context)",
+    ),
+    "workspace chrome scope",
+)
+require(
+    module_shell,
+    (
+        "AppWorkspaceTopBar(currentRoute: route)",
+        "AppWorkspaceChromeScope(",
+        "hasWorkspaceTopBar: false",
+        "hasWorkspaceTopBar: true",
+        "_WorkspaceCanvas(child: moduleContent)",
+    ),
+    "single connected module shell",
+)
+require_code(
+    entity_page,
+    (
+        "AppWorkspaceChromeScope.hasTopBarOf(",
+        "final effectiveHideHeader =",
+        "shellHasWorkspaceTopBar && !insideModuleWindow",
+        "if (!effectiveHideHeader)",
+        "module-command-rail",
+        "module-continuous-workspace",
+    ),
+    "automatic duplicate module header suppression",
+)
 
 require(
     login,
@@ -227,5 +286,5 @@ print("  - legacy item/account gaps are repaired during stock approvals")
 print("  - sales, purchase and maintenance approval chains share robust fallbacks")
 print("  - refresh requests are coalesced and aggregate screens remain lazy")
 print("  - login routes after the first successful authentication click")
-print("  - command actions use one icon-only system accent")
-print("  - module windows use one headless content surface and integrated close action")
+print("  - command actions share icon geometry while preserving semantic colors")
+print("  - module work uses one bounded header and one connected business canvas")

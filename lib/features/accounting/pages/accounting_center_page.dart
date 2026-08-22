@@ -1,20 +1,20 @@
+import 'dart:async';
+
 import 'package:quality_line_erp/core/printing/accounting_report_export_service.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
+import 'package:quality_line_erp/core/utils/erp_display_formatter.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
+import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
-import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
-import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
-import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_phase6_components.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/pages/cashbox_page.dart';
 import 'package:quality_line_erp/features/accounting/expenses/pages/expenses_page.dart';
 import 'package:quality_line_erp/features/accounting/installments/pages/installments_page.dart';
@@ -29,9 +29,14 @@ import 'accounting_page.dart';
 import 'add_journal_entry_page.dart';
 
 class AccountingCenterPage extends StatefulWidget {
-  const AccountingCenterPage({super.key, this.initialSection = 0});
+  const AccountingCenterPage({
+    super.key,
+    this.initialSection = 0,
+    this.initialCashboxId,
+  });
 
   final int initialSection;
+  final String? initialCashboxId;
 
   @override
   State<AccountingCenterPage> createState() => _AccountingCenterPageState();
@@ -39,6 +44,7 @@ class AccountingCenterPage extends StatefulWidget {
 
 class _AccountingCenterPageState extends State<AccountingCenterPage> {
   late int _selected;
+  StreamSubscription<AppDataChangeEvent>? _changes;
 
   static const _sections = <_AccountingSection>[
     _AccountingSection(
@@ -111,147 +117,170 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<AccountingController>().loadAccounting();
     });
+    _changes = AppDataChangeBus.instance.events
+        .where(
+          (event) => const {
+            'accounting',
+            'cashbox',
+            'expenses',
+            'sales',
+            'purchases',
+          }.contains(event.source),
+        )
+        .listen((_) {
+          if (mounted) {
+            unawaited(
+              context.read<AccountingController>().refreshHeaderSnapshot(),
+            );
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_changes?.cancel());
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<AccountingController>();
     final isArabic = context.l10n.isArabic;
-    return AppEntityPage(
-      hideHeader: true,
-      toolbarFramed: false,
-      title: isArabic ? 'المركز المحاسبي' : 'Accounting Center',
-      subtitle: isArabic
-          ? 'الحسابات والقيود والصناديق والكشوف والتقارير المالية.'
-          : 'Accounts, journals, cashboxes, statements and financial reports.',
-      leading: const Icon(Icons.account_balance_outlined, size: 20),
-      showBackButton: false,
-      actions: [
-        FilledButton.icon(
-          onPressed: () => showAppWorkspaceDialog<void>(
-            context: context,
-            child: const AddJournalEntryPage(),
-          ),
-          icon: const Icon(Icons.post_add_outlined, size: 17),
-          label: AppText(isArabic ? 'إدخال محاسبي جديد' : 'New journal entry'),
+
+    final commandRail = ScrollConfiguration(
+      behavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(scrollbars: false, overscroll: false),
+      child: SingleChildScrollView(
+        key: const ValueKey('accounting-command-horizontal-rail'),
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton.icon(
+              onPressed: () => showAppWorkspaceDialog<void>(
+                context: context,
+                child: const AddJournalEntryPage(),
+              ),
+              icon: const Icon(Icons.post_add_outlined, size: 17),
+              label: AppText(
+                isArabic ? 'إدخال محاسبي جديد' : 'New journal entry',
+              ),
+            ),
+            const SizedBox(width: 8),
+            CompactMetricPill(
+              icon: Icons.account_tree_outlined,
+              label: isArabic ? 'الحسابات' : 'Accounts',
+              value: controller.headerAccountCount.toString(),
+            ),
+            const SizedBox(width: 7),
+            CompactMetricPill(
+              icon: Icons.menu_book_outlined,
+              label: isArabic ? 'القيود' : 'Entries',
+              value: controller.headerEntryCount.toString(),
+            ),
+            const SizedBox(width: 7),
+            CompactMetricPill(
+              icon: Icons.balance_outlined,
+              label: isArabic ? 'النقد المتاح USD' : 'Available cash USD',
+              value: MoneyFormatter.format(
+                controller.cashByCurrency['USD'] ?? 0,
+                currency: 'USD',
+              ),
+            ),
+            const SizedBox(width: 7),
+            CompactMetricPill(
+              icon: Icons.balance_outlined,
+              label: isArabic ? 'النقد المتاح IQD' : 'Available cash IQD',
+              value: MoneyFormatter.format(
+                controller.cashByCurrency['IQD'] ?? 0,
+                currency: 'IQD',
+              ),
+            ),
+          ],
         ),
-      ],
-      statistics: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CompactMetricPill(
-            icon: Icons.account_tree_outlined,
-            label: isArabic ? 'الحسابات' : 'Accounts',
-            value: controller.accounts.length.toString(),
-          ),
-          const SizedBox(width: 7),
-          CompactMetricPill(
-            icon: Icons.menu_book_outlined,
-            label: isArabic ? 'القيود' : 'Entries',
-            value: controller.entries.length.toString(),
-          ),
-          const SizedBox(width: 7),
-          CompactMetricPill(
-            icon: Icons.balance_outlined,
-            label: 'ميزان USD',
-            value: MoneyFormatter.format(
-              controller.usdTrial['debit'] ?? 0,
-              currency: 'USD',
-            ),
-          ),
-          const SizedBox(width: 7),
-          CompactMetricPill(
-            icon: Icons.balance_outlined,
-            label: 'ميزان IQD',
-            value: MoneyFormatter.format(
-              controller.iqdTrial['debit'] ?? 0,
-              currency: 'IQD',
-            ),
-          ),
-        ],
       ),
-      toolbar: AppHorizontalStrip(
-        spacing: 8,
-        children: List<Widget>.generate(_sections.length, (index) {
-          final section = _sections[index];
-          final selected = _selected == index;
-          final chip = SizedBox(
-            width: 158,
-            child: ChoiceChip(
-              selected: selected,
-              showCheckmark: false,
-              onSelected: (_) => setState(() => _selected = index),
-              avatar: Icon(section.icon, size: 15),
-              label: SizedBox(
-                width: 116,
-                child: AppText(
+    );
+
+    final sectionStrip = ScrollConfiguration(
+      behavior: ScrollConfiguration.of(
+        context,
+      ).copyWith(scrollbars: false, overscroll: false),
+      child: SingleChildScrollView(
+        key: const ValueKey('accounting-section-horizontal-nav'),
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List<Widget>.generate(_sections.length, (index) {
+            final section = _sections[index];
+            final selected = _selected == index;
+            final chip = Padding(
+              padding: EdgeInsetsDirectional.only(
+                end: index == _sections.length - 1 ? 0 : 8,
+              ),
+              child: ChoiceChip(
+                selected: selected,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _selected = index),
+                avatar: Icon(section.icon, size: 14),
+                label: AppText(
                   isArabic ? section.ar : section.en,
                   maxLines: 1,
-                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                visualDensity: const VisualDensity(
+                  horizontal: -2,
+                  vertical: -3,
                 ),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-            ),
-          );
-          return index == 4
-              ? PermissionVisibility(
-                  permission: 'installments.view',
-                  child: chip,
-                )
-              : chip;
-        }, growable: false),
+            );
+            return index == 4
+                ? PermissionVisibility(
+                    permission: 'installments.view',
+                    child: chip,
+                  )
+                : chip;
+          }, growable: false),
+        ),
       ),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: KajExecutiveHero(
-              eyebrow: AppTranslation.translate('الإدارة المالية التنفيذية'),
-              title: AppTranslation.translate('المركز المالي والمحاسبي'),
-              subtitle: AppTranslation.translate(
-                'عرض موحد للحسابات والقيود والسيولة والأصول والتقارير المالية.',
+    );
+
+    // Accounting deliberately bypasses AppEntityPage. The module shell already
+    // owns the route-level header and provides a tight viewport. Keeping the
+    // accounting command rail, section strip and active section in this single
+    // root Column guarantees that the active section receives every remaining
+    // pixel of both width and height instead of inheriting content-sized page
+    // heuristics from the generic entity-page wrapper.
+    return SizedBox.expand(
+      key: const ValueKey('accounting-root-tight-viewport'),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 12, 0),
+        child: Column(
+          key: const ValueKey('accounting-root-full-height-column'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            commandRail,
+            const SizedBox(height: 8),
+            sectionStrip,
+            const SizedBox(height: 8),
+            Expanded(
+              key: const ValueKey('accounting-active-section-expanded'),
+              child: SizedBox.expand(
+                key: const ValueKey('accounting-active-section-full-viewport'),
+                child: KeyedSubtree(
+                  key: ValueKey('accounting-active-section-$_selected'),
+                  child: _sectionBody(),
+                ),
               ),
-              icon: Icons.account_balance_outlined,
-              metrics: <KajExecutiveMetricData>[
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('الحسابات'),
-                  value: controller.accounts.length.toString(),
-                  icon: Icons.account_tree_outlined,
-                  accent: KajDesignTokens.electricBlue,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('القيود'),
-                  value: controller.entries.length.toString(),
-                  icon: Icons.menu_book_outlined,
-                  accent: KajDesignTokens.staticGreen,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('ميزان USD'),
-                  value: MoneyFormatter.format(
-                    controller.usdTrial['debit'] ?? 0,
-                    currency: 'USD',
-                  ),
-                  icon: Icons.balance_outlined,
-                  accent: KajDesignTokens.champagneGold,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('ميزان IQD'),
-                  value: MoneyFormatter.format(
-                    controller.iqdTrial['debit'] ?? 0,
-                    currency: 'IQD',
-                  ),
-                  icon: Icons.currency_exchange_outlined,
-                  accent: KajDesignTokens.electricBlue,
-                ),
-              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(child: _sectionBody()),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -263,16 +292,19 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
       case 1:
         return const AccountingPage(embedded: true);
       case 2:
-        return const CashboxPage();
+        return CashboxPage(
+          embedded: true,
+          initialCashboxId: widget.initialCashboxId,
+        );
       case 3:
-        return const ExpensesPage();
+        return const ExpensesPage(embedded: true);
       case 4:
         return const PermissionVisibility(
           permission: 'installments.view',
-          child: InstallmentsPage(),
+          child: InstallmentsPage(embedded: true),
         );
       case 5:
-        return const AccountStatementPage();
+        return const AccountStatementPage(embedded: true);
       case 6:
         return const FieldPermissionVisibility(
           resource: 'accounting',
@@ -315,12 +347,42 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
           child: _AccountingReportView(type: _AccountingReportType.profitLoss),
         );
       case 11:
-        return const FixedAssetsPage();
+        return const FixedAssetsPage(embedded: true);
       case 12:
         return const _FinancialDimensionsView();
       default:
         return const SizedBox.shrink();
     }
+  }
+}
+
+class _AccountingDataViewport extends StatelessWidget {
+  const _AccountingDataViewport({
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: .72),
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
+    );
   }
 }
 
@@ -331,39 +393,96 @@ class _ChartOfAccountsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final accounts = context.watch<AccountingController>().accounts;
     final roots = accounts.where((a) => a.parentId == null).toList();
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Row(
+    final activeCount = accounts.where((account) => account.isActive).length;
+
+    final controls = LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final metrics = Wrap(
+          spacing: 7,
+          runSpacing: 7,
           children: [
-            const Expanded(
-              child: AppText(
-                'دليل الحسابات الشجري',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
+            CompactMetricPill(
+              icon: Icons.account_tree_outlined,
+              label: context.l10n.isArabic ? 'الحسابات' : 'Accounts',
+              value: accounts.length.toString(),
             ),
-            FilledButton.icon(
-              onPressed: () => showAppModuleDialog<bool>(
-                context: context,
-                title: 'إضافة حساب فرعي',
-                builder: (_) => const _AddAccountForm(),
-              ),
-              icon: const Icon(Icons.add_rounded),
-              label: const AppText('إضافة حساب'),
+            CompactMetricPill(
+              icon: Icons.check_circle_outline_rounded,
+              label: context.l10n.isArabic ? 'النشطة' : 'Active',
+              value: activeCount.toString(),
+            ),
+            CompactMetricPill(
+              icon: Icons.call_split_rounded,
+              label: context.l10n.isArabic ? 'الجذور' : 'Root accounts',
+              value: roots.length.toString(),
             ),
           ],
-        ),
-        const SizedBox(height: 6),
-        const AppText(
-          'أضف حسابات رئيسية أو مسارات فرعية غير محدودة ضمن شجرة الحسابات.',
-        ),
-        const SizedBox(height: 16),
-        if (roots.isEmpty)
-          const Center(child: AppText('لا توجد حسابات.'))
-        else
-          ...roots.map(
-            (root) => _AccountTreeNode(account: root, accounts: accounts),
+        );
+        final add = FilledButton.icon(
+          onPressed: () => showAppModuleDialog<bool>(
+            context: context,
+            title: 'إضافة حساب فرعي',
+            builder: (_) => const _AddAccountForm(),
           ),
+          style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+          icon: const Icon(Icons.add_rounded, size: 17),
+          label: const AppText('إضافة حساب'),
+        );
+        if (compact) {
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [metrics, add],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: metrics),
+            const SizedBox(width: 10),
+            add,
+          ],
+        );
+      },
+    );
+
+    Widget treeViewport() {
+      if (roots.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.account_tree_outlined, size: 20),
+                const SizedBox(width: 8),
+                AppText(
+                  context.l10n.isArabic
+                      ? 'لا توجد حسابات معرفة بعد.'
+                      : 'No accounts have been defined yet.',
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return ListView(
+        key: const ValueKey('accounting-chart-tree-full-height-list'),
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+        children: roots
+            .map((root) => _AccountTreeNode(account: root, accounts: accounts))
+            .toList(growable: false),
+      );
+    }
+
+    return Column(
+      key: const ValueKey('accounting-chart-full-height-column'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        controls,
+        const SizedBox(height: 9),
+        Expanded(child: _AccountingDataViewport(child: treeViewport())),
       ],
     );
   }
@@ -415,51 +534,87 @@ class _AccountTreeNode extends StatelessWidget {
     final children = accounts
         .where((item) => item.parentId == account.id)
         .toList();
-    return Card(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: .55),
+          ),
+        ),
+      ),
       child: ExpansionTile(
         initiallyExpanded: account.parentId == null,
-        leading: const Icon(Icons.account_balance_outlined),
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -2),
+        tilePadding: const EdgeInsetsDirectional.fromSTEB(8, 0, 3, 0),
+        childrenPadding: const EdgeInsets.only(bottom: 2),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: const Icon(Icons.account_balance_outlined, size: 19),
         title: Row(
           children: [
             Expanded(
               child: AppText(
                 '${account.code} — ${account.name}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-            IconButton(
-              tooltip: AppTranslation.translate('تعديل الحساب'),
-              onPressed: () => showAppModuleDialog<bool>(
-                context: context,
-                title: 'تعديل الحساب',
-                builder: (_) => _AddAccountForm(editing: account),
-              ),
-              icon: const Icon(Icons.edit_outlined),
-            ),
-            IconButton(
-              tooltip: AppTranslation.translate('إضافة حساب فرعي'),
-              onPressed: () => showAppModuleDialog<bool>(
-                context: context,
-                title: 'إضافة حساب فرعي',
-                builder: (_) => _AddAccountForm(parent: account),
-              ),
-              icon: const Icon(Icons.add_circle_outline_rounded),
-            ),
-            IconButton(
-              key: ValueKey('delete-account-${account.id}'),
-              tooltip: AppTranslation.translate('حذف الحساب'),
-              onPressed: () => _confirmDeleteAccount(context),
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
+            const SizedBox(width: 8),
+            AppText(
+              account.type,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
         ),
-        subtitle: AppText(account.type),
+        trailing: PopupMenuButton<String>(
+          key: ValueKey('account-actions-${account.id}'),
+          tooltip: AppTranslation.translate('إجراءات الحساب'),
+          onSelected: (action) {
+            if (action == 'edit') {
+              unawaited(
+                showAppModuleDialog<bool>(
+                  context: context,
+                  title: 'تعديل الحساب',
+                  builder: (_) => _AddAccountForm(editing: account),
+                ),
+              );
+            } else if (action == 'add') {
+              unawaited(
+                showAppModuleDialog<bool>(
+                  context: context,
+                  title: 'إضافة حساب فرعي',
+                  builder: (_) => _AddAccountForm(parent: account),
+                ),
+              );
+            } else if (action == 'delete') {
+              unawaited(_confirmDeleteAccount(context));
+            }
+          },
+          itemBuilder: (_) => <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: 'edit',
+              child: AppText(AppTranslation.translate('تعديل الحساب')),
+            ),
+            PopupMenuItem<String>(
+              value: 'add',
+              child: AppText(AppTranslation.translate('إضافة حساب فرعي')),
+            ),
+            PopupMenuItem<String>(
+              key: ValueKey('delete-account-${account.id}'),
+              value: 'delete',
+              child: AppText(AppTranslation.translate('حذف الحساب')),
+            ),
+          ],
+        ),
         children: children.isEmpty
             ? [const SizedBox(height: 8)]
             : children
                   .map(
                     (child) => Padding(
-                      padding: const EdgeInsetsDirectional.only(start: 18),
+                      padding: const EdgeInsetsDirectional.only(start: 14),
                       child: _AccountTreeNode(
                         account: child,
                         accounts: accounts,
@@ -782,10 +937,12 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
   DateTime? _fromDate;
   DateTime? _toDate;
   String _currency = 'ALL';
+  String? _cashAccountId;
   String? _branchId;
   String? _costCenterId;
   List<Map<String, Object?>> _branches = const [];
   List<Map<String, Object?>> _costCenters = const [];
+  List<Map<String, Object?>> _cashboxes = const [];
   late Future<List<Map<String, Object?>>> _future;
 
   @override
@@ -794,20 +951,40 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
     _future = _initialize();
   }
 
+  @override
+  void didUpdateWidget(covariant _AccountingReportView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      _cashAccountId = null;
+      _future = _initialize();
+    }
+  }
+
   Future<List<Map<String, Object?>>> _initialize() async {
     final repository = ProfessionalAccountingRepository();
     final results = await Future.wait<List<Map<String, Object?>>>([
       repository.getBranches(),
       repository.getCostCenters(),
+      if (widget.type == _AccountingReportType.cashFlow)
+        repository.getCashFlowCashboxes(),
     ]);
+    final cashboxes = results.length > 2
+        ? results[2]
+        : const <Map<String, Object?>>[];
     if (mounted) {
       setState(() {
         _branches = results[0];
         _costCenters = results[1];
+        _cashboxes = cashboxes;
+        if (_cashAccountId != null &&
+            !_cashboxes.any((row) => row['id']?.toString() == _cashAccountId)) {
+          _cashAccountId = null;
+        }
       });
     } else {
       _branches = results[0];
       _costCenters = results[1];
+      _cashboxes = cashboxes;
     }
     return _load();
   }
@@ -820,160 +997,33 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
       future: _future,
       builder: (context, snapshot) {
         final rows = snapshot.data ?? const <Map<String, Object?>>[];
-        return ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SizedBox(
-                  width: 330,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppText(
-                        _title,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      AppText(_description),
-                    ],
+
+        final controls = _buildReportControls(rows);
+
+        Widget reportViewport;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          reportViewport = Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 12),
+                  AppText(
+                    context.l10n.isArabic
+                        ? 'جارٍ تحميل التقرير...'
+                        : 'Loading report...',
                   ),
-                ),
-                _reportField(
-                  'currencyFilter',
-                  DropdownButton<String>(
-                    value: _currency,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'ALL',
-                        child: AppText('كل العملات'),
-                      ),
-                      DropdownMenuItem(value: 'USD', child: AppText('USD')),
-                      DropdownMenuItem(value: 'IQD', child: AppText('IQD')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        _currency = value;
-                        _refresh();
-                      }
-                    },
-                  ),
-                ),
-                DropdownButton<String?>(
-                  value: _branchId,
-                  hint: const AppText('كل الفروع'),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: AppText('كل الفروع'),
-                    ),
-                    ..._branches.map(
-                      (row) => DropdownMenuItem<String?>(
-                        value: row['id']?.toString(),
-                        child: AppText(
-                          (row['nameAr'] ?? row['name'] ?? row['code'])
-                              .toString(),
-                        ),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    _branchId = value;
-                    _refresh();
-                  },
-                ),
-                DropdownButton<String?>(
-                  value: _costCenterId,
-                  hint: const AppText('كل مراكز الكلفة'),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: AppText('كل مراكز الكلفة'),
-                    ),
-                    ..._costCenters.map(
-                      (row) => DropdownMenuItem<String?>(
-                        value: row['id']?.toString(),
-                        child: AppText(
-                          '${row['code']} - ${(row['nameAr'] ?? row['nameEn'] ?? '').toString()}',
-                        ),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    _costCenterId = value;
-                    _refresh();
-                  },
-                ),
-                _reportField(
-                  'dateRange',
-                  OutlinedButton.icon(
-                    onPressed: _pickRange,
-                    icon: const Icon(Icons.date_range_outlined),
-                    label: AppText(_rangeLabel),
-                  ),
-                ),
-                if (_fromDate != null)
-                  _reportField(
-                    'dateRange',
-                    TextButton.icon(
-                      onPressed: () {
-                        _fromDate = null;
-                        _toDate = null;
-                        _refresh();
-                      },
-                      icon: const Icon(Icons.clear),
-                      label: const AppText('مسح الفترة'),
-                    ),
-                  ),
-                _reportField(
-                  'exportExcel',
-                  FilledButton.icon(
-                    key: widget.type == _AccountingReportType.generalLedger
-                        ? const ValueKey('export-general-ledger-excel')
-                        : ValueKey('export-${widget.type.name}-excel'),
-                    onPressed: rows.isEmpty ? null : () => _exportReport(rows),
-                    icon: const Icon(Icons.table_view_outlined, size: 18),
-                    label: AppText(
-                      AppTranslation.translate('تصدير Excel كامل'),
-                    ),
-                  ),
-                ),
-                _reportField(
-                  'exportPdf',
-                  OutlinedButton.icon(
-                    onPressed: rows.isEmpty ? null : () => _printReport(rows),
-                    icon: const Icon(Icons.print_outlined, size: 18),
-                    label: const AppText('طباعة PDF'),
-                  ),
-                ),
-                _reportField(
-                  'exportPdf',
-                  OutlinedButton.icon(
-                    onPressed: rows.isEmpty
-                        ? null
-                        : () => _downloadReport(rows),
-                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                    label: const AppText('تنزيل PDF'),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _refresh,
-                  tooltip: AppTranslation.translate('تحديث'),
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            if (snapshot.connectionState == ConnectionState.waiting)
-              const LinearProgressIndicator(),
-            if (snapshot.hasError)
-              Card(
+          );
+        } else if (snapshot.hasError) {
+          reportViewport = Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
                   child: AppText(
@@ -986,73 +1036,445 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
                   ),
                 ),
               ),
-            if (!snapshot.hasError &&
-                snapshot.connectionState != ConnectionState.waiting &&
-                rows.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(30),
-                  child: Center(
-                    child: AppText(
-                      'لا توجد بيانات متاحة ضمن المرشحات الحالية.',
-                    ),
-                  ),
-                ),
+            ),
+          );
+        } else if (rows.isEmpty) {
+          reportViewport = Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: AppText(
+                context.l10n.isArabic
+                    ? 'لا توجد بيانات متاحة ضمن المرشحات الحالية.'
+                    : 'No data is available for the current filters.',
+                textAlign: TextAlign.center,
               ),
-            if (rows.isNotEmpty) ...[
-              _summary(rows),
-              const SizedBox(height: 12),
-              if (widget.type == _AccountingReportType.generalLedger ||
-                  widget.type == _AccountingReportType.trialBalance ||
-                  widget.type == _AccountingReportType.cashFlow)
-                _accountHierarchyGroupedTable(rows)
-              else
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowColor: const WidgetStatePropertyAll(
-                        Colors.black12,
-                      ),
-                      columns: rows.first.keys
-                          .map(
-                            (key) => DataColumn(
-                              label: AppText(
-                                _label(key),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+            ),
+          );
+        } else {
+          final table = widget.type == _AccountingReportType.trialBalance
+              ? _compactTrialBalanceTable(rows)
+              : widget.type == _AccountingReportType.generalLedger ||
+                    widget.type == _AccountingReportType.cashFlow
+              ? _accountHierarchyGroupedTable(rows)
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingRowColor: const WidgetStatePropertyAll(
+                      Colors.black12,
+                    ),
+                    columns: rows.first.keys
+                        .map(
+                          (key) => DataColumn(
+                            label: AppText(
+                              _label(key),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          )
-                          .toList(),
-                      rows: rows
-                          .map(
-                            (row) => DataRow(
-                              cells: row.entries
-                                  .map(
-                                    (entry) =>
-                                        DataCell(AppText(_format(entry.value))),
-                                  )
-                                  .toList(),
-                            ),
-                          )
-                          .toList(),
-                    ),
+                          ),
+                        )
+                        .toList(),
+                    rows: rows
+                        .map(
+                          (row) => DataRow(
+                            cells: row.entries
+                                .map(
+                                  (entry) =>
+                                      DataCell(AppText(_format(entry.value))),
+                                )
+                                .toList(),
+                          ),
+                        )
+                        .toList(),
                   ),
-                ),
-            ],
+                );
+
+          reportViewport = SingleChildScrollView(
+            key: ValueKey('${widget.type.name}-full-height-report-scroll'),
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 14),
+            child: table,
+          );
+        }
+
+        final content = <Widget>[
+          controls,
+          const SizedBox(height: 10),
+          if (rows.isNotEmpty &&
+              snapshot.connectionState != ConnectionState.waiting &&
+              !snapshot.hasError) ...[
+            _summary(rows),
+            const SizedBox(height: 10),
+          ],
+        ];
+
+        return Column(
+          key: ValueKey('${widget.type.name}-full-height-report-column'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ...content,
+            Expanded(child: _AccountingDataViewport(child: reportViewport)),
+            const SizedBox(height: 4),
           ],
         );
       },
     );
   }
 
+  Widget _buildReportControls(List<Map<String, Object?>> rows) {
+    final ar = context.l10n.isArabic;
+    final controls = <Widget>[
+      _reportField(
+        'currencyFilter',
+        SizedBox(
+          width: 150,
+          child: DropdownButtonFormField<String>(
+            initialValue: _currency,
+            isExpanded: true,
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: ar ? 'العملة' : 'Currency',
+              border: const OutlineInputBorder(),
+            ),
+            items: [
+              DropdownMenuItem(
+                value: 'ALL',
+                child: AppText(ar ? 'كل العملات' : 'All currencies'),
+              ),
+              const DropdownMenuItem(value: 'USD', child: AppText('USD')),
+              const DropdownMenuItem(value: 'IQD', child: AppText('IQD')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                _currency = value;
+                _refresh();
+              }
+            },
+          ),
+        ),
+      ),
+      if (widget.type == _AccountingReportType.cashFlow)
+        _reportField(
+          'cashboxFilter',
+          SizedBox(
+            width: 210,
+            child: DropdownButtonFormField<String?>(
+              key: ValueKey('cash-flow-cashbox-${_cashAccountId ?? 'all'}'),
+              initialValue: _cashAccountId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: ar ? 'الصندوق' : 'Cashbox',
+                border: const OutlineInputBorder(),
+              ),
+              items: <DropdownMenuItem<String?>>[
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: AppText(ar ? 'كل الصناديق' : 'All cashboxes'),
+                ),
+                ..._cashboxes.map(
+                  (row) => DropdownMenuItem<String?>(
+                    value: row['id']?.toString(),
+                    child: AppText(
+                      '${row['name'] ?? row['id'] ?? ''} • ${row['currency'] ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                _cashAccountId = value;
+                _refresh();
+              },
+            ),
+          ),
+        ),
+      SizedBox(
+        width: 170,
+        child: DropdownButtonFormField<String?>(
+          initialValue: _branchId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            isDense: true,
+            labelText: ar ? 'الفرع' : 'Branch',
+            border: const OutlineInputBorder(),
+          ),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: AppText(ar ? 'كل الفروع' : 'All branches'),
+            ),
+            ..._branches.map(
+              (row) => DropdownMenuItem<String?>(
+                value: row['id']?.toString(),
+                child: AppText(
+                  (row['nameAr'] ?? row['name'] ?? row['code']).toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            _branchId = value;
+            _refresh();
+          },
+        ),
+      ),
+      SizedBox(
+        width: 190,
+        child: DropdownButtonFormField<String?>(
+          initialValue: _costCenterId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            isDense: true,
+            labelText: ar ? 'مركز الكلفة' : 'Cost center',
+            border: const OutlineInputBorder(),
+          ),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: AppText(ar ? 'كل مراكز الكلفة' : 'All cost centers'),
+            ),
+            ..._costCenters.map(
+              (row) => DropdownMenuItem<String?>(
+                value: row['id']?.toString(),
+                child: AppText(
+                  '${row['code']} - ${(row['nameAr'] ?? row['nameEn'] ?? '').toString()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            _costCenterId = value;
+            _refresh();
+          },
+        ),
+      ),
+      _reportField(
+        'dateRange',
+        OutlinedButton.icon(
+          onPressed: _pickRange,
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(150, 44),
+          ),
+          icon: const Icon(Icons.date_range_outlined, size: 18),
+          label: AppText(
+            context.l10n.isArabic
+                ? (_fromDate == null ? 'كل الفترات' : _rangeLabel)
+                : (_fromDate == null ? 'All periods' : _exportRangeLabel),
+            maxLines: 1,
+          ),
+        ),
+      ),
+      if (_fromDate != null)
+        _reportField(
+          'dateRange',
+          IconButton.outlined(
+            onPressed: () {
+              _fromDate = null;
+              _toDate = null;
+              _refresh();
+            },
+            tooltip: ar ? 'مسح الفترة' : 'Clear period',
+            icon: const Icon(Icons.clear_rounded, size: 18),
+          ),
+        ),
+      _reportField(
+        'exportExcel',
+        FilledButton.icon(
+          key: widget.type == _AccountingReportType.generalLedger
+              ? const ValueKey('export-general-ledger-excel')
+              : ValueKey('export-${widget.type.name}-excel'),
+          onPressed: rows.isEmpty ? null : () => _exportReport(rows),
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(142, 44),
+          ),
+          icon: const Icon(Icons.table_view_outlined, size: 18),
+          label: AppText(ar ? 'Excel كامل' : 'Full Excel'),
+        ),
+      ),
+      _reportField(
+        'exportPdf',
+        OutlinedButton.icon(
+          onPressed: rows.isEmpty ? null : () => _printReport(rows),
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(116, 44),
+          ),
+          icon: const Icon(Icons.print_outlined, size: 18),
+          label: AppText(ar ? 'طباعة PDF' : 'Print PDF'),
+        ),
+      ),
+      _reportField(
+        'exportPdf',
+        OutlinedButton.icon(
+          onPressed: rows.isEmpty ? null : () => _downloadReport(rows),
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(126, 44),
+          ),
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+          label: AppText(ar ? 'تنزيل PDF' : 'Download PDF'),
+        ),
+      ),
+      IconButton.outlined(
+        onPressed: _refresh,
+        tooltip: ar ? 'تحديث' : 'Refresh',
+        icon: const Icon(Icons.refresh_rounded, size: 19),
+      ),
+    ];
+
+    return LayoutBuilder(
+      key: ValueKey('${widget.type.name}-horizontal-report-toolbar'),
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 980;
+        if (!wide) {
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: controls,
+          );
+        }
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(
+            context,
+          ).copyWith(scrollbars: false, overscroll: false),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var index = 0; index < controls.length; index++) ...[
+                  controls[index],
+                  if (index != controls.length - 1) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _compactTrialBalanceTable(List<Map<String, Object?>> rows) {
+    final ar = context.l10n.isArabic;
+    int depthOf(Map<String, Object?> row) {
+      final value = row['hierarchyDepth'];
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    Widget amountCell(Map<String, Object?> row, String key) =>
+        AppText(_format(row[key]), maxLines: 1, textAlign: TextAlign.end);
+    Widget groupedHeader(
+      String groupAr,
+      String groupEn,
+      String sideAr,
+      String sideEn,
+    ) => Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        AppText(
+          ar ? groupAr : groupEn,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+        ),
+        AppText(
+          ar ? sideAr : sideEn,
+          style: TextStyle(
+            fontSize: 10,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+
+    return SingleChildScrollView(
+      key: const ValueKey('trial-balance-compact-table-horizontal-scroll'),
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        headingRowHeight: 54,
+        dataRowMinHeight: 40,
+        dataRowMaxHeight: 44,
+        horizontalMargin: 12,
+        columnSpacing: 22,
+        columns: [
+          DataColumn(label: AppText(ar ? 'الحساب' : 'Account')),
+          DataColumn(label: AppText(ar ? 'العملة' : 'Currency')),
+          DataColumn(
+            label: groupedHeader('الافتتاحي', 'Opening', 'مدين', 'Debit'),
+            numeric: true,
+          ),
+          DataColumn(
+            label: groupedHeader('الافتتاحي', 'Opening', 'دائن', 'Credit'),
+            numeric: true,
+          ),
+          DataColumn(
+            label: groupedHeader('الحركة', 'Period', 'مدين', 'Debit'),
+            numeric: true,
+          ),
+          DataColumn(
+            label: groupedHeader('الحركة', 'Period', 'دائن', 'Credit'),
+            numeric: true,
+          ),
+          DataColumn(
+            label: groupedHeader('الختامي', 'Closing', 'مدين', 'Debit'),
+            numeric: true,
+          ),
+          DataColumn(
+            label: groupedHeader('الختامي', 'Closing', 'دائن', 'Credit'),
+            numeric: true,
+          ),
+        ],
+        rows: rows
+            .map(
+              (row) => DataRow(
+                cells: [
+                  DataCell(
+                    SizedBox(
+                      width: 310,
+                      child: Row(
+                        children: [
+                          SizedBox(width: depthOf(row) * 14.0),
+                          const Icon(Icons.account_balance_outlined, size: 16),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: AppText(
+                              '${ErpDisplayFormatter.accountCode(row['accountCode'])} — ${(row['accountName'] ?? '').toString()}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  DataCell(AppText((row['currency'] ?? '').toString())),
+                  DataCell(amountCell(row, 'openingDebit')),
+                  DataCell(amountCell(row, 'openingCredit')),
+                  DataCell(amountCell(row, 'periodDebit')),
+                  DataCell(amountCell(row, 'periodCredit')),
+                  DataCell(amountCell(row, 'closingDebit')),
+                  DataCell(amountCell(row, 'closingCredit')),
+                ],
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+
   Widget _accountHierarchyGroupedTable(List<Map<String, Object?>> rows) {
-    String reportAccountCode(Object? value) => value == null
-        ? ''
-        : value.toString().trim().replaceAll(RegExp(r'[.,\s]'), '');
+    String reportAccountCode(Object? value) {
+      final raw = value?.toString().trim() ?? '';
+      return raw.isEmpty ? '' : ErpDisplayFormatter.accountCode(raw);
+    }
 
     String accountKey(Map<String, Object?> row) {
       final code = reportAccountCode(row['accountCode']);
@@ -1074,16 +1496,16 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
       if (widget.type != _AccountingReportType.cashFlow) return 'entries';
       final cashIn = _toDouble(row['cashIn']);
       final cashOut = _toDouble(row['cashOut']);
-      return cashIn > 0 ||
-              (cashIn == 0 && cashOut == 0 && _toDouble(row['debit']) > 0)
-          ? 'cashIn'
-          : 'cashOut';
+      if (cashIn > 0) return 'cashIn';
+      if (cashOut > 0) return 'cashOut';
+      return 'unclassified';
     }
 
     final grouped = <String, Map<String, List<Map<String, Object?>>>>{};
     final samples = <String, Map<String, Object?>>{};
     for (final row in rows) {
       final section = sectionFor(row);
+      if (section == 'unclassified') continue;
       final key = accountKey(row);
       grouped
           .putIfAbsent(section, () => <String, List<Map<String, Object?>>>{})
@@ -1180,8 +1602,15 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
                     ),
                     const SizedBox(height: 10),
                     ...orderedAccounts.map((account) {
-                      final accountRows = account.value
-                        ..sort((left, right) {
+                      final accountRows = List<Map<String, Object?>>.of(
+                        account.value,
+                      );
+                      // R101 makes General Ledger running balances deterministic
+                      // at the database boundary. Preserve that exact server row
+                      // order so tied lines from the same journal entry cannot be
+                      // reordered after their running balances are calculated.
+                      if (widget.type != _AccountingReportType.generalLedger) {
+                        accountRows.sort((left, right) {
                           final leftDate = '${left['entryDate'] ?? ''}';
                           final rightDate = '${right['entryDate'] ?? ''}';
                           final dateResult = leftDate.compareTo(rightDate);
@@ -1190,6 +1619,7 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
                             '${right['entryNumber'] ?? ''}',
                           );
                         });
+                      }
                       final sample = samples[account.key] ?? accountRows.first;
                       final columns = preferredColumns
                           .where(
@@ -1375,7 +1805,7 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
               total(group, 'cashOut'),
             ),
             (
-              'journalLedger',
+              'netCashFlow',
               '${context.l10n.isArabic ? 'صافي التدفق' : 'Net cash flow'} ($currency)',
               total(group, 'netCashFlow'),
             ),
@@ -1422,41 +1852,42 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
       }
     }
 
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: values
-          .map(
-            (item) => _reportValue(
-              item.$1,
-              SizedBox(
-                width: 220,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppText(
-                          item.$2,
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 5),
-                        AppText(
-                          _number(item.$3),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
+    return LayoutBuilder(
+      key: ValueKey('${widget.type.name}-responsive-summary-grid'),
+      builder: (context, constraints) {
+        const gap = 8.0;
+        const minWidth = 190.0;
+        final columns = ((constraints.maxWidth + gap) / (minWidth + gap))
+            .floor()
+            .clamp(1, 6);
+        final width = (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: values
+              .map(
+                (item) => _reportValue(
+                  item.$1,
+                  SizedBox(
+                    width: width,
+                    child: CompactMetricPill(
+                      icon: switch (item.$1) {
+                        'totalDebit' => Icons.south_west_rounded,
+                        'totalCredit' => Icons.north_east_rounded,
+                        'cashIn' => Icons.call_received_rounded,
+                        'cashOut' => Icons.call_made_rounded,
+                        'trialBalance' => Icons.balance_outlined,
+                        _ => Icons.analytics_outlined,
+                      },
+                      label: item.$2,
+                      value: _number(item.$3),
                     ),
                   ),
                 ),
-              ),
-            ),
-          )
-          .toList(),
+              )
+              .toList(growable: false),
+        );
+      },
     );
   }
 
@@ -1586,6 +2017,7 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
         'referenceType': 'Reference type',
         'referenceId': 'Reference ID',
         'description': 'Description',
+        'cashAccountId': 'Cashbox',
         'cashIn': 'Cash in',
         'cashOut': 'Cash out',
         'netCashFlow': 'Net cash flow',
@@ -1612,19 +2044,13 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
     _AccountingReportType.balanceSheet => 'قائمة المركز المالي',
     _AccountingReportType.profitLoss => 'قائمة الأرباح والخسائر',
   };
-  String get _description => switch (widget.type) {
-    _AccountingReportType.trialBalance =>
-      'أرصدة وحركات الحسابات من القيود المرحلة فقط.',
-    _AccountingReportType.generalLedger => 'كل حركات الحسابات مع رصيد تراكمي.',
-    _AccountingReportType.cashFlow => 'المقبوضات والمدفوعات وصافي التدفق.',
-    _AccountingReportType.balanceSheet => 'الموجودات والمطلوبات وحقوق الملكية.',
-    _AccountingReportType.profitLoss => 'الإيرادات والمصروفات وصافي الربح.',
-  };
-
   Future<List<Map<String, Object?>>> _load() async {
     return ProfessionalAccountingRepository().loadReport(
       type: widget.type.name,
       currency: _currency,
+      cashAccountId: widget.type == _AccountingReportType.cashFlow
+          ? _cashAccountId
+          : null,
       branchId: _branchId,
       costCenterId: _costCenterId,
       fromDate: _fromDate,
@@ -1661,6 +2087,7 @@ class _AccountingReportViewState extends State<_AccountingReportView> {
         'referenceType': 'نوع المرجع',
         'referenceId': 'رقم المرجع',
         'description': 'البيان',
+        'cashAccountId': 'الصندوق',
         'cashIn': 'التدفقات الداخلة',
         'cashOut': 'التدفقات الخارجة',
         'netCashFlow': 'صافي التدفق',
@@ -1731,81 +2158,92 @@ class _FinancialDimensionsViewState extends State<_FinancialDimensionsView> {
             snapshot.data?['branches'] ?? const <Map<String, Object?>>[];
         final centers =
             snapshot.data?['costCenters'] ?? const <Map<String, Object?>>[];
-        return ListView(
-          padding: const EdgeInsets.all(20),
+
+        final bodyChildren = <Widget>[
+          if (snapshot.connectionState == ConnectionState.waiting)
+            const LinearProgressIndicator(),
+          _dimensionHeader(
+            'الفروع',
+            Icons.store_outlined,
+            () => _openBranchForm(context),
+          ),
+          const SizedBox(height: 8),
+          if (branches.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: AppText('لا توجد فروع معرفة.'),
+              ),
+            )
+          else
+            ...branches.map(
+              (row) => Card(
+                child: ListTile(
+                  leading: Icon(
+                    (row['isMain'] as num? ?? 0) == 1
+                        ? Icons.star_rounded
+                        : Icons.store_outlined,
+                  ),
+                  title: AppText(
+                    (row['nameAr'] ?? row['name'] ?? '').toString(),
+                  ),
+                  subtitle: AppText(
+                    '${row['code'] ?? ''} • ${((row['isActive'] as num?)?.toInt() ?? 1) == 1 ? 'فعال' : 'غير فعال'}',
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 20),
+          _dimensionHeader(
+            'مراكز الكلفة',
+            Icons.account_tree_outlined,
+            () => _openCostCenterForm(context, centers),
+          ),
+          const SizedBox(height: 8),
+          if (centers.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: AppText('لا توجد مراكز كلفة معرفة.'),
+              ),
+            )
+          else
+            ...centers.map(
+              (row) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: AppText(
+                    '${row['code']} - ${(row['nameAr'] ?? row['nameEn'] ?? '').toString()}',
+                  ),
+                  subtitle: AppText(
+                    ((row['isActive'] as num?)?.toInt() ?? 1) == 1
+                        ? 'فعال'
+                        : 'غير فعال',
+                  ),
+                ),
+              ),
+            ),
+        ];
+
+        return Column(
+          key: const ValueKey('financial-dimensions-full-height-column'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const AppText(
               'الفروع ومراكز الكلفة',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
             const AppText(
               'إدارة الأبعاد المستخدمة لتصفية التقارير وتوزيع القيود والمستندات المالية.',
             ),
-            const SizedBox(height: 18),
-            if (snapshot.connectionState == ConnectionState.waiting)
-              const LinearProgressIndicator(),
-            _dimensionHeader(
-              'الفروع',
-              Icons.store_outlined,
-              () => _openBranchForm(context),
-            ),
-            const SizedBox(height: 8),
-            if (branches.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: AppText('لا توجد فروع معرفة.'),
-                ),
-              )
-            else
-              ...branches.map(
-                (row) => Card(
-                  child: ListTile(
-                    leading: Icon(
-                      (row['isMain'] as num? ?? 0) == 1
-                          ? Icons.star_rounded
-                          : Icons.store_outlined,
-                    ),
-                    title: AppText(
-                      (row['nameAr'] ?? row['name'] ?? '').toString(),
-                    ),
-                    subtitle: AppText(
-                      '${row['code'] ?? ''} • ${((row['isActive'] as num?)?.toInt() ?? 1) == 1 ? 'فعال' : 'غير فعال'}',
-                    ),
-                  ),
-                ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: _AccountingDataViewport(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
+                child: ListView(children: bodyChildren),
               ),
-            const SizedBox(height: 20),
-            _dimensionHeader(
-              'مراكز الكلفة',
-              Icons.account_tree_outlined,
-              () => _openCostCenterForm(context, centers),
             ),
-            const SizedBox(height: 8),
-            if (centers.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: AppText('لا توجد مراكز كلفة معرفة.'),
-                ),
-              )
-            else
-              ...centers.map(
-                (row) => Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.hub_outlined),
-                    title: AppText(
-                      '${row['code']} - ${(row['nameAr'] ?? row['nameEn'] ?? '').toString()}',
-                    ),
-                    subtitle: AppText(
-                      ((row['isActive'] as num?)?.toInt() ?? 1) == 1
-                          ? 'فعال'
-                          : 'غير فعال',
-                    ),
-                  ),
-                ),
-              ),
           ],
         );
       },
@@ -1966,6 +2404,22 @@ class _FinancialDimensionsViewState extends State<_FinancialDimensionsView> {
     name.dispose();
     if (saved == true) _refresh();
   }
+}
+
+bool trialBalanceRowIsConsistent(
+  Map<String, Object?> row, {
+  double tolerance = 0.01,
+}) {
+  double number(String key) {
+    final value = row[key];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  final opening = number('openingDebit') - number('openingCredit');
+  final period = number('periodDebit') - number('periodCredit');
+  final closing = number('closingDebit') - number('closingCredit');
+  return (opening + period - closing).abs() <= tolerance;
 }
 
 enum _AccountingReportType {

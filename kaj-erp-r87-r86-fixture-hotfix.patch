@@ -1,0 +1,422 @@
+diff --git a/tool/verify_r86_complete_linked_financial_deletion.py b/tool/verify_r86_complete_linked_financial_deletion.py
+index 9811e08..7cd6514 100644
+--- a/tool/verify_r86_complete_linked_financial_deletion.py
++++ b/tool/verify_r86_complete_linked_financial_deletion.py
+@@ -1,204 +1,213 @@
+-from __future__ import annotations
+-
+-import re
+-import shutil
+-import subprocess
+-import sys
+-from pathlib import Path
+-from typing import NoReturn
+-from urllib.parse import urlparse
+-
+-
+-ROOT = Path(__file__).resolve().parents[1]
+-CONFIG = ROOT / "supabase" / "config.toml"
+-SQL_TEST = ROOT / "supabase" / "tests" / "verify_r86_complete_linked_financial_deletion.sql"
+-EXPECTED_PROJECT_ID = "quality_line_erp_local_dev"
+-PASS_MARKER = "R86 complete linked financial deletion PASS"
+-ORIGIN_MARKER = "set local session_replication_role=origin;"
+-
+-# The R86 SQL deliberately inserts legacy-shaped cash rows while triggers are
+-# disabled so deletion can be exercised against historical payment envelopes.
+-# Once origin triggers are restored, R68 stamps those rows and the current cash
+-# currency guard correctly requires a live cashAccountId. Keep that runtime
+-# invariant enabled: make the local regression fixture valid instead of
+-# suppressing the trigger/validator.
+-CASH_ACCOUNT_FIXTURE = """
+--- R86 runner-local cash integrity fixture. Everything remains inside the SQL
+--- test transaction and is rolled back by the test's final ROLLBACK.
+-insert into public.erp_cash_accounts(company_id,id,data) values
+-(
+-  '86000000-0000-4000-8000-000000000010','r86-cashbox-usd',
+-  jsonb_build_object(
+-    'id','r86-cashbox-usd','name','R86 Local USD Cashbox',
+-    'currency','USD','isActive',true
+-  )
+-),(
+-  '86000000-0000-4000-8000-000000000010','r86-cashbox-iqd',
+-  jsonb_build_object(
+-    'id','r86-cashbox-iqd','name','R86 Local IQD Cashbox',
+-    'currency','IQD','isActive',true
+-  )
+-);
+-
+-update public.erp_cash_transactions
+-set data=data||jsonb_build_object(
+-  'cashAccountId',case upper(coalesce(data->>'currency',''))
+-    when 'IQD' then 'r86-cashbox-iqd'
+-    else 'r86-cashbox-usd'
+-  end
+-)
+-where company_id='86000000-0000-4000-8000-000000000010'
+-  and id like 'r86-%';
+-""".strip()
+-
+-
+-def fail(message: str, output: str | None = None) -> NoReturn:
+-    if output:
+-        print(output.rstrip(), file=sys.stderr)
+-    raise SystemExit(f"FAIL: {message}")
+-
+-
+-def local_host(url: str, label: str) -> None:
+-    parsed = urlparse(url.strip().strip('"').strip("'"))
+-    if parsed.hostname not in {"127.0.0.1", "localhost"}:
+-        fail(f"{label} is not local: {url}")
+-
+-
+-def parse_status_env(output: str) -> dict[str, str]:
+-    values: dict[str, str] = {}
+-    for raw in output.splitlines():
+-        match = re.match(r"^\s*([A-Z0-9_]+)\s*=\s*[\"']?(.*?)[\"']?\s*$", raw)
+-        if match:
+-            values[match.group(1)] = match.group(2)
+-    return values
+-
+-
+-def regression_sql() -> bytes:
+-    sql = SQL_TEST.read_text(encoding="utf-8")
+-    marker_count = sql.count(ORIGIN_MARKER)
+-    if marker_count != 1:
+-        fail(
+-            "unexpected R86 SQL trigger-boundary count: "
+-            f"expected 1, found {marker_count}"
+-        )
+-    if "set local session_replication_role=replica;" not in sql:
+-        fail("R86 SQL no longer declares its fixture-only replica phase")
+-    augmented = sql.replace(
+-        ORIGIN_MARKER,
+-        f"{CASH_ACCOUNT_FIXTURE}\n\n{ORIGIN_MARKER}",
+-        1,
+-    )
+-    return augmented.encode("utf-8")
+-
+-
+-def main() -> int:
+-    if not CONFIG.is_file():
+-        fail("supabase/config.toml is missing")
+-    if not SQL_TEST.is_file():
+-        fail(f"SQL regression file is missing: {SQL_TEST.relative_to(ROOT)}")
+-
+-    config = CONFIG.read_text(encoding="utf-8")
+-    project_match = re.search(r'^\s*project_id\s*=\s*"([^"]+)"', config, re.MULTILINE)
+-    project_id = project_match.group(1) if project_match else ""
+-    if project_id != EXPECTED_PROJECT_ID:
+-        fail(
+-            "refusing to run against an unexpected Supabase project_id: "
+-            f"{project_id or '<missing>'}"
+-        )
+-
+-    npx = shutil.which("npx.cmd") or shutil.which("npx")
+-    docker = shutil.which("docker.exe") or shutil.which("docker")
+-    if not npx:
+-        fail("npx is required to verify the local Supabase stack")
+-    if not docker:
+-        fail("Docker CLI is required to execute the SQL inside Local Supabase Postgres")
+-
+-    status = subprocess.run(
+-        [npx, "--no-install", "supabase", "status", "-o", "env"],
+-        cwd=ROOT,
+-        stdout=subprocess.PIPE,
+-        stderr=subprocess.STDOUT,
+-        text=True,
+-        encoding="utf-8",
+-        errors="replace",
+-        check=False,
+-    )
+-    if status.returncode != 0:
+-        fail("Local Supabase is not running", status.stdout)
+-
+-    status_env = parse_status_env(status.stdout)
+-    api_url = status_env.get("API_URL", "")
+-    db_url = status_env.get("DB_URL", "")
+-    if not api_url:
+-        fail("supabase status did not expose API_URL", status.stdout)
+-    local_host(api_url, "API_URL")
+-    if db_url:
+-        local_host(db_url, "DB_URL")
+-
+-    containers = subprocess.run(
+-        [docker, "ps", "--format", "{{.Names}}"],
+-        cwd=ROOT,
+-        stdout=subprocess.PIPE,
+-        stderr=subprocess.STDOUT,
+-        text=True,
+-        encoding="utf-8",
+-        errors="replace",
+-        check=False,
+-    )
+-    if containers.returncode != 0:
+-        fail("could not inspect Docker containers", containers.stdout)
+-
+-    names = [line.strip() for line in containers.stdout.splitlines() if line.strip()]
+-    expected_name = f"supabase_db_{project_id}"
+-    if expected_name in names:
+-        db_container = expected_name
+-    else:
+-        candidates = [
+-            name
+-            for name in names
+-            if name.startswith("supabase_db_") and project_id in name
+-        ]
+-        if len(candidates) != 1:
+-            fail(
+-                "could not uniquely resolve the Local Supabase Postgres container; "
+-                f"expected {expected_name}, candidates={candidates}"
+-            )
+-        db_container = candidates[0]
+-
+-    sql = regression_sql()
+-    result = subprocess.run(
+-        [
+-            docker,
+-            "exec",
+-            "-i",
+-            db_container,
+-            "psql",
+-            "-X",
+-            "-v",
+-            "ON_ERROR_STOP=1",
+-            "-U",
+-            "postgres",
+-            "-d",
+-            "postgres",
+-            "-f",
+-            "-",
+-        ],
+-        cwd=ROOT,
+-        input=sql,
+-        stdout=subprocess.PIPE,
+-        stderr=subprocess.STDOUT,
+-        check=False,
+-    )
+-    output = result.stdout.decode("utf-8", errors="replace")
+-    print(output.rstrip())
+-    if result.returncode != 0:
+-        fail("R86 linked financial deletion SQL regression failed")
+-    if PASS_MARKER not in output:
+-        fail("SQL regression completed without the expected PASS marker")
+-
+-    print("PASS: R86 linked financial deletion verified on Local Supabase only.")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(main())
++from __future__ import annotations
++
++import re
++import shutil
++import subprocess
++import sys
++from pathlib import Path
++from typing import NoReturn
++from urllib.parse import urlparse
++
++
++ROOT = Path(__file__).resolve().parents[1]
++CONFIG = ROOT / "supabase" / "config.toml"
++SQL_TEST = ROOT / "supabase" / "tests" / "verify_r86_complete_linked_financial_deletion.sql"
++EXPECTED_PROJECT_ID = "quality_line_erp_local_dev"
++PASS_MARKER = "R86 complete linked financial deletion PASS"
++ORIGIN_MARKER = "set local session_replication_role=origin;"
++
++# The R86 SQL deliberately inserts legacy-shaped cash rows while triggers are
++# disabled so deletion can be exercised against historical payment envelopes.
++# CHECK constraints remain active even while session_replication_role=replica.
++# R49 therefore requires every live fixture cashbox to carry currency, active
++# state, and a canonical ledger alias before origin triggers are restored.
++# Keep the runtime invariant enabled: make the local regression fixture valid
++# instead of suppressing any table guard or validator.
++CASH_ACCOUNT_FIXTURE = """
++-- R86 runner-local cash integrity fixture. Everything remains inside the SQL
++-- test transaction and is rolled back by the test's final ROLLBACK.
++insert into public.erp_cash_accounts(company_id,id,data) values
++(
++  '86000000-0000-4000-8000-000000000010','r86-cashbox-usd',
++  jsonb_build_object(
++    'id','r86-cashbox-usd','name','R86 Local USD Cashbox',
++    'currency','USD','isActive',true,
++    'accountId','r86-cash-usd-ledger',
++    'account_id','r86-cash-usd-ledger',
++    'canonical','r86-cash-usd-ledger',
++    'ledgerAccountId','r86-cash-usd-ledger'
++  )
++),(
++  '86000000-0000-4000-8000-000000000010','r86-cashbox-iqd',
++  jsonb_build_object(
++    'id','r86-cashbox-iqd','name','R86 Local IQD Cashbox',
++    'currency','IQD','isActive',true,
++    'accountId','r86-cash-iqd-ledger',
++    'account_id','r86-cash-iqd-ledger',
++    'canonical','r86-cash-iqd-ledger',
++    'ledgerAccountId','r86-cash-iqd-ledger'
++  )
++);
++
++update public.erp_cash_transactions
++set data=data||jsonb_build_object(
++  'cashAccountId',case upper(coalesce(data->>'currency',''))
++    when 'IQD' then 'r86-cashbox-iqd'
++    else 'r86-cashbox-usd'
++  end
++)
++where company_id='86000000-0000-4000-8000-000000000010'
++  and id like 'r86-%';
++""".strip()
++
++
++def fail(message: str, output: str | None = None) -> NoReturn:
++    if output:
++        print(output.rstrip(), file=sys.stderr)
++    raise SystemExit(f"FAIL: {message}")
++
++
++def local_host(url: str, label: str) -> None:
++    parsed = urlparse(url.strip().strip('"').strip("'"))
++    if parsed.hostname not in {"127.0.0.1", "localhost"}:
++        fail(f"{label} is not local: {url}")
++
++
++def parse_status_env(output: str) -> dict[str, str]:
++    values: dict[str, str] = {}
++    for raw in output.splitlines():
++        match = re.match(r"^\s*([A-Z0-9_]+)\s*=\s*[\"']?(.*?)[\"']?\s*$", raw)
++        if match:
++            values[match.group(1)] = match.group(2)
++    return values
++
++
++def regression_sql() -> bytes:
++    sql = SQL_TEST.read_text(encoding="utf-8")
++    marker_count = sql.count(ORIGIN_MARKER)
++    if marker_count != 1:
++        fail(
++            "unexpected R86 SQL trigger-boundary count: "
++            f"expected 1, found {marker_count}"
++        )
++    if "set local session_replication_role=replica;" not in sql:
++        fail("R86 SQL no longer declares its fixture-only replica phase")
++    augmented = sql.replace(
++        ORIGIN_MARKER,
++        f"{CASH_ACCOUNT_FIXTURE}\n\n{ORIGIN_MARKER}",
++        1,
++    )
++    return augmented.encode("utf-8")
++
++
++def main() -> int:
++    if not CONFIG.is_file():
++        fail("supabase/config.toml is missing")
++    if not SQL_TEST.is_file():
++        fail(f"SQL regression file is missing: {SQL_TEST.relative_to(ROOT)}")
++
++    config = CONFIG.read_text(encoding="utf-8")
++    project_match = re.search(r'^\s*project_id\s*=\s*"([^"]+)"', config, re.MULTILINE)
++    project_id = project_match.group(1) if project_match else ""
++    if project_id != EXPECTED_PROJECT_ID:
++        fail(
++            "refusing to run against an unexpected Supabase project_id: "
++            f"{project_id or '<missing>'}"
++        )
++
++    npx = shutil.which("npx.cmd") or shutil.which("npx")
++    docker = shutil.which("docker.exe") or shutil.which("docker")
++    if not npx:
++        fail("npx is required to verify the local Supabase stack")
++    if not docker:
++        fail("Docker CLI is required to execute the SQL inside Local Supabase Postgres")
++
++    status = subprocess.run(
++        [npx, "--no-install", "supabase", "status", "-o", "env"],
++        cwd=ROOT,
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++        text=True,
++        encoding="utf-8",
++        errors="replace",
++        check=False,
++    )
++    if status.returncode != 0:
++        fail("Local Supabase is not running", status.stdout)
++
++    status_env = parse_status_env(status.stdout)
++    api_url = status_env.get("API_URL", "")
++    db_url = status_env.get("DB_URL", "")
++    if not api_url:
++        fail("supabase status did not expose API_URL", status.stdout)
++    local_host(api_url, "API_URL")
++    if db_url:
++        local_host(db_url, "DB_URL")
++
++    containers = subprocess.run(
++        [docker, "ps", "--format", "{{.Names}}"],
++        cwd=ROOT,
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++        text=True,
++        encoding="utf-8",
++        errors="replace",
++        check=False,
++    )
++    if containers.returncode != 0:
++        fail("could not inspect Docker containers", containers.stdout)
++
++    names = [line.strip() for line in containers.stdout.splitlines() if line.strip()]
++    expected_name = f"supabase_db_{project_id}"
++    if expected_name in names:
++        db_container = expected_name
++    else:
++        candidates = [
++            name
++            for name in names
++            if name.startswith("supabase_db_") and project_id in name
++        ]
++        if len(candidates) != 1:
++            fail(
++                "could not uniquely resolve the Local Supabase Postgres container; "
++                f"expected {expected_name}, candidates={candidates}"
++            )
++        db_container = candidates[0]
++
++    sql = regression_sql()
++    result = subprocess.run(
++        [
++            docker,
++            "exec",
++            "-i",
++            db_container,
++            "psql",
++            "-X",
++            "-v",
++            "ON_ERROR_STOP=1",
++            "-U",
++            "postgres",
++            "-d",
++            "postgres",
++            "-f",
++            "-",
++        ],
++        cwd=ROOT,
++        input=sql,
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++        check=False,
++    )
++    output = result.stdout.decode("utf-8", errors="replace")
++    print(output.rstrip())
++    if result.returncode != 0:
++        fail("R86 linked financial deletion SQL regression failed")
++    if PASS_MARKER not in output:
++        fail("SQL regression completed without the expected PASS marker")
++
++    print("PASS: R86 linked financial deletion verified on Local Supabase only.")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())

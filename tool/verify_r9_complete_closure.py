@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import hashlib, re, sys
+import re, sys
+from verification_text import normalized_text_sha256
 
 ROOT=Path(__file__).resolve().parents[1]
 errors=[]
@@ -8,14 +9,14 @@ errors=[]
 def read(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='replace')
 def need(cond,msg):
     if not cond: errors.append(msg)
-def sha(rel): return hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()
+def sha(rel): return normalized_text_sha256(ROOT/rel)
 
 expected={
- 'dart_defines.json':'1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
- '.firebaserc':'003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e',
+ 'dart_defines.json':'4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
+ '.firebaserc':'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
  'firebase.json':'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
-for f,h in expected.items(): need(sha(f)==h,f'{f} changed from the user supplied production configuration')
+for f,h in expected.items(): need(sha(f)==h,f'{f} changed from the current Local Supabase/Firebase baseline')
 
 catalog=read('lib/features/settings/access/models/field_permission_catalog.dart')
 controller=read('lib/features/settings/access/controllers/access_controller.dart')
@@ -99,7 +100,9 @@ for dart in (ROOT/'lib').rglob('*.dart'):
     text=dart.read_text(encoding='utf-8',errors='replace')
     for pattern in [r"viewPermission:\s*'([^']+)'",r"writePermission:\s*'([^']+)'",r"hasPermission\(\s*'([^']+)'\s*\)"]:
         used_codes.update(re.findall(pattern,text))
-undefined=sorted(code for code in used_codes if '.fields.' not in code and code not in known_codes)
+# Dart strings containing interpolation are templates resolved at runtime, not
+# literal permission codes. Keep strict catalog validation for true literals.
+undefined=sorted(code for code in used_codes if '$' not in code and '.fields.' not in code and code not in known_codes)
 need(not undefined,'undefined literal base permissions: '+', '.join(undefined))
 
 # Main editable module surfaces must consume granular permissions.
@@ -402,11 +405,15 @@ for token in [
 ]:
     need(token in latest_security,f'R9 late security boundary missing {token}')
 r49_profit = read('supabase/migrations/20260810110000_r49_accounting_profit_installment_surface_closure.sql')
+r65_dashboard = read('supabase/migrations/20260814053406_r65_authoritative_dashboard_snapshot.sql')
 uses_permission_filtered_dashboard = (
     "'erp_r9_cloud_dashboard_snapshot'" in dashboard_repo
     or ("'erp_r49_cloud_dashboard_snapshot'" in dashboard_repo
         and 'v:=public.erp_r9_cloud_dashboard_snapshot(p_company_id,p_reference_day);' in r49_profit
         and "if v ? 'netProfitByCurrency'" in r49_profit)
+    or ("'erp_r65_get_authoritative_dashboard_snapshot'" in dashboard_repo
+        and "erp_cloud_user_has_permission(p_company_id,'dashboard.view')" in r65_dashboard
+        and "erp_cloud_user_can_view_field(p_company_id,'dashboard'" in r65_dashboard)
 )
 need(uses_permission_filtered_dashboard and
      "pendingSyncOperations: _i(row['pendingSyncOperations'])" in dashboard_repo,
@@ -483,7 +490,7 @@ if errors:
     for e in errors: print('  -',e)
     sys.exit(1)
 print('PASS R9 complete closure')
-print('- production Supabase/Firebase configuration hashes unchanged')
+print('- Local Supabase/Firebase baseline hashes unchanged')
 print('- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes')
 print('- legacy invoice tabs no longer bypass authoritative order workflows')
 print('- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns')

@@ -15,7 +15,13 @@ import 'package:quality_line_erp/features/business_partners/customers/models/cus
 import 'package:quality_line_erp/features/business_partners/customers/widgets/customer_card.dart';
 import 'package:quality_line_erp/features/business_partners/customers/widgets/customers_statistics.dart';
 import 'package:quality_line_erp/features/business_partners/shared/data/business_partner_card_service.dart';
+import 'package:quality_line_erp/features/business_partners/shared/data/partner_record_route.dart';
 import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
+import 'package:quality_line_erp/features/customer_service/models/opportunity_model.dart';
+import 'package:quality_line_erp/features/customer_service/pages/add_opportunity_page.dart';
+import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
+import 'package:quality_line_erp/features/maintenance/pages/maintenance_order_details_dialog.dart';
+import 'package:quality_line_erp/features/sales/workflow/pages/order_details_dialog.dart';
 import 'add_customer_page.dart';
 import 'edit_customer_page.dart';
 
@@ -158,23 +164,34 @@ class _CustomersPageState extends State<CustomersPage> {
             )
           : RefreshIndicator(
               onRefresh: context.read<CustomersController>().loadCustomers,
-              child: GridView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(10),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 320,
-                  mainAxisExtent: 126,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                ),
-                itemCount: filteredCustomers.length,
-                itemBuilder: (context, index) {
-                  final customer = filteredCustomers[index];
-                  return CustomerCard(
-                    customer: customer,
-                    onView: () => _showCustomerDetails(customer),
-                    onEdit: () => _editCustomer(customer),
-                    onDelete: () => _deleteCustomer(customer),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const minimumCardWidth = 300.0;
+                  const gap = 8.0;
+                  final availableWidth = constraints.maxWidth - 12;
+                  final columns =
+                      ((availableWidth + gap) / (minimumCardWidth + gap))
+                          .floor()
+                          .clamp(1, 4);
+                  return GridView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(6),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisExtent: 142,
+                      mainAxisSpacing: gap,
+                      crossAxisSpacing: gap,
+                    ),
+                    itemCount: filteredCustomers.length,
+                    itemBuilder: (context, index) {
+                      final customer = filteredCustomers[index];
+                      return CustomerCard(
+                        customer: customer,
+                        onView: () => _showCustomerDetails(customer),
+                        onEdit: () => _editCustomer(customer),
+                        onDelete: () => _deleteCustomer(customer),
+                      );
+                    },
                   );
                 },
               ),
@@ -200,6 +217,13 @@ class _CustomersPageState extends State<CustomersPage> {
       icon: Icons.person_outline_rounded,
       photoBase64: customer.photoBase64,
       summary: summary,
+      onOpenRecord: _openPartnerRecord,
+      canOpenRecord: (record) {
+        final destination = PartnerRecordRoute.resolve(record)?.destination;
+        return destination == PartnerRecordDestination.opportunity ||
+            destination == PartnerRecordDestination.maintenance ||
+            destination == PartnerRecordDestination.salesOrder;
+      },
       identityFields: [
         if (context.read<AccessController>().canViewField(
           'customers',
@@ -245,6 +269,42 @@ class _CustomersPageState extends State<CustomersPage> {
           ? customer.notes
           : null,
     );
+  }
+
+  Future<void> _openPartnerRecord(Map<String, Object?> record) async {
+    final route = PartnerRecordRoute.resolve(record);
+    if (route == null) return;
+    if (route.destination == PartnerRecordDestination.opportunity) {
+      await showAppModuleDialog<void>(
+        context: context,
+        title: 'تفاصيل الفرصة',
+        windowKey: 'opportunities:${route.id}',
+        builder: (_) =>
+            AddOpportunityPage(opportunity: OpportunityModel.fromMap(record)),
+      );
+      return;
+    }
+    if (route.destination == PartnerRecordDestination.maintenance) {
+      final orders = await MaintenanceRepository().getOrders();
+      final matches = orders.where((order) => order.id == route.id);
+      if (!mounted || matches.isEmpty) return;
+      await showAppModuleDialog<void>(
+        context: context,
+        title: 'تفاصيل أمر الصيانة',
+        windowKey: 'maintenance:${route.id}',
+        builder: (_) => MaintenanceOrderDetailsDialog(order: matches.first),
+      );
+      return;
+    }
+    if (route.destination == PartnerRecordDestination.salesOrder) {
+      if (!mounted) return;
+      await showAppModuleDialog<void>(
+        context: context,
+        title: 'تفاصيل أمر البيع',
+        windowKey: 'sales-order:${route.id}',
+        builder: (_) => OrderDetailsDialog(orderId: route.id, purchase: false),
+      );
+    }
   }
 
   Future<void> _openAddCustomer() async {

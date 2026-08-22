@@ -3,19 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/constants/app_sizes.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_section_header.dart';
-import 'package:quality_line_erp/design_system/kaj_v4_components.dart';
 
 import 'app_back_button.dart';
-import 'app_card.dart';
 import 'app_horizontal_strip.dart';
 import 'app_page_lifecycle_scope.dart';
 import 'app_window_close_button.dart';
+import 'app_workspace_chrome_scope.dart';
 
-/// Shared V4 responsive layout for ERP list and management pages.
+/// Shared ERP workspace layout.
 ///
-/// The page keeps existing module widgets intact while imposing the approved
-/// hierarchy: strong identity header, compact command/filter strip, optional
-/// metrics, and one framed working surface.
+/// The page keeps one continuous business canvas. Headerless embedded modules
+/// deliberately use tighter edge spacing so tabs, filters and business content
+/// remain visually connected instead of appearing as separate stacked boxes.
+/// When the `AppModuleShell` already renders its desktop workspace top bar,
+/// this page automatically suppresses the duplicate section title and keeps
+/// actions, statistics and filters in the connected command canvas below it.
 class AppEntityPage extends StatelessWidget {
   const AppEntityPage({
     super.key,
@@ -31,8 +33,9 @@ class AppEntityPage extends StatelessWidget {
     this.maxWidth = 1600,
     this.bodyPadding,
     this.hideHeader = false,
-    this.toolbarFramed = true,
+    this.toolbarFramed = false,
     this.mergeHiddenHeaderActionsAndStatistics = true,
+    this.fillAvailableHeight = false,
   });
 
   final String title;
@@ -47,114 +50,165 @@ class AppEntityPage extends StatelessWidget {
   final double maxWidth;
   final EdgeInsetsGeometry? bodyPadding;
   final bool hideHeader;
+
+  /// Kept for source compatibility. Toolbars are intentionally no longer put
+  /// in their own card; the module is one continuous workspace.
   final bool toolbarFramed;
   final bool mergeHiddenHeaderActionsAndStatistics;
+
+  /// Forces the page's inner canvas to consume the full bounded height supplied
+  /// by the module shell. This is opt-in because some legacy pages intentionally
+  /// size to their content. Full-workspace modules such as Accounting use it so
+  /// an Expanded data viewport can genuinely reach the bottom of the screen.
+  final bool fillAvailableHeight;
 
   @override
   Widget build(BuildContext context) {
     final insideModuleWindow = AppWorkspaceWindowScope.maybeOf(context) != null;
-    final effectiveActions = <Widget>[
-      ...actions,
-      if (insideModuleWindow && toolbar == null) const AppWindowCloseButton(),
-    ];
-    final effectiveToolbar = insideModuleWindow && toolbar != null
-        ? AppHorizontalStrip(
-            children: <Widget>[toolbar!, const AppWindowCloseButton()],
-          )
-        : toolbar;
+    final shellHasWorkspaceTopBar = AppWorkspaceChromeScope.hasTopBarOf(
+      context,
+    );
+    final effectiveHideHeader =
+        hideHeader || (shellHasWorkspaceTopBar && !insideModuleWindow);
     final effectiveShowBackButton = showBackButton && !insideModuleWindow;
+    final effectiveToolbar = toolbar;
+    final railChildren = <Widget>[
+      ...actions,
+      ?statistics,
+      if (insideModuleWindow && !effectiveHideHeader)
+        const AppWindowCloseButton(),
+    ];
 
     final content = SafeArea(
       top: false,
       child: FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 720;
-                final padding =
-                    bodyPadding ??
-                    EdgeInsets.all(
-                      compact
-                          ? AppSizes.compactScreenPadding
-                          : AppSizes.screenPadding,
-                    );
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final forceFullHeight =
+                fillAvailableHeight && viewportConstraints.hasBoundedHeight;
+            final page = ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: maxWidth,
+                minHeight: forceFullHeight ? viewportConstraints.maxHeight : 0,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 720;
+                  final horizontal = compact
+                      ? AppSizes.compactScreenPadding
+                      : 16.0;
+                  final padding =
+                      bodyPadding ??
+                      EdgeInsetsDirectional.fromSTEB(
+                        horizontal,
+                        effectiveHideHeader ? 4 : 14,
+                        horizontal,
+                        compact ? 12 : 16,
+                      );
 
-                return Padding(
-                  padding: padding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      if (!hideHeader)
-                        KajSectionHeader(
-                          title: title,
-                          subtitle: subtitle,
-                          compact: compact,
-                          icon: leading == null && !effectiveShowBackButton
-                              ? Icons.grid_view_rounded
-                              : null,
-                          actions: <Widget>[
-                            if (leading != null || effectiveShowBackButton)
-                              leading ?? const AppBackButton(),
-                            ...effectiveActions,
-                          ],
-                        )
-                      else if (mergeHiddenHeaderActionsAndStatistics &&
-                          (effectiveActions.isNotEmpty || statistics != null))
-                        _InlineCommandMetricsRow(
-                          actions: effectiveActions,
-                          statistics: statistics,
-                        )
-                      else if (effectiveActions.isNotEmpty)
-                        AppHorizontalStrip(children: effectiveActions),
-                      if (statistics != null &&
-                          (!hideHeader ||
-                              !mergeHiddenHeaderActionsAndStatistics)) ...<
-                        Widget
-                      >[
-                        SizedBox(
-                          height: hideHeader
-                              ? KajDesignTokens.space8
-                              : KajDesignTokens.space16,
-                        ),
-                        statistics!,
-                      ],
-                      if (effectiveToolbar != null) ...<Widget>[
-                        SizedBox(
-                          height: hideHeader
-                              ? KajDesignTokens.space8
-                              : KajDesignTokens.space12,
-                        ),
-                        if (toolbarFramed)
-                          AppCard(
-                            padding: const EdgeInsets.all(12),
-                            showShadow: false,
-                            accent: KajDesignTokens.electricBlue,
-                            child: effectiveToolbar,
-                          )
-                        else
-                          effectiveToolbar,
-                      ],
-                      SizedBox(
-                        height: hideHeader
-                            ? KajDesignTokens.space8
-                            : KajDesignTokens.space16,
+                  final chrome = <Widget>[
+                    if (!effectiveHideHeader)
+                      KajSectionHeader(
+                        title: title,
+                        subtitle: subtitle,
+                        compact: compact,
+                        icon: leading == null && !effectiveShowBackButton
+                            ? Icons.grid_view_rounded
+                            : null,
+                        actions: <Widget>[
+                          if (leading != null || effectiveShowBackButton)
+                            leading ?? const AppBackButton(),
+                        ],
                       ),
-                      Expanded(
-                        child: KajV4Panel(
-                          padding: EdgeInsets.zero,
-                          showTopGlow: true,
-                          child: ClipRect(child: body),
-                        ),
+                    if (railChildren.isNotEmpty) ...<Widget>[
+                      SizedBox(
+                        height: effectiveHideHeader
+                            ? KajDesignTokens.space4
+                            : KajDesignTokens.space10,
+                      ),
+                      AppHorizontalStrip(
+                        key: const ValueKey('module-command-rail'),
+                        spacing: KajDesignTokens.space8,
+                        children: railChildren,
                       ),
                     ],
-                  ),
-                );
-              },
-            ),
-          ),
+                    if (effectiveToolbar != null) ...<Widget>[
+                      SizedBox(
+                        height: effectiveHideHeader
+                            ? KajDesignTokens.space8
+                            : KajDesignTokens.space10,
+                      ),
+                      KeyedSubtree(
+                        key: const ValueKey('module-bounded-toolbar'),
+                        child: effectiveToolbar,
+                      ),
+                    ],
+                  ];
+
+                  final bodySpacing = SizedBox(
+                    height: chrome.isEmpty
+                        ? 0
+                        : effectiveHideHeader
+                        ? KajDesignTokens.space8
+                        : KajDesignTokens.space10,
+                  );
+
+                  final bodyPanel = ClipRect(
+                    key: const ValueKey('module-continuous-workspace'),
+                    child: body,
+                  );
+
+                  final shortHeight = constraints.maxHeight < 680;
+
+                  return Padding(
+                    padding: padding,
+                    child: shortHeight
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              if (chrome.isNotEmpty)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxHeight: constraints.maxHeight * 0.38,
+                                  ),
+                                  child: SingleChildScrollView(
+                                    key: const ValueKey(
+                                      'app-entity-page-short-height-scroll',
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: chrome,
+                                    ),
+                                  ),
+                                ),
+                              if (chrome.isNotEmpty) bodySpacing,
+                              Expanded(child: bodyPanel),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              ...chrome,
+                              if (chrome.isNotEmpty) bodySpacing,
+                              Expanded(child: bodyPanel),
+                            ],
+                          ),
+                  );
+                },
+              ),
+            );
+
+            // Center preserves the historical behaviour for existing pages.
+            // Full-workspace pages are pinned to the top and forced to the
+            // exact shell height so their Expanded body receives tight height
+            // constraints instead of collapsing to content height.
+            return forceFullHeight
+                ? Align(alignment: Alignment.topCenter, child: page)
+                : Center(child: page);
+          },
         ),
       ),
     );
@@ -170,30 +224,6 @@ class AppEntityPage extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-/// Keeps page commands and KPI explanation boxes on one horizontal line.
-///
-/// The row scrolls instead of wrapping. This is important for dense ERP
-/// workspaces where a second command line is easily mistaken for a different
-/// workflow stage.
-class _InlineCommandMetricsRow extends StatelessWidget {
-  const _InlineCommandMetricsRow({
-    required this.actions,
-    required this.statistics,
-  });
-
-  final List<Widget> actions;
-  final Widget? statistics;
-
-  @override
-  Widget build(BuildContext context) {
-    final children = <Widget>[...actions, ?statistics];
-    return AppHorizontalStrip(
-      spacing: KajDesignTokens.space8,
-      children: children,
     );
   }
 }

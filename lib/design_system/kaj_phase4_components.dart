@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_brand_motif.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
@@ -24,6 +25,22 @@ class KajPartnerHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppWorkspaceChromeScope.hasTopBarOf(context)) {
+      if (actions.isEmpty) return const SizedBox.shrink();
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (var index = 0; index < actions.length; index++) ...[
+              if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+              actions[index],
+            ],
+          ],
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final accent = KajDesignTokens.champagneGold;

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:quality_line_erp/app/brand_identity.dart';
 import 'package:quality_line_erp/app/route_names.dart';
+import 'package:quality_line_erp/core/auth/app_logout_coordinator.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/core/notifications/notification_unread_state.dart';
 import 'package:quality_line_erp/core/preferences/app_preferences_controller.dart';
@@ -26,9 +27,16 @@ class AppModuleNavigation {
 
   static bool _switching = false;
   static String? _pendingRoute;
+  static Object? _pendingArguments;
 
-  static void open(BuildContext context, String route, {String? currentRoute}) {
+  static void open(
+    BuildContext context,
+    String route, {
+    String? currentRoute,
+    Object? arguments,
+  }) {
     _pendingRoute = route;
+    _pendingArguments = arguments;
     FocusManager.instance.primaryFocus?.unfocus();
     if (_switching) return;
     _switching = true;
@@ -46,16 +54,24 @@ class AppModuleNavigation {
       if (!context.mounted) return;
 
       final target = _pendingRoute;
+      final arguments = _pendingArguments;
       _pendingRoute = null;
+      _pendingArguments = null;
       if (target == null) return;
 
       final rootNavigator = Navigator.of(context, rootNavigator: true);
       if (!rootNavigator.mounted) return;
-      unawaited(rootNavigator.pushNamedAndRemoveUntil(target, (_) => false));
+      unawaited(
+        rootNavigator.pushNamedAndRemoveUntil(
+          target,
+          (_) => false,
+          arguments: arguments,
+        ),
+      );
     } finally {
       _switching = false;
       if (_pendingRoute != null && context.mounted) {
-        open(context, _pendingRoute!);
+        open(context, _pendingRoute!, arguments: _pendingArguments);
       }
     }
   }
@@ -72,32 +88,47 @@ class AppTopNavigation extends StatelessWidget {
     return Material(
       elevation: 0,
       color: const Color(0xFF050B10),
-      child: SizedBox(
-        height: 68,
-        child: Row(
-          children: [
-            const Padding(
-              padding: EdgeInsetsDirectional.only(start: 14, end: 10),
-              child: AppLogo(width: 76, height: 50, borderRadius: 12),
-            ),
-            Expanded(
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 4,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 720;
+          return SizedBox(
+            height: 68,
+            child: Row(
+              children: [
+                Padding(
+                  padding: EdgeInsetsDirectional.only(
+                    start: compact ? 8 : 14,
+                    end: compact ? 4 : 10,
+                  ),
+                  child: AppLogo(
+                    width: compact ? 50 : 76,
+                    height: compact ? 42 : 50,
+                    borderRadius: compact ? 10 : 12,
+                  ),
                 ),
-                itemCount: items.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 4),
-                itemBuilder: (context, index) => _TopItem(
-                  item: items[index],
-                  selected: items[index].route == currentRoute,
+                Expanded(
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 4,
+                    ),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 4),
+                    itemBuilder: (context, index) => _TopItem(
+                      item: items[index],
+                      selected: items[index].route == currentRoute,
+                    ),
+                  ),
                 ),
-              ),
+                _NavigationActions(
+                  currentRoute: currentRoute,
+                  compact: compact,
+                ),
+              ],
             ),
-            _NavigationActions(currentRoute: currentRoute),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -236,31 +267,35 @@ class _AppSideNavigationState extends State<AppSideNavigation> {
               padding: EdgeInsets.symmetric(
                 horizontal: effectiveCollapsed ? 8 : 12,
               ),
-              child: Row(
-                mainAxisAlignment: effectiveCollapsed
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  if (!effectiveCollapsed)
-                    const Expanded(child: _V4BrandBlock())
-                  else
-                    const AppLogo(width: 48, height: 38, borderRadius: 10),
-                  IconButton(
-                    tooltip: context.l10n.text(
-                      effectiveCollapsed
-                          ? 'expandNavigation'
-                          : 'collapseNavigation',
-                    ),
-                    onPressed: widget.forceCollapsed ? null : _toggleCollapsed,
-                    color: Colors.white54,
-                    iconSize: 18,
-                    icon: Icon(
-                      effectiveCollapsed
-                          ? Icons.keyboard_double_arrow_right_rounded
-                          : Icons.keyboard_double_arrow_left_rounded,
-                    ),
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compactHeader =
+                      effectiveCollapsed || constraints.maxWidth < 180;
+                  if (compactHeader) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const AppLogo(width: 44, height: 34, borderRadius: 9),
+                        const SizedBox(height: 4),
+                        _SideNavigationToggle(
+                          collapsed: effectiveCollapsed,
+                          enabled: !widget.forceCollapsed,
+                          onPressed: _toggleCollapsed,
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: <Widget>[
+                      const Expanded(child: _V4BrandBlock()),
+                      _SideNavigationToggle(
+                        collapsed: false,
+                        enabled: true,
+                        onPressed: _toggleCollapsed,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: 10),
@@ -347,6 +382,37 @@ class _AppSideNavigationState extends State<AppSideNavigation> {
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SideNavigationToggle extends StatelessWidget {
+  const _SideNavigationToggle({
+    required this.collapsed,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final bool collapsed;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: context.l10n.text(
+        collapsed ? 'expandNavigation' : 'collapseNavigation',
+      ),
+      onPressed: enabled ? onPressed : null,
+      color: Colors.white54,
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      icon: Icon(
+        collapsed
+            ? Icons.keyboard_double_arrow_right_rounded
+            : Icons.keyboard_double_arrow_left_rounded,
       ),
     );
   }
@@ -720,84 +786,89 @@ class _SideItem extends StatelessWidget {
                 ]
               : null,
         ),
-        child: collapsed
-            ? Center(
-                child: _NavigationIcon(
-                  item: item,
-                  color: selected ? _accent : Colors.white70,
-                  size: 21,
-                ),
-              )
-            : Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(9),
-                      color: selected
-                          ? Colors.white.withValues(alpha: .07)
-                          : Colors.transparent,
-                    ),
-                    alignment: Alignment.center,
-                    child: _NavigationIcon(
-                      item: item,
-                      color: selected ? Colors.white : Colors.white70,
-                      size: 18,
-                    ),
+        child: LayoutBuilder(
+          builder: (context, constraints) =>
+              collapsed || constraints.maxWidth < 96
+              ? Center(
+                  key: ValueKey('side-item-compact-${item.route}'),
+                  child: _NavigationIcon(
+                    item: item,
+                    color: selected ? _accent : Colors.white70,
+                    size: 21,
                   ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: AppText(
-                      context.l10n.text(item.labelKey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                )
+              : Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(9),
+                        color: selected
+                            ? Colors.white.withValues(alpha: .07)
+                            : Colors.transparent,
+                      ),
+                      alignment: Alignment.center,
+                      child: _NavigationIcon(
+                        item: item,
                         color: selected ? Colors.white : Colors.white70,
-                        fontSize: dense ? 12 : 12.5,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                        size: 18,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 30,
-                      height: 30,
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: AppText(
+                        context.l10n.text(item.labelKey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected ? Colors.white : Colors.white70,
+                          fontSize: dense ? 12 : 12.5,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
                     ),
-                    tooltip: AppTranslation.translate(
-                      favorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة',
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 30,
+                        height: 30,
+                      ),
+                      tooltip: AppTranslation.translate(
+                        favorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة',
+                      ),
+                      onPressed: onFavorite,
+                      icon: Icon(
+                        favorite
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: favorite
+                            ? const Color(0xFFFFC857)
+                            : Colors.white30,
+                        size: 17,
+                      ),
                     ),
-                    onPressed: onFavorite,
-                    icon: Icon(
-                      favorite ? Icons.star_rounded : Icons.star_border_rounded,
-                      color: favorite
-                          ? const Color(0xFFFFC857)
-                          : Colors.white30,
-                      size: 17,
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
       ),
     );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: collapsed
-          ? Tooltip(message: context.l10n.text(item.labelKey), child: content)
-          : content,
+      child: Tooltip(message: context.l10n.text(item.labelKey), child: content),
     );
   }
 }
 
 class _NavigationActions extends StatelessWidget {
-  const _NavigationActions({required this.currentRoute});
+  const _NavigationActions({required this.currentRoute, required this.compact});
 
   final String currentRoute;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -815,16 +886,89 @@ class _NavigationActions extends StatelessWidget {
       viewPermission: 'settings.view',
       writePermission: 'settings.view',
     );
-    final buttons = <Widget>[
-      _ActionButton(
-        tooltip: context.l10n.text('globalSearch'),
-        icon: Icons.manage_search_rounded,
-        onPressed: () => AppModuleNavigation.open(
-          context,
-          AppRouteNames.globalSearch,
-          currentRoute: currentRoute,
-        ),
+    final search = _ActionButton(
+      tooltip: context.l10n.text('globalSearch'),
+      icon: Icons.manage_search_rounded,
+      onPressed: () => AppModuleNavigation.open(
+        context,
+        AppRouteNames.globalSearch,
+        currentRoute: currentRoute,
       ),
+    );
+    void switchNavigation() => preferences.toggleNavigationPosition();
+    Future<void> logout() async {
+      final access = context.read<AccessController>();
+      final preferences = context.read<AppPreferencesController>();
+      await AppLogoutCoordinator.run(
+        clearAuthenticatedSession: access.logout,
+        activateGuestPreferences: preferences.useGuestPreferences,
+        isMounted: () => context.mounted,
+        navigateToLogin: () => Navigator.of(
+          context,
+          rootNavigator: true,
+        ).pushNamedAndRemoveUntil(AppRouteNames.login, (_) => false),
+      );
+    }
+
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          search,
+          PopupMenuButton<_CompactNavigationAction>(
+            tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+            icon: const Icon(Icons.more_vert_rounded, color: Colors.white70),
+            onSelected: (action) {
+              switch (action) {
+                case _CompactNavigationAction.navigationPosition:
+                  switchNavigation();
+                  return;
+                case _CompactNavigationAction.language:
+                  unawaited(preferences.toggleLocale());
+                  return;
+                case _CompactNavigationAction.theme:
+                  unawaited(preferences.toggleTheme());
+                  return;
+                case _CompactNavigationAction.logout:
+                  unawaited(logout());
+                  return;
+              }
+            },
+            itemBuilder: (context) =>
+                <PopupMenuEntry<_CompactNavigationAction>>[
+                  PopupMenuItem<_CompactNavigationAction>(
+                    value: _CompactNavigationAction.navigationPosition,
+                    child: AppText(
+                      context.l10n.text(
+                        preferences.usesSideNavigation
+                            ? 'useTopNavigation'
+                            : 'useSideNavigation',
+                      ),
+                    ),
+                  ),
+                  if (canChangeLanguage)
+                    PopupMenuItem<_CompactNavigationAction>(
+                      value: _CompactNavigationAction.language,
+                      child: AppText(context.l10n.text('language')),
+                    ),
+                  if (canChangeTheme)
+                    PopupMenuItem<_CompactNavigationAction>(
+                      value: _CompactNavigationAction.theme,
+                      child: AppText(context.l10n.text('theme')),
+                    ),
+                  PopupMenuItem<_CompactNavigationAction>(
+                    value: _CompactNavigationAction.logout,
+                    child: AppText(context.l10n.text('logout')),
+                  ),
+                ],
+          ),
+          const SizedBox(width: 2),
+        ],
+      );
+    }
+
+    final buttons = <Widget>[
+      search,
       _ActionButton(
         tooltip: context.l10n.text(
           preferences.usesSideNavigation
@@ -834,7 +978,7 @@ class _NavigationActions extends StatelessWidget {
         icon: preferences.usesSideNavigation
             ? Icons.table_rows_outlined
             : Icons.view_sidebar_outlined,
-        onPressed: preferences.toggleNavigationPosition,
+        onPressed: switchNavigation,
       ),
       if (canChangeLanguage)
         _ActionButton(
@@ -853,24 +997,15 @@ class _NavigationActions extends StatelessWidget {
       _ActionButton(
         tooltip: context.l10n.text('logout'),
         icon: Icons.logout,
-        onPressed: () async {
-          final access = context.read<AccessController>();
-          await context.read<AppPreferencesController>().useGuestPreferences();
-          if (!context.mounted) return;
-          await Navigator.of(
-            context,
-            rootNavigator: true,
-          ).pushNamedAndRemoveUntil(AppRouteNames.login, (_) => false);
-          // Do not block the visible logout transition on remote audit/network
-          // work. The controller clears the local session synchronously first.
-          unawaited(access.logout());
-        },
+        onPressed: logout,
       ),
     ];
 
     return Row(children: [...buttons, const SizedBox(width: 6)]);
   }
 }
+
+enum _CompactNavigationAction { navigationPosition, language, theme, logout }
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({

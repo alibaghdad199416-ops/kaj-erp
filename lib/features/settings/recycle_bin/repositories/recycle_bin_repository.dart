@@ -67,4 +67,18 @@ class RecycleBinRepository {
       throw StateError('تعذر تنفيذ الحذف النهائي للسجل المحدد.');
     }
   }
+
+  Future<Map<String, Object?>> emptyRecycleBin() async {
+    final result = await _client.rpc(
+      'erp_r68_empty_recycle_bin',
+      params: {'p_company_id': _companyId},
+    );
+    final payload = result is Map
+        ? Map<String, Object?>.from(result)
+        : <String, Object?>{};
+    if (payload['ok'] != true) {
+      throw StateError('Recycle Bin bulk purge did not complete.');
+    }
+    return payload;
+  }
 }

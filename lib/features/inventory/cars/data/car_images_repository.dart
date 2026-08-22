@@ -5,6 +5,11 @@ import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/features/inventory/cars/models/car_image_model.dart';
 
 /// Supabase-only repository for vehicle images.
+///
+/// Image replacement is verified from the authoritative read RPC before the
+/// operation is considered successful. Identical image sets are a true no-op,
+/// which keeps ordinary car edits independent from the dedicated image
+/// permission and avoids unnecessary Base64 rewrites.
 class CarImagesRepository {
   final CloudMasterDataService _cloud = CloudMasterDataService.instance;
 
@@ -56,8 +61,31 @@ class CarImagesRepository {
     return result;
   }
 
+  bool _sameImageSet(
+    List<CarImageModel> existing,
+    List<CarImageModel> incoming,
+  ) {
+    if (existing.length != incoming.length) return false;
+    final byId = <String, CarImageModel>{
+      for (final image in existing) image.id: image,
+    };
+    for (final image in incoming) {
+      final current = byId[image.id];
+      if (current == null ||
+          current.carId != image.carId ||
+          current.sortOrder != image.sortOrder ||
+          current.imageBase64.trim() != image.imageBase64.trim() ||
+          current.thumbnailBase64.trim() != image.thumbnailBase64.trim()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   Future<void> replaceImages(String carId, List<CarImageModel> images) async {
     final existing = await getImages(carId);
+    if (_sameImageSet(existing, images)) return;
+
     final incomingIds = images.map((e) => e.id).toSet();
     for (final old in existing) {
       if (!incomingIds.contains(old.id)) {
@@ -69,6 +97,27 @@ class CarImagesRepository {
         throw ArgumentError('مرجع صورة السيارة لا يطابق السيارة الحالية.');
       }
       await _cloud.upsert('erp_car_images', image.id, image.toMap());
+    }
+
+    final persisted = await getImages(carId);
+    final persistedById = <String, CarImageModel>{
+      for (final image in persisted) image.id: image,
+    };
+    if (persistedById.length != images.length) {
+      throw StateError(
+        'لم يتم تثبيت جميع صور السيارة في Supabase. أعد المحاولة بعد تحديث قاعدة البيانات.',
+      );
+    }
+    for (final expected in images) {
+      final actual = persistedById[expected.id];
+      if (actual == null ||
+          actual.imageBase64.trim() != expected.imageBase64.trim() ||
+          actual.thumbnailBase64.trim() != expected.thumbnailBase64.trim() ||
+          actual.sortOrder != expected.sortOrder) {
+        throw StateError(
+          'فشل التحقق من صورة السيارة بعد الحفظ. لم يتم اعتبار العملية ناجحة.',
+        );
+      }
     }
   }
 

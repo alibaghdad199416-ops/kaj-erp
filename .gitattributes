@@ -1,0 +1,6 @@
+# Keep SQL migrations byte-stable across Windows and Linux.
+# Some legacy migrations compare PostgreSQL function definitions using LF separators.
+*.sql text eol=lf
+
+# Shell scripts are executed in Linux/CI and must remain LF-normalized.
+*.sh text eol=lf

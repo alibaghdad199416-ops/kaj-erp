@@ -1,8 +1,9 @@
-import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+
+import 'package:quality_line_erp/core/localization/app_localizations.dart';
 
 class AppUserAvatar extends StatelessWidget {
   const AppUserAvatar({
@@ -52,11 +53,29 @@ class AppUserAvatar extends StatelessWidget {
             )
           : null,
     );
+
     final callback = onTap;
-    if (callback == null) return avatar;
+    if (callback == null) {
+      return Semantics(
+        container: true,
+        excludeSemantics: true,
+        identifier: 'quality-line-user-avatar',
+        label: context.l10n.isArabic ? 'صورة المستخدم' : 'User avatar',
+        image: true,
+        child: avatar,
+      );
+    }
+
+    final label = context.l10n.isArabic ? 'تعديل الملف الشخصي' : 'Edit profile';
     return Semantics(
-      label: AppTranslation.translate('تعديل الملف الشخصي'),
+      container: true,
+      excludeSemantics: true,
+      identifier: 'quality-line-user-profile-action',
+      label: label,
       button: true,
+      enabled: true,
+      focusable: true,
+      onTap: callback,
       child: InkWell(
         borderRadius: BorderRadius.circular(radius * 2),
         onTap: callback,

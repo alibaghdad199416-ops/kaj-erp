@@ -24,6 +24,14 @@ class AccountingRepository {
     return value;
   }
 
+  Future<Map<String, dynamic>> getHeaderSnapshot() async {
+    final value = await _client.rpc(
+      'erp_r57_accounting_header_snapshot',
+      params: {'p_company_id': _companyId},
+    );
+    return Map<String, dynamic>.from(value as Map);
+  }
+
   Future<List<AccountModel>> getAccounts() async {
     final rows = await _client.rpc(
       'erp_r22_list_cloud_ledger_accounts',
@@ -68,7 +76,14 @@ class AccountingRepository {
   }
 
   Future<List<JournalEntryModel>> getEntries() async {
-    final rows = await _cloud.list('erp_journal_entries');
+    final raw = await _client.rpc(
+      'erp_r92_list_journal_entries',
+      params: {'p_company_id': _companyId},
+    );
+    final rows = (raw as List)
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: true);
     rows.sort((a, b) {
       final byDate = (b['entryDate']?.toString() ?? '').compareTo(
         a['entryDate']?.toString() ?? '',
@@ -99,7 +114,8 @@ class AccountingRepository {
     required JournalEntryModel entry,
     required List<JournalLineModel> lines,
   }) async {
-    _validateEntry(entry, lines);
+    final accounts = await getAccounts();
+    _validateEntry(entry, lines, accounts);
     await _client.rpc(
       'erp_r49_post_cloud_manual_journal',
       params: {
@@ -114,7 +130,8 @@ class AccountingRepository {
     required JournalEntryModel entry,
     required List<JournalLineModel> lines,
   }) async {
-    _validateEntry(entry, lines);
+    final accounts = await getAccounts();
+    _validateEntry(entry, lines, accounts);
     await _client.rpc(
       'erp_r49_update_cloud_manual_journal',
       params: {
@@ -316,7 +333,7 @@ class AccountingRepository {
 
   Future<void> deletePartnerUnappliedPayment(String transactionId) async {
     await _client.rpc(
-      'erp_delete_cloud_cash_transaction',
+      'erp_r90_delete_cash_transaction',
       params: {'p_company_id': _companyId, 'p_transaction_id': transactionId},
     );
   }
@@ -336,13 +353,38 @@ class AccountingRepository {
     };
   }
 
-  void _validateEntry(JournalEntryModel entry, List<JournalLineModel> lines) {
+  void _validateEntry(
+    JournalEntryModel entry,
+    List<JournalLineModel> lines,
+    List<AccountModel> accounts,
+  ) {
     if (entry.entryNumber.trim().isEmpty || entry.description.trim().isEmpty) {
       throw ArgumentError('رقم القيد ووصفه مطلوبان.');
     }
     if (lines.length < 2)
       throw ArgumentError('يجب أن يحتوي القيد على سطرين على الأقل.');
+    final byId = <String, AccountModel>{
+      for (final account in accounts) account.id: account,
+    };
+    final parentIds = accounts
+        .map((account) => account.parentId?.trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
     for (final line in lines) {
+      final account = byId[line.accountId];
+      if (account == null ||
+          !account.isActive ||
+          parentIds.contains(account.id)) {
+        throw ArgumentError(
+          'لا يمكن التقييد على حساب رئيسي/رقابي أو غير فعال.',
+        );
+      }
+      final accountCurrency = account.currency.trim().toUpperCase();
+      final entryCurrency = entry.currency.trim().toUpperCase();
+      if (accountCurrency != 'MULTI' && accountCurrency != entryCurrency) {
+        throw ArgumentError('عملة حساب السطر لا تطابق عملة القيد.');
+      }
       if (line.entryId != entry.id)
         throw ArgumentError('يوجد سطر غير مرتبط بالقيد الحالي.');
       if (line.debit < 0 ||

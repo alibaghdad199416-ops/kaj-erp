@@ -9,16 +9,20 @@ ROOT = Path(__file__).resolve().parents[1]
 def read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding='utf-8')
 
-def sha(rel: str) -> str:
-    return hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
+def normalized_config_digest(rel: str) -> str:
+    # Git may materialize tracked text files with LF or CRLF depending on the
+    # runner/worktree. Preserve configuration content while ignoring only
+    # newline encoding so the same release guard works on Windows and Linux.
+    payload = (ROOT / rel).read_bytes().replace(b'\r\n', b'\n')
+    return hashlib.sha256(payload).hexdigest()
 
 expected_hashes = {
-    'dart_defines.json': '1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
-    '.firebaserc': '003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e',
+    'dart_defines.json': '4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
+    '.firebaserc': 'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
     'firebase.json': 'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
 for rel, expected in expected_hashes.items():
-    actual = sha(rel)
+    actual = normalized_config_digest(rel)
     assert actual == expected, f'configuration changed: {rel}: {actual}'
 
 # Recycle-bin spreadsheet must expose explicit deletion identity and use typed XLSX cells.
@@ -51,12 +55,20 @@ assert not violations, '\n'.join(violations)
 
 # Current transfer call chain must route through operational-date validation to the hardened V5 posting.
 repo = read('lib/features/accounting/cashbox/repositories/cashbox_repository.dart')
+r90 = read('supabase/migrations/20260820113000_r90_phase11_final_acceptance_closure.sql')
 r9_finance = read('supabase/migrations/20260807240000_r9_finance_read_write_field_enforcement.sql')
 v2300 = read('supabase/migrations/20260807180000_v2300_atomic_workflow_enterprise_audit.sql')
 v5 = read('supabase/migrations/20260806193000_v755_fx_transfer_unique_vouchers_auth_preferences.sql')
 r22 = read('supabase/migrations/20260808043000_r22_production_accounting_consolidation.sql')
 assert "'p_transfer_date': transferDate.toUtc().toIso8601String()" in repo
-if "'erp_r22_transfer_cloud_cash'" in repo:
+if "'erp_r90_transfer_cloud_cash'" in repo:
+    assert 'create or replace function public.erp_r90_transfer_cloud_cash' in r90
+    assert 'return public.erp_r22_transfer_cloud_cash(' in r90
+    assert "p_company_id,'cashbox','transfer','accounting.update'" in r90
+    assert 'create or replace function public.erp_r22_transfer_cloud_cash' in r22
+    assert "erp_validate_operational_date(p_company_id,'accounting',p_transfer_date)" in r22
+    assert 'erp_v762_assert_posted_journal_balanced' in r22
+elif "'erp_r22_transfer_cloud_cash'" in repo:
     assert 'create or replace function public.erp_r22_transfer_cloud_cash' in r22
     assert "erp_validate_operational_date(p_company_id,'accounting',p_transfer_date)" in r22
     assert "'cashTransactionId'" in r22 and "'cashAccountId'" in r22

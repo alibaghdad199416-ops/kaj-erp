@@ -7,6 +7,7 @@ import 'excel_relation_index.dart';
 import 'excel_workbook_presentation.dart';
 import 'export_document.dart';
 import 'report_template_engine.dart';
+import 'xlsx_integrity.dart';
 
 class ExcelExportService {
   ExcelExportService({ReportTemplateEngine? templateEngine})
@@ -22,17 +23,24 @@ class ExcelExportService {
       columns: document.columns,
       rows: document.rows,
       metadata: document.metadata,
-      language: 'en',
+      language: document.language,
       currency: document.currency,
       generatedAt: document.generatedAt,
     );
     document = exportDocument;
     final workbook = Excel.createExcel();
     final defaultSheet = workbook.getDefaultSheet();
-    if (defaultSheet != null) workbook.delete(defaultSheet);
 
     final profileName = document.isArabic ? 'تعريف الملف' : 'Workbook profile';
     final profile = workbook[profileName];
+    // excel refuses to delete the only worksheet. Delete the auto-created
+    // Sheet1 only after the first real worksheet exists.
+    if (defaultSheet != null && defaultSheet != profileName) {
+      workbook.delete(defaultSheet);
+      if (workbook.tables.containsKey(defaultSheet)) {
+        throw StateError('Unable to remove the auto-created Excel worksheet.');
+      }
+    }
     ExcelWorkbookPresentation.prepareSheet(profile, arabic: document.isArabic);
     profile.appendRow([TextCellValue(document.title)]);
     ExcelWorkbookPresentation.styleTitle(profile, row: 0, columnCount: 2);
@@ -60,10 +68,12 @@ class ExcelExportService {
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: index + 1))
           .cellStyle = ExcelWorkbookPresentation
           .metadataLabelStyle;
-      profile
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1))
-          .cellStyle = ExcelWorkbookPresentation
-          .metadataValueStyle;
+      ExcelWorkbookPresentation.styleCell(
+        profile.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: index + 1),
+        ),
+        ExcelWorkbookPresentation.metadataValueStyle,
+      );
     }
     profile.setColumnWidth(0, 27);
     profile.setColumnWidth(1, 36);
@@ -115,10 +125,12 @@ class ExcelExportService {
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
           .cellStyle = ExcelWorkbookPresentation
           .metadataLabelStyle;
-      sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
-          .cellStyle = ExcelWorkbookPresentation
-          .metadataValueStyle;
+      ExcelWorkbookPresentation.styleCell(
+        sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
+        ),
+        ExcelWorkbookPresentation.metadataValueStyle,
+      );
       rowIndex++;
     }
 
@@ -214,10 +226,18 @@ class ExcelExportService {
       ]);
     }
 
-    workbook.setDefaultSheet(profileName);
+    // The excel package can replace Sheet instances while rows/styles are
+    // appended. Reassert direction on the final workbook objects so the
+    // encoded worksheet XML retains rightToLeft="1" for Arabic exports.
+    for (final sheet in workbook.tables.values) {
+      sheet.isRTL = document.isArabic;
+    }
+    if (!workbook.setDefaultSheet(profileName)) {
+      throw StateError('Unable to set the default Excel worksheet.');
+    }
     final encoded = workbook.encode();
     if (encoded == null) throw StateError('Unable to encode Excel workbook.');
-    return Uint8List.fromList(encoded);
+    return XlsxIntegrity.finalize(encoded, rightToLeft: document.isArabic);
   }
 
   Future<void> save(ExportDocument document) async {

@@ -26,9 +26,40 @@ class AccountingController extends ChangeNotifier {
   Map<String, double> _iqdTrial = const {'debit': 0, 'credit': 0};
   Map<String, double> _receivablesByCurrency = const {};
   Map<String, double> _payablesByCurrency = const {};
+  Map<String, double> _cashByCurrency = const {'USD': 0, 'IQD': 0};
+  int _headerAccountCount = 0;
+  int _headerEntryCount = 0;
+  Future<void>? _headerLoadFuture;
   Future<void>? _accountsLoadFuture;
 
   List<AccountModel> get accounts => List.unmodifiable(_accounts);
+  List<AccountModel> get postableAccounts {
+    final parentIds = _accounts
+        .map((account) => account.parentId?.trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    return List<AccountModel>.unmodifiable(
+      _accounts.where(
+        (account) => account.isActive && !parentIds.contains(account.id),
+      ),
+    );
+  }
+
+  bool isAccountPostable(String accountId) =>
+      postableAccounts.any((account) => account.id == accountId);
+
+  void _assertJournalAccountsPostable(List<JournalLineModel> lines) {
+    final postableIds = postableAccounts.map((account) => account.id).toSet();
+    final invalid = lines
+        .where((line) => !postableIds.contains(line.accountId))
+        .map((line) => line.accountId)
+        .toSet();
+    if (invalid.isNotEmpty) {
+      throw StateError('journal_non_postable_account:${invalid.join(',')}');
+    }
+  }
+
   List<JournalEntryModel> get entries => List.unmodifiable(_entries);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -38,6 +69,37 @@ class AccountingController extends ChangeNotifier {
       Map.unmodifiable(_receivablesByCurrency);
   Map<String, double> get payablesByCurrency =>
       Map.unmodifiable(_payablesByCurrency);
+  Map<String, double> get cashByCurrency => Map.unmodifiable(_cashByCurrency);
+  int get headerAccountCount => _headerAccountCount;
+  int get headerEntryCount => _headerEntryCount;
+
+  Future<void> refreshHeaderSnapshot() {
+    final active = _headerLoadFuture;
+    if (active != null) return active;
+    final future = _loadHeaderSnapshot();
+    _headerLoadFuture = future;
+    return future.whenComplete(() {
+      if (identical(_headerLoadFuture, future)) _headerLoadFuture = null;
+    });
+  }
+
+  Future<void> _loadHeaderSnapshot() async {
+    final snapshot = await _repository.getHeaderSnapshot();
+    _applyHeaderSnapshot(snapshot);
+    notifyListeners();
+  }
+
+  void _applyHeaderSnapshot(Map<String, dynamic> snapshot) {
+    final cash = Map<String, dynamic>.from(
+      snapshot['cashByCurrency'] as Map? ?? const <String, dynamic>{},
+    );
+    _cashByCurrency = cash.map(
+      (key, value) =>
+          MapEntry(key.toUpperCase(), (value as num?)?.toDouble() ?? 0),
+    );
+    _headerAccountCount = (snapshot['accountCount'] as num?)?.toInt() ?? 0;
+    _headerEntryCount = (snapshot['entryCount'] as num?)?.toInt() ?? 0;
+  }
 
   Future<void> ensureAccountsLoaded({bool force = false}) {
     if (!force && _accounts.isNotEmpty) return Future<void>.value();
@@ -79,6 +141,7 @@ class AccountingController extends ChangeNotifier {
         _repository.getTrialBalance('USD'),
         _repository.getTrialBalance('IQD'),
         _repository.getReceivablesPayables(),
+        _repository.getHeaderSnapshot(),
       ]);
       _accounts = results[0] as List<AccountModel>;
       _entries = results[1] as List<JournalEntryModel>;
@@ -88,6 +151,7 @@ class AccountingController extends ChangeNotifier {
       _receivablesByCurrency =
           subledgers['receivables'] ?? const <String, double>{};
       _payablesByCurrency = subledgers['payables'] ?? const <String, double>{};
+      _applyHeaderSnapshot(results[5] as Map<String, dynamic>);
       _lines.clear();
     } catch (error) {
       AppLogger.debug('accounting_controller operation failed: $error');
@@ -315,6 +379,8 @@ class AccountingController extends ChangeNotifier {
       if (await _repository.entryNumberExists(entry.entryNumber)) {
         throw StateError('رقم القيد مستخدم مسبقًا.');
       }
+      await ensureAccountsLoaded();
+      _assertJournalAccountsPostable(lines);
       await _repository.addEntry(entry: entry, lines: lines);
       AppDataChangeBus.instance.publish(
         'accounting',
@@ -343,6 +409,8 @@ class AccountingController extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
     try {
+      await ensureAccountsLoaded();
+      _assertJournalAccountsPostable(lines);
       await _repository.updateEntry(entry: entry, lines: lines);
       AppDataChangeBus.instance.publish(
         'accounting',

@@ -1,5 +1,6 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../printing/pdf_text_support.dart';
 
 /// Builds readable PDF tables by splitting wide reports into column groups and
 /// long reports into bounded row chunks. Every chunk repeats its headers, so a
@@ -50,7 +51,7 @@ abstract final class AdaptivePdfTable {
           widgets.add(
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 5),
-              child: pw.Text(
+              child: PdfTextSupport.text(
                 _sectionLabel(
                   arabic: arabic,
                   groupIndex: groupIndex,
@@ -142,7 +143,7 @@ abstract final class AdaptivePdfTable {
                   vertical: 5,
                 ),
                 alignment: pw.Alignment.center,
-                child: pw.Text(
+                child: PdfTextSupport.text(
                   headers[index],
                   textAlign: pw.TextAlign.center,
                   maxLines: 3,
@@ -164,7 +165,7 @@ abstract final class AdaptivePdfTable {
                   height: 24,
                   alignment: pw.Alignment.center,
                   child: index == 0
-                      ? pw.Text(
+                      ? PdfTextSupport.text(
                           arabic ? 'لا توجد بيانات' : 'No data',
                           style: pw.TextStyle(font: regular, fontSize: 7),
                         )
@@ -188,7 +189,7 @@ abstract final class AdaptivePdfTable {
                   alignment: arabic
                       ? pw.Alignment.centerRight
                       : pw.Alignment.centerLeft,
-                  child: pw.Text(
+                  child: PdfTextSupport.text(
                     index < rows[rowIndex].length ? rows[rowIndex][index] : '',
                     textAlign: arabic ? pw.TextAlign.right : pw.TextAlign.left,
                     maxLines: 5,

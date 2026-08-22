@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:quality_line_erp/core/utils/money_formatter.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-
+import 'package:quality_line_erp/core/utils/money_formatter.dart';
+import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
+import 'package:quality_line_erp/design_system/kaj_finance_stage7_components.dart';
+import 'package:quality_line_erp/design_system/kaj_shell_components.dart';
 import 'package:quality_line_erp/features/accounting/controllers/accounting_controller.dart';
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
 import 'package:quality_line_erp/features/accounting/models/account_statement_result.dart';
-import 'package:quality_line_erp/design_system/kaj_finance_stage7_components.dart';
 
 class AccountStatementPage extends StatefulWidget {
-  const AccountStatementPage({super.key});
+  const AccountStatementPage({
+    super.key,
+    this.embedded = false,
+    this.continuous = false,
+  });
+
+  final bool embedded;
+  final bool continuous;
 
   @override
   State<AccountStatementPage> createState() => _AccountStatementPageState();
@@ -29,15 +37,11 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked == null || !mounted) {
-      return;
-    }
+    if (picked == null || !mounted) return;
     setState(() {
       if (isFrom) {
         _fromDate = picked;
-        if (_toDate.isBefore(_fromDate)) {
-          _toDate = picked;
-        }
+        if (_toDate.isBefore(_fromDate)) _toDate = picked;
       } else {
         _toDate = picked;
       }
@@ -74,87 +78,172 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<AccountingController>();
 
+    Widget statementResult() {
+      if (_statementFuture == null) return const _EmptyStatement();
+      return FutureBuilder<AccountStatementResult>(
+        future: _statementFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return KajFinanceState(
+              icon: Icons.sync_rounded,
+              title: context.l10n.isArabic
+                  ? 'جارٍ إعداد كشف الحساب'
+                  : 'Preparing account statement',
+              message: context.l10n.isArabic
+                  ? 'يتم احتساب الرصيد والحركات ضمن الفترة المختارة.'
+                  : 'Calculating balances and movements for the selected period.',
+            );
+          }
+          if (snapshot.hasError) return _statementError(snapshot.error!);
+          final result = snapshot.data;
+          if (result == null) return const _EmptyStatement();
+          return _buildStatement(result);
+        },
+      );
+    }
+
+    Widget content;
+    if (widget.embedded && !widget.continuous) {
+      content = Column(
+        key: const ValueKey('account-statement-full-height-column'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildFilters(controller.accounts),
+          const SizedBox(height: 8),
+          Expanded(child: _embeddedStatementViewport()),
+        ],
+      );
+    } else {
+      content = ListView(
+        shrinkWrap: widget.continuous,
+        physics: widget.continuous
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        padding: widget.embedded
+            ? const EdgeInsets.fromLTRB(0, 0, 0, 16)
+            : const EdgeInsets.fromLTRB(16, 4, 16, 18),
+        children: [
+          if (!widget.embedded) ...[_buildHeader(), const SizedBox(height: 12)],
+          _buildFilters(controller.accounts),
+          const SizedBox(height: 10),
+          statementResult(),
+        ],
+      );
+    }
+
     return Directionality(
       textDirection: Directionality.of(context),
-      child: Scaffold(
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 16),
-            _buildFilters(controller.accounts),
-            const SizedBox(height: 16),
-            if (_statementFuture == null)
-              const _EmptyStatement()
-            else
-              FutureBuilder<AccountStatementResult>(
-                future: _statementFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return KajFinanceState(
-                      icon: Icons.sync_rounded,
-                      title: context.l10n.isArabic
-                          ? 'جارٍ إعداد كشف الحساب'
-                          : 'Preparing account statement',
-                      message: context.l10n.isArabic
-                          ? 'يتم احتساب الرصيد والحركات ضمن الفترة المختارة.'
-                          : 'Calculating balances and movements for the selected period.',
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return Card(
-                      color: Colors.red.shade50,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: AppText(
-                          'تعذر تحميل كشف الحساب: ${snapshot.error}',
-                        ),
-                      ),
-                    );
-                  }
-                  final result = snapshot.data;
-                  if (result == null) {
-                    return const _EmptyStatement();
-                  }
-                  return _buildStatement(result);
-                },
+      child: widget.embedded ? content : Scaffold(body: content),
+    );
+  }
+
+  Widget _embeddedStatementViewport() {
+    final scheme = Theme.of(context).colorScheme;
+    final future = _statementFuture;
+
+    Widget child;
+    if (future == null) {
+      child = const Center(child: _EmptyStatement(compact: true));
+    } else {
+      child = FutureBuilder<AccountStatementResult>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: KajFinanceState(
+                icon: Icons.sync_rounded,
+                title: context.l10n.isArabic
+                    ? 'جارٍ إعداد كشف الحساب'
+                    : 'Preparing account statement',
+                message: context.l10n.isArabic
+                    ? 'يتم احتساب الرصيد والحركات ضمن الفترة المختارة.'
+                    : 'Calculating balances and movements for the selected period.',
               ),
-          ],
+            );
+          }
+          if (snapshot.hasError) return _statementError(snapshot.error!);
+          final result = snapshot.data;
+          if (result == null) {
+            return const Center(child: _EmptyStatement(compact: true));
+          }
+          return _buildStatementWorkspace(result);
+        },
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .72)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(13), child: child),
+    );
+  }
+
+  Widget _statementError(Object error) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.errorContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: AppText(
+            context.l10n.isArabic
+                ? 'تعذر تحميل كشف الحساب: $error'
+                : 'Unable to load the account statement: $error',
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
+    final ar = context.l10n.isArabic;
+    final scheme = Theme.of(context).colorScheme;
+    return KajShellSurface(
+      emphasized: true,
+      padding: const EdgeInsets.all(16),
+      child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: Colors.white,
-            child: Icon(Icons.receipt_long_outlined, color: Colors.black),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.receipt_long_outlined,
+              color: scheme.onPrimaryContainer,
+              size: 21,
+            ),
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppText(
-                  'كشف حساب تفصيلي',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
+                  ar ? 'كشف حساب تفصيلي' : 'Detailed account statement',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 3),
                 AppText(
-                  'عرض الحركات والمدين والدائن والرصيد المتحرك خلال فترة محددة.',
-                  style: TextStyle(color: Colors.white70),
+                  ar
+                      ? 'عرض الحركات والمدين والدائن والرصيد المتحرك خلال فترة محددة.'
+                      : 'Review movements, debit, credit and running balance for a selected period.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -165,85 +254,91 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
   }
 
   Widget _buildFilters(List<AccountModel> accounts) {
+    final ar = context.l10n.isArabic;
+    final filters = LayoutBuilder(
+      key: const ValueKey('account-statement-horizontal-filterbar'),
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 880;
+        final fields = <Widget>[
+          DropdownButtonFormField<AccountModel>(
+            initialValue: _selectedAccount,
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: ar ? 'الحساب' : 'Account',
+              prefixIcon: const Icon(Icons.account_balance_outlined, size: 19),
+              border: const OutlineInputBorder(),
+            ),
+            isExpanded: true,
+            items: accounts
+                .where((account) => account.isActive)
+                .map(
+                  (account) => DropdownMenuItem(
+                    value: account,
+                    child: AppText(
+                      '${account.code} - ${account.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedAccount = value;
+                _statementFuture = null;
+              });
+            },
+          ),
+          _dateField(
+            label: ar ? 'من تاريخ' : 'From date',
+            value: _fromDate,
+            onTap: () => _pickDate(isFrom: true),
+          ),
+          _dateField(
+            label: ar ? 'إلى تاريخ' : 'To date',
+            value: _toDate,
+            onTap: () => _pickDate(isFrom: false),
+          ),
+          FilledButton.icon(
+            onPressed: _loadStatement,
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              minimumSize: const Size(150, 44),
+            ),
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: AppText(ar ? 'عرض الكشف' : 'View statement'),
+          ),
+        ];
+
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(flex: 2, child: fields[0]),
+              const SizedBox(width: 8),
+              Expanded(child: fields[1]),
+              const SizedBox(width: 8),
+              Expanded(child: fields[2]),
+              const SizedBox(width: 8),
+              SizedBox(width: 150, child: fields[3]),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            for (var index = 0; index < fields.length; index++) ...[
+              fields[index],
+              if (index != fields.length - 1) const SizedBox(height: 8),
+            ],
+          ],
+        );
+      },
+    );
+
+    if (widget.embedded) return filters;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 760;
-            final fields = <Widget>[
-              DropdownButtonFormField<AccountModel>(
-                initialValue: _selectedAccount,
-                decoration: InputDecoration(
-                  labelText: AppTranslation.translate('الحساب'),
-                  prefixIcon: Icon(Icons.account_balance_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                isExpanded: true,
-                items: accounts
-                    .where((account) => account.isActive)
-                    .map(
-                      (account) => DropdownMenuItem(
-                        value: account,
-                        child: AppText('${account.code} - ${account.name}'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedAccount = value;
-                    _statementFuture = null;
-                  });
-                },
-              ),
-              _dateField(
-                label: 'من تاريخ',
-                value: _fromDate,
-                onTap: () => _pickDate(isFrom: true),
-              ),
-              _dateField(
-                label: 'إلى تاريخ',
-                value: _toDate,
-                onTap: () => _pickDate(isFrom: false),
-              ),
-              FilledButton.icon(
-                onPressed: _loadStatement,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  minimumSize: const Size.fromHeight(56),
-                ),
-                icon: const Icon(Icons.search),
-                label: const AppText('عرض الكشف'),
-              ),
-            ];
-
-            if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(flex: 2, child: fields[0]),
-                  const SizedBox(width: 12),
-                  Expanded(child: fields[1]),
-                  const SizedBox(width: 12),
-                  Expanded(child: fields[2]),
-                  const SizedBox(width: 12),
-                  SizedBox(width: 150, child: fields[3]),
-                ],
-              );
-            }
-
-            return Column(
-              children: [
-                for (var index = 0; index < fields.length; index++) ...[
-                  fields[index],
-                  if (index != fields.length - 1) const SizedBox(height: 12),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
+      child: Padding(padding: const EdgeInsets.all(14), child: filters),
     );
   }
 
@@ -254,11 +349,12 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(10),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: AppTranslation.translate(label),
-          prefixIcon: const Icon(Icons.calendar_month_outlined),
+          isDense: true,
+          labelText: label,
+          prefixIcon: const Icon(Icons.calendar_month_outlined, size: 19),
           border: const OutlineInputBorder(),
         ),
         child: AppText(_formatDate(value)),
@@ -266,126 +362,172 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
     );
   }
 
-  Widget _buildStatement(AccountStatementResult result) {
-    final account = _selectedAccount!;
+  Widget _buildStatementWorkspace(AccountStatementResult result) {
     final lines = result.lines;
-    final totalDebit = lines.fold<double>(0, (sum, line) => sum + line.debit);
-    final totalCredit = lines.fold<double>(0, (sum, line) => sum + line.credit);
-    final closingBalance = result.closingBalance;
+    final ar = context.l10n.isArabic;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      child: Column(
+        key: const ValueKey('account-statement-result-full-height-column'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSummaryGrid(result),
+          const SizedBox(height: 8),
+          Expanded(
+            child: lines.isEmpty
+                ? Center(
+                    child: _EmptyStatement(
+                      compact: true,
+                      message: ar
+                          ? 'لا توجد حركات لهذا الحساب خلال الفترة المحددة.'
+                          : 'There are no movements for this account in the selected period.',
+                    ),
+                  )
+                : _statementTableViewport(result),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildStatement(AccountStatementResult result) {
+    final lines = result.lines;
+    final ar = context.l10n.isArabic;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _summaryCard('عدد الحركات', lines.length.toString()),
-            _summaryCard(
-              'رصيد أول المدة',
-              '${_formatAmount(result.openingBalance, account.currency)} ${account.currency}',
-            ),
-            _summaryCard(
-              'إجمالي المدين',
-              _formatAmount(totalDebit, account.currency),
-            ),
-            _summaryCard(
-              'إجمالي الدائن',
-              _formatAmount(totalCredit, account.currency),
-            ),
-            _summaryCard(
-              'الرصيد الختامي',
-              '${_formatAmount(closingBalance, account.currency)} ${account.currency}',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+        _buildSummaryGrid(result),
+        const SizedBox(height: 10),
         if (lines.isEmpty)
-          const _EmptyStatement(
-            message: 'لا توجد حركات لهذا الحساب خلال الفترة المحددة.',
+          _EmptyStatement(
+            message: ar
+                ? 'لا توجد حركات لهذا الحساب خلال الفترة المحددة.'
+                : 'There are no movements for this account in the selected period.',
           )
         else
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: AppText('التاريخ')),
-                  DataColumn(label: AppText('رقم القيد')),
-                  DataColumn(label: AppText('البيان')),
-                  DataColumn(label: AppText('مدين'), numeric: true),
-                  DataColumn(label: AppText('دائن'), numeric: true),
-                  DataColumn(label: AppText('الرصيد'), numeric: true),
-                  DataColumn(label: AppText('العملة')),
-                ],
-                rows: lines
-                    .map(
-                      (line) => DataRow(
-                        cells: [
-                          DataCell(AppText(_formatDate(line.entryDate))),
-                          DataCell(AppText(line.entryNumber)),
-                          DataCell(
-                            SizedBox(
-                              width: 260,
-                              child: AppText(
-                                line.description,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            AppText(_formatAmount(line.debit, line.currency)),
-                          ),
-                          DataCell(
-                            AppText(_formatAmount(line.credit, line.currency)),
-                          ),
-                          DataCell(
-                            AppText(
-                              _formatAmount(line.runningBalance, line.currency),
-                            ),
-                          ),
-                          DataCell(AppText(line.currency)),
-                        ],
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-          ),
+          _statementTable(result),
       ],
     );
   }
 
-  Widget _summaryCard(String title, String value) {
-    return SizedBox(
-      width: 184,
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppText(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.grey, fontSize: 10.5),
-              ),
-              const SizedBox(height: 3),
-              AppText(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+  Widget _buildSummaryGrid(AccountStatementResult result) {
+    final account = _selectedAccount!;
+    final lines = result.lines;
+    final totalDebit = lines.fold<double>(0, (sum, line) => sum + line.debit);
+    final totalCredit = lines.fold<double>(0, (sum, line) => sum + line.credit);
+    final ar = context.l10n.isArabic;
+    final metrics = <(IconData, String, String)>[
+      (
+        Icons.format_list_numbered_rounded,
+        ar ? 'عدد الحركات' : 'Movements',
+        lines.length.toString(),
+      ),
+      (
+        Icons.first_page_rounded,
+        ar ? 'رصيد أول المدة' : 'Opening balance',
+        '${_formatAmount(result.openingBalance, account.currency)} ${account.currency}',
+      ),
+      (
+        Icons.south_west_rounded,
+        ar ? 'إجمالي المدين' : 'Total debit',
+        _formatAmount(totalDebit, account.currency),
+      ),
+      (
+        Icons.north_east_rounded,
+        ar ? 'إجمالي الدائن' : 'Total credit',
+        _formatAmount(totalCredit, account.currency),
+      ),
+      (
+        Icons.account_balance_wallet_outlined,
+        ar ? 'الرصيد الختامي' : 'Closing balance',
+        '${_formatAmount(result.closingBalance, account.currency)} ${account.currency}',
+      ),
+    ];
+
+    return LayoutBuilder(
+      key: const ValueKey('account-statement-responsive-summary-grid'),
+      builder: (context, constraints) {
+        const gap = 8.0;
+        const minWidth = 175.0;
+        final columns = ((constraints.maxWidth + gap) / (minWidth + gap))
+            .floor()
+            .clamp(1, 5);
+        final width = (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: metrics
+              .map(
+                (metric) => SizedBox(
+                  width: width,
+                  child: CompactMetricPill(
+                    icon: metric.$1,
+                    label: metric.$2,
+                    value: metric.$3,
+                  ),
                 ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+
+  Widget _statementTableViewport(AccountStatementResult result) {
+    return Scrollbar(
+      child: SingleChildScrollView(
+        key: const ValueKey('account-statement-full-height-scroll'),
+        child: _statementTable(result),
+      ),
+    );
+  }
+
+  Widget _statementTable(AccountStatementResult result) {
+    final lines = result.lines;
+    final ar = context.l10n.isArabic;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        headingRowHeight: 40,
+        dataRowMinHeight: 40,
+        dataRowMaxHeight: 44,
+        columnSpacing: 24,
+        horizontalMargin: 12,
+        columns: [
+          DataColumn(label: AppText(ar ? 'التاريخ' : 'Date')),
+          DataColumn(label: AppText(ar ? 'رقم القيد' : 'Entry no.')),
+          DataColumn(label: AppText(ar ? 'البيان' : 'Description')),
+          DataColumn(label: AppText(ar ? 'مدين' : 'Debit'), numeric: true),
+          DataColumn(label: AppText(ar ? 'دائن' : 'Credit'), numeric: true),
+          DataColumn(label: AppText(ar ? 'الرصيد' : 'Balance'), numeric: true),
+          DataColumn(label: AppText(ar ? 'العملة' : 'Currency')),
+        ],
+        rows: lines
+            .map(
+              (line) => DataRow(
+                cells: [
+                  DataCell(AppText(_formatDate(line.entryDate))),
+                  DataCell(AppText(line.entryNumber)),
+                  DataCell(
+                    SizedBox(
+                      width: 300,
+                      child: AppText(
+                        line.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  DataCell(AppText(_formatAmount(line.debit, line.currency))),
+                  DataCell(AppText(_formatAmount(line.credit, line.currency))),
+                  DataCell(
+                    AppText(_formatAmount(line.runningBalance, line.currency)),
+                  ),
+                  DataCell(AppText(line.currency)),
+                ],
               ),
-            ],
-          ),
-        ),
+            )
+            .toList(growable: false),
       ),
     );
   }
@@ -396,38 +538,48 @@ class _AccountStatementPageState extends State<AccountStatementPage> {
     return '$day/$month/${value.year}';
   }
 
-  String _formatAmount(double value, String currency) {
-    return MoneyFormatter.format(value, currency: currency);
-  }
+  String _formatAmount(double value, String currency) =>
+      MoneyFormatter.format(value, currency: currency);
 }
 
 class _EmptyStatement extends StatelessWidget {
   const _EmptyStatement({
     this.message = 'اختر الحساب والفترة ثم اضغط على عرض الكشف.',
+    this.compact = false,
   });
 
   final String message;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(50),
-        child: Column(
-          children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 64,
-              color: Colors.grey.shade500,
+    final effectiveMessage = context.l10n.isArabic
+        ? message
+        : message == 'اختر الحساب والفترة ثم اضغط على عرض الكشف.'
+        ? 'Select an account and period, then choose View statement.'
+        : message;
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: compact ? 12 : 22,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: compact ? 32 : 46,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          SizedBox(height: compact ? 7 : 10),
+          AppText(
+            effectiveMessage,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 14),
-            AppText(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

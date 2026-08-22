@@ -70,5 +70,19 @@ class ReportsController extends ChangeNotifier {
     }
   }
 
+  Future<void> recordReportEvent({
+    required String reportKey,
+    required String reportTitle,
+    required String outputFormat,
+    required String module,
+  }) => _repository.recordReportEvent(
+    reportKey: reportKey,
+    reportTitle: reportTitle,
+    outputFormat: outputFormat,
+    module: module,
+    startDate: _startDate,
+    endDate: _endDate,
+  );
+
   Future<void> clearFilter() => loadReports(force: true);
 }

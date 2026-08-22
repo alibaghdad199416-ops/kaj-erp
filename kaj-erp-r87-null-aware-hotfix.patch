@@ -1,0 +1,11 @@
+--- a/lib/features/accounting/pages/accounting_page.dart	2026-08-18 22:46:02.740865803 +0000
++++ b/lib/features/accounting/pages/accounting_page.dart	2026-08-18 22:46:02.739765306 +0000
+@@ -236,7 +236,7 @@
+           const SizedBox(height: 10),
+           filters,
+           const SizedBox(height: 10),
+-          error?,
++          ?error,
+           if (entries.isEmpty)
+             Container(
+               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),

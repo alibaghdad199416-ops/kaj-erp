@@ -1,6 +1,7 @@
 class InventoryMovementModel {
   const InventoryMovementModel({
     required this.id,
+    required this.productId,
     required this.movementNumber,
     required this.productName,
     required this.productCode,
@@ -9,6 +10,7 @@ class InventoryMovementModel {
     required this.quantity,
     required this.unitCost,
     required this.totalCost,
+    required this.currency,
     required this.movementDate,
     this.referenceType,
     this.referenceId,
@@ -21,6 +23,7 @@ class InventoryMovementModel {
   });
 
   final String id;
+  final String productId;
   final String movementNumber;
   final String productName;
   final String productCode;
@@ -29,6 +32,7 @@ class InventoryMovementModel {
   final int quantity;
   final double unitCost;
   final double totalCost;
+  final String currency;
   final String movementDate;
   final String? referenceType;
   final String? referenceId;
@@ -46,11 +50,25 @@ class InventoryMovementModel {
       case 'opening':
         return 'رصيد افتتاحي';
       case 'purchase_in':
+      case 'purchase':
+      case 'purchase_receipt':
         return 'شراء / إدخال';
+      case 'purchase_cancel':
+      case 'purchase_return':
+      case 'purchase_reversal':
+        return 'عكس / مرتجع شراء';
       case 'sale_out':
+      case 'sale':
+      case 'sales_out':
         return 'بيع منتج';
+      case 'sale_cancel':
+      case 'sale_return':
+      case 'sale_reversal':
+        return 'عكس / مرتجع بيع';
       case 'maintenance_out':
         return 'سحب للصيانة';
+      case 'maintenance_return':
+        return 'عكس / مرتجع صيانة';
       case 'transfer_in':
         return 'نقل وارد';
       case 'transfer_out':
@@ -67,6 +85,7 @@ class InventoryMovementModel {
   factory InventoryMovementModel.fromMap(Map<String, dynamic> map) =>
       InventoryMovementModel(
         id: map['id']?.toString() ?? '',
+        productId: map['productId']?.toString() ?? '',
         movementNumber: map['movementNumber']?.toString() ?? '',
         productName: map['productName']?.toString() ?? '',
         productCode: map['productCode']?.toString() ?? '',
@@ -75,6 +94,10 @@ class InventoryMovementModel {
         quantity: (map['quantity'] as num?)?.toInt() ?? 0,
         unitCost: (map['unitCost'] as num?)?.toDouble() ?? 0,
         totalCost: (map['totalCost'] as num?)?.toDouble() ?? 0,
+        currency: (map['currency'] ?? map['costCurrency'] ?? '')
+            .toString()
+            .trim()
+            .toUpperCase(),
         movementDate: map['movementDate']?.toString() ?? '',
         referenceType: map['referenceType']?.toString(),
         referenceId: map['referenceId']?.toString(),

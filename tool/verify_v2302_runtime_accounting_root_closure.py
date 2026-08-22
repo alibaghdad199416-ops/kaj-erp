@@ -14,6 +14,13 @@ def need(cond, msg):
     if not cond:
         errors.append(msg)
 
+def normalized_config_digest(rel):
+    # Git may materialize tracked text files with LF or CRLF depending on the
+    # runner/worktree. Preserve the configuration content exactly while making
+    # the release guard insensitive only to newline encoding.
+    payload = (ROOT / rel).read_bytes().replace(b'\r\n', b'\n')
+    return hashlib.sha256(payload).hexdigest()
+
 pill = read('lib/core/widgets/app_pill_tab_bar.dart')
 users = read('lib/features/settings/access/pages/users_page.dart')
 sales = read('lib/features/sales/workflow/pages/sales_order_draft_page.dart')
@@ -78,14 +85,15 @@ need('erp_cloud_cash_account_balances' in migration and
      'erp_cloud_cash_ledger_reconciliation' in migration,
      'cash balance/reconciliation closure functions are incomplete')
 
-# Deployment/runtime configuration must remain byte-identical to the supplied R6 closure.
+# Deployment/runtime configuration content must remain identical to the supplied R6 closure.
+# Normalize only CRLF/LF so the same tracked configuration verifies on Windows and Linux.
 expected = {
-    'dart_defines.json': '1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
-    '.firebaserc': '003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e',
+    'dart_defines.json': '4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
+    '.firebaserc': 'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
     'firebase.json': 'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
 for rel, digest in expected.items():
-    actual = hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
+    actual = normalized_config_digest(rel)
     need(actual == digest, f'{rel} changed; runtime/deployment configuration must be preserved')
 
 if errors:

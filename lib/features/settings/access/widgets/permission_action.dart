@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/design_system/kaj_universal_components.dart';
 
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
+import 'package:quality_line_erp/features/settings/access/models/permission_codes.dart';
 
 class PermissionAction {
   const PermissionAction._();
@@ -59,9 +61,57 @@ class PermissionVisibility extends StatelessWidget {
   }
 }
 
+/// Canonical bridge between access control and the semantic KAJ action system.
+/// New Settings/admin actions should use this instead of independently pairing
+/// permission visibility with ad-hoc FilledButton/OutlinedButton styles.
+class PermissionActionButton extends StatelessWidget {
+  const PermissionActionButton({
+    super.key,
+    required this.permission,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.tone = KajActionTone.primary,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+    this.replacement = const SizedBox.shrink(),
+  });
+
+  final String permission;
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final KajActionTone tone;
+  final bool compact;
+  final bool busy;
+  final String? tooltip;
+  final Widget replacement;
+
+  @override
+  Widget build(BuildContext context) => PermissionVisibility(
+    permission: permission,
+    replacement: replacement,
+    child: KajActionButton(
+      label: label,
+      onPressed: onPressed,
+      icon: icon,
+      tone: tone,
+      compact: compact,
+      busy: busy,
+      tooltip: tooltip,
+    ),
+  );
+}
+
 /// Applies optional per-field visibility/edit permissions on top of the
-/// existing module/action permissions. When granular restriction is not enabled
-/// for [resource], behavior is identical to the legacy UI.
+/// existing module/action permissions.
+///
+/// Media fields have an additional dedicated action permission. The image is
+/// still readable whenever the field itself is readable, but upload/removal is
+/// disabled unless the matching `*.image(s).*` permission is granted. This UX
+/// gate mirrors PostgreSQL/Edge enforcement and prevents a user from reaching a
+/// save that is known to be forbidden by the backend.
 class FieldPermissionControl extends StatelessWidget {
   const FieldPermissionControl({
     super.key,
@@ -82,6 +132,31 @@ class FieldPermissionControl extends StatelessWidget {
   final Widget replacement;
   final double readOnlyOpacity;
 
+  static String? _dedicatedEditPermission(String resource, String field) {
+    final normalizedResource = resource.trim().toLowerCase();
+    final normalizedField = field.trim().toLowerCase();
+    if (normalizedResource == 'users' && normalizedField == 'avatar') {
+      return PermissionCodes.usersImageUpdate;
+    }
+    if (normalizedResource == 'customers' &&
+        (normalizedField == 'photo' || normalizedField == 'image')) {
+      return PermissionCodes.customersImageUpdate;
+    }
+    if (normalizedResource == 'suppliers' &&
+        (normalizedField == 'photo' || normalizedField == 'image')) {
+      return PermissionCodes.suppliersImageUpdate;
+    }
+    if (normalizedResource == 'cars' &&
+        (normalizedField == 'images' || normalizedField == 'image')) {
+      return PermissionCodes.carsImagesManage;
+    }
+    if (normalizedResource == 'inventory' &&
+        (normalizedField == 'image' || normalizedField == 'images')) {
+      return PermissionCodes.inventoryImagesManage;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.select<AccessController, (bool, bool)>((controller) {
@@ -90,12 +165,16 @@ class FieldPermissionControl extends StatelessWidget {
         field,
         viewPermission: viewPermission,
       );
-      final editable = controller.canEditField(
+      var editable = controller.canEditField(
         resource,
         field,
         viewPermission: viewPermission,
         writePermission: writePermission,
       );
+      final dedicated = _dedicatedEditPermission(resource, field);
+      if (editable && dedicated != null) {
+        editable = controller.hasPermission(dedicated);
+      }
       return (visible, editable);
     });
     if (!state.$1) return replacement;
@@ -121,8 +200,8 @@ class FieldPermissionVisibility extends StatelessWidget {
 
   final String resource;
   final String field;
-  final String? viewPermission;
   final Widget child;
+  final String? viewPermission;
   final Widget replacement;
 
   @override

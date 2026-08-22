@@ -96,6 +96,7 @@ class CommercialWorkflowOrderCard extends StatelessWidget {
         'journalNumber',
       ]),
     );
+    final hasInvoice = invoiceNumber != '—';
     final paidAmount = _value(
       _first(const [
         'invoicePaid',
@@ -150,166 +151,206 @@ class CommercialWorkflowOrderCard extends StatelessWidget {
       _first(const ['createdAt', 'created_at', 'effectiveAt', 'effective_at']),
     );
 
+    final metrics = <Widget>[
+      _Metric(
+        icon: Icons.request_quote_outlined,
+        label: '${t('الفاتورة', 'Invoice')} $invoice',
+        value: invoiceNumber,
+      ),
+      _Metric(
+        icon: Icons.inventory_2_outlined,
+        label: purchase
+            ? '${t('إشعار الاستلام', 'Receipt')} • $logistics'
+            : '${t('إذن التجهيز', 'Delivery')} • $logistics',
+        value: logisticsNumber,
+      ),
+      _Metric(
+        icon: Icons.account_balance_outlined,
+        label:
+            '${t('القيد المحاسبي', 'Accounting entry')} • ${t('من', 'from')} $accountingOwner',
+        value: journalNumber == '—'
+            ? (hasInvoice
+                  ? t('غير مرحّل', 'Not posted')
+                  : t('لا توجد فاتورة', 'No invoice'))
+            : journalNumber,
+      ),
+      _Metric(
+        icon: Icons.payments_outlined,
+        label: hasInvoice
+            ? '${t('حالة الدفع', 'Payment status')} • $paymentStatus'
+            : t('الدفع بعد الفاتورة', 'Payment after invoicing'),
+        value:
+            '$paidAmount / ${t('متبقي', 'Remaining')} $remainingAmount $currency',
+      ),
+      _Metric(
+        icon: Icons.schedule_rounded,
+        label: AppTranslation.translate('التاريخ'),
+        value: createdAt,
+      ),
+      _Metric(
+        icon: Icons.payments_outlined,
+        label: AppTranslation.translate('الإجمالي'),
+        value: '$total $currency',
+        emphasis: true,
+      ),
+    ];
+
+    final header = Row(
+      children: <Widget>[
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: LinearGradient(
+              colors: purchase
+                  ? <Color>[
+                      KajDesignTokens.champagne.withValues(alpha: .20),
+                      KajDesignTokens.champagne.withValues(alpha: .06),
+                    ]
+                  : <Color>[
+                      KajDesignTokens.electricBlue.withValues(alpha: .22),
+                      KajDesignTokens.electricBlue.withValues(alpha: .06),
+                    ],
+            ),
+            border: Border.all(
+              color:
+                  (purchase
+                          ? KajDesignTokens.champagne
+                          : KajDesignTokens.electricBlue)
+                      .withValues(alpha: .32),
+            ),
+          ),
+          child: Icon(
+            purchase
+                ? Icons.shopping_cart_checkout_rounded
+                : Icons.receipt_long_rounded,
+            size: 18,
+            color: purchase
+                ? KajDesignTokens.champagne
+                : KajDesignTokens.electricBlue,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              AppText(
+                ar
+                    ? '$documentTitle رقم $orderNumber'
+                    : '$documentTitle $orderNumber',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.15,
+                ),
+              ),
+              const SizedBox(height: 2),
+              AppText(
+                '$partnerLabel: $partnerName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 6),
+        _Status(label: status),
+      ],
+    );
+
+    final metricWrap = Wrap(
+      spacing: 5,
+      runSpacing: 5,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: metrics,
+    );
+
+    final actionBar = Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: <Widget>[
+        if (busy)
+          const SizedBox.square(
+            dimension: 28,
+            child: Padding(
+              padding: EdgeInsets.all(5),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          _TinyAction(
+            label: AppTranslation.translate('التفاصيل'),
+            icon: Icons.visibility_outlined,
+            onPressed: onDetails,
+          ),
+        ...actions.map(
+          (action) => _TinyAction(
+            label: action.label,
+            icon: action.icon,
+            onPressed: busy ? null : action.onPressed,
+            destructive: action.destructive,
+            primary: action.primary,
+          ),
+        ),
+      ],
+    );
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.only(bottom: 7),
       child: KajSurface(
         onTap: busy ? null : onDetails,
-        padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 12, 10),
+        padding: const EdgeInsetsDirectional.fromSTEB(11, 8, 10, 8),
         accent: purchase
             ? KajDesignTokens.champagne
             : KajDesignTokens.electricBlue,
         showShadow: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 980;
+            if (stacked) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  header,
+                  const SizedBox(height: 7),
+                  metricWrap,
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: actionBar,
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(11),
-                    gradient: LinearGradient(
-                      colors: purchase
-                          ? <Color>[
-                              KajDesignTokens.champagne.withValues(alpha: .20),
-                              KajDesignTokens.champagne.withValues(alpha: .06),
-                            ]
-                          : <Color>[
-                              KajDesignTokens.electricBlue.withValues(
-                                alpha: .22,
-                              ),
-                              KajDesignTokens.electricBlue.withValues(
-                                alpha: .06,
-                              ),
-                            ],
-                    ),
-                    border: Border.all(
-                      color:
-                          (purchase
-                                  ? KajDesignTokens.champagne
-                                  : KajDesignTokens.electricBlue)
-                              .withValues(alpha: .32),
-                    ),
-                  ),
-                  child: Icon(
-                    purchase
-                        ? Icons.shopping_cart_checkout_rounded
-                        : Icons.receipt_long_rounded,
-                    size: 20,
-                    color: purchase
-                        ? KajDesignTokens.champagne
-                        : KajDesignTokens.electricBlue,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      AppText(
-                        ar
-                            ? '$documentTitle رقم $orderNumber'
-                            : '$documentTitle $orderNumber',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -.15,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      AppText(
-                        '$partnerLabel: $partnerName',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _Status(label: status),
-              ],
-            ),
-            const SizedBox(height: 11),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: <Widget>[
-                _Metric(
-                  icon: Icons.request_quote_outlined,
-                  label: '${t('الفاتورة', 'Invoice')} $invoice',
-                  value: invoiceNumber,
-                ),
-                _Metric(
-                  icon: Icons.inventory_2_outlined,
-                  label: purchase
-                      ? '${t('الاستلام', 'Receipt')} $logistics • ${t('كمية فقط', 'Quantity only')}'
-                      : '${t('التجهيز', 'Delivery')} $logistics • ${t('كمية فقط', 'Quantity only')}',
-                  value: logisticsNumber,
-                ),
-                _Metric(
-                  icon: Icons.account_balance_outlined,
-                  label:
-                      '${t('القيد المحاسبي', 'Accounting entry')} • ${t('من', 'from')} $accountingOwner',
-                  value: journalNumber,
-                ),
-                _Metric(
-                  icon: Icons.payments_outlined,
-                  label: '${t('الدفع', 'Payment')} $paymentStatus',
-                  value:
-                      '$paidAmount / ${t('متبقي', 'Remaining')} $remainingAmount $currency',
-                ),
-                _Metric(
-                  icon: Icons.schedule_rounded,
-                  label: AppTranslation.translate('التاريخ'),
-                  value: createdAt,
-                ),
-                _Metric(
-                  icon: Icons.payments_outlined,
-                  label: AppTranslation.translate('الإجمالي'),
-                  value: '$total $currency',
-                  emphasis: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: 9),
-            Container(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: .55),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: <Widget>[
-                if (busy)
-                  const SizedBox.square(
-                    dimension: 26,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  _TinyAction(
-                    label: AppTranslation.translate('التفاصيل'),
-                    icon: Icons.visibility_outlined,
-                    onPressed: onDetails,
-                  ),
-                ...actions.map(
-                  (action) => _TinyAction(
-                    label: action.label,
-                    icon: action.icon,
-                    onPressed: busy ? null : action.onPressed,
-                    destructive: action.destructive,
+                SizedBox(width: 270, child: header),
+                const SizedBox(width: 10),
+                Expanded(child: metricWrap),
+                const SizedBox(width: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 210),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: actionBar,
                   ),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -333,17 +374,17 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      constraints: const BoxConstraints(minWidth: 124),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      constraints: const BoxConstraints(minWidth: 108, maxWidth: 178),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
       decoration: BoxDecoration(
         color: emphasis
             ? KajDesignTokens.electricBlue.withValues(alpha: .08)
             : scheme.surfaceContainerHighest.withValues(alpha: .34),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: emphasis
               ? KajDesignTokens.electricBlue.withValues(alpha: .24)
-              : scheme.outlineVariant.withValues(alpha: .65),
+              : scheme.outlineVariant.withValues(alpha: .60),
         ),
       ),
       child: Row(
@@ -351,12 +392,12 @@ class _Metric extends StatelessWidget {
         children: <Widget>[
           Icon(
             icon,
-            size: 14,
+            size: 13,
             color: emphasis
                 ? KajDesignTokens.electricBlue
                 : scheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,18 +405,20 @@ class _Metric extends StatelessWidget {
               children: <Widget>[
                 AppText(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 8.2,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 AppText(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: emphasis ? 11.5 : 10.5,
+                    fontSize: emphasis ? 11 : 10,
                     fontWeight: FontWeight.w900,
                     color: emphasis ? KajDesignTokens.electricBlue : null,
                   ),
@@ -396,16 +439,18 @@ class _Status extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
       color: KajDesignTokens.success.withValues(alpha: .09),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(999),
       border: Border.all(color: KajDesignTokens.success.withValues(alpha: .28)),
     ),
     child: AppText(
       label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: const TextStyle(
-        fontSize: 9.5,
+        fontSize: 9,
         color: KajDesignTokens.success,
         fontWeight: FontWeight.w900,
       ),
@@ -419,19 +464,21 @@ class _TinyAction extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.destructive = false,
+    this.primary = false,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onPressed;
   final bool destructive;
+  final bool primary;
 
   @override
   Widget build(BuildContext context) => AppModuleActionIcon(
     tooltip: AppTranslation.translate(label),
     icon: icon,
-    color: KajDesignTokens.electricBlue,
-    destructive: destructive,
     onPressed: onPressed,
+    destructive: destructive,
+    color: primary ? Theme.of(context).colorScheme.primary : null,
   );
 }

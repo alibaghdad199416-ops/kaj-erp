@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "KAJ: Local Setup (first run)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\tool\\setup_local_development.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "KAJ: Local Run",
+      "type": "process",
+      "command": "npm.cmd",
+      "args": ["run", "run:web:local"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "KAJ: Local Setup + Run",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "KAJ: Local Setup (first run)",
+        "KAJ: Local Run"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "KAJ: Stop Local Supabase",
+      "type": "process",
+      "command": "npx.cmd",
+      "args": ["--no-install", "supabase", "stop"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

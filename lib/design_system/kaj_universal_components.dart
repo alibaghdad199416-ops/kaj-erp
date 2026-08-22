@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-
+import 'package:quality_line_erp/design_system/kaj_component_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 
 /// Universal KAJ Signature building blocks used by every module during the
@@ -186,4 +186,194 @@ class KajResponsiveActionBar extends StatelessWidget {
       );
     },
   );
+}
+
+enum KajActionTone { primary, secondary, approve, danger, neutral }
+
+/// Canonical semantic action button for every ERP module.
+///
+/// Business screens choose intent (primary/approve/danger/etc.) and density;
+/// geometry and visual semantics stay centralized in the design system.
+class KajActionButton extends StatelessWidget {
+  const KajActionButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.tone = KajActionTone.primary,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+  });
+
+  const KajActionButton.primary({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+  }) : tone = KajActionTone.primary;
+
+  const KajActionButton.secondary({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+  }) : tone = KajActionTone.secondary;
+
+  const KajActionButton.approve({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+  }) : tone = KajActionTone.approve;
+
+  const KajActionButton.danger({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+  }) : tone = KajActionTone.danger;
+
+  const KajActionButton.neutral({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.compact = false,
+    this.busy = false,
+    this.tooltip,
+  }) : tone = KajActionTone.neutral;
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final KajActionTone tone;
+  final bool compact;
+  final bool busy;
+  final String? tooltip;
+
+  double get _height => compact
+      ? KajComponentTokens.compactControlHeight
+      : KajComponentTokens.controlHeight;
+
+  EdgeInsetsGeometry get _padding => EdgeInsets.symmetric(
+    horizontal: compact ? KajDesignTokens.space12 : KajDesignTokens.space16,
+  );
+
+  Widget _content(Color foreground) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      if (busy)
+        SizedBox.square(
+          dimension: compact ? 14 : 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: foreground,
+          ),
+        )
+      else if (icon != null)
+        Icon(icon, size: compact ? 17 : 19),
+      if (busy || icon != null) const SizedBox(width: KajDesignTokens.space8),
+      AppText(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontWeight: FontWeight.w700, color: foreground),
+      ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final brightness = theme.brightness;
+    final effectiveOnPressed = busy ? null : onPressed;
+    final shape = RoundedRectangleBorder(
+      borderRadius: KajComponentTokens.controlRadius,
+    );
+
+    Widget button;
+    switch (tone) {
+      case KajActionTone.primary:
+        button = FilledButton(
+          onPressed: effectiveOnPressed,
+          style: FilledButton.styleFrom(
+            minimumSize: Size(0, _height),
+            padding: _padding,
+            shape: shape,
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+          ),
+          child: _content(scheme.onPrimary),
+        );
+        break;
+      case KajActionTone.approve:
+        button = FilledButton(
+          onPressed: effectiveOnPressed,
+          style: FilledButton.styleFrom(
+            minimumSize: Size(0, _height),
+            padding: _padding,
+            shape: shape,
+            backgroundColor: KajDesignTokens.success,
+            foregroundColor: KajDesignTokens.plainWhite,
+          ),
+          child: _content(KajDesignTokens.plainWhite),
+        );
+        break;
+      case KajActionTone.danger:
+        button = FilledButton(
+          onPressed: effectiveOnPressed,
+          style: FilledButton.styleFrom(
+            minimumSize: Size(0, _height),
+            padding: _padding,
+            shape: shape,
+            backgroundColor: KajDesignTokens.danger,
+            foregroundColor: KajDesignTokens.plainWhite,
+          ),
+          child: _content(KajDesignTokens.plainWhite),
+        );
+        break;
+      case KajActionTone.secondary:
+        button = OutlinedButton(
+          onPressed: effectiveOnPressed,
+          style: OutlinedButton.styleFrom(
+            minimumSize: Size(0, _height),
+            padding: _padding,
+            shape: shape,
+            foregroundColor: scheme.primary,
+            side: BorderSide(color: KajDesignTokens.strongBorder(brightness)),
+          ),
+          child: _content(scheme.primary),
+        );
+        break;
+      case KajActionTone.neutral:
+        button = TextButton(
+          onPressed: effectiveOnPressed,
+          style: TextButton.styleFrom(
+            minimumSize: Size(0, _height),
+            padding: _padding,
+            shape: shape,
+            foregroundColor: scheme.onSurfaceVariant,
+          ),
+          child: _content(scheme.onSurfaceVariant),
+        );
+        break;
+    }
+
+    if (tooltip == null || tooltip!.trim().isEmpty) return button;
+    return Tooltip(message: tooltip!, child: button);
+  }
 }

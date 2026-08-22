@@ -24,16 +24,27 @@ if "import 'dart:convert';" in access:
 
 verify_target = (ROOT / "tool/verify_deployment_target.py").read_text(encoding="utf-8")
 for marker in (
-    'active_runtime_path = ROOT / "dart_defines.json"',
-    "production_candidate if production_candidate.is_file() else active_runtime_path",
-    "production_text",
+    'EXPECTED_LOCAL_URL = "http://127.0.0.1:54321"',
+    'EXPECTED_SUPABASE_REF = "havlqebmnjdcwmpaaqew"',
+    'production_path = ROOT / "dart_defines.production.json"',
+    'dart_defines.json must target Local Supabase loopback only',
+    'production runtime must explicitly declare KAJ_BACKEND_TARGET=production',
+    'production SUPABASE_URL must match the intended project base URL',
+    'return _isLoopback(host) ? \'local\' : \'\';',
 ):
     if marker not in verify_target:
-        errors.append(f"deployment verifier is missing runtime-config fallback marker: {marker}")
+        errors.append(f"deployment verifier is missing separated runtime contract marker: {marker}")
 
 configure = (ROOT / "tool/configure_production.ps1").read_text(encoding="utf-8")
-if "keeping the existing dart_defines.json unchanged" not in configure:
-    errors.append("production configurator does not preserve the active runtime file when the optional template is absent")
+for marker in (
+    "dart_defines.production.json",
+    "The Local Supabase dart_defines.json baseline was not modified.",
+    "https://havlqebmnjdcwmpaaqew.supabase.co",
+):
+    if marker not in configure:
+        errors.append(f"production configurator is missing separated runtime marker: {marker}")
+if "Copy-Item $Source $Target" in configure:
+    errors.append("production configurator must not overwrite the Local Supabase test baseline")
 
 proc = subprocess.run(
     [sys.executable, "-B", str(ROOT / "tool/verify_deployment_target.py")],
@@ -44,7 +55,7 @@ proc = subprocess.run(
     check=False,
 )
 if proc.returncode != 0:
-    errors.append("verify_deployment_target.py does not pass against the packaged active runtime configuration")
+    errors.append("verify_deployment_target.py does not pass against the packaged separated runtime configuration")
 
 if errors:
     print("FAILED R6 deployment/analyzer closure")
@@ -54,7 +65,8 @@ if errors:
     raise SystemExit(1)
 
 print("PASS R6 deployment/analyzer closure")
-print("- deployment target verifier accepts the existing dart_defines.json without changing it")
-print("- production configurator preserves dart_defines.json when the optional production template is absent")
-print("- all three analyzer findings from the user run are closed at source")
+print("- local loopback may infer local; hosted URLs never infer production")
+print("- production configuration targets only havlqebmnjdcwmpaaqew with an explicit target")
+print("- production configuration never overwrites dart_defines.json")
+print("- all three analyzer findings from the user run remain closed at source")
 print(proc.stdout.rstrip())

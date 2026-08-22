@@ -1,0 +1,24 @@
+R101 focused canonical runtime failure evidence
+run_id=32511873093
+head_sha=052cd69049862d6b63b153b5b68608ae1e36d99c
+runner_exit=1
+
+--- matched failure/runtime lines ---
+5:ERROR:  r58_material_issue_cost_posting_not_active
+7:LOCAL PostgreSQL runtime verification failed: supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql
+13:=== LOCAL PostgreSQL runtime: supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql ===
+
+--- final 120 log lines ---
+Connecting to local database...
+Local database is up to date.
+Pager usage is off.
+BEGIN
+ERROR:  r58_material_issue_cost_posting_not_active
+CONTEXT:  PL/pgSQL function inline_code_block line 25 at RAISE
+LOCAL PostgreSQL runtime verification failed: supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql
+LOCAL schema already contains the required R88-R94 migration versions.
+
+=== LOCAL Supabase schema sync: pending forward migrations ===
+LOCAL Supabase schema sync PASS — required R88-R94 migrations are applied.
+
+=== LOCAL PostgreSQL runtime: supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql ===

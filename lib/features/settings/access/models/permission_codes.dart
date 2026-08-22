@@ -1,12 +1,24 @@
+import 'package:quality_line_erp/core/security/permission_contract.dart';
+
 /// Central permission identifiers used by routes and write actions.
 abstract final class PermissionCodes {
   static const usersView = 'users.view';
   static const usersCreate = 'users.create';
   static const usersUpdate = 'users.update';
   static const usersDelete = 'users.delete';
+  static const usersImageUpdate = 'users.image.update';
+  static const usersCredentialsUpdate = 'users.credentials.update';
+
+  static const customersImageUpdate = 'customers.image.update';
+  static const suppliersImageUpdate = 'suppliers.image.update';
+  static const carsImagesManage = 'cars.images.manage';
+  static const inventoryImagesManage = 'inventory.images.manage';
 
   static const reportsView = 'reports.view';
   static const reportsExport = 'reports.export';
+  static const reportsAuditView = 'reports.audit.view';
+  static const reportsContextualView = 'reports.contextual.view';
+  static const reportsFinancialDetailsView = 'reports.financial_details.view';
   static const settingsView = 'settings.view';
   static const settingsBackup = 'settings.backup';
   static const settingsRestore = 'settings.restore';
@@ -39,8 +51,29 @@ abstract final class PermissionCodes {
   static const cashboxReceipt = 'cashbox.receipt';
   static const cashboxPayment = 'cashbox.payment';
 
-  static String view(String module) => '$module.view';
-  static String create(String module) => '$module.create';
-  static String update(String module) => '$module.update';
-  static String delete(String module) => '$module.delete';
+  static String action(String resource, String action) =>
+      PermissionContract.action(resource, action);
+
+  static String actionRestriction(String resource) =>
+      PermissionContract.actionRestriction(resource);
+
+  static String recordsOwn(String resource) =>
+      PermissionContract.recordScopeOwn(resource);
+
+  static String recordsAll(String resource) =>
+      PermissionContract.recordScopeAll(resource);
+
+  static String fieldRestriction(String resource) =>
+      PermissionContract.fieldRestriction(resource);
+
+  static String fieldView(String resource, String field) =>
+      PermissionContract.fieldView(resource, field);
+
+  static String fieldEdit(String resource, String field) =>
+      PermissionContract.fieldEdit(resource, field);
+
+  static String view(String module) => action(module, 'view');
+  static String create(String module) => action(module, 'create');
+  static String update(String module) => action(module, 'update');
+  static String delete(String module) => action(module, 'delete');
 }

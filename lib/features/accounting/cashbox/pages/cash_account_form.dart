@@ -111,7 +111,7 @@ class _CashAccountFormState extends State<CashAccountForm> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<CashboxController>();
-    final ledger = controller.ledgerAccounts
+    final ledger = controller.postableLedgerAccounts
         .where(
           (a) =>
               a.type == 'asset' &&
@@ -160,71 +160,83 @@ class _CashAccountFormState extends State<CashAccountForm> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _securedField(
-                        'type',
-                        DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          initialValue: _type,
-                          decoration: InputDecoration(
-                            labelText: AppTranslation.translate('نوع الصندوق'),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'cash',
-                              child: AppText('صندوق نقدي'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'bank',
-                              child: AppText('حساب مصرفي'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'wallet',
-                              child: AppText('محفظة إلكترونية'),
-                            ),
-                          ],
-                          onChanged: (v) => setState(() => _type = v ?? 'cash'),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final type = _securedField(
+                      'type',
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _type,
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('نوع الصندوق'),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _securedField(
-                        'currency',
-                        DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          initialValue: SupportedCurrency.normalize(_currency),
-                          validator: (value) =>
-                              SupportedCurrency.isSupported(value)
-                              ? null
-                              : AppTranslation.translate('العملة مطلوبة'),
-                          decoration: InputDecoration(
-                            labelText: AppTranslation.translate('العملة'),
-                            border: OutlineInputBorder(),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'cash',
+                            child: AppText('صندوق نقدي'),
                           ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'USD',
-                              child: AppText('USD - دولار أمريكي'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'IQD',
-                              child: AppText('IQD - دينار عراقي'),
-                            ),
-                          ],
-                          onChanged: (v) => setState(() {
-                            final code = SupportedCurrency.normalize(v);
-                            if (code == null) return;
-                            _currency = code;
-                            _ledgerId = null;
-                          }),
-                        ),
+                          DropdownMenuItem(
+                            value: 'bank',
+                            child: AppText('حساب مصرفي'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'wallet',
+                            child: AppText('محفظة إلكترونية'),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() => _type = v ?? 'cash'),
                       ),
-                    ),
-                  ],
+                    );
+                    final currency = _securedField(
+                      'currency',
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: SupportedCurrency.normalize(_currency),
+                        validator: (value) =>
+                            SupportedCurrency.isSupported(value)
+                            ? null
+                            : AppTranslation.translate('العملة مطلوبة'),
+                        decoration: InputDecoration(
+                          labelText: AppTranslation.translate('العملة'),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'USD',
+                            child: AppText('USD - دولار أمريكي'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'IQD',
+                            child: AppText('IQD - دينار عراقي'),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() {
+                          final code = SupportedCurrency.normalize(v);
+                          if (code == null) return;
+                          _currency = code;
+                          _ledgerId = null;
+                        }),
+                      ),
+                    );
+                    if (constraints.maxWidth < 520) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          type,
+                          const SizedBox(height: 12),
+                          currency,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: <Widget>[
+                        Expanded(child: type),
+                        const SizedBox(width: 12),
+                        Expanded(child: currency),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 _securedField(

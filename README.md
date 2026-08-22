@@ -12,6 +12,14 @@ The current operational and deployment entry point is [`START_HERE_AR.md`](START
 
 Do not replace the existing production connection files while validating this package. Production deployment is intentionally **not** performed during development.
 
+Fresh local Supabase replay and database runtime verification:
+
+```powershell
+npm run verify:fresh-db
+```
+
+This command uses only a uniquely named disposable local Docker stack and refuses production/non-local targets. The repository-owned compatibility prelude preserves immutable historical migrations and is proven replaced by the canonical R35 implementation. See [`supabase/FRESH_INSTALL.md`](supabase/FRESH_INSTALL.md) for the architecture and safety contract.
+
 Full workspace validation on a machine with Flutter/Dart installed:
 
 ```powershell

@@ -95,4 +95,40 @@ void main() {
     expect(firstRefreshes, 1);
     expect(secondRefreshes, 1);
   });
+
+  test('local reconciliation is skipped but external realtime stays fresh', () {
+    const localOperations = <String>{'insert', 'update', 'delete'};
+    final local = AppDataChangeEvent(
+      source: 'cars',
+      operation: 'update',
+      revision: 1,
+      occurredAt: DateTime.utc(2026),
+    );
+    final external = AppDataChangeEvent(
+      source: 'cars',
+      operation: 'cloud-realtime',
+      revision: 2,
+      occurredAt: DateTime.utc(2026),
+    );
+
+    expect(
+      requiresRefreshBeyondLocalOperations(<AppDataChangeEvent>[
+        local,
+      ], localOperations),
+      isFalse,
+    );
+    expect(
+      requiresRefreshBeyondLocalOperations(<AppDataChangeEvent>[
+        external,
+      ], localOperations),
+      isTrue,
+    );
+    expect(
+      requiresRefreshBeyondLocalOperations(<AppDataChangeEvent>[
+        local,
+        external,
+      ], localOperations),
+      isTrue,
+    );
+  });
 }

@@ -1,4 +1,22 @@
-enum AccessOperation { read, create, update, delete, export, approve, manage }
+enum AccessOperation {
+  read,
+  create,
+  update,
+  delete,
+  export,
+  approve,
+  manage,
+  save,
+  edit,
+  cancel,
+  reverse,
+  print,
+  openDetails,
+  assign,
+  transfer,
+  post,
+  reopen,
+}
 
 enum PolicyEffect { allow, deny }
 

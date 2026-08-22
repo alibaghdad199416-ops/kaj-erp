@@ -16,6 +16,7 @@ class CarCard extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onHistory,
+    this.onSchedule,
     this.warehouseName,
     this.carNumber,
     this.plateNumber,
@@ -25,6 +26,7 @@ class CarCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onHistory;
+  final VoidCallback? onSchedule;
   final String? warehouseName;
   final String? carNumber;
   final String? plateNumber;
@@ -201,6 +203,23 @@ class CarCard extends StatelessWidget {
                                 '${MoneyFormatter.format(car.salePrice)} ${car.saleCurrency ?? car.currency}',
                           ),
                         ),
+                        _field(
+                          'margin',
+                          _ValueChip(
+                            label: _t(context, 'الهامش', 'Margin'),
+                            value:
+                                (car.saleCurrency ?? car.currency)
+                                        .toUpperCase() ==
+                                    (car.costCurrency ?? car.currency)
+                                        .toUpperCase()
+                                ? '${MoneyFormatter.format(car.salePrice - car.purchasePrice - car.maintenanceCost)} ${car.saleCurrency ?? car.currency}'
+                                : _t(
+                                    context,
+                                    'متعدد العملات',
+                                    'Multi-currency',
+                                  ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -220,6 +239,16 @@ class CarCard extends StatelessWidget {
                             icon: Icons.history_rounded,
                             label: _t(context, 'السجل', 'History'),
                             onPressed: onHistory!,
+                          ),
+                        if (onSchedule != null)
+                          _ActionButton(
+                            icon: Icons.event_repeat_rounded,
+                            label: _t(
+                              context,
+                              'جدولة الصيانة',
+                              'Maintenance schedule',
+                            ),
+                            onPressed: onSchedule!,
                           ),
                         if (onDelete != null)
                           IconButton(

@@ -10,15 +10,228 @@ String userFacingError(
   String? arabicFallback,
   String? englishFallback,
 }) {
-  if (error is WorkflowOperationException) {
-    return error.localizedMessage(isArabic: isArabic);
-  }
-  final raw = error.toString().trim();
+  final raw = error is WorkflowOperationException
+      ? <String?>[
+          error.message,
+          error.code,
+          error.details,
+          error.hint,
+        ].whereType<String>().join(' ').trim()
+      : error.toString().trim();
   final cleaned = raw
       .replaceFirst(RegExp(r'^(Exception|StateError|ArgumentError):\s*'), '')
       .replaceFirst(RegExp(r'^Bad state:\s*'), '')
       .trim();
   final normalized = cleaned.toLowerCase();
+
+  if (normalized.contains('opportunity_won_owned_by_sales_workflow') ||
+      normalized.contains('opportunity_terminal_stage_sales_owned') ||
+      normalized.contains(
+        'opportunity_won_requires_canonical_sales_workflow',
+      ) ||
+      normalized.contains('opportunity_already_won')) {
+    return isArabic
+        ? 'حالة الفوز والإغلاق في الفرصة تُحدَّث تلقائيًا من مسار المبيعات المعتمد. افتح أمر البيع المرتبط وأكمل مرحلته المطلوبة.'
+        : 'Opportunity Won/Closed status is controlled by the canonical sales workflow. Open the linked sales order and complete the required stage.';
+  }
+
+  if (normalized.contains('opportunity_has_sales_history')) {
+    return isArabic
+        ? 'لا يمكن حذف الفرصة ما دام أمر بيع فعال مرتبطًا بها. ألغِ أو عالج أمر البيع المرتبط أولًا.'
+        : 'The opportunity cannot be deleted while an active sales order is linked to it. Cancel or resolve the linked sales order first.';
+  }
+
+  if (normalized.contains('opportunity_has_maintenance_history')) {
+    return isArabic
+        ? 'لا يمكن حذف الفرصة ما دام أمر صيانة غير محذوف مرتبطًا بها. ألغِ أمر الصيانة عند الحاجة ثم احذفه وفق دورة الحذف المعتمدة أولًا.'
+        : 'The opportunity cannot be deleted while a non-deleted maintenance order is linked to it. Cancel it if required, then complete the governed maintenance deletion lifecycle first.';
+  }
+
+  if (normalized.contains('opportunity_customer_required')) {
+    return isArabic
+        ? 'يجب تحديد عميل صالح للفرصة قبل الحفظ.'
+        : 'Select a valid customer for the opportunity before saving.';
+  }
+
+  if (normalized.contains('opportunity_customer_mismatch') ||
+      normalized.contains('opportunity_sales_customer_locked')) {
+    return isArabic
+        ? 'عميل الفرصة لا يطابق العميل في أمر البيع المرتبط. بعد إنشاء أمر البيع لا يمكن تغيير هوية العميل من الفرصة.'
+        : 'The opportunity customer does not match the linked sales order. Customer identity cannot be changed from CRM after a sales order exists.';
+  }
+
+  if (normalized.contains('opportunity_maintenance_customer_locked')) {
+    return isArabic
+        ? 'عميل الفرصة لا يطابق العميل في أمر الصيانة المرتبط. عالج دورة الصيانة المرتبطة أولًا بدل تغيير هوية العميل من الفرصة.'
+        : 'The opportunity customer does not match the linked maintenance order. Resolve the linked maintenance lifecycle before changing customer identity in CRM.';
+  }
+
+  if (normalized.contains('opportunity_maintenance_vehicle_locked')) {
+    return isArabic
+        ? 'المركبة المرتبطة بالفرصة لا تطابق مركبة أمر الصيانة. لا يمكن تغيير المركبة من الفرصة ما دام أمر الصيانة مرتبطًا بها.'
+        : 'The opportunity vehicle does not match the linked maintenance order. The CRM vehicle cannot be changed while that maintenance lifecycle remains linked.';
+  }
+
+  if (normalized.contains('opportunity_currency_invalid')) {
+    return isArabic
+        ? 'عملة الفرصة غير صالحة. استخدم USD أو IQD.'
+        : 'The opportunity currency is invalid. Use USD or IQD.';
+  }
+
+  if (normalized.contains('opportunity_currency_mismatch') ||
+      normalized.contains('opportunity_sales_currency_locked')) {
+    return isArabic
+        ? 'عملة الفرصة لا تطابق عملة أمر البيع المرتبط. بعد إنشاء أمر البيع لا يمكن تغيير العملة من الفرصة.'
+        : 'The opportunity currency does not match the linked sales order. Currency cannot be changed from CRM after a sales order exists.';
+  }
+
+  if (normalized.contains('opportunity_expected_value_invalid')) {
+    return isArabic
+        ? 'القيمة المتوقعة للفرصة يجب أن تكون رقمًا صالحًا غير سالب.'
+        : 'The opportunity expected value must be a valid non-negative number.';
+  }
+
+  if (normalized.contains('opportunity_probability_invalid')) {
+    return isArabic
+        ? 'احتمالية الفرصة يجب أن تكون بين 0 و100.'
+        : 'Opportunity probability must be between 0 and 100.';
+  }
+
+  if (normalized.contains('opportunity_responsible_user_invalid')) {
+    return isArabic
+        ? 'المستخدم المسؤول غير فعال في الشركة الحالية. اختر مستخدمًا فعالًا أو اترك الفرصة بدون إسناد.'
+        : 'The responsible user is not an active member of the current company. Select an active user or leave the opportunity unassigned.';
+  }
+
+  if (normalized.contains('opportunity_lost_requires_transition') ||
+      normalized.contains('opportunity_lost_requires_mark_lost')) {
+    return isArabic
+        ? 'حوّل الفرصة إلى خاسرة باستخدام إجراء «خاسرة» المعتمد بدل تعديل الحالة مباشرة.'
+        : 'Mark the opportunity Lost using the governed Lost action instead of changing the terminal state directly.';
+  }
+
+  if (normalized.contains('opportunity_is_lost') ||
+      normalized.contains('lost_opportunity_cannot_create_sales_order')) {
+    return isArabic
+        ? 'الفرصة خاسرة حاليًا ولا يمكن إنشاء أو إعادة تفعيل أمر بيع منها. راجع حالة الفرصة قبل بدء دورة بيع جديدة.'
+        : 'This opportunity is currently Lost, so a sales order cannot be created or reactivated from it. Review the opportunity state before starting a new sales lifecycle.';
+  }
+
+  if (normalized.contains('lost_opportunity_cannot_create_maintenance_order')) {
+    return isArabic
+        ? 'الفرصة خاسرة ولا يمكن إنشاء أمر صيانة جديد منها. يمكن فتح أو مراجعة أمر الصيانة التاريخي المرتبط إن وُجد.'
+        : 'This opportunity is Lost, so a new maintenance order cannot be created from it. An existing historical maintenance order can still be opened for review.';
+  }
+
+  if (normalized.contains('maintenance_opportunity_link_missing_after_save')) {
+    return isArabic
+        ? 'تم حفظ أمر الصيانة لكن تعذر إعادة قراءة ارتباطه بالفرصة. حدّث الفرص وتحقق من أمر الصيانة قبل إعادة المحاولة.'
+        : 'The maintenance order was saved, but its Opportunity link could not be read back. Refresh CRM and verify the maintenance order before trying again.';
+  }
+
+  if (normalized.contains('financial_family_incomplete_or_ambiguous') ||
+      normalized.contains('financial_family_postcondition_failed')) {
+    return isArabic
+        ? 'تعذر تحديد جميع السجلات المرتبطة بهذه العملية المالية بشكل آمن. لم يتم حذف أي سجل.'
+        : 'Unable to safely identify all linked records for this financial transaction. No records were deleted.';
+  }
+
+  if (normalized.contains('payment_linked_to_active_invoice') ||
+      normalized.contains('payment_linked_to_active_maintenance_invoice') ||
+      normalized.contains('payment_has_active_allocations')) {
+    return isArabic
+        ? 'هذه الدفعة مرتبطة بفاتورة أو تخصيص نشط. يجب فك أو عكس ارتباط الفاتورة قبل حذف الدفعة.'
+        : 'This payment is linked to an invoice or active allocation. Remove or reverse the invoice allocation before deleting the payment.';
+  }
+
+  if (normalized.contains('over_receipt') ||
+      normalized.contains('purchase_receipt_over_quantity')) {
+    return isArabic
+        ? 'كمية الاستلام تتجاوز الكمية المتبقية في أمر الشراء. حدّث الأمر وراجع توزيع الاستلام.'
+        : 'The receipt quantity exceeds the remaining purchase-order quantity. Refresh the order and review the receipt allocation.';
+  }
+  if (normalized.contains('receipt_missing') ||
+      normalized.contains('receipt_not_approved')) {
+    return isArabic
+        ? 'يلزم وجود استلام مخزني منفّذ ومعتمد قبل إنشاء فاتورة الشراء.'
+        : 'An executed and approved receipt is required before creating the purchase invoice.';
+  }
+  if (normalized.contains('invoice_already_posted')) {
+    return isArabic
+        ? 'تم ترحيل هذه الفاتورة مسبقًا. حدّث تفاصيل الأمر لعرض القيد الحالي.'
+        : 'This invoice is already posted. Refresh the order details to view the existing journal.';
+  }
+  if (normalized.contains('account_binding_missing')) {
+    return isArabic
+        ? 'ربط الحساب المحاسبي المطلوب غير مكتمل. راجع إعدادات الحسابات قبل إعادة المحاولة.'
+        : 'A required accounting binding is missing. Review account settings before trying again.';
+  }
+  if (normalized.contains('payment_allocation_invalid')) {
+    return isArabic
+        ? 'تخصيص الدفعة غير صالح للمبلغ أو العملة أو الفاتورة المحددة. حدّث التفاصيل وراجع التخصيص.'
+        : 'The payment allocation does not match the selected amount, currency, or invoice. Refresh and review the allocation.';
+  }
+  if (normalized.contains('invalid_transition')) {
+    return isArabic
+        ? 'لا يمكن نقل المستند من حالته الحالية إلى المرحلة المطلوبة. حدّث التفاصيل وراجع تسلسل العمل.'
+        : 'The document cannot move from its current state to the requested stage. Refresh and review the workflow sequence.';
+  }
+
+  if (normalized.contains('car_warehouse_mismatch')) {
+    return isArabic
+        ? 'السيارة المحددة موجودة في مخزن مختلف. نفّذ تحويلًا مخزنيًا معتمدًا أو اختر مخزنها الفعلي ثم أعد المحاولة.'
+        : 'The selected vehicle is in a different warehouse. Complete an approved warehouse transfer or select its actual warehouse, then try again.';
+  }
+
+  if (normalized.contains('approved_sales_delivery_required') ||
+      normalized.contains('approved_inventory_document_required') ||
+      normalized.contains('delivery_missing') ||
+      normalized.contains('delivery_not_approved')) {
+    return isArabic
+        ? 'يلزم وجود تسليم مخزني منفّذ ومعتمد قبل إنشاء فاتورة البيع.'
+        : 'An executed and approved delivery is required before creating the sales invoice.';
+  }
+
+  if (normalized.contains('car_not_available')) {
+    return isArabic
+        ? 'السيارة المحددة غير متاحة للتسليم من المخزن. حدّث حالة السيارة وموقعها ثم أعد المحاولة.'
+        : 'The selected vehicle is not available for warehouse delivery. Refresh its status and warehouse, then try again.';
+  }
+
+  if (normalized.contains('commercial_over_fulfillment') ||
+      normalized.contains('sales_delivery_over_quantity') ||
+      normalized.contains('over_delivery')) {
+    return isArabic
+        ? 'كمية التسليم تتجاوز الكمية المتبقية في أمر البيع. حدّث الأمر وراجع التوزيع.'
+        : 'The delivery quantity exceeds the remaining sales-order quantity. Refresh the order and review the allocation.';
+  }
+
+  if (normalized.contains('insufficient_warehouse_stock') ||
+      normalized.contains('insufficient_stock')) {
+    return isArabic
+        ? 'الرصيد المتاح في المخزن غير كافٍ لإتمام التسليم. راجع المخزن والكميات الموزعة.'
+        : 'Available warehouse stock is insufficient for this delivery. Review the warehouse and allocated quantities.';
+  }
+
+  if (normalized.contains('warehouse_not_found_or_inactive') ||
+      normalized.contains('warehouse_not_selected')) {
+    return isArabic
+        ? 'اختر مخزنًا نشطًا لكل بند قبل إنشاء المستند المخزني.'
+        : 'Select an active warehouse for every line before creating the warehouse document.';
+  }
+
+  if (normalized.contains('active_delivery_draft_exists') ||
+      normalized.contains('delivery_already_executed')) {
+    return isArabic
+        ? 'يوجد مستند تسليم نشط لهذا الأمر بالفعل. افتحه أو حدّث تفاصيل الأمر.'
+        : 'An active delivery document already exists for this order. Open it or refresh the order details.';
+  }
+
+  if (normalized.contains('product_inventory_account_missing')) {
+    return isArabic
+        ? 'حساب مخزون أحد المنتجات غير مهيأ. راجع ربط حسابات المنتج قبل التصديق.'
+        : 'An inventory account is missing for one of the products. Review product account mapping before approval.';
+  }
 
   if (normalized.contains('maintenance_insufficient_stock')) {
     final item = cleaned.contains(':') ? cleaned.split(':').last.trim() : '';

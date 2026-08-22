@@ -35,6 +35,19 @@ class CloudRealtimeBridge {
       _channels.isNotEmpty &&
       _companyId != null;
 
+  @visibleForTesting
+  static List<CloudRealtimeBindingContract> get bindingContracts => _bindings
+      .map(
+        (binding) => (
+          table: binding.table,
+          sources: binding.sources,
+          tenantColumn: binding.tenantColumn,
+          usesCompanySlug: binding.usesCompanySlug,
+          refreshesUnreadNotifications: binding.refreshesUnreadNotifications,
+        ),
+      )
+      .toList(growable: false);
+
   Future<void> start() async {
     final companyId = CloudTenantContext.instance.companyUuid?.trim() ?? '';
     final companySlug = CloudTenantContext.instance.companyId.trim();
@@ -222,12 +235,19 @@ class CloudRealtimeBridge {
       'settings',
     }),
     _RealtimeBinding('company_memberships', {'users', 'access', 'settings'}),
-    _RealtimeBinding('branches', {'settings', 'access'}),
     _RealtimeBinding('erp_accounts', {
       'accounting',
     }, tenantColumn: 'organization_id'),
   ];
 }
+
+typedef CloudRealtimeBindingContract = ({
+  String table,
+  Set<String> sources,
+  String tenantColumn,
+  bool usesCompanySlug,
+  bool refreshesUnreadNotifications,
+});
 
 class _RealtimeBinding {
   const _RealtimeBinding(

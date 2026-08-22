@@ -1,0 +1,260 @@
+--- a/supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql
++++ b/supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql
+@@ -1,44 +1,97 @@
+-\set ON_ERROR_STOP on
+-\pset pager off
+-
+-begin;
+-
+-do $$
+-declare
+-  v_definition text;
+-  v_count bigint;
+-begin
+-  select pg_get_functiondef('public.erp_v736_post_maintenance_invoice(uuid,uuid)'::regprocedure)
+-    into v_definition;
+-  if v_definition not like '%sum(fc.total_cost) actual_cost%'
+-     or v_definition not like '%erp_maintenance_bound_accounts%'
+-     or v_definition not like '%invoice_item_bindings%' then
+-    raise exception 'r58_item_bound_maintenance_posting_not_active';
+-  end if;
+-
+-  select count(*) into v_count
+-  from (
+-    select il.company_id,il.issue_id,il.product_id,il.warehouse_id,
+-      sum(il.quantity) issue_quantity,
+-      coalesce((select sum(fc.quantity)
+-        from public.erp_inventory_fifo_consumptions fc
+-        where fc.company_id=il.company_id and fc.delivery_id=il.issue_id
+-          and fc.item_id=il.product_id and fc.warehouse_id=il.warehouse_id
+-          and fc.status='active'),0) fifo_quantity
+-    from public.erp_maintenance_material_issue_lines il
+-    join public.erp_maintenance_material_issues i
+-      on i.company_id=il.company_id and i.id=il.issue_id and i.status='executed'
+-    group by il.company_id,il.issue_id,il.product_id,il.warehouse_id
+-  ) q where abs(q.issue_quantity-q.fifo_quantity)>0.0001;
+-  if v_count<>0 then raise exception 'r58_active_issue_fifo_quantity_mismatch:%',v_count; end if;
+-
+-  if has_function_privilege('anon',
+-       'public.erp_maintenance_bound_accounts(uuid,text,text,boolean)','execute')
+-     or has_function_privilege('authenticated',
+-       'public.erp_maintenance_bound_accounts(uuid,text,text,boolean)','execute') then
+-    raise exception 'r58_internal_account_resolver_exposed';
+-  end if;
+-end $$;
+-
+-rollback;
+-select 'R58 maintenance item accounting runtime PASS' as result;
++\set ON_ERROR_STOP on
++\pset pager off
++
++begin;
++
++do $$
++declare
++  v_invoice_definition text;
++  v_issue_definition text;
++  v_cost_totals_definition text;
++  v_count bigint;
++begin
++  select pg_get_functiondef('public.erp_v736_post_maintenance_invoice(uuid,uuid)'::regprocedure)
++    into v_invoice_definition;
++  select pg_get_functiondef('public.erp_r57_execute_maintenance_material_issue(uuid,uuid,uuid,uuid,text,numeric,timestamptz)'::regprocedure)
++    into v_issue_definition;
++  select pg_get_functiondef('public.erp_r87_maintenance_material_cost_totals(uuid,uuid,boolean)'::regprocedure)
++    into v_cost_totals_definition;
++
++  -- R87 deliberately moved inventory-cost posting out of the invoice and into
++  -- the material-issue event. The issue must consume FIFO in the native product
++  -- cost currency and post the definition-bound cost + inventory accounts.
++  if v_issue_definition not like '%erp_inventory_fifo_consumptions%'
++     or v_issue_definition not like '%erp_maintenance_bound_accounts%'
++     or v_issue_definition not like '%costExpenseAccountId%'
++     or v_issue_definition not like '%assetAccountId%'
++     or v_issue_definition not like '%maintenance_material_issue_cost%'
++     or v_issue_definition not like '%v_cost_currency%'
++     or v_issue_definition not like '%journal_entry_id=v_cost_journal%' then
++    raise exception 'r58_material_issue_cost_posting_not_active';
++  end if;
++
++  -- The commercial invoice owns receivable/revenue only. It retains FIFO cost
++  -- traceability by currency but must not create a second inventory-cost journal.
++  if v_invoice_definition not like '%erp_maintenance_bound_accounts%'
++     or v_invoice_definition not like '%maintenance_invoice_revenue%'
++     or v_invoice_definition not like '%invoice_item_bindings%'
++     or v_invoice_definition not like '%actualFifoCostByCurrency%'
++     or v_invoice_definition not like '%inventoryCostPostingOwner%'
++     or v_invoice_definition not like '%material_issue_event%'
++     or v_invoice_definition like '%maintenance_invoice_cost%' then
++    raise exception 'r58_invoice_revenue_ownership_not_active';
++  end if;
++
++  -- Cross-currency maintenance must preserve native inventory valuation instead
++  -- of folding unlike currencies into the document currency.
++  if v_cost_totals_definition not like '%group by cost_currency%'
++     or v_cost_totals_definition not like '%erp_v764_definition_currency%' then
++    raise exception 'r58_native_cost_currency_aggregation_not_active';
++  end if;
++
++  select count(*) into v_count
++  from (
++    select il.company_id,il.issue_id,il.product_id,il.warehouse_id,
++      sum(il.quantity) issue_quantity,
++      coalesce((select sum(fc.quantity)
++        from public.erp_inventory_fifo_consumptions fc
++        where fc.company_id=il.company_id and fc.delivery_id=il.issue_id
++          and fc.item_id=il.product_id and fc.warehouse_id=il.warehouse_id
++          and fc.status='active'),0) fifo_quantity
++    from public.erp_maintenance_material_issue_lines il
++    join public.erp_maintenance_material_issues i
++      on i.company_id=il.company_id and i.id=il.issue_id and i.status='executed'
++    group by il.company_id,il.issue_id,il.product_id,il.warehouse_id
++  ) q where abs(q.issue_quantity-q.fifo_quantity)>0.0001;
++  if v_count<>0 then raise exception 'r58_active_issue_fifo_quantity_mismatch:%',v_count; end if;
++
++  -- Executed issue events with active FIFO evidence must retain the same actual
++  -- total cost as their authoritative FIFO consumptions.
++  select count(*) into v_count
++  from (
++    select i.company_id,i.id,
++      coalesce(i.total_cost,0) issue_cost,
++      coalesce(sum(fc.total_cost),0) fifo_cost
++    from public.erp_maintenance_material_issues i
++    join public.erp_maintenance_material_issue_lines il
++      on il.company_id=i.company_id and il.issue_id=i.id
++    left join public.erp_inventory_fifo_consumptions fc
++      on fc.company_id=il.company_id and fc.delivery_id=il.issue_id
++      and fc.sales_order_id=il.maintenance_order_id
++      and fc.item_id=il.product_id and fc.warehouse_id=il.warehouse_id
++      and fc.status='active'
++    where i.status='executed'
++    group by i.company_id,i.id,i.total_cost
++  ) q where abs(q.issue_cost-q.fifo_cost)>0.0001;
++  if v_count<>0 then raise exception 'r58_active_issue_fifo_cost_mismatch:%',v_count; end if;
++
++  if has_function_privilege('anon',
++       'public.erp_maintenance_bound_accounts(uuid,text,text,boolean)','execute')
++     or has_function_privilege('authenticated',
++       'public.erp_maintenance_bound_accounts(uuid,text,text,boolean)','execute') then
++    raise exception 'r58_internal_account_resolver_exposed';
++  end if;
++end $$;
++
++rollback;
++select 'R58 maintenance item accounting runtime PASS' as result;
+--- a/tool/verify_r58_maintenance_item_accounting.py
++++ b/tool/verify_r58_maintenance_item_accounting.py
+@@ -1,44 +1,69 @@
+-from pathlib import Path
+-
+-root = Path(__file__).resolve().parents[1]
+-migration = (root / 'supabase/migrations/20260813124053_maintenance_item_bound_accounting_and_issue_document.sql').read_text(encoding='utf-8')
+-pdf = (root / 'lib/core/printing/maintenance_document_pdf_service.dart').read_text(encoding='utf-8')
+-dialog = (root / 'lib/features/maintenance/pages/maintenance_order_details_dialog.dart').read_text(encoding='utf-8')
+-failures = []
+-
+-def need(label, condition):
+-    print(('PASS ' if condition else 'FAIL ') + label)
+-    if not condition:
+-        failures.append(label)
+-
+-need('Warehouse PDF consumes executed issue-event rows',
+-     "event['status']?.toString() != 'executed'" in pdf and 'maintenanceWarehouseIssueRows' in pdf
+-     and 'issueEvents: costs.issueEvents' in dialog)
+-need('Warehouse aggregation key retains product and warehouse identity',
+-     "final key = '$productId\\u0000$warehouseId'" in pdf)
+-need('Warehouse PDF excludes internal FIFO cost fields',
+-     'actualCost' not in pdf and 'fifoCost' not in pdf and 'profit' not in pdf)
+-need('Maintenance item bindings fail closed', all(value in migration for value in (
+-     'maintenance_material_revenue_account_missing',
+-     'maintenance_material_inventory_account_missing',
+-     'maintenance_material_cost_account_missing',
+-     'maintenance_service_revenue_account_missing')))
+-need('Customer billing uses line selling values',
+-     'coalesce(p.line_total_price,p.unit_price*p.quantity,0)' in migration
+-     and "'unitPrice',p.unit_price" in migration)
+-need('Material cost uses active authoritative FIFO totals', all(value in migration for value in (
+-     'sum(fc.total_cost) actual_cost', "fc.status='active'", "fc.item_type='product'")))
+-need('Revenue inventory and cost remain item-bound', all(value in migration for value in (
+-     "ac->>'revenueAccountId'", "ac->>'assetAccountId'", "ac->>'costExpenseAccountId'")))
+-need('Residual labor alone uses configured maintenance revenue',
+-     'v_labor_amount:=round(greatest(o.sale_price-v_bound_billing,0),2)' in migration
+-     and "defaults->>'maintenanceRevenueUsdAccountId'" in migration)
+-need('Exact journal identities remain owned by R57 reversal fields',
+-     'invoice_journal_entry_id=v_entry' in migration and 'cost_journal_entry_ids=v_entries' in migration)
+-need('RPC exposure remains least privilege',
+-     'from public,anon,authenticated' in migration
+-     and 'to authenticated,service_role' in migration)
+-
+-if failures:
+-    raise SystemExit('R58 verification failed: ' + ', '.join(failures))
+-print('R58 maintenance warehouse/account binding verification PASS')
++from pathlib import Path
++
++root = Path(__file__).resolve().parents[1]
++legacy = (root / 'supabase/migrations/20260813124053_maintenance_item_bound_accounting_and_issue_document.sql').read_text(encoding='utf-8')
++r87 = (root / 'supabase/migrations/20260818233500_r87_phase10_corrective_integrity.sql').read_text(encoding='utf-8')
++runtime = (root / 'supabase/tests/verify_r58_maintenance_item_accounting_runtime.sql').read_text(encoding='utf-8')
++pdf = (root / 'lib/core/printing/maintenance_document_pdf_service.dart').read_text(encoding='utf-8')
++dialog = (root / 'lib/features/maintenance/pages/maintenance_order_details_dialog.dart').read_text(encoding='utf-8')
++failures = []
++
++
++def need(label, condition):
++    print(('PASS ' if condition else 'FAIL ') + label)
++    if not condition:
++        failures.append(label)
++
++
++need('Warehouse PDF consumes executed issue-event rows',
++     "event['status']?.toString() != 'executed'" in pdf and 'maintenanceWarehouseIssueRows' in pdf
++     and 'issueEvents: costs.issueEvents' in dialog)
++need('Warehouse aggregation key retains product and warehouse identity',
++     "final key = '$productId\\u0000$warehouseId'" in pdf)
++need('Warehouse PDF excludes internal FIFO cost fields',
++     'actualCost' not in pdf and 'fifoCost' not in pdf and 'profit' not in pdf)
++need('Maintenance item bindings fail closed', all(value in r87 for value in (
++     'maintenance_material_revenue_account_missing',
++     'maintenance_material_inventory_account_missing',
++     'maintenance_material_cost_account_missing',
++     'maintenance_service_revenue_account_missing')))
++need('Customer billing uses line selling values',
++     'coalesce(p.line_total_price,p.unit_price*p.quantity,0)' in r87
++     and "'unitPrice',p.unit_price" in r87)
++need('Material issue owns authoritative FIFO cost posting', all(value in r87 for value in (
++     'create or replace function public.erp_r57_execute_maintenance_material_issue(',
++     'erp_inventory_fifo_consumptions(',
++     "'maintenance_material_issue_cost'",
++     "v_accounts->>'costExpenseAccountId'",
++     "v_accounts->>'assetAccountId'",
++     "'currency',v_cost_currency",
++     'journal_entry_id=v_cost_journal')))
++need('Invoice owns receivable/revenue without duplicate inventory cost posting',
++     "'maintenance_invoice_revenue'" in r87
++     and "'inventoryCostPostingOwner','material_issue_event'" in r87
++     and "cost_journal_entry_ids='[]'::jsonb" in r87)
++need('Native inventory costs remain grouped by definition currency',
++     'erp_r87_maintenance_material_cost_totals' in r87
++     and 'group by cost_currency' in r87
++     and 'erp_v764_definition_currency' in r87)
++need('Revenue and inventory-cost bindings remain item-bound', all(value in r87 for value in (
++     "ac->>'revenueAccountId'", "v_accounts->>'assetAccountId'", "v_accounts->>'costExpenseAccountId'")))
++need('Residual labor alone uses configured maintenance revenue',
++     'v_labor_amount:=round(greatest(o.sale_price-v_bound_billing,0),2)' in r87
++     and "defaults->>'maintenanceRevenueUsdAccountId'" in r87)
++need('Exact journal identities are owned by their lifecycle events',
++     'invoice_journal_entry_id=v_entry' in r87
++     and 'journal_entry_id=v_cost_journal' in r87)
++need('RPC exposure remains least privilege',
++     'revoke all on function public.erp_maintenance_bound_accounts(uuid,text,text,boolean)' in legacy
++     and 'from public,anon,authenticated' in legacy
++     and 'to service_role' in legacy)
++need('Runtime regression protects R87 ownership split', all(value in runtime for value in (
++     'r58_material_issue_cost_posting_not_active',
++     'r58_invoice_revenue_ownership_not_active',
++     'r58_native_cost_currency_aggregation_not_active',
++     'r58_active_issue_fifo_cost_mismatch')))
++
++if failures:
++    raise SystemExit('R58 verification failed: ' + ', '.join(failures))
++print('R58 maintenance warehouse/account binding verification PASS')

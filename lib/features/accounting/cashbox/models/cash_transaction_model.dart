@@ -21,6 +21,7 @@ class CashTransactionModel {
     this.cashAccountId,
     this.counterAccountId,
     this.journalEntryId,
+    this.performedBy,
   });
 
   final String id;
@@ -48,6 +49,7 @@ class CashTransactionModel {
   final String? cashAccountId;
   final String? counterAccountId;
   final String? journalEntryId;
+  final String? performedBy;
 
   bool get isReceipt => type == 'receipt';
   bool get isPayment => type == 'payment';
@@ -72,6 +74,7 @@ class CashTransactionModel {
     String? cashAccountId,
     String? counterAccountId,
     String? journalEntryId,
+    String? performedBy,
   }) {
     return CashTransactionModel(
       id: id ?? this.id,
@@ -93,6 +96,7 @@ class CashTransactionModel {
       cashAccountId: cashAccountId ?? this.cashAccountId,
       counterAccountId: counterAccountId ?? this.counterAccountId,
       journalEntryId: journalEntryId ?? this.journalEntryId,
+      performedBy: performedBy ?? this.performedBy,
     );
   }
 
@@ -117,6 +121,7 @@ class CashTransactionModel {
       'cashAccountId': cashAccountId,
       'counterAccountId': counterAccountId,
       'journalEntryId': journalEntryId,
+      'performedBy': performedBy,
     };
   }
 
@@ -174,6 +179,7 @@ class CashTransactionModel {
         'counterAccountId',
       ),
       journalEntryId: ModelValueReader.nullableString(map, 'journalEntryId'),
+      performedBy: ModelValueReader.nullableString(map, 'performedBy'),
     );
   }
 }

@@ -21,5 +21,16 @@ for key in ("sales","purchases"):
 d=checks["dialog"].read_text(encoding="utf-8")
 if "_premiumField" not in d or "KajDesignTokens.surfaceGradient" not in d: raise SystemExit("FAIL premium dialog layout")
 w=checks["window"].read_text(encoding="utf-8")
-if not (("appBar?.title case final title?" in w or "appBar!.title!" in w) and "closeDock" in w and "if (actions.isNotEmpty) const SizedBox(width: 8)," in w): raise SystemExit("FAIL unified window command row")
-print("PASS V7.5.1 invoice-stage eligibility, unified close row, localized premium responsive model layout")
+window_required=(
+    "Desktop workspaces intentionally remain bounded",
+    "class _WorkspaceHeader",
+    "class _WorkspacePresentation",
+    "appBar?.title is Text",
+    "appBar!.title!",
+    "appBar?.actions",
+    "module-workspace-window",
+    "ValueKey('module-page-close')",
+)
+if any(token not in w for token in window_required): raise SystemExit("FAIL unified bounded window command row")
+if "closeDock" in w or "class _WindowFooter" in w: raise SystemExit("FAIL legacy window command row still active")
+print("PASS V7.5.1 invoice-stage eligibility, unified bounded close row, localized premium responsive model layout")

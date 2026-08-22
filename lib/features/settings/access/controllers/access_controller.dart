@@ -10,6 +10,7 @@ import 'package:quality_line_erp/core/cloud/cloud_bootstrap.dart';
 import 'package:quality_line_erp/core/cloud/cloud_feature_command.dart';
 import 'package:quality_line_erp/core/cloud/cloud_tenant_context.dart';
 import 'package:quality_line_erp/core/cloud/cloud_realtime_bridge.dart';
+import 'package:quality_line_erp/core/cloud/persisted_session_failure.dart';
 import 'package:quality_line_erp/core/cloud/cloud_tenant_membership_service.dart';
 import 'package:quality_line_erp/core/cloud/supabase_user_administration_service.dart';
 
@@ -28,10 +29,20 @@ import 'package:quality_line_erp/features/settings/access/repositories/access_re
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 
 class AccessController extends ChangeNotifier {
-  AccessController({AccessRepository? repository})
-    : _repository = repository ?? AccessRepository();
+  AccessController({
+    AccessRepository? repository,
+    Future<bool> Function()? persistedSessionRestoreForTesting,
+    Future<void> Function()? invalidSessionCleanupForTesting,
+  }) : _repository = repository ?? AccessRepository(),
+       // Publicly named hooks keep static Supabase state out of focused tests.
+       // ignore: prefer_initializing_formals
+       _persistedSessionRestoreForTesting = persistedSessionRestoreForTesting,
+       // ignore: prefer_initializing_formals
+       _invalidSessionCleanupForTesting = invalidSessionCleanupForTesting;
 
   final AccessRepository _repository;
+  final Future<bool> Function()? _persistedSessionRestoreForTesting;
+  final Future<void> Function()? _invalidSessionCleanupForTesting;
   final AccessPolicyEngine _policyEngine = AccessPolicyEngine();
 
   List<UserModel> _users = [];
@@ -128,6 +139,31 @@ class AccessController extends ChangeNotifier {
 
   bool hasPermission(String code) {
     return isSystemAdmin || _currentPermissions.contains(code);
+  }
+
+  /// Granular workflow/action restrictions are opt-in for compatibility with
+  /// roles created before Phase 11. Once `<resource>.actions.restrict` is
+  /// granted, only the explicit action code is accepted.
+  bool hasRestrictedActions(String resource) {
+    if (isSystemAdmin) return false;
+    return PermissionContract.hasRestrictedActions(
+      _currentPermissions,
+      resource,
+    );
+  }
+
+  bool canPerformAction(
+    String resource,
+    String action, {
+    required String legacyPermission,
+  }) {
+    return PermissionContract.canPerformAction(
+      _currentPermissions,
+      resource: resource,
+      actionName: action,
+      legacyPermission: legacyPermission,
+      isSystemAdmin: isSystemAdmin,
+    );
   }
 
   /// Returns true when granular field restrictions are enabled for [resource].
@@ -242,35 +278,49 @@ class AccessController extends ChangeNotifier {
   Future<bool> restorePersistedSession() async {
     _errorMessage = null;
     try {
-      final bootstrap = await CloudBootstrap.initialize().timeout(
-        const Duration(seconds: 25),
-      );
-      if (!bootstrap.supabaseReady) return false;
-
-      final cloudUser = Supabase.instance.client.auth.currentUser;
-      final session = Supabase.instance.client.auth.currentSession;
-      final cloudEmail = cloudUser?.email;
-      if (cloudUser == null || session == null || cloudEmail == null) {
-        return false;
-      }
-
-      await CloudTenantMembershipService.instance
-          .activateForCurrentUser()
-          .timeout(const Duration(seconds: 15));
-      final user = await _repository.bootstrapCurrentCloudAccess(
-        uid: cloudUser.id,
-        email: cloudEmail,
-        emailVerified: cloudUser.emailConfirmedAt != null,
-      );
-      if (user == null) return false;
-
-      await _activateUser(user);
-      return true;
+      final testRestore = _persistedSessionRestoreForTesting;
+      if (testRestore != null) return await testRestore();
+      return await _restorePersistedSession();
     } catch (error, stackTrace) {
+      if (isInvalidPersistedAuthFailure(error)) {
+        final testCleanup = _invalidSessionCleanupForTesting;
+        if (testCleanup != null) {
+          await testCleanup();
+        } else {
+          await _discardInvalidPersistedSession();
+        }
+      }
       AppLogger.debug('Persisted Supabase session restore skipped: $error');
       AppLogger.stack(stackTrace);
       return false;
     }
+  }
+
+  Future<bool> _restorePersistedSession() async {
+    final bootstrap = await CloudBootstrap.initialize().timeout(
+      const Duration(seconds: 25),
+    );
+    if (!bootstrap.supabaseReady) return false;
+
+    final cloudUser = Supabase.instance.client.auth.currentUser;
+    final session = Supabase.instance.client.auth.currentSession;
+    final cloudEmail = cloudUser?.email;
+    if (cloudUser == null || session == null || cloudEmail == null) {
+      return false;
+    }
+
+    await CloudTenantMembershipService.instance
+        .activateForCurrentUser()
+        .timeout(const Duration(seconds: 15));
+    final user = await _repository.bootstrapCurrentCloudAccess(
+      uid: cloudUser.id,
+      email: cloudEmail,
+      emailVerified: cloudUser.emailConfirmedAt != null,
+    );
+    if (user == null) return false;
+
+    await _activateUser(user);
+    return true;
   }
 
   /// Prepares the interactive login surface without destroying a valid
@@ -438,6 +488,33 @@ class AccessController extends ChangeNotifier {
         'Failed to discard incomplete Supabase login session: $error',
       );
     }
+  }
+
+  Future<void> _discardInvalidPersistedSession() async {
+    _currentUser = null;
+    _currentPermissions = <String>{};
+    _isTemporaryPreview = false;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await CloudRealtimeBridge.instance.stop().timeout(
+        const Duration(seconds: 3),
+      );
+    } catch (error) {
+      AppLogger.debug('Invalid-session realtime cleanup skipped: $error');
+    }
+    try {
+      await Supabase.instance.client.auth
+          .signOut(scope: SignOutScope.local)
+          .timeout(const Duration(seconds: 10));
+    } catch (error) {
+      AppLogger.debug(
+        'Invalid persisted Supabase session cleanup failed: $error',
+      );
+    }
+    await AppExecutionContext.clear();
+    await CloudTenantContext.instance.clearCloudSelection();
   }
 
   String _accessBootstrapMessage(String message) {

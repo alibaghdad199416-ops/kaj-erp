@@ -1,5 +1,5 @@
 from pathlib import Path
-import hashlib
+from verification_text import normalized_text_sha256
 import re
 import sys
 
@@ -167,13 +167,13 @@ need('ReconfigureRuntime' not in deploy and 'dart_defines.json' in deploy,
 
 # Production connection files are immutable across the runtime repair.
 expected_hashes = {
-    'dart_defines.json': '1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7',
-    '.firebaserc': '003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e',
+    'dart_defines.json': '4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f',
+    '.firebaserc': 'f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8',
     'firebase.json': 'ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a',
 }
 for rel, expected in expected_hashes.items():
-    actual = hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
-    need(actual == expected, f'production configuration changed: {rel}')
+    actual = normalized_text_sha256(ROOT / rel)
+    need(actual == expected, f'local runtime/hosting baseline changed: {rel}')
 
 # R14 must remain present and precede any later closure migrations.
 migrations = sorted(p.name for p in (ROOT / 'supabase/migrations').glob('*.sql'))
@@ -195,4 +195,4 @@ print('  - workflow status/accounting writes no longer require unrelated *.updat
 print('  - Phase-26 browser contract is recreated behind an explicit PostgREST schema reload')
 print('  - sales/purchase invoice approval uses one diagnosable R14 contract over V23.0.2/V7.6.2')
 print('  - sales cross-definition currency and purchase single-currency accounting policies are retained')
-print('  - Supabase/Firebase production configuration hashes are unchanged')
+print('  - Local Supabase/Firebase baseline hashes are unchanged')

@@ -103,6 +103,14 @@ class _AddJournalEntryPageState extends State<AddJournalEntryPage> {
         _showError('يجب أن يحتوي كل سطر على مبلغ مدين أو دائن موجب واحد فقط.');
         return;
       }
+      if (!controller.isAccountPostable(line.account!.id)) {
+        _showError(
+          context.l10n.isArabic
+              ? 'لا يمكن التقييد على حساب رئيسي/رقابي. اختر حسابًا تفصيليًا قابلاً للتقييد.'
+              : 'Header/control accounts cannot receive postings. Select a postable detail account.',
+        );
+        return;
+      }
       final accountCurrency = line.account!.currency.toUpperCase();
       if (accountCurrency != _currency && accountCurrency != 'MULTI') {
         _showError('عملة حساب السطر لا تطابق عملة القيد.');
@@ -199,7 +207,7 @@ class _AddJournalEntryPageState extends State<AddJournalEntryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final accounts = context.watch<AccountingController>().accounts;
+    final accounts = context.watch<AccountingController>().postableAccounts;
     return Directionality(
       textDirection: Directionality.of(context),
       child: Scaffold(

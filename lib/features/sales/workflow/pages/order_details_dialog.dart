@@ -18,12 +18,13 @@ import 'package:quality_line_erp/core/finance/invoice_payment_batch_dialog.dart'
 import 'package:quality_line_erp/core/widgets/warehouse_allocation_dialog.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
+import 'package:quality_line_erp/core/operations/operational_lifecycle_table.dart';
 import 'package:quality_line_erp/core/printing/enterprise_document_pdf_service.dart';
 import 'package:quality_line_erp/core/widgets/app_module_action_icon.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
-import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/core/widgets/app_top_navigation.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
+import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
 import 'package:quality_line_erp/features/purchases/pages/purchase_order_draft_page.dart';
 import 'package:quality_line_erp/features/purchases/repositories/purchase_workflow_repository.dart';
 import 'package:quality_line_erp/features/sales/workflow/pages/sales_order_draft_page.dart';
@@ -37,10 +38,14 @@ class OrderDetailsDialog extends StatefulWidget {
     super.key,
     required this.orderId,
     required this.purchase,
+    this.initialDetails,
+    this.initialDocuments = const <Map<String, Object?>>[],
   });
 
   final String orderId;
   final bool purchase;
+  final CommercialOrderDetails? initialDetails;
+  final List<Map<String, Object?>> initialDocuments;
 
   @override
   State<OrderDetailsDialog> createState() => _OrderDetailsDialogState();
@@ -70,7 +75,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       );
 
   final _money = NumberFormat('#,##0.##');
-  final _detailsRepository = CommercialOrderDetailsRepository();
+  CommercialOrderDetailsRepository? _detailsRepository;
   final _documentRepository = DocumentManagementRepository();
   final _documentStorage = DocumentStorageRepository();
   final _pdfService = const EnterpriseDocumentPdfService();
@@ -82,6 +87,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   List<Map<String, Object?>> _items = const [];
   List<Map<String, Object?>> _logistics = const [];
   List<Map<String, Object?>> _invoices = const [];
+  List<Map<String, Object?>> _reconciliation = const [];
   List<Map<String, Object?>> _payments = const [];
   List<Map<String, Object?>> _movements = const [];
   List<Map<String, Object?>> _journalEntries = const [];
@@ -95,7 +101,25 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    final initial = widget.initialDetails;
+    if (initial == null) {
+      unawaited(_load());
+      return;
+    }
+    _order = initial.order;
+    _items = initial.items;
+    _logistics = initial.logistics;
+    _invoices = initial.invoices;
+    _reconciliation = initial.reconciliation;
+    _payments = initial.payments;
+    _movements = initial.movements;
+    _journalEntries = initial.journalEntries;
+    _auditTrail = _sortAuditTrail(initial.auditTrail);
+    _documents = List<Map<String, Object?>>.unmodifiable(
+      widget.initialDocuments,
+    );
+    _documentsLoaded = true;
+    _loading = false;
   }
 
   Future<void> _load() async {
@@ -122,10 +146,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                   return <Map<String, Object?>>[];
                 });
       final results = await Future.wait<Object?>(<Future<Object?>>[
-        _detailsRepository.loadComplete(
-          orderId: widget.orderId,
-          purchase: widget.purchase,
-        ),
+        (_detailsRepository ??= CommercialOrderDetailsRepository())
+            .loadComplete(orderId: widget.orderId, purchase: widget.purchase),
         documentsFuture,
       ]);
       final details = results[0] as CommercialOrderDetails;
@@ -143,6 +165,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         _movements = details.movements;
         _journalEntries = details.journalEntries;
         _auditTrail = _sortAuditTrail(details.auditTrail);
+        _reconciliation = details.reconciliation;
         _documents = documents;
         _documentsLoaded = true;
         _loading = false;
@@ -164,6 +187,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
 
   String _bi(String arabic, String english) =>
       context.l10n.isArabic ? arabic : english;
+
+  String get _unitField => widget.purchase ? 'unitCost' : 'unitPrice';
 
   Future<void> _editOrder() async {
     if (_mutatingOrder) return;
@@ -204,9 +229,9 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     }
   }
 
-  Future<void> _deleteOrder() async {
+  Future<void> _cancelOrder() async {
     if (_mutatingOrder) return;
-    final permission = widget.purchase ? 'purchases.delete' : 'sales.delete';
+    final permission = widget.purchase ? 'purchases.cancel' : 'sales.cancel';
     if (!await PermissionAction.require(context, permission)) return;
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
@@ -214,14 +239,14 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       builder: (dialogContext) => AlertDialog(
         title: AppText(
           _bi(
-            widget.purchase ? 'حذف أمر الشراء' : 'حذف أمر البيع',
-            widget.purchase ? 'Delete purchase order' : 'Delete sales order',
+            widget.purchase ? 'إلغاء أمر الشراء' : 'إلغاء أمر البيع',
+            widget.purchase ? 'Cancel purchase order' : 'Cancel sales order',
           ),
         ),
         content: AppText(
           _bi(
-            'سيتم عكس الفاتورة والحركة المخزنية ثم حذف الأمر وبنوده، دون إنشاء قيود تشغيلية إضافية تلقائيًا. تبقى الدفعات المالية في حساب العميل أو المورد كرصيد غير مخصص، وتُحتسب تلقائيًا عند تصديق فاتورة لاحقة للطرف نفسه وبالعملة نفسها، ولا تُحذف إلا من الصندوق.',
-            'Invoice and inventory links will be reversed before deleting the order and lines; no additional operational journals are created automatically. Financial payments remain as an unapplied partner balance, are automatically considered for a later approved invoice of the same party and currency, and are deleted only from the cashbox.',
+            'سيبقى الأمر ومرجعه التجاري محفوظين بحالة ملغي. ستُعكس آثار الفاتورة والمحاسبة والمخزون ذريًا. تبقى الدفعات المالية في حساب العميل أو المورد كرصيد غير مخصص.',
+            'The order and its business reference will remain as Cancelled. Invoice, accounting, and inventory effects will be reversed atomically. Real payments remain as unapplied partner credit and are automatically considered for a later approved invoice of the same partner and currency.',
           ),
         ),
         actions: [
@@ -231,10 +256,72 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.delete_forever_outlined),
+            icon: const Icon(Icons.cancel_outlined),
             label: AppText(
-              _bi('حذف الأمر وارتباطاته', 'Delete order and links'),
+              _bi(
+                'إلغاء الأمر وعكس الآثار',
+                'Cancel order and reverse effects',
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _mutatingOrder = true);
+    try {
+      if (widget.purchase) {
+        await PurchaseWorkflowRepository().cancelOrder(widget.orderId);
+      } else {
+        await SalesWorkflowRepository().cancelOrder(widget.orderId);
+      }
+      if (!mounted) return;
+      await _load();
+    } catch (error) {
+      AppLogger.debug('Commercial workflow operation failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: context.l10n.isArabic,
+              arabicFallback: 'تعذر إلغاء الأمر وعكس آثاره المرتبطة.',
+              englishFallback: 'Unable to cancel and reverse the order.',
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _mutatingOrder = false);
+    }
+  }
+
+  Future<void> _deleteDraftOrder() async {
+    if (_mutatingOrder) return;
+    final permission = widget.purchase ? 'purchases.delete' : 'sales.delete';
+    if (!await PermissionAction.require(context, permission) || !mounted)
+      return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: AppText(_bi('حذف المسودة', 'Delete draft')),
+        content: AppText(
+          _bi(
+            'سيُحذف أمر المسودة الذي لم يُنفذ. الإلغاء والعكس عملية مستقلة للمستندات المنفذة.',
+            'This removes the unexecuted draft order. Cancel and reverse remains a separate operation for executed documents.',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: AppText(_bi('رجوع', 'Back')),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: AppText(_bi('حذف المسودة', 'Delete draft')),
           ),
         ],
       ),
@@ -247,24 +334,22 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       } else {
         await SalesWorkflowRepository().deleteOrderCascade(widget.orderId);
       }
-      if (!mounted) return;
-      AppWorkspaceWindowScope.closeCurrent(context, true);
+      if (mounted) Navigator.pop(context, true);
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            userFacingError(
-              error,
-              isArabic: context.l10n.isArabic,
-              arabicFallback: 'تعذر حذف الأمر لوجود بيانات مرتبطة به.',
-              englishFallback:
-                  'Unable to delete the order because linked records exist.',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: AppText(
+              userFacingError(
+                error,
+                isArabic: context.l10n.isArabic,
+                arabicFallback: 'تعذر حذف مسودة الأمر.',
+                englishFallback: 'Unable to delete the draft order.',
+              ),
             ),
           ),
-          backgroundColor: Colors.red,
-        ),
-      );
+        );
+      }
     } finally {
       if (mounted) setState(() => _mutatingOrder = false);
     }
@@ -387,9 +472,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
   }
 
   Future<void> _approveLogistics(String documentId) => _runWorkflowOperation(
-    () => widget.purchase
-        ? PurchaseWorkflowRepository().approveReceipt(documentId)
-        : SalesWorkflowRepository().approveDelivery(documentId),
+    () => SalesWorkflowRepository().approveDelivery(documentId),
   );
 
   Future<void> _createInvoiceDraft() => _runWorkflowOperation(
@@ -496,10 +579,10 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
           AppModuleActionIcon(
             tooltip: _bi(
               widget.purchase
-                  ? 'إنشاء إشعار الاستلام المخزني'
+                  ? 'إنشاء الاستلام المخزني'
                   : 'إنشاء إذن التجهيز المخزني',
               widget.purchase
-                  ? 'Create warehouse receipt'
+                  ? 'Receive into warehouse'
                   : 'Create warehouse delivery',
             ),
             icon: widget.purchase
@@ -513,30 +596,22 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
               : 'sales.approve',
         ),
       );
-    } else if (logistics != null &&
+    } else if (!widget.purchase &&
+        logistics != null &&
         const <String>{'draft', 'pending_approval'}.contains(logisticsStatus)) {
       final documentId = logistics['id']?.toString() ?? '';
       actions.add(
         _fieldAction(
-          widget.purchase ? 'receipt' : 'delivery',
+          'delivery',
           AppModuleActionIcon(
-            tooltip: _bi(
-              widget.purchase
-                  ? 'تصديق الاستلام المخزني'
-                  : 'تصديق التجهيز المخزني',
-              widget.purchase
-                  ? 'Approve warehouse receipt'
-                  : 'Approve warehouse delivery',
-            ),
+            tooltip: _bi('تصديق التجهيز المخزني', 'Approve warehouse delivery'),
             icon: Icons.inventory_rounded,
             busy: busy,
             onPressed: busy || documentId.isEmpty
                 ? null
                 : () => _approveLogistics(documentId),
           ),
-          writePermission: widget.purchase
-              ? 'purchases.approve'
-              : 'sales.approve',
+          writePermission: 'sales.approve',
         ),
       );
     } else if (const <String>{
@@ -760,7 +835,9 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     final id = row['id']?.toString() ?? '';
     final status = row['status']?.toString().toLowerCase() ?? '';
     final busy = _mutatingComponentId == id;
-    final canApprove = const {'draft', 'pending_approval'}.contains(status);
+    final canApprove =
+        const {'draft', 'pending_approval'}.contains(status) &&
+        !(widget.purchase && componentType == 'receipt');
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -840,7 +917,6 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     if (order == null) {
       return Center(child: AppText(_bi('الأمر غير موجود', 'Order not found')));
     }
-    final unitField = widget.purchase ? 'unitCost' : 'unitPrice';
     return DefaultTabController(
       length: 7,
       child: Scaffold(
@@ -859,14 +935,34 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
               icon: Icons.edit_outlined,
               onPressed: _mutatingOrder ? null : _editOrder,
             ),
+            if (const <String>{
+              'draft',
+              'cancelled',
+            }.contains(order['status']?.toString().toLowerCase()))
+              AppModuleActionIcon(
+                tooltip:
+                    order['status']?.toString().toLowerCase() == 'cancelled'
+                    ? _bi('حذف الأمر الملغى', 'Delete cancelled order')
+                    : _bi('حذف المسودة', 'Delete draft'),
+                icon: Icons.delete_outline_rounded,
+                destructive: true,
+                onPressed: _mutatingOrder ? null : _deleteDraftOrder,
+              ),
             AppModuleActionIcon(
               tooltip: _bi(
-                'حذف الأمر مع عكس الارتباطات',
-                'Delete order and reverse links',
+                'إلغاء الأمر وعكس الارتباطات',
+                'Cancel order and reverse links',
               ),
-              icon: Icons.delete_outline_rounded,
+              icon: Icons.cancel_outlined,
               destructive: true,
-              onPressed: _mutatingOrder ? null : _deleteOrder,
+              onPressed:
+                  _mutatingOrder ||
+                      const <String>{
+                        'draft',
+                        'cancelled',
+                      }.contains(order['status']?.toString().toLowerCase())
+                  ? null
+                  : _cancelOrder,
             ),
             AppModuleActionIcon(
               tooltip: _bi('تنزيل PDF', 'Download PDF'),
@@ -915,102 +1011,19 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
             ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                _workflow(order),
+                const SizedBox(height: 12),
                 _summary(order),
                 const SizedBox(height: 12),
-                AppText(
-                  _bi('البنود', 'Items'),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._items.map(
-                  (item) => Card(
-                    child: ExpansionTile(
-                      leading: Icon(
-                        item['itemType'] == 'car'
-                            ? Icons.directions_car
-                            : Icons.inventory_2,
-                      ),
-                      title: AppText(item['description']?.toString() ?? '-'),
-                      subtitle: AppText(
-                        _bi(
-                          'النوع: ${item['itemType']} • الكمية: ${item['quantity']} • السعر: ${_money.format((item[unitField] as num?)?.toDouble() ?? 0)} • الإجمالي: ${_money.format((item['lineTotal'] as num?)?.toDouble() ?? 0)} ${order['currency']}',
-                          'Type: ${item['itemType']} • Quantity: ${item['quantity']} • Price: ${_money.format((item[unitField] as num?)?.toDouble() ?? 0)} • Total: ${_money.format((item['lineTotal'] as num?)?.toDouble() ?? 0)} ${order['currency']}',
-                        ),
-                      ),
-                      children: [_itemDetails(item)],
-                    ),
-                  ),
-                ),
+                _itemLifecycleTable(order),
               ],
             ),
             _fieldView(
               widget.purchase ? 'receipt' : 'delivery',
-              _records(
-                _logistics,
-                (row) =>
-                    '${row['receiptNumber'] ?? row['deliveryNumber']} — ${row['warehouseName'] ?? _bi('بدون مخزن', 'No warehouse')}',
-                (row) => _bi(
-                  'الحالة: ${row['status']} • التاريخ: ${row['receiptDate'] ?? row['deliveryDate']}',
-                  'Status: ${row['status']} • Date: ${row['receiptDate'] ?? row['deliveryDate']}',
-                ),
-                trailing: (row) =>
-                    _componentActions(row, componentType: 'logistics'),
-              ),
+              _warehouseDocumentsTable(order),
             ),
-            _fieldView(
-              'invoice',
-              _records(
-                _invoices,
-                (row) =>
-                    '${row['invoiceNumber']} — ${_money.format((row['total'] as num?)?.toDouble() ?? 0)} ${row['currency']}',
-                (row) => _bi(
-                  'الحالة: ${row['status']} • المدفوع: ${_money.format((row['paidAmount'] as num?)?.toDouble() ?? 0)} • المتبقي: ${_money.format((row['remainingAmount'] as num?)?.toDouble() ?? 0)}',
-                  'Status: ${row['status']} • Paid: ${_money.format((row['paidAmount'] as num?)?.toDouble() ?? 0)} • Remaining: ${_money.format((row['remainingAmount'] as num?)?.toDouble() ?? 0)}',
-                ),
-                trailing: (row) =>
-                    _componentActions(row, componentType: 'invoice'),
-              ),
-            ),
-            _fieldView(
-              'payments',
-              _records(
-                _payments,
-                (row) =>
-                    '${row['cashAccountName'] ?? _bi('صندوق', 'Cash account')} — ${_money.format((row['cashAmount'] as num?)?.toDouble() ?? 0)} ${row['paymentCurrency']}',
-                (row) {
-                  final settlementMode = row['settlementMode']?.toString();
-                  final mode = switch (settlementMode) {
-                    'settlement' => _bi(
-                      'دفعة تسوية محاسبية',
-                      'Accounting settlement payment',
-                    ),
-                    'full' || 'full_fx' => _bi('دفعة كلية', 'Full payment'),
-                    _ => _bi('دفعة جزئية', 'Partial payment'),
-                  };
-                  final difference =
-                      (row['exchangeDifference'] as num?)?.toDouble() ?? 0;
-                  final differenceText = difference.abs() <= 0.01
-                      ? _bi('بدون فرق صرف', 'No exchange difference')
-                      : difference > 0
-                      ? _bi(
-                          'فرق صرف دائن: ${_money.format(difference)}',
-                          'Credit exchange difference: ${_money.format(difference)}',
-                        )
-                      : _bi(
-                          'فرق صرف مدين: ${_money.format(difference.abs())}',
-                          'Debit exchange difference: ${_money.format(difference.abs())}',
-                        );
-                  return _bi(
-                    'مبلغ الفاتورة: ${_money.format((row['invoiceAmount'] as num?)?.toDouble() ?? 0)} • $mode • $differenceText • التاريخ: ${row['paymentDate']}',
-                    'Invoice amount: ${_money.format((row['invoiceAmount'] as num?)?.toDouble() ?? 0)} • $mode • $differenceText • Date: ${row['paymentDate']}',
-                  );
-                },
-                trailing: (_) => _paymentCashboxAction(),
-              ),
-            ),
+            _fieldView('invoice', _invoiceDocumentsTable(order)),
+            _fieldView('payments', _paymentsTable(order)),
             _fieldView(
               'accounting',
               _records(
@@ -1039,6 +1052,54 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     );
   }
 
+  Widget _workflow(Map<String, Object?> order) {
+    final logisticsApproved = _logistics.any(
+      (row) => row['status']?.toString().toLowerCase() == 'approved',
+    );
+    final invoiceApproved = _invoices.any(
+      (row) => row['status']?.toString().toLowerCase() == 'approved',
+    );
+    final paid = _invoices.any((row) => _number(row['remainingAmount']) <= .01);
+    final orderApproved = const <String>{
+      'approved',
+      'partially_executed',
+      'completed',
+      'closed',
+    }.contains(order['status']?.toString().toLowerCase());
+    final opportunityLinked =
+        !widget.purchase &&
+        (order['opportunityId']?.toString().trim().isNotEmpty ?? false);
+    final index = paid
+        ? (widget.purchase ? 3 : 4)
+        : invoiceApproved
+        ? (widget.purchase ? 2 : 3)
+        : logisticsApproved
+        ? (widget.purchase ? 1 : 2)
+        : orderApproved
+        ? (widget.purchase ? 0 : 1)
+        : opportunityLinked
+        ? 1
+        : 0;
+    return KajWorkflowStepper(
+      currentIndex: index,
+      compact: MediaQuery.sizeOf(context).width < 720,
+      steps: widget.purchase
+          ? <String>[
+              _bi('أمر الشراء', 'Purchase order'),
+              _bi('الاستلام', 'Receipt'),
+              _bi('الفاتورة', 'Invoice'),
+              _bi('الدفع', 'Payment'),
+            ]
+          : <String>[
+              _bi('الفرصة', 'Opportunity'),
+              _bi('أمر البيع', 'Sales order'),
+              _bi('التجهيز', 'Delivery'),
+              _bi('الفاتورة', 'Invoice'),
+              _bi('التحصيل', 'Payment'),
+            ],
+    );
+  }
+
   Future<void> _exportPdf() async {
     final order = _order;
     if (order == null || _exportingPdf) return;
@@ -1055,6 +1116,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         movements: _movements,
         journalEntries: _journalEntries,
         auditTrail: _auditTrail,
+        reconciliation: _reconciliation,
       );
       final rawNumber = (order['orderNumber'] ?? 'document').toString();
       final safeNumber = rawNumber.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
@@ -1108,6 +1170,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         movements: _movements,
         journalEntries: _journalEntries,
         auditTrail: _auditTrail,
+        reconciliation: _reconciliation,
       );
     } catch (error) {
       if (!mounted) return;
@@ -1364,10 +1427,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       'تصديق إذن التجهيز',
       'Approve delivery note',
     ),
-    'approve_purchase_receipt' => _bi(
-      'تصديق إشعار الاستلام',
-      'Approve goods receipt',
-    ),
+    'approve_purchase_receipt' => _bi('استلام مخزني', 'Warehouse receipt'),
     'approve_sales_invoice' ||
     'approve_purchase_invoice' => _bi('تصديق الفاتورة', 'Approve invoice'),
     'cancel_sales_invoice' ||
@@ -1402,6 +1462,8 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     _ => status,
   };
 
+  // Retained for alternate expanded item presentation.
+  // ignore: unused_element
   Widget _itemDetails(Map<String, Object?> item) {
     final isCar = item['itemType'] == 'car';
     final details = isCar
@@ -1557,6 +1619,43 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     );
   }
 
+  // Retained for R57 reconciliation/source-contract compatibility.
+  // ignore: unused_element
+  Widget _reconciliationPanel() {
+    if (_reconciliation.isEmpty) return const SizedBox.shrink();
+    return Card(
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: const Icon(Icons.rule_folder_outlined),
+        title: AppText(
+          _bi('مطابقة كميات سير العمل', 'Workflow quantity reconciliation'),
+        ),
+        children: _reconciliation
+            .map((row) {
+              final status = row['status']?.toString() ?? 'pending';
+              return ListTile(
+                dense: true,
+                title: AppText(row['description']?.toString() ?? '-'),
+                subtitle: AppText(
+                  _bi(
+                    'المطلوب: ${row['orderedQuantity']} • التشغيلي: ${row['operationalQuantity']} • المفوتر: ${row['invoicedQuantity']} • المتبقي تشغيليًا: ${row['remainingOperational']} • المتبقي للفوترة: ${row['remainingInvoice']}',
+                    'Ordered: ${row['orderedQuantity']} • Operational: ${row['operationalQuantity']} • Invoiced: ${row['invoicedQuantity']} • To process: ${row['remainingOperational']} • To invoice: ${row['remainingInvoice']}',
+                  ),
+                ),
+                trailing: Chip(
+                  label: AppText(switch (status) {
+                    'reconciled' => _bi('مطابق', 'Reconciled'),
+                    'partial' => _bi('جزئي', 'Partial'),
+                    _ => _bi('بانتظار التنفيذ', 'Pending'),
+                  }),
+                ),
+              );
+            })
+            .toList(growable: false),
+      ),
+    );
+  }
+
   String _detailLabel(String key) => switch (key) {
     'id' => _bi('المعرف', 'ID'),
     'status' => _bi('الحالة', 'Status'),
@@ -1647,11 +1746,36 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       'inventorySnapshot',
       'sourceSnapshot',
     };
+    const hiddenIdentityKeys = <String>{
+      'id',
+      'itemId',
+      'item_id',
+      'productId',
+      'product_id',
+      'carId',
+      'car_id',
+      'warehouseId',
+      'warehouse_id',
+      'createdBy',
+      'created_by',
+      'approvedBy',
+      'approved_by',
+      'invoiceId',
+      'invoice_id',
+      'valuedByInvoiceId',
+      'valued_by_invoice_id',
+      'referenceId',
+      'reference_id',
+    };
+    final allocationRows = <Map<String, Object?>>[];
 
     void addMap(Map source, {String prefix = ''}) {
       for (final entry in source.entries) {
         final key = entry.key.toString();
-        if (hiddenTechnicalKeys.contains(key)) continue;
+        if (hiddenTechnicalKeys.contains(key) ||
+            hiddenIdentityKeys.contains(key)) {
+          continue;
+        }
         final value = entry.value;
         if (value == null || value.toString().trim().isEmpty) continue;
         final current = _detailLabel(key);
@@ -1668,13 +1792,20 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
         }
         if (value is List) {
           if (value.isEmpty) continue;
+          if (key == 'allocations' || key == 'items' || key == 'lines') {
+            allocationRows.addAll(
+              value.whereType<Map>().map(Map<String, Object?>.from),
+            );
+            continue;
+          }
           final text = value
               .map((element) {
                 if (element is! Map) return element.toString();
                 return element.entries
                     .where(
                       (entry) =>
-                          !hiddenTechnicalKeys.contains(entry.key.toString()),
+                          !hiddenTechnicalKeys.contains(entry.key.toString()) &&
+                          !hiddenIdentityKeys.contains(entry.key.toString()),
                     )
                     .map(
                       (entry) =>
@@ -1692,10 +1823,10 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
     }
 
     addMap(row);
-    if (flattened.isEmpty) {
+    if (flattened.isEmpty && allocationRows.isEmpty) {
       return AppText(_bi('لا توجد تفاصيل إضافية.', 'No additional details.'));
     }
-    return Wrap(
+    final fields = Wrap(
       spacing: 10,
       runSpacing: 8,
       children: flattened
@@ -1734,6 +1865,640 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
             ),
           )
           .toList(growable: false),
+    );
+    if (allocationRows.isEmpty) return fields;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (flattened.isNotEmpty) fields,
+        if (flattened.isNotEmpty) const SizedBox(height: 14),
+        AppText(
+          _bi(
+            'بنود المستند والتوزيع الفعلي',
+            'Document lines and actual allocation',
+          ),
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: <DataColumn>[
+              DataColumn(label: AppText(_bi('البند', 'Item'))),
+              DataColumn(label: AppText(_bi('النوع', 'Type'))),
+              DataColumn(label: AppText(_bi('المخزن', 'Warehouse'))),
+              DataColumn(label: AppText(_bi('الكمية', 'Quantity'))),
+            ],
+            rows: allocationRows
+                .map((allocation) {
+                  final itemId =
+                      (allocation['itemId'] ?? allocation['productId'])
+                          ?.toString();
+                  final item = _items.cast<Map<String, Object?>?>().firstWhere(
+                    (candidate) =>
+                        candidate?['id']?.toString() == itemId ||
+                        candidate?['itemId']?.toString() == itemId,
+                    orElse: () => null,
+                  );
+                  final itemName =
+                      item?['itemCode'] ??
+                      item?['code'] ??
+                      item?['carNumber'] ??
+                      item?['name'] ??
+                      item?['description'] ??
+                      allocation['description'] ??
+                      _bi('بند مخزني', 'Inventory item');
+                  final warehouseId = allocation['warehouseId']?.toString();
+                  final movement = _movements
+                      .cast<Map<String, Object?>?>()
+                      .firstWhere(
+                        (candidate) =>
+                            candidate?['warehouseId']?.toString() ==
+                            warehouseId,
+                        orElse: () => null,
+                      );
+                  final warehouse =
+                      movement?['warehouseName'] ??
+                      row['warehouseName'] ??
+                      _bi('مخزن محدد', 'Selected warehouse');
+                  return DataRow(
+                    cells: <DataCell>[
+                      DataCell(AppText(itemName.toString())),
+                      DataCell(
+                        AppText(
+                          _humanize(
+                            (allocation['itemType'] ?? item?['itemType'] ?? '-')
+                                .toString(),
+                          ),
+                        ),
+                      ),
+                      DataCell(AppText(warehouse.toString())),
+                      DataCell(
+                        AppText(
+                          _number(allocation['quantity']).toStringAsFixed(2),
+                        ),
+                      ),
+                    ],
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Object? _firstValue(Map<String, Object?> row, List<String> keys) {
+    for (final key in keys) {
+      final value = row[key];
+      if (value == null) continue;
+      if (value is String && value.trim().isEmpty) continue;
+      return value;
+    }
+    return null;
+  }
+
+  String _dateTimeText(Object? value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+    return parsed == null
+        ? _displayValue(value)
+        : DateFormat('yyyy/MM/dd HH:mm').format(parsed);
+  }
+
+  List<Map<String, Object?>> _documentLines(Map<String, Object?> row) {
+    final result = <Map<String, Object?>>[];
+    void read(Object? value) {
+      if (value is List) {
+        result.addAll(value.whereType<Map>().map(Map<String, Object?>.from));
+      }
+    }
+
+    read(row['allocations']);
+    read(row['items']);
+    read(row['lines']);
+    final payload = row['payload'];
+    if (payload is Map) {
+      read(payload['allocations']);
+      read(payload['items']);
+      read(payload['lines']);
+    }
+    final invoicePayload = row['invoicePayload'];
+    if (invoicePayload is Map) {
+      read(invoicePayload['allocations']);
+      read(invoicePayload['items']);
+      read(invoicePayload['lines']);
+    }
+    return result;
+  }
+
+  Map<String, Object?>? _itemFor(Object? itemId) {
+    final id = itemId?.toString();
+    if (id == null || id.isEmpty) return null;
+    for (final item in _items) {
+      if (item['id']?.toString() == id ||
+          item['itemId']?.toString() == id ||
+          item['productId']?.toString() == id ||
+          item['carId']?.toString() == id) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?>? _reconciliationFor(Object? itemId) {
+    final id = itemId?.toString();
+    if (id == null || id.isEmpty) return null;
+    for (final row in _reconciliation) {
+      if (row['itemId']?.toString() == id || row['id']?.toString() == id) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  String _itemLabel(Map<String, Object?>? item, Map<String, Object?>? line) {
+    return _firstValue(item ?? const <String, Object?>{}, const [
+          'itemCode',
+          'code',
+          'carNumber',
+          'name',
+        ])?.toString() ??
+        _firstValue(line ?? const <String, Object?>{}, const [
+          'itemCode',
+          'code',
+          'productName',
+          'carNumber',
+          'name',
+        ])?.toString() ??
+        _bi('بند', 'Item');
+  }
+
+  String _itemDescription(
+    Map<String, Object?>? item,
+    Map<String, Object?>? line,
+  ) {
+    return _firstValue(item ?? const <String, Object?>{}, const [
+          'description',
+          'detail_name',
+          'name',
+        ])?.toString() ??
+        _firstValue(line ?? const <String, Object?>{}, const [
+          'description',
+          'productName',
+          'name',
+        ])?.toString() ??
+        '-';
+  }
+
+  String _warehouseForLine(
+    Map<String, Object?>? item,
+    Map<String, Object?>? line,
+    Map<String, Object?>? document,
+  ) {
+    final direct = _firstValue(line ?? const <String, Object?>{}, const [
+      'warehouseName',
+      'warehouse_name',
+    ]);
+    if (direct != null) return direct.toString();
+    final warehouseId = _firstValue(line ?? const <String, Object?>{}, const [
+      'warehouseId',
+      'warehouse_id',
+    ])?.toString();
+    if (warehouseId != null) {
+      for (final movement in _movements) {
+        if (movement['warehouseId']?.toString() == warehouseId ||
+            movement['warehouse_id']?.toString() == warehouseId) {
+          final name = _firstValue(movement, const [
+            'warehouseName',
+            'warehouse_name',
+          ]);
+          if (name != null) return name.toString();
+        }
+      }
+    }
+    final documentWarehouse = _firstValue(
+      document ?? const <String, Object?>{},
+      const ['warehouseName', 'warehouse_name'],
+    );
+    if (documentWarehouse != null) return documentWarehouse.toString();
+    return _firstValue(item ?? const <String, Object?>{}, const [
+          'detail_warehouseName',
+          'warehouseName',
+          'warehouse_name',
+        ])?.toString() ??
+        '-';
+  }
+
+  Widget _operationalTable({
+    required List<DataColumn> columns,
+    required List<DataRow> rows,
+    String? emptyText,
+  }) {
+    if (rows.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: AppText(
+            emptyText ?? _bi('لا توجد بيانات مرتبطة', 'No linked data'),
+          ),
+        ),
+      );
+    }
+    return _OperationalTableViewport(columns: columns, rows: rows);
+  }
+
+  DataColumn _column(String ar, String en, {bool numeric = false}) =>
+      DataColumn(label: AppText(_bi(ar, en)), numeric: numeric);
+
+  DataCell _textCell(Object? value, {bool strong = false}) => DataCell(
+    AppText(
+      _displayValue(value),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: strong ? const TextStyle(fontWeight: FontWeight.w700) : null,
+    ),
+  );
+
+  DataCell _numberCell(Object? value) => DataCell(
+    Align(
+      alignment: AlignmentDirectional.centerEnd,
+      child: AppText(_money.format(_number(value))),
+    ),
+  );
+
+  Widget _itemLifecycleTable(Map<String, Object?> _) {
+    final lifecycleRows = _items
+        .map((item) {
+          final itemId = _firstValue(item, const [
+            'id',
+            'itemId',
+            'productId',
+            'carId',
+          ]);
+          final reconciliation = _reconciliationFor(itemId);
+          return <String, Object?>{
+            ...item,
+            ...?reconciliation,
+            'lineId': itemId,
+            'itemId': itemId,
+            'description': _itemDescription(item, null),
+            'displayLabel': _itemLabel(item, null),
+          };
+        })
+        .toList(growable: false);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: AppText(
+              _bi(
+                'دورة البنود: المطلوب ← الحركة المخزنية ← المفوتر',
+                'Item lifecycle: Requested → Logistics → Invoiced',
+              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          OperationalLifecycleTable(
+            rows: lifecycleRows,
+            itemLabel: _bi('المادة / المنتج', 'Item / Product'),
+            descriptionLabel: _bi('الوصف', 'Description'),
+            requestedLabel: _bi('المطلوب', 'Requested'),
+            logisticsLabel: _bi(
+              widget.purchase ? 'المستلم' : 'المجهز',
+              widget.purchase ? 'Receipt' : 'Delivery',
+            ),
+            invoicedLabel: _bi('المفوتر', 'Invoiced'),
+            remainingLogisticsLabel: _bi(
+              'المتبقي لوجستيًا',
+              'Remaining logistics',
+            ),
+            remainingInvoiceLabel: _bi('المتبقي للفوترة', 'Remaining invoice'),
+            emptyLabel: _bi('لا توجد بنود في الأمر.', 'No order items.'),
+            itemTextBuilder: (line) =>
+                line.raw['displayLabel']?.toString() ??
+                (line.itemId.isEmpty ? '-' : line.itemId),
+            descriptionTextBuilder: (line) =>
+                line.description.isEmpty ? '-' : line.description,
+            quantityFormatter: (value) => _money.format(value),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _warehouseDocumentsTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final document in _logistics) {
+      final lines = _documentLines(document);
+      final effectiveLines = lines.isEmpty
+          ? <Map<String, Object?>>[const <String, Object?>{}]
+          : lines;
+      for (final line in effectiveLines) {
+        final itemId = _firstValue(line, const [
+          'itemId',
+          'productId',
+          'carId',
+          'id',
+        ]);
+        final item = _itemFor(itemId);
+        final reconciliation = _reconciliationFor(itemId);
+        final ordered =
+            _firstValue(reconciliation ?? const <String, Object?>{}, const [
+              'orderedQuantity',
+            ]) ??
+            item?['quantity'];
+        final moved =
+            _firstValue(line, const ['quantity', 'receivedQuantity']) ??
+            _firstValue(reconciliation ?? const <String, Object?>{}, const [
+              'operationalQuantity',
+            ]) ??
+            0;
+        final remaining =
+            _firstValue(reconciliation ?? const <String, Object?>{}, const [
+              'remainingOperational',
+            ]) ??
+            (_number(ordered) - _number(moved));
+        rows.add(
+          DataRow(
+            cells: [
+              _textCell(
+                _firstValue(
+                  document,
+                  widget.purchase
+                      ? const ['receiptNumber', 'documentNumber']
+                      : const ['deliveryNumber', 'documentNumber'],
+                ),
+                strong: true,
+              ),
+              _textCell(
+                _dateTimeText(
+                  _firstValue(
+                    document,
+                    widget.purchase
+                        ? const ['receiptDate', 'effectiveAt', 'createdAt']
+                        : const ['deliveryDate', 'effectiveAt', 'createdAt'],
+                  ),
+                ),
+              ),
+              _textCell(order['partnerName']),
+              _textCell(_warehouseForLine(item, line, document)),
+              _textCell(_itemLabel(item, line)),
+              _numberCell(ordered),
+              _numberCell(moved),
+              _numberCell(remaining),
+              _textCell(
+                _firstValue(document, const [
+                  'createdByName',
+                  'createdBy',
+                  'performedBy',
+                ]),
+              ),
+              _textCell(
+                _firstValue(document, const ['approvedByName', 'approvedBy']),
+              ),
+              _textCell(
+                _dateTimeText(
+                  _firstValue(document, const ['approvedAt', 'approvalTime']),
+                ),
+              ),
+              _textCell(_statusLabel(document['status']?.toString())),
+              DataCell(
+                _componentActions(
+                  document,
+                  componentType: widget.purchase ? 'receipt' : 'delivery',
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _operationalTable(
+          columns: [
+            _column(
+              widget.purchase ? 'رقم الاستلام' : 'رقم التجهيز',
+              widget.purchase ? 'Receipt number' : 'Delivery number',
+            ),
+            _column('التاريخ والوقت', 'Date & time'),
+            _column(
+              widget.purchase ? 'المجهز' : 'العميل',
+              widget.purchase ? 'Supplier' : 'Customer',
+            ),
+            _column('المخزن المختار', 'Selected warehouse'),
+            _column('المادة', 'Item'),
+            _column('المطلوب', 'Ordered', numeric: true),
+            _column(
+              widget.purchase ? 'المستلم' : 'المجهز',
+              widget.purchase ? 'Received' : 'Issued',
+              numeric: true,
+            ),
+            _column('المتبقي', 'Remaining', numeric: true),
+            _column(
+              widget.purchase ? 'أنشأ الاستلام' : 'أنشأ المسودة',
+              widget.purchase ? 'Receipt created by' : 'Draft created by',
+            ),
+            _column('صدّق بواسطة', 'Approved by'),
+            _column('وقت التصديق', 'Approval time'),
+            _column('الحالة', 'Status'),
+            _column('العمليات', 'Actions'),
+          ],
+          rows: rows,
+        ),
+      ],
+    );
+  }
+
+  Widget _invoiceDocumentsTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final invoice in _invoices) {
+      final lines = _documentLines(invoice);
+      final effectiveLines = lines.isEmpty
+          ? <Map<String, Object?>>[const <String, Object?>{}]
+          : lines;
+      for (final line in effectiveLines) {
+        final itemId = _firstValue(line, const [
+          'itemId',
+          'productId',
+          'carId',
+          'id',
+        ]);
+        final item = _itemFor(itemId);
+        final quantity =
+            _firstValue(line, const ['quantity', 'invoiceQuantity']) ??
+            _reconciliationFor(itemId)?['invoicedQuantity'] ??
+            item?['quantity'] ??
+            0;
+        final unitPrice =
+            _firstValue(line, const [
+              'unitPrice',
+              'unit_price',
+              'price',
+              'unitCost',
+            ]) ??
+            item?[_unitField] ??
+            0;
+        final lineTotal =
+            _firstValue(line, const ['lineTotal', 'line_total', 'total']) ??
+            (_number(quantity) * _number(unitPrice));
+        rows.add(
+          DataRow(
+            cells: [
+              _textCell(invoice['invoiceNumber'], strong: true),
+              _textCell(order['orderNumber']),
+              _textCell(_itemLabel(item, line)),
+              _textCell(_itemDescription(item, line)),
+              _numberCell(quantity),
+              _numberCell(unitPrice),
+              _numberCell(
+                _firstValue(line, const ['tax', 'taxAmount', 'tax_amount']) ??
+                    0,
+              ),
+              _numberCell(
+                _firstValue(line, const [
+                      'discount',
+                      'discountAmount',
+                      'discount_amount',
+                    ]) ??
+                    0,
+              ),
+              _numberCell(lineTotal),
+              _textCell(invoice['currency'] ?? order['currency']),
+              _numberCell(invoice['total']),
+              _textCell(
+                _firstValue(invoice, const ['createdByName', 'createdBy']),
+              ),
+              _textCell(
+                _firstValue(invoice, const [
+                  'approvedByName',
+                  'approvedBy',
+                  'postedBy',
+                ]),
+              ),
+              _textCell(
+                _dateTimeText(
+                  _firstValue(invoice, const [
+                    'invoiceDate',
+                    'effectiveAt',
+                    'createdAt',
+                  ]),
+                ),
+              ),
+              _textCell(_statusLabel(invoice['status']?.toString())),
+              DataCell(_componentActions(invoice, componentType: 'invoice')),
+            ],
+          ),
+        );
+      }
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _operationalTable(
+          columns: [
+            _column('رقم الفاتورة', 'Invoice number'),
+            _column('مرجع المستند', 'Document reference'),
+            _column('المادة / الخدمة', 'Item / Service'),
+            _column('الوصف', 'Description'),
+            _column('الكمية', 'Quantity', numeric: true),
+            _column('سعر الوحدة', 'Unit price', numeric: true),
+            _column('الضريبة', 'Tax', numeric: true),
+            _column('الخصم', 'Discount', numeric: true),
+            _column('إجمالي السطر', 'Line total', numeric: true),
+            _column('العملة', 'Currency'),
+            _column('إجمالي الفاتورة', 'Invoice total', numeric: true),
+            _column('أنشأ بواسطة', 'Created by'),
+            _column('صدّق/رحّل بواسطة', 'Approved / posted by'),
+            _column('التاريخ والوقت', 'Date & time'),
+            _column('الحالة', 'Status'),
+            _column('العمليات', 'Actions'),
+          ],
+          rows: rows,
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentsTable(Map<String, Object?> order) {
+    final rows = <DataRow>[];
+    for (final payment in _payments) {
+      final fxRate = _firstValue(payment, const ['exchangeRate', 'fxRate']);
+      final invoiceAmount = _firstValue(payment, const ['invoiceAmount']);
+      final difference = _firstValue(payment, const ['exchangeDifference']);
+      final fx = fxRate == null && invoiceAmount == null && difference == null
+          ? '-'
+          : '${_bi('سعر الصرف', 'FX')} ${_displayValue(fxRate)} • ${_bi('مبلغ الفاتورة', 'Invoice amount')} ${_displayValue(invoiceAmount)} • ${_bi('الفرق', 'Difference')} ${_displayValue(difference)}';
+      rows.add(
+        DataRow(
+          cells: [
+            _textCell(
+              _firstValue(payment, const [
+                'paymentReference',
+                'voucherNumber',
+                'documentNumber',
+                'id',
+              ]),
+              strong: true,
+            ),
+            _textCell(payment['cashAccountName']),
+            _textCell(
+              _firstValue(payment, const ['paymentCurrency', 'currency']),
+            ),
+            _numberCell(_firstValue(payment, const ['cashAmount', 'amount'])),
+            _textCell(fx),
+            _textCell(
+              _dateTimeText(
+                _firstValue(payment, const [
+                  'paymentDate',
+                  'effectiveAt',
+                  'createdAt',
+                ]),
+              ),
+            ),
+            _textCell(
+              _firstValue(payment, const [
+                'createdByName',
+                'performedBy',
+                'createdBy',
+                'userName',
+              ]),
+            ),
+            _textCell(
+              '${_displayValue(payment['invoiceNumber'])} / ${_displayValue(order['orderNumber'])}',
+            ),
+            _textCell(_statusLabel(payment['status']?.toString())),
+            DataCell(_paymentCashboxAction()),
+          ],
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _operationalTable(
+          columns: [
+            _column('مرجع الدفعة', 'Payment reference'),
+            _column('الصندوق', 'Cashbox'),
+            _column('العملة', 'Currency'),
+            _column('المبلغ', 'Amount', numeric: true),
+            _column('تفاصيل الصرف', 'FX details'),
+            _column('تاريخ ووقت الدفع', 'Payment date & time'),
+            _column('المستخدم', 'User'),
+            _column('الفاتورة / الأمر', 'Related invoice / order'),
+            _column('الحالة', 'Status'),
+            _column('عرض الصندوق', 'Cashbox'),
+          ],
+          rows: rows,
+        ),
+      ],
     );
   }
 
@@ -1783,6 +2548,51 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
       },
     );
   }
+}
+
+class _OperationalTableViewport extends StatefulWidget {
+  const _OperationalTableViewport({required this.columns, required this.rows});
+
+  final List<DataColumn> columns;
+  final List<DataRow> rows;
+
+  @override
+  State<_OperationalTableViewport> createState() =>
+      _OperationalTableViewportState();
+}
+
+class _OperationalTableViewportState extends State<_OperationalTableViewport> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: DataTable(
+            headingRowHeight: 46,
+            dataRowMinHeight: 48,
+            dataRowMaxHeight: 62,
+            columnSpacing: 24,
+            horizontalMargin: 16,
+            columns: widget.columns,
+            rows: widget.rows,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _InlineComponentButton extends StatelessWidget {

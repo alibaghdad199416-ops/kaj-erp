@@ -25,11 +25,15 @@ class SalesOrderDraftPage extends StatefulWidget {
   const SalesOrderDraftPage({
     super.key,
     this.initialCustomerId,
+    this.initialCurrency,
+    this.initialOpportunityNumber,
     this.opportunityId,
     this.orderId,
   });
 
   final String? initialCustomerId;
+  final String? initialCurrency;
+  final String? initialOpportunityNumber;
   final String? opportunityId;
   final String? orderId;
 
@@ -69,6 +73,10 @@ class _SalesOrderDraftPageState extends State<SalesOrderDraftPage> {
   @override
   void initState() {
     super.initState();
+    final initialCurrency = widget.initialCurrency?.trim().toUpperCase();
+    if (initialCurrency == 'USD' || initialCurrency == 'IQD') {
+      _currency = initialCurrency!;
+    }
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => unawaited(_bootstrap()),
     );
@@ -424,31 +432,46 @@ class _SalesOrderDraftPageState extends State<SalesOrderDraftPage> {
   @override
   Widget build(BuildContext context) {
     final customers = context.watch<CustomersController>().customers;
+    final opportunityNumber = widget.initialOpportunityNumber?.trim();
     return Scaffold(
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            KajCommercialDocumentHeader(
-              icon: Icons.point_of_sale_rounded,
-              title: _bi(
-                widget.orderId == null ? 'أمر بيع جديد' : 'تعديل أمر البيع',
-                widget.orderId == null ? 'New sales order' : 'Edit sales order',
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              KajCommercialDocumentHeader(
+                icon: Icons.point_of_sale_rounded,
+                title: _bi(
+                  widget.orderId == null ? 'أمر بيع جديد' : 'تعديل أمر البيع',
+                  widget.orderId == null
+                      ? 'New sales order'
+                      : 'Edit sales order',
+                ),
+                subtitle: _bi(
+                  'بيانات العميل والبنود والأسعار والتاريخ التشغيلي في نموذج واحد مرن.',
+                  'Customer, items, pricing, and operational date in one responsive form.',
+                ),
               ),
-              subtitle: _bi(
-                'بيانات العميل والبنود والأسعار والتاريخ التشغيلي في نموذج واحد مرن.',
-                'Customer, items, pricing, and operational date in one responsive form.',
-              ),
-            ),
-            const SizedBox(height: 12),
+            if (AppWorkspaceWindowScope.maybeOf(context) == null)
+              const SizedBox(height: 12),
             if ((widget.opportunityId ?? '').trim().isNotEmpty) ...[
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.handshake_outlined),
-                  title: const AppText('أمر البيع مرتبط بفرصة تجارية'),
+                  title: AppText(
+                    _bi(
+                      'أمر البيع مرتبط بفرصة تجارية',
+                      'Sales order linked to an opportunity',
+                    ),
+                  ),
                   subtitle: AppText(
-                    '${AppTranslation.translate('معرف الفرصة')}: ${widget.opportunityId}',
+                    opportunityNumber != null && opportunityNumber.isNotEmpty
+                        ? '${_bi('رقم الفرصة', 'Opportunity No.')}: $opportunityNumber'
+                        : _bi(
+                            'مرتبط بالفرصة التجارية المحددة',
+                            'Linked to the selected commercial opportunity',
+                          ),
                   ),
                 ),
               ),
@@ -650,7 +673,6 @@ class _SalesOrderDraftPageState extends State<SalesOrderDraftPage> {
               'discount',
               TextFormField(
                 controller: _discount,
-
                 inputFormatters: <TextInputFormatter>[
                   ThousandsInputFormatter(decimalDigits: 15),
                 ],
@@ -969,7 +991,6 @@ class _DraftLine {
                     writePermission: writePermission,
                     child: TextFormField(
                       controller: priceController,
-
                       inputFormatters: <TextInputFormatter>[
                         ThousandsInputFormatter(decimalDigits: 15),
                       ],

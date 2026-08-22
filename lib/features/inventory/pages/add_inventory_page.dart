@@ -233,7 +233,7 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
       return;
     }
 
-    final accounts = context.read<AccountingController>().accounts;
+    final accounts = context.read<AccountingController>().postableAccounts;
     AccountModel? assetAccount;
     AccountModel? expenseAccount;
     final revenueIqdAccount = _firstAccount(
@@ -399,20 +399,20 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<InventoryController>();
     final accounting = context.watch<AccountingController>();
-    final assetAccounts = accounting.accounts
+    final assetAccounts = accounting.postableAccounts
         .where(
           (a) => a.isActive && a.type == 'asset' && a.currency == _currency,
         )
         .toList();
-    final expenseAccounts = accounting.accounts
+    final expenseAccounts = accounting.postableAccounts
         .where(
           (a) => a.isActive && a.type == 'expense' && a.currency == _currency,
         )
         .toList();
-    final revenueIqdAccounts = accounting.accounts
+    final revenueIqdAccounts = accounting.postableAccounts
         .where((a) => a.isActive && a.type == 'revenue' && a.currency == 'IQD')
         .toList();
-    final revenueUsdAccounts = accounting.accounts
+    final revenueUsdAccounts = accounting.postableAccounts
         .where((a) => a.isActive && a.type == 'revenue' && a.currency == 'USD')
         .toList();
     if (_groupId == null && controller.groups.isNotEmpty) {
@@ -745,11 +745,15 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
               children: [
                 Icon(icon, size: 20),
                 const SizedBox(width: 8),
-                AppText(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: AppText(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -817,10 +821,14 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
             final text = value?.trim() ?? '';
             final number = integer ? int.tryParse(text) : double.tryParse(text);
             if (number == null) {
-              return 'أدخل قيمة رقمية صحيحة';
+              return context.l10n.isArabic
+                  ? 'أدخل قيمة رقمية صحيحة'
+                  : 'Enter a valid numeric value';
             }
             if (number < 0) {
-              return 'لا يمكن أن تكون القيمة سالبة';
+              return context.l10n.isArabic
+                  ? 'لا يمكن أن تكون القيمة سالبة'
+                  : 'The value cannot be negative';
             }
             return null;
           },

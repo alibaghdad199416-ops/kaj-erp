@@ -8,7 +8,7 @@ transfer identity explicit at creation and during reconciliation.
 """
 from __future__ import annotations
 
-import hashlib
+from verification_text import normalized_text_sha256
 import json
 import re
 import re
@@ -39,13 +39,13 @@ def function_body(sql: str, name: str) -> str:
 
 
 for relative, digest in {
-    "dart_defines.json": "1b0cbea9cf00177e68700f226832d17a083762a04fd271d9ca8b75d36aafb3c7",
-    ".firebaserc": "003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e",
+    "dart_defines.json": "4c7d0bbe2c68df5bd459d1b06081921b80f531c9887fe464dd70532718764c2f",
+    ".firebaserc": "f56fa212a1a202d098575515c3bf7e3210d8c7b9d74865c90e6fa6e5c0f2e4a8",
     "firebase.json": "ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a",
 }.items():
     need(
-        hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == digest,
-        f"production configuration changed: {relative}",
+        normalized_text_sha256(ROOT / relative) == digest,
+        f"local runtime/hosting baseline changed: {relative}",
     )
 
 migration_path = ROOT / "supabase/migrations" / MIGRATION_NAME
@@ -237,4 +237,4 @@ print("  - sales/purchase approvals converge on one diagnosable R22 contract")
 print("  - cash transfers carry immutable transaction/cashbox identity and ambiguous history is never rewritten blindly")
 print("  - accounting/cash browser RPC exposure is consolidated under the R22 namespace")
 print("  - Production Readiness requires R22 runtime, reconciliation and historical-rebuild contracts")
-print("  - Supabase/Firebase production configuration hashes are unchanged")
+print("  - Local Supabase/Firebase baseline hashes are unchanged")

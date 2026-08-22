@@ -1,0 +1,22 @@
+--- a/test/features/business_partners/phase3_compact_workspaces_contract_test.dart
++++ b/test/features/business_partners/phase3_compact_workspaces_contract_test.dart
+@@ -4,7 +4,7 @@
+ 
+ void main() {
+   test(
+-    'maintenance workspace uses compact responsive command and order grid',
++    'maintenance workspace uses responsive natural-height order cards',
+     () {
+       final source = File(
+         'lib/features/maintenance/pages/maintenance_page.dart',
+@@ -15,7 +15,9 @@
+       expect(source, contains('visualDensity: VisualDensity.compact'));
+       expect(source, contains('const minimumCardWidth = 540.0;'));
+       expect(source, contains('.clamp(1, 2)'));
+-      expect(source, contains('mainAxisExtent: 168'));
++      expect(source, contains('child: Wrap('));
++      expect(source, contains('width: cardWidth'));
++      expect(source, isNot(contains('mainAxisExtent:')));
+       expect(source, contains('alignment: Alignment.topCenter'));
+     },
+   );

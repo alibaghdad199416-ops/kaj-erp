@@ -21,24 +21,46 @@ class PermissionGuard extends StatefulWidget {
 
 class _PermissionGuardState extends State<PermissionGuard> {
   bool _deniedRecorded = false;
+  bool _restoreScheduled = false;
   bool _redirectScheduled = false;
+
+  void _scheduleSessionRestoreOrRedirect(AccessController access) {
+    if (_restoreScheduled || _redirectScheduled) return;
+    _restoreScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      // A browser reload or deep link can build a protected route before the
+      // in-memory AccessController has been reconstructed. Do not discard a
+      // valid Supabase browser session merely because this widget rendered
+      // before SplashPage had a chance to restore it.
+      if (access.isAuthenticated) {
+        _restoreScheduled = false;
+        return;
+      }
+
+      final restored = await access.restorePersistedSession();
+      if (!mounted) return;
+      if (restored || access.isAuthenticated) {
+        _restoreScheduled = false;
+        setState(() {});
+        return;
+      }
+
+      _redirectScheduled = true;
+      await Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRouteNames.login, (route) => false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final access = context.watch<AccessController>();
 
     if (!access.isAuthenticated) {
-      if (!_redirectScheduled) {
-        _redirectScheduled = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!mounted) {
-            return;
-          }
-          await Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil(AppRouteNames.login, (route) => false);
-        });
-      }
+      _scheduleSessionRestoreOrRedirect(access);
       return const Scaffold(
         body: Center(child: CircularProgressIndicator(color: Colors.black)),
       );

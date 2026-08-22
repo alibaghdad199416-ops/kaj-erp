@@ -26,8 +26,10 @@ r49identity=read('supabase/migrations/20260810060000_r49_product_identity_accoun
 r49permissions=read('supabase/migrations/20260810070000_r49_permission_scope_integrity.sql')
 r49delivery=read('supabase/migrations/20260810080000_r49_independent_delivery_search_traceability.sql')
 r49focused=read('supabase/migrations/20260810090000_r49_focused_final_permission_runtime_closure.sql')
+r92=read('supabase/migrations/20260820133000_r92_comprehensive_module_audit.sql')
 r49finance=read('supabase/migrations/20260810100000_r49_financial_subledger_currency_integrity.sql')
 r49profit=read('supabase/migrations/20260810110000_r49_accounting_profit_installment_surface_closure.sql')
+r65dashboard=read('supabase/migrations/20260814053406_r65_authoritative_dashboard_snapshot.sql')
 supported_currency=read('lib/core/finance/supported_currency.dart')
 permission_catalog=read('lib/features/settings/access/models/permission_catalog.dart')
 opportunity_repo=read('lib/features/customer_service/repositories/opportunity_repository.dart')
@@ -107,7 +109,7 @@ legacy_pdf=read('lib/core/printing/legacy_commercial_document_pdf_service.dart')
 notification_repo=read('lib/features/notifications/repositories/notification_center_repository.dart')
 gate('Expected Value uses thousands-aware parse on validation and save', "ThousandsInputFormatter.parse(v)" in page and "expectedValue: ThousandsInputFormatter.parse(_value.text) ?? 0" in page)
 for f in ('currency','stage','probability','description','expectedCloseDate','winLossReason'):
-    gate(f'Opportunity {f} persists through model map/read-back', f"'{f}':" in model and (f"map['{f}']" in model))
+    gate(f'Opportunity {f} persists through model map/read-back', f"'{f}':" in model and (f"value('{f}'" in model))
 gate('Opportunity lifecycle UI includes new/contacted/qualified/proposal/negotiation/won/lost/closed', all(f"'{x}'" in page for x in ('new','contacted','qualified','proposal','negotiation','won','lost','closed')))
 gate('Opportunity can find and reuse one linked sales order', 'findOrderByOpportunity' in page and 'erp_r9_find_sales_order_by_opportunity' in repo)
 gate('Canonical workflow projects order/delivery/invoice/payment back to opportunity', all(x in r35 for x in ('salesOrderStatus','deliveryStatus','invoiceStatus','paymentStatus','paidAmount','remainingAmount')))
@@ -137,15 +139,27 @@ for dart in (ROOT/'lib').rglob('*.dart'):
             large_fixed.append(f'{dart.relative_to(ROOT)}:{match.group(1)}={match.group(2)}')
 gate('No direct >=500px fixed UI dimensions remain outside the launch-shell breakpoint', not large_fixed)
 deploy_r49=read('tool/deploy_r49_production.ps1')
-gate('R49 production orchestrator validates workspace and permits only the eleven R49 migrations',
+guarded_push=read('tool/guarded_supabase_db_push.py')
+gate('R49 production orchestrator validates workspace and uses the bounded migration-history guard',
      'validate_r49_workspace.ps1' in deploy_r49
-     and all(name in deploy_r49 for name in ('20260810021000_r49_crm_business_reference_closure.sql','20260810030000_r49_end_to_end_opportunity_lifecycle_readback.sql','20260810031000_r49_master_business_references.sql','20260810040000_r49_invoice_idempotency_quality_closure.sql','20260810050000_r49_installment_currency_fixed_asset_boundary.sql','20260810060000_r49_product_identity_accounting_integrity.sql','20260810070000_r49_permission_scope_integrity.sql','20260810080000_r49_independent_delivery_search_traceability.sql','20260810090000_r49_focused_final_permission_runtime_closure.sql','20260810100000_r49_financial_subledger_currency_integrity.sql','20260810110000_r49_accounting_profit_installment_surface_closure.sql'))
-     and 'Unexpected pending migrations. Refusing production push' in deploy_r49
+     and 'guarded_supabase_db_push.py --linked --yes' in deploy_r49
+     and 'historical != (COMPAT_VERSION,)' in guarded_push
+     and 'validate_exceptional_dry_run' in guarded_push
      and 'deploy_r49_production.ps1' in package.get('scripts',{}).get('deploy:production',''))
-gate('Responsive module windows reflow instead of scaling a fixed canvas', 'FittedBox(' not in route and 'preferred.width.clamp(minimum.width, available.width)' in route and 'current.height + details.delta.dy' in route)
-gate('Workspace AlertDialogs receive bounded responsive content instead of unconditional scroll constraints', 'dialog.scrollable' in route and 'width: double.infinity' in route and 'alignment: AlignmentDirectional.topStart' in route)
-gate('Account codes remain text identifiers without numeric parsing', 'double.tryParse' not in erp_display.split('static String accountCode',1)[1].split('static String number',1)[0] and 'return raw;' in erp_display and 'return raw;' in account_model.split('static String _accountCode',1)[1].split('static String _text',1)[0])
-gate('Workflow cards visibly separate logistics, accounting, invoice and payment', all(x in workflow_card for x in ('كمية فقط','القيد المحاسبي','Accounting entry','accountingOwner','invoiceRemaining','paymentStatus')))
+gate('Operational module workspaces stay bounded without scaling a fixed canvas',
+     'FittedBox(' not in route
+     and 'Desktop workspaces intentionally remain bounded' in route
+     and 'availableWidth' in route
+     and 'requestedMinWidth' in route
+     and 'math.min(' in route
+     and 'module-workspace-window' in route)
+gate('Workspace AlertDialogs promote title/actions into the single bounded header',
+     'if (child is AlertDialog)' in route
+     and 'headerActions: child.actions ?? const <Widget>[]' in route
+     and 'child.content ?? const SizedBox.shrink()' in route
+     and 'class _WorkspaceHeader' in route)
+gate('Account codes remain text identifiers without numeric parsing', 'double.tryParse' not in erp_display.split('static String accountCode',1)[1].split('static String number',1)[0] and 'BigInt.parse' in erp_display and 'ErpDisplayFormatter.accountCode(raw)' in account_model)
+gate('Workflow cards visibly separate logistics, accounting, invoice and payment', all(x in workflow_card for x in ('Delivery','Receipt','Not posted','القيد المحاسبي','Accounting entry','accountingOwner','invoiceRemaining','paymentStatus')))
 gate('Sales invoice creation is backend-idempotent under concurrent retry',
      'erp_r49_guard_single_active_invoice' in r49idempotency
      and 'pg_advisory_xact_lock' in r49idempotency
@@ -182,7 +196,8 @@ gate('Dashboard monetary source of truth is per-currency including live cost-lay
      and 'erp_inventory_cost_layers' in r49idempotency
      and 'group by 1' in r49idempotency
      and all(x in dashboard_model for x in ('totalSalesByCurrency','inventoryValueByCurrency','totalReceivablesByCurrency'))
-     and has_call(dashboard_repo, '_moneyMap', "row['inventoryValueByCurrency']")
+     and (has_call(dashboard_repo, '_moneyMap', "row['inventoryValueByCurrency']")
+          or "_requiredMoneyMap(row, 'inventoryValueByCurrency')" in dashboard_repo)
      and has_call(dashboard_page, 'CurrencyTotalsFormatter.format', 'dashboard.inventoryValueByCurrency')
      and '_money(dashboard.inventoryValue)' not in dashboard_page)
 gate('Report monetary summaries honor requested period and never export one mixed-currency scalar',
@@ -244,7 +259,7 @@ gate('Invoice payment dialog never invents USD for malformed cashboxes',
      and '_normalizedCashboxCurrency' in invoice_payment_dialog
      and '_hasUsableCashboxIdentity' in invoice_payment_dialog
      and '_usableCashAccounts.isEmpty' in invoice_payment_dialog
-     and "AppTranslation.translate('لا توجد صناديق نقدية معرفة.')" in invoice_payment_dialog)
+     and "لا توجد صناديق نقدية معرفة." in invoice_payment_dialog)
 
 gate('Existing financial documents never silently become USD when stored currency is missing',
      "order['currency']?.toString() ?? 'USD'" not in sales_workflow_page
@@ -259,7 +274,7 @@ gate('Existing financial documents never silently become USD when stored currenc
      ) is not None
      and "a['currency']?.toString() ?? 'USD'" not in fixed_assets_page)
 gate('Financial read models never invent currency, posting status, or completed maintenance state',
-     "currency: text(map['currency']).toUpperCase()" in model
+     "value('currency', aliases: const ['currencyCode'])" in model
      and "final currency = _text(map['currency']).toUpperCase();" in account_model
      and "final rawCurrency = _text(map['currency']).toUpperCase();" in journal_model
      and "status: _text(map['status'])," in journal_model
@@ -420,7 +435,8 @@ gate('Logistics draft creation uses backend permission wrappers instead of expos
      and 'revoke execute on function public.erp_create_cloud_purchase_receipt' in r49focused)
 
 gate('Maintenance create/update is permission-protected and stale edits are rejected',
-     'erp_r49_create_cloud_maintenance_order' in maintenance_repo
+     ('erp_r49_create_cloud_maintenance_order' in maintenance_repo
+      or 'erp_r56_create_cloud_maintenance_order' in maintenance_repo)
      and 'erp_r49_update_cloud_maintenance_draft' in maintenance_repo
      and "'p_expected_updated_at': expectedUpdatedAt.toUtc().toIso8601String()" in maintenance_repo
      and 'required DateTime expectedUpdatedAt' in maintenance_controller_full
@@ -443,24 +459,21 @@ gate('Focused R49 migration keeps historical commercial implementations internal
      and 'erp_approve_cloud_purchase_order' in r49focused
      and r49focused.count('grant execute on function public.erp_r49_') >= 8)
 
-gate('Inventory CRUD, receipt and transfers use granular backend permissions instead of role-only master-data access',
+gate('Inventory CRUD and transfers use granular backend permissions while receipt/sale stock changes remain workflow-approval owned',
      all(name in inventory_repo for name in (
        'erp_r49_create_inventory_product','erp_r49_update_inventory_product',
-       'erp_r49_adjust_product_opening_balance','erp_r49_receive_inventory_stock',
+       'erp_r49_adjust_product_opening_balance',
        'erp_r49_transfer_inventory_stock','erp_r49_transfer_inventory_stock_batch',
        'erp_r49_create_car_warehouse_transfer'))
+     and 'erp_r49_receive_inventory_stock' not in inventory_repo
+     and 'erp_sell_inventory_stock' not in inventory_repo
      and all(name in read('lib/features/inventory/cars/data/car_warehouse_transfer_repository.dart') for name in (
        'erp_r49_create_car_warehouse_transfer_batch','erp_r49_create_car_warehouse_transfer',
        'erp_r49_edit_car_warehouse_transfer','erp_r49_reverse_car_warehouse_transfer'))
      and all(code in r49focused for code in (
-       "'inventory.create'","'inventory.update'","'inventory.adjust'","'inventory.receive'","'inventory.transfer'"))
-     and "qualityline.r49_master_permission" in r49focused
-     and 'erp_cloud_user_has_permission' in r49focused
-     and 'revoke execute on function public.erp_create_inventory_product' in r49focused
-     and 'revoke execute on function public.erp_receive_inventory_stock' in r49focused
-     and 'revoke execute on function public.erp_v2300_transfer_inventory_stock_batch' in r49focused
-     and 'revoke execute on function public.erp_v2300_create_car_warehouse_transfer' in r49focused)
-
+       "'inventory.create'","'inventory.update'","'inventory.adjust'","'inventory.transfer'"))
+     and 'revoke all on function public.erp_r49_receive_inventory_stock' in r92
+     and 'revoke all on function public.erp_sell_inventory_stock' in r92)
 gate('Cloud listWhere filters canonical records server-side instead of downloading whole tables',
      "'erp_r49_list_cloud_master_where'" in read('lib/core/cloud/cloud_master_data_service.dart')
      and 'final rows = await list(table);' not in read('lib/core/cloud/cloud_master_data_service.dart')
@@ -541,10 +554,12 @@ gate('Accounting profit KPI comes from posted GL revenue/expense lines instead o
      and "je.data->>'status'='posted'" in r49profit
      and 'erp_r49_accounting_net_profit_by_currency' in r49profit
      and "-coalesce((v_purchases" not in r49profit)
-gate('Dashboard and reports use the R49 accounting-profit wrappers while retaining R9 field permissions',
-     "'erp_r49_cloud_dashboard_snapshot'" in dashboard_repo
+gate('Dashboard uses the R65 accounting/invoice/FIFO snapshot and reports retain the R49 wrapper',
+     "'erp_r65_get_authoritative_dashboard_snapshot'" in dashboard_repo
      and "'erp_r49_cloud_reports_summary'" in report_repo
-     and 'erp_r9_cloud_dashboard_snapshot' in r49profit
+     and "a.account_type in ('revenue','expense')" in r65dashboard
+     and "d.document_type='invoice'" in r65dashboard
+     and 'erp_inventory_cost_layers' in r65dashboard
      and 'erp_r9_cloud_reports_summary' in r49profit
      and "if v ? 'netProfitByCurrency'" in r49profit)
 gate('Standalone installment schedule mutators are internal and browser repository is read-only',

@@ -13,7 +13,7 @@ import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
-import 'package:quality_line_erp/features/inventory/asset_history/pages/asset_history_page.dart';
+import 'package:quality_line_erp/features/inventory/cars/pages/vehicle_service_card_page.dart';
 import 'package:quality_line_erp/features/inventory/cars/controllers/cars_controller.dart';
 import 'package:quality_line_erp/features/inventory/cars/controllers/car_images_controller.dart';
 import 'package:quality_line_erp/features/inventory/cars/models/car_model.dart';
@@ -28,7 +28,9 @@ import 'edit_car_page.dart';
 import 'car_warehouse_transfers_page.dart';
 
 class CarsPage extends StatefulWidget {
-  const CarsPage({super.key});
+  const CarsPage({super.key, this.initialCarId});
+
+  final String? initialCarId;
 
   @override
   State<CarsPage> createState() => _CarsPageState();
@@ -44,6 +46,7 @@ class _CarsPageState extends State<CarsPage> {
   Map<String, String> _warehouseIdByReference = const <String, String>{};
   Map<String, String> _warehouseLabelById = const <String, String>{};
   bool _loadingWarehouses = true;
+  bool _initialCarOpened = false;
 
   @override
   void initState() {
@@ -62,6 +65,20 @@ class _CarsPageState extends State<CarsPage> {
     await context.read<CarImagesController>().loadThumbnails(
       cars.cars.map((car) => car.id),
     );
+    if (!mounted || _initialCarOpened) return;
+    final id = widget.initialCarId?.trim();
+    if (id == null || id.isEmpty) return;
+    CarModel? target;
+    for (final car in cars.cars) {
+      if (car.id == id) {
+        target = car;
+        break;
+      }
+    }
+    if (target != null) {
+      _initialCarOpened = true;
+      await _showCarHistory(target);
+    }
   }
 
   Future<void> _loadWarehouses() async {
@@ -191,10 +208,7 @@ class _CarsPageState extends State<CarsPage> {
         .length;
     final totalValueByCurrency = <String, double>{};
     for (final car in cars.where(
-      (car) =>
-          car.statusValue != CarStatus.sold &&
-          car.warehouseId != null &&
-          car.warehouseId!.trim().isNotEmpty,
+      (car) => car.isIncludedInCurrentInventoryValue,
     )) {
       final currency = (car.costCurrency ?? car.currency).trim().toUpperCase();
       if (currency.isEmpty) continue;
@@ -382,40 +396,49 @@ class _CarsPageState extends State<CarsPage> {
                     : constraints.maxWidth >= 760
                     ? 2
                     : 1;
-                return GridView.builder(
+                final rowCount = (filteredCars.length + columns - 1) ~/ columns;
+                return ListView.separated(
                   padding: const EdgeInsets.all(10),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    mainAxisExtent: columns == 3
-                        ? 168
-                        : columns == 2
-                        ? 176
-                        : 188,
-                  ),
-                  itemCount: filteredCars.length,
-                  itemBuilder: (context, index) {
-                    final car = filteredCars[index];
-                    return CarCard(
-                      car: car,
-                      onEdit: () => _editCar(car),
-                      onHistory: () => _showCarHistory(car),
-                      onDelete: () => _deleteCar(car),
-                      warehouseName: (() {
-                        final warehouseId = canonicalWarehouseId(car);
-                        if (warehouseId == null) return warehouseLabel(car);
-                        return _warehouses
-                                .where(
-                                  (warehouse) =>
-                                      warehouse.id.trim() == warehouseId.trim(),
-                                )
-                                .map((warehouse) => warehouse.name)
-                                .firstOrNull ??
-                            warehouseLabel(car);
-                      })(),
-                      carNumber: car.carNumber,
-                      plateNumber: car.plateNumber,
+                  itemCount: rowCount,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, rowIndex) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List<Widget>.generate(columns * 2 - 1, (slot) {
+                        if (slot.isOdd) return const SizedBox(width: 8);
+                        final column = slot ~/ 2;
+                        final index = rowIndex * columns + column;
+                        if (index >= filteredCars.length) {
+                          return const Expanded(child: SizedBox.shrink());
+                        }
+                        final car = filteredCars[index];
+                        return Expanded(
+                          child: CarCard(
+                            car: car,
+                            onEdit: () => _editCar(car),
+                            onHistory: () => _showCarHistory(car),
+                            onSchedule: () => _showCarHistory(car),
+                            onDelete: () => _deleteCar(car),
+                            warehouseName: (() {
+                              final warehouseId = canonicalWarehouseId(car);
+                              if (warehouseId == null) {
+                                return warehouseLabel(car);
+                              }
+                              return _warehouses
+                                      .where(
+                                        (warehouse) =>
+                                            warehouse.id.trim() ==
+                                            warehouseId.trim(),
+                                      )
+                                      .map((warehouse) => warehouse.name)
+                                      .firstOrNull ??
+                                  warehouseLabel(car);
+                            })(),
+                            carNumber: car.carNumber,
+                            plateNumber: car.plateNumber,
+                          ),
+                        );
+                      }),
                     );
                   },
                 );
@@ -433,13 +456,13 @@ class _CarsPageState extends State<CarsPage> {
       maxHeight: 780,
       builder: (_) => const CarWarehouseTransfersPage(),
     );
-    if (mounted) await context.read<CarsController>().loadCars();
+    if (mounted) await context.read<CarsController>().loadCars(force: true);
   }
 
   Future<void> _openAddCar() async {
     await showAppModuleDialog(
       context: context,
-      title: 'إضافة سيارة',
+      title: context.l10n.isArabic ? 'إضافة سيارة' : 'Add vehicle',
       windowKey: 'cars:add',
       builder: (_) => const AddCarPage(),
     );
@@ -450,7 +473,7 @@ class _CarsPageState extends State<CarsPage> {
     if (!mounted) return;
     await showAppModuleDialog(
       context: context,
-      title: 'تعديل سيارة',
+      title: context.l10n.isArabic ? 'تعديل سيارة' : 'Edit vehicle',
       windowKey: 'cars:edit:${car.id}',
       builder: (_) => EditCarPage(car: car),
     );
@@ -461,7 +484,7 @@ class _CarsPageState extends State<CarsPage> {
       context: context,
       title: 'سجل ${car.brand} ${car.model}',
       windowKey: 'cars:history:${car.id}',
-      builder: (_) => AssetHistoryPage.car(assetId: car.id),
+      builder: (_) => VehicleServiceCardPage(car: car),
     );
   }
 

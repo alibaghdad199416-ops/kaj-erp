@@ -43,7 +43,6 @@ abstract final class KajDesignTokens {
   static const Color plainWhite = BrandIdentity.plainWhite;
   static const Color electricBlue = BrandIdentity.electricBlue;
   static const Color success = BrandIdentity.staticGreen;
-  // Backward-compatible semantic aliases used by Phase 4-6 components.
   static const Color staticGreen = success;
   static const Color champagne = BrandIdentity.sand;
   static const Color champagneGold = champagne;
@@ -93,13 +92,15 @@ abstract final class KajDesignTokens {
       ? const Color(0xFF0C161D)
       : const Color(0xFFF7F9FA);
 
+  /// Restrained enterprise elevation: enough separation for hierarchy without
+  /// making every section look like a floating modal/card.
   static List<BoxShadow> softShadow(Brightness brightness) => <BoxShadow>[
     BoxShadow(
       color: Colors.black.withValues(
-        alpha: brightness == Brightness.dark ? .38 : .08,
+        alpha: brightness == Brightness.dark ? .30 : .055,
       ),
-      blurRadius: brightness == Brightness.dark ? 30 : 20,
-      offset: const Offset(0, 14),
+      blurRadius: brightness == Brightness.dark ? 22 : 14,
+      offset: Offset(0, brightness == Brightness.dark ? 9 : 6),
     ),
   ];
 
@@ -109,10 +110,10 @@ abstract final class KajDesignTokens {
   }) => <BoxShadow>[
     BoxShadow(
       color: accent.withValues(
-        alpha: brightness == Brightness.dark ? .18 : .10,
+        alpha: brightness == Brightness.dark ? .15 : .075,
       ),
-      blurRadius: 30,
-      offset: const Offset(0, 12),
+      blurRadius: 20,
+      offset: const Offset(0, 7),
     ),
   ];
 
@@ -123,7 +124,7 @@ abstract final class KajDesignTokens {
       end: Alignment.bottomRight,
       colors: dark
           ? const <Color>[Color(0xFF111D25), darkSurface]
-          : const <Color>[Colors.white, Color(0xFFF9FAFB)],
+          : const <Color>[Colors.white, Color(0xFFFBFCFC)],
     );
   }
 

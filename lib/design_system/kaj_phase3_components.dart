@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
+import 'package:quality_line_erp/core/widgets/app_workspace_chrome_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
 
@@ -33,6 +35,31 @@ class KajPhaseHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final insideOperationalWorkspace =
+        AppWorkspaceWindowScope.maybeOf(context) != null;
+    final shellOwnsModuleIdentity = AppWorkspaceChromeScope.hasTopBarOf(
+      context,
+    );
+    if (insideOperationalWorkspace || shellOwnsModuleIdentity) {
+      final commands = <Widget>[?secondaryAction, ?primaryAction, ?trailing];
+      if (commands.isEmpty) return const SizedBox.shrink();
+      return Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (var index = 0; index < commands.length; index++) ...[
+                if (index > 0) const SizedBox(width: KajDesignTokens.space8),
+                commands[index],
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final brightness = theme.brightness;
     final dark = brightness == Brightness.dark;
@@ -179,20 +206,23 @@ class KajWorkflowStepper extends StatelessWidget {
   final int currentIndex;
   final Color completedColor;
   final Color activeColor;
+
+  /// Uses denser horizontal tiles. It never converts a desktop workflow into a
+  /// tall vertical stack; constrained layouts scroll horizontally instead.
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     if (steps.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
-    final effectiveIndex = currentIndex < 0
-        ? -1
-        : currentIndex.clamp(0, steps.length - 1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scheme = Theme.of(context).colorScheme;
+        final effectiveIndex = currentIndex < 0
+            ? -1
+            : currentIndex.clamp(0, steps.length - 1);
+        final dense = compact || constraints.maxWidth < 900;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List<Widget>.generate(steps.length, (index) {
+        Widget step(int index) {
           final complete = index < effectiveIndex;
           final active = index == effectiveIndex;
           final color = complete
@@ -204,12 +234,13 @@ class KajWorkflowStepper extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               AnimatedContainer(
+                key: ValueKey<String>('workflow-step-$index'),
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
-                width: compact ? 116 : 148,
+                width: dense ? 126 : 148,
                 padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 9 : 11,
-                  vertical: compact ? 8 : 10,
+                  horizontal: dense ? 9 : 11,
+                  vertical: dense ? 7 : 10,
                 ),
                 decoration: BoxDecoration(
                   color: color.withValues(
@@ -225,8 +256,8 @@ class KajWorkflowStepper extends StatelessWidget {
                 child: Row(
                   children: <Widget>[
                     Container(
-                      width: compact ? 22 : 25,
-                      height: compact ? 22 : 25,
+                      width: dense ? 21 : 25,
+                      height: dense ? 21 : 25,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: complete || active ? color : Colors.transparent,
@@ -255,7 +286,7 @@ class KajWorkflowStepper extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: compact ? 10 : 11,
+                          fontSize: dense ? 10.5 : 11,
                           color: active || complete
                               ? scheme.onSurface
                               : scheme.onSurfaceVariant,
@@ -270,7 +301,7 @@ class KajWorkflowStepper extends StatelessWidget {
               ),
               if (index != steps.length - 1)
                 Container(
-                  width: compact ? 18 : 28,
+                  width: dense ? 18 : 28,
                   height: 1,
                   color: index < effectiveIndex
                       ? completedColor.withValues(alpha: .65)
@@ -278,8 +309,16 @@ class KajWorkflowStepper extends StatelessWidget {
                 ),
             ],
           );
-        }),
-      ),
+        }
+
+        return SizedBox(
+          height: dense ? 38 : 46,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: List<Widget>.generate(steps.length, step)),
+          ),
+        );
+      },
     );
   }
 }

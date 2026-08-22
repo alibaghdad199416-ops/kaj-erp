@@ -63,41 +63,87 @@ class InventoryMovementsPage extends StatelessWidget {
             );
           }
           final movements = snapshot.data ?? const <InventoryMovementModel>[];
+          final canViewDate = _can(context, 'operationalDate');
+          final canViewReference = _can(context, 'movementReference');
+          final canViewProduct = _can(context, 'transferItem');
+          final canViewWarehouse = _can(context, 'warehouseId');
+          final canViewQuantity = _can(context, 'quantity');
+          final canViewCost = _can(context, 'movementCost');
+          final canViewAudit = _can(context, 'auditMetadata');
+          final canViewType = _can(context, 'movementType');
+          final canViewNumber = _can(context, 'movementNumber');
 
           final exportDocument = ExportDocument(
             title: 'Inventory Movement Log',
             language: 'en',
             columns: <ExportColumn>[
-              ExportColumn(
-                key: 'date',
-                label: 'Date / Time',
-                type: ExportValueType.dateTime,
-              ),
-              ExportColumn(key: 'reference', label: 'Reference'),
-              ExportColumn(key: 'product', label: 'Product'),
-              ExportColumn(key: 'code', label: 'Code'),
-              ExportColumn(key: 'from', label: 'From'),
-              ExportColumn(key: 'to', label: 'To'),
-              ExportColumn(
-                key: 'quantity',
-                label: 'Quantity',
-                type: ExportValueType.decimal,
-              ),
-              ExportColumn(key: 'user', label: 'Performed by'),
+              if (canViewDate)
+                ExportColumn(
+                  key: 'date',
+                  label: 'Date / Time',
+                  type: ExportValueType.dateTime,
+                ),
+              if (canViewNumber)
+                ExportColumn(key: 'movement', label: 'Movement no.'),
+              if (canViewType)
+                ExportColumn(key: 'type', label: 'Movement type'),
+              if (canViewReference)
+                ExportColumn(key: 'reference', label: 'Source document'),
+              if (canViewProduct) ...[
+                ExportColumn(key: 'product', label: 'Product'),
+                ExportColumn(key: 'code', label: 'Product code'),
+              ],
+              if (canViewWarehouse) ...[
+                ExportColumn(key: 'from', label: 'From'),
+                ExportColumn(key: 'to', label: 'To'),
+              ],
+              if (canViewQuantity)
+                ExportColumn(
+                  key: 'quantity',
+                  label: 'Quantity',
+                  type: ExportValueType.decimal,
+                ),
+              if (canViewCost) ...[
+                ExportColumn(
+                  key: 'unitCost',
+                  label: 'Unit cost',
+                  type: ExportValueType.money,
+                ),
+                ExportColumn(
+                  key: 'totalCost',
+                  label: 'Total value',
+                  type: ExportValueType.money,
+                ),
+                ExportColumn(key: 'currency', label: 'Currency'),
+              ],
+              if (canViewAudit)
+                ExportColumn(key: 'user', label: 'Performed by'),
             ],
             rows: movements
                 .map(
                   (movement) => <Object?>[
-                    DateTime.tryParse(movement.movementDate),
-                    movement.referenceDocumentNumber ??
-                        movement.referenceId ??
-                        '',
-                    movement.productName,
-                    movement.productCode,
-                    movement.sourceName ?? '',
-                    movement.destinationName ?? movement.warehouseName,
-                    movement.quantity,
-                    movement.performedBy ?? '',
+                    if (canViewDate) DateTime.tryParse(movement.movementDate),
+                    if (canViewNumber) movement.movementNumber,
+                    if (canViewType) movement.typeLabel,
+                    if (canViewReference)
+                      movement.referenceDocumentNumber ??
+                          movement.referenceId ??
+                          '',
+                    if (canViewProduct) ...[
+                      movement.productName,
+                      movement.productCode,
+                    ],
+                    if (canViewWarehouse) ...[
+                      movement.sourceName ?? '',
+                      movement.destinationName ?? movement.warehouseName,
+                    ],
+                    if (canViewQuantity) movement.quantity,
+                    if (canViewCost) ...[
+                      movement.unitCost,
+                      movement.totalCost,
+                      movement.currency,
+                    ],
+                    if (canViewAudit) movement.performedBy ?? '',
                   ],
                 )
                 .toList(growable: false),
@@ -242,6 +288,7 @@ class InventoryMovementsPage extends StatelessWidget {
                                             : 'Unit cost',
                                         MoneyFormatter.format(
                                           movement.unitCost,
+                                          currency: movement.currency,
                                         ),
                                       ),
                                     ),
@@ -253,6 +300,7 @@ class InventoryMovementsPage extends StatelessWidget {
                                             : 'Total',
                                         MoneyFormatter.format(
                                           movement.totalCost,
+                                          currency: movement.currency,
                                         ),
                                       ),
                                     ),
@@ -327,12 +375,18 @@ class InventoryMovementsPage extends StatelessWidget {
             if (_can(context, 'movementCost'))
               UnifiedDocumentField(
                 arabic ? 'كلفة الوحدة' : 'Unit cost',
-                MoneyFormatter.format(movement.unitCost),
+                MoneyFormatter.format(
+                  movement.unitCost,
+                  currency: movement.currency,
+                ),
               ),
             if (_can(context, 'movementCost'))
               UnifiedDocumentField(
                 arabic ? 'الإجمالي' : 'Total cost',
-                MoneyFormatter.format(movement.totalCost),
+                MoneyFormatter.format(
+                  movement.totalCost,
+                  currency: movement.currency,
+                ),
               ),
           ],
         ),

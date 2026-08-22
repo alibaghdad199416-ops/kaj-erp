@@ -1,0 +1,6 @@
+-- Quality Line ERP local seed entrypoint.
+--
+-- Existing local business data is intentionally preserved in the Supabase
+-- Docker volume. Do not duplicate or replace that data here. This file exists
+-- so a first-time local Supabase start has a valid configured seed target.
+-- Canonical schema/default bootstrap remains migration-driven.

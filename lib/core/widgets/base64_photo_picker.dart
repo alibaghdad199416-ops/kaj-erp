@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/media/app_image_service.dart';
+import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 
 class Base64PhotoPicker extends StatefulWidget {
   const Base64PhotoPicker({
@@ -68,59 +69,79 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
   @override
   Widget build(BuildContext context) {
     final bytes = _bytes;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 34,
-              backgroundImage: bytes == null ? null : MemoryImage(bytes),
-              child: bytes == null
-                  ? const Icon(Icons.photo_camera_outlined)
-                  : null,
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 440;
+        final preview = Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: .55,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppText(
-                    widget.label,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _busy ? null : _pick,
-                        icon: _busy
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.add_photo_alternate_outlined),
-                        label: const AppText('اختيار صورة'),
-                      ),
-                      if (bytes != null)
-                        TextButton.icon(
-                          onPressed: _busy
-                              ? null
-                              : () => widget.onChanged(null),
-                          icon: const Icon(Icons.delete_outline),
-                          label: const AppText('إزالة'),
-                        ),
-                    ],
-                  ),
-                ],
+            border: Border.all(color: theme.dividerColor.withValues(alpha: .7)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: bytes == null
+              ? Icon(
+                  Icons.photo_camera_outlined,
+                  color: theme.colorScheme.primary,
+                )
+              : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+        );
+        final details = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppText(
+              widget.label,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
+            const SizedBox(height: 8),
+            AppHorizontalStrip(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _pick,
+                  icon: _busy
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 19,
+                        ),
+                  label: const AppText('اختيار صورة'),
+                ),
+                if (bytes != null)
+                  TextButton.icon(
+                    onPressed: _busy ? null : () => widget.onChanged(null),
+                    icon: const Icon(Icons.delete_outline, size: 19),
+                    label: const AppText('إزالة'),
+                  ),
+              ],
+            ),
           ],
-        ),
-      ),
+        );
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [preview, const SizedBox(height: 10), details],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            preview,
+            const SizedBox(width: 14),
+            Expanded(child: details),
+          ],
+        );
+      },
     );
   }
 }

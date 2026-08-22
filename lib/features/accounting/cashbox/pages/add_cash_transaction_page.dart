@@ -19,9 +19,11 @@ class AddCashTransactionPage extends StatefulWidget {
     super.key,
     this.transaction,
     this.initialType = 'receipt',
+    this.initialCashAccountId,
   });
   final CashTransactionModel? transaction;
   final String initialType;
+  final String? initialCashAccountId;
 
   @override
   State<AddCashTransactionPage> createState() => _AddCashTransactionPageState();
@@ -61,7 +63,7 @@ class _AddCashTransactionPageState extends State<AddCashTransactionPage> {
     );
     _partyType = t?.partyType ?? 'other';
     _method = t?.paymentMethod ?? 'cash';
-    _cashAccountId = t?.cashAccountId;
+    _cashAccountId = t?.cashAccountId ?? widget.initialCashAccountId;
     _counterAccountId = t?.counterAccountId;
     _date = t?.transactionDate ?? DateTime.now();
     _voucher = TextEditingController(text: t?.voucherNumber ?? _number());
@@ -170,7 +172,7 @@ class _AddCashTransactionPageState extends State<AddCashTransactionPage> {
         break;
       }
     }
-    final accounts = c.ledgerAccounts
+    final accounts = c.postableLedgerAccounts
         .where(
           (a) =>
               a.isActive &&

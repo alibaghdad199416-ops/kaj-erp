@@ -19,9 +19,14 @@ import 'account_statement_page.dart';
 import 'add_journal_entry_page.dart';
 
 class AccountingPage extends StatefulWidget {
-  const AccountingPage({super.key, this.embedded = false});
+  const AccountingPage({
+    super.key,
+    this.embedded = false,
+    this.continuous = false,
+  });
 
   final bool embedded;
+  final bool continuous;
 
   @override
   State<AccountingPage> createState() => _AccountingPageState();
@@ -57,12 +62,228 @@ class _AccountingPageState extends State<AccountingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final content = Consumer<AccountingController>(
+      builder: (context, controller, _) {
+        if (controller.isLoading && controller.entries.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final query = _searchController.text.trim().toLowerCase();
+        final entries = controller.entries
+            .where((entry) {
+              final matchesCurrency =
+                  _currencyFilter == 'ALL' || entry.currency == _currencyFilter;
+              final matchesQuery =
+                  query.isEmpty ||
+                  entry.entryNumber.toLowerCase().contains(query) ||
+                  entry.description.toLowerCase().contains(query) ||
+                  (entry.referenceType ?? '').toLowerCase().contains(query);
+              return matchesCurrency && matchesQuery;
+            })
+            .toList(growable: false);
+
+        final filters = LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 860;
+            final search = TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: AppTranslation.translate('البحث في القيود'),
+                prefixIcon: const Icon(Icons.search, size: 20),
+                isDense: true,
+                border: const OutlineInputBorder(),
+              ),
+            );
+            final currencyFilters = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ['ALL', 'IQD', 'USD']
+                  .map(
+                    (currency) => ChoiceChip(
+                      selected: _currencyFilter == currency,
+                      onSelected: (_) =>
+                          setState(() => _currencyFilter = currency),
+                      label: AppText(
+                        currency == 'ALL' ? 'كل العملات' : currency,
+                      ),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: const VisualDensity(
+                        horizontal: -2,
+                        vertical: -2,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            );
+            final add = FilledButton.tonalIcon(
+              onPressed: _openAdd,
+              style: FilledButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.add_rounded, size: 17),
+              label: const AppText('قيد جديد'),
+            );
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  search,
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 7,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [currencyFilters, add],
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: search),
+                const SizedBox(width: 8),
+                currencyFilters,
+                const SizedBox(width: 8),
+                add,
+              ],
+            );
+          },
+        );
+
+        final error = controller.errorMessage == null
+            ? null
+            : Card(
+                color: Colors.red.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: AppText(controller.errorMessage!),
+                ),
+              );
+
+        Widget entriesViewport;
+        if (entries.isEmpty) {
+          entriesViewport = CustomScrollView(
+            key: const ValueKey('journal-entries-full-height-empty-scroll'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.menu_book_outlined, size: 20),
+                      const SizedBox(width: 8),
+                      AppText(
+                        context.l10n.isArabic
+                            ? 'لا توجد قيود مطابقة.'
+                            : 'No matching journal entries.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else {
+          entriesViewport = ListView(
+            key: const ValueKey('journal-entries-full-height-list'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(0, 2, 0, 12),
+            children: entries
+                .map((entry) => _entryCard(context, controller, entry))
+                .toList(growable: false),
+          );
+        }
+
+        if (widget.embedded && !widget.continuous) {
+          final scheme = Theme.of(context).colorScheme;
+          return Column(
+            key: const ValueKey('journal-entries-full-height-column'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _summary(controller),
+              const SizedBox(height: 10),
+              filters,
+              if (error != null) ...[const SizedBox(height: 8), error],
+              const SizedBox(height: 10),
+              Expanded(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: .72),
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: RefreshIndicator(
+                      onRefresh: controller.loadAccounting,
+                      child: entriesViewport,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        final listChildren = <Widget>[
+          if (!widget.embedded) ...[_header(), const SizedBox(height: 16)],
+          _summary(controller),
+          const SizedBox(height: 10),
+          filters,
+          const SizedBox(height: 10),
+          ?error,
+          if (entries.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.menu_book_outlined, size: 20),
+                  const SizedBox(width: 8),
+                  AppText(
+                    context.l10n.isArabic
+                        ? 'لا توجد قيود مطابقة.'
+                        : 'No matching journal entries.',
+                  ),
+                ],
+              ),
+            )
+          else
+            ...entries.map((entry) => _entryCard(context, controller, entry)),
+          const SizedBox(height: 12),
+        ];
+
+        return RefreshIndicator(
+          onRefresh: controller.loadAccounting,
+          child: ListView(
+            shrinkWrap: widget.continuous,
+            physics: widget.continuous
+                ? const NeverScrollableScrollPhysics()
+                : const AlwaysScrollableScrollPhysics(),
+            padding: widget.embedded
+                ? const EdgeInsets.fromLTRB(0, 0, 0, 12)
+                : const EdgeInsets.all(20),
+            children: listChildren,
+          ),
+        );
+      },
+    );
+
     return Directionality(
       textDirection: Directionality.of(context),
-      child: Scaffold(
-        appBar: widget.embedded
-            ? null
-            : AppBar(
+      child: widget.embedded
+          ? content
+          : Scaffold(
+              appBar: AppBar(
                 leading: const AppBackButton(),
                 title: const AppText('المحاسبة'),
                 actions: [
@@ -79,117 +300,8 @@ class _AccountingPageState extends State<AccountingPage> {
                   const SizedBox(width: 8),
                 ],
               ),
-        body: Consumer<AccountingController>(
-          builder: (context, controller, _) {
-            if (controller.isLoading && controller.entries.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return RefreshIndicator(
-              onRefresh: controller.loadAccounting,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  if (!widget.embedded) ...[
-                    _header(),
-                    const SizedBox(height: 16),
-                  ],
-                  _summary(controller),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: AppTranslation.translate(
-                              'البحث في القيود',
-                            ),
-                            prefixIcon: const Icon(Icons.search),
-                            isDense: true,
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.tonalIcon(
-                        onPressed: _openAdd,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const AppText('قيد جديد'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
-                    children: ['ALL', 'IQD', 'USD']
-                        .map(
-                          (currency) => ChoiceChip(
-                            selected: _currencyFilter == currency,
-                            onSelected: (_) =>
-                                setState(() => _currencyFilter = currency),
-                            label: AppText(
-                              currency == 'ALL' ? 'كل العملات' : currency,
-                            ),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                  const SizedBox(height: 16),
-                  if (controller.errorMessage != null)
-                    Card(
-                      color: Colors.red.shade50,
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: AppText(controller.errorMessage!),
-                      ),
-                    ),
-                  Builder(
-                    builder: (context) {
-                      final query = _searchController.text.trim().toLowerCase();
-                      final entries = controller.entries
-                          .where((entry) {
-                            final matchesCurrency =
-                                _currencyFilter == 'ALL' ||
-                                entry.currency == _currencyFilter;
-                            final matchesQuery =
-                                query.isEmpty ||
-                                entry.entryNumber.toLowerCase().contains(
-                                  query,
-                                ) ||
-                                entry.description.toLowerCase().contains(
-                                  query,
-                                ) ||
-                                (entry.referenceType ?? '')
-                                    .toLowerCase()
-                                    .contains(query);
-                            return matchesCurrency && matchesQuery;
-                          })
-                          .toList(growable: false);
-                      if (entries.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.all(50),
-                          child: Center(child: AppText('لا توجد قيود مطابقة.')),
-                        );
-                      }
-                      return Column(
-                        children: entries
-                            .map(
-                              (entry) => _entryCard(context, controller, entry),
-                            )
-                            .toList(growable: false),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 80),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+              body: content,
+            ),
     );
   }
 
@@ -232,35 +344,57 @@ class _AccountingPageState extends State<AccountingPage> {
   }
 
   Widget _summary(AccountingController controller) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        _summaryCard('الحسابات', controller.accounts.length.toString()),
-        _summaryCard('القيود', controller.entries.length.toString()),
-        _summaryCard(
-          'ميزان USD',
-          '${MoneyFormatter.format(controller.usdTrial['debit'] ?? 0, currency: 'USD')} / ${MoneyFormatter.format(controller.usdTrial['credit'] ?? 0, currency: 'USD')}',
-        ),
-        _summaryCard(
-          'ميزان IQD',
-          '${MoneyFormatter.format(controller.iqdTrial['debit'] ?? 0, currency: 'IQD')} / ${MoneyFormatter.format(controller.iqdTrial['credit'] ?? 0, currency: 'IQD')}',
-        ),
-        _currencySubledgerCard(
-          context,
-          'ذمم العملاء',
-          controller.receivablesByCurrency,
-          Icons.person_outline,
-          receivables: true,
-        ),
-        _currencySubledgerCard(
-          context,
-          'ذمم الموردين',
-          controller.payablesByCurrency,
-          Icons.local_shipping_outlined,
-          receivables: false,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 8.0;
+        const minCardWidth = 190.0;
+        final columns = ((constraints.maxWidth + gap) / (minCardWidth + gap))
+            .floor()
+            .clamp(1, 6);
+        final width = (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            _summaryCard(
+              'الحسابات',
+              controller.accounts.length.toString(),
+              width: width,
+            ),
+            _summaryCard(
+              'القيود',
+              controller.entries.length.toString(),
+              width: width,
+            ),
+            _summaryCard(
+              'ميزان USD',
+              '${MoneyFormatter.format(controller.usdTrial['debit'] ?? 0, currency: 'USD')} / ${MoneyFormatter.format(controller.usdTrial['credit'] ?? 0, currency: 'USD')}',
+              width: width,
+            ),
+            _summaryCard(
+              'ميزان IQD',
+              '${MoneyFormatter.format(controller.iqdTrial['debit'] ?? 0, currency: 'IQD')} / ${MoneyFormatter.format(controller.iqdTrial['credit'] ?? 0, currency: 'IQD')}',
+              width: width,
+            ),
+            _currencySubledgerCard(
+              context,
+              'ذمم العملاء',
+              controller.receivablesByCurrency,
+              Icons.person_outline,
+              width: width,
+              receivables: true,
+            ),
+            _currencySubledgerCard(
+              context,
+              'ذمم الموردين',
+              controller.payablesByCurrency,
+              Icons.local_shipping_outlined,
+              width: width,
+              receivables: false,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -269,6 +403,7 @@ class _AccountingPageState extends State<AccountingPage> {
     String title,
     Map<String, double> balances,
     IconData icon, {
+    required double width,
     required bool receivables,
   }) {
     final currencies =
@@ -277,7 +412,7 @@ class _AccountingPageState extends State<AccountingPage> {
             .toList(growable: false)
           ..sort((a, b) => a.key.compareTo(b.key));
     return SizedBox(
-      width: 220,
+      width: width,
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1151,9 +1286,9 @@ class _AccountingPageState extends State<AccountingPage> {
     );
   }
 
-  Widget _summaryCard(String title, String value) {
+  Widget _summaryCard(String title, String value, {required double width}) {
     return SizedBox(
-      width: 160,
+      width: width,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
@@ -1186,28 +1321,116 @@ class _AccountingPageState extends State<AccountingPage> {
   Widget _entryCard(
     BuildContext context,
     AccountingController controller,
-    JournalEntryModel entry,
-  ) {
+    JournalEntryModel entry, [
+    double runningBalance = 0,
+  ]) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 7),
       child: ExpansionTile(
+        tilePadding: const EdgeInsetsDirectional.fromSTEB(11, 0, 5, 0),
+        childrenPadding: const EdgeInsets.only(bottom: 3),
         title: AppText(
           '${entry.entryNumber} — ${entry.description}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppText(
-              '${entry.entryDate.toLocal().toString().split(' ').first} • ${entry.currency} • ${MoneyFormatter.format(entry.totalDebit, currency: entry.currency)}',
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FieldPermissionVisibility(
+                  resource: 'accounting',
+                  field: 'entryDate',
+                  viewPermission: 'accounting.view',
+                  child: AppText(
+                    entry.entryDate.toLocal().toString().split(' ').first,
+                  ),
+                ),
+                FieldPermissionVisibility(
+                  resource: 'accounting',
+                  field: 'currency',
+                  viewPermission: 'accounting.view',
+                  child: AppText(entry.currency),
+                ),
+              ],
             ),
-            if ((entry.referenceType ?? '').trim().isNotEmpty)
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FieldPermissionVisibility(
+                  resource: 'accounting',
+                  field: 'debit',
+                  viewPermission: 'accounting.view',
+                  child: AppText(
+                    '${AppTranslation.translate('إجمالي المدين')}: ${MoneyFormatter.format(entry.totalDebit, currency: entry.currency)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                FieldPermissionVisibility(
+                  resource: 'accounting',
+                  field: 'credit',
+                  viewPermission: 'accounting.view',
+                  child: AppText(
+                    '${AppTranslation.translate('إجمالي الدائن')}: ${MoneyFormatter.format(entry.totalCredit, currency: entry.currency)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                FieldPermissionVisibility(
+                  resource: 'accounting',
+                  field: 'runningBalance',
+                  viewPermission: 'accounting.view',
+                  child: AppText(
+                    '${AppTranslation.translate('رصيد')} ${MoneyFormatter.format(runningBalance, currency: entry.currency)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                if (entry.hasVerifiedBalance)
+                  FieldPermissionVisibility(
+                    resource: 'accounting',
+                    field: 'balances',
+                    viewPermission: 'accounting.view',
+                    child: AppText(
+                      '${AppTranslation.translate('الفرق')}: ${MoneyFormatter.format(entry.journalBalance.abs(), currency: entry.currency)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                if (entry.hasVerifiedBalance)
+                  FieldPermissionVisibility(
+                    resource: 'accounting',
+                    field: 'balances',
+                    viewPermission: 'accounting.view',
+                    child: Chip(
+                      visualDensity: VisualDensity.compact,
+                      avatar: Icon(
+                        entry.isBalanced
+                            ? Icons.check_circle_outline
+                            : Icons.error_outline,
+                        size: 16,
+                      ),
+                      label: AppText(
+                        AppTranslation.translate(
+                          entry.isBalanced ? 'متوازن' : 'غير متوازن',
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (entry.sourceReferenceLabel.isNotEmpty)
               FieldPermissionVisibility(
                 resource: 'accounting',
                 field: 'reference',
                 viewPermission: 'accounting.view',
                 child: AppText(
-                  '${context.l10n.isArabic ? 'المرجع' : 'Reference'}: ${entry.referenceType}',
+                  '${context.l10n.isArabic ? 'المصدر' : 'Source'}: ${entry.sourceReferenceLabel}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
