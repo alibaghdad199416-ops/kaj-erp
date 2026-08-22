@@ -17,6 +17,7 @@ import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/unified_document_details_dialog.dart';
 import 'package:quality_line_erp/design_system/kaj_finance_stage7_components.dart';
+import 'package:quality_line_erp/design_system/kaj_universal_components.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/controllers/cashbox_controller.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_account_model.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/models/cash_transaction_filter.dart';
@@ -997,30 +998,34 @@ class _CashboxWorkspaceScreenState extends State<_CashboxWorkspaceScreen> {
       runSpacing: 8,
       children: <Widget>[
         if (canReceive)
-          FilledButton.icon(
+          KajActionButton.primary(
             onPressed: () => _openAdd('receipt'),
-            icon: const Icon(Icons.south_west_rounded, size: 17),
-            label: AppText(t('سند قبض', 'Cash In')),
+            label: t('سند قبض', 'Cash In'),
+            icon: Icons.south_west_rounded,
+            compact: true,
           ),
         if (canPay)
-          OutlinedButton.icon(
+          KajActionButton.secondary(
             onPressed: () => _openAdd('payment'),
-            icon: const Icon(Icons.north_east_rounded, size: 17),
-            label: AppText(t('سند صرف', 'Cash Out')),
+            label: t('سند صرف', 'Cash Out'),
+            icon: Icons.north_east_rounded,
+            compact: true,
           ),
         if (canEdit)
-          OutlinedButton.icon(
+          KajActionButton.neutral(
             onPressed: _editAccount,
-            icon: const Icon(Icons.edit_outlined, size: 17),
-            label: AppText(t('تعديل الصندوق', 'Edit Cashbox')),
+            label: t('تعديل الصندوق', 'Edit Cashbox'),
+            icon: Icons.edit_outlined,
+            compact: true,
           ),
         if (canExport)
-          OutlinedButton.icon(
+          KajActionButton.danger(
             onPressed: transactions.isEmpty
                 ? null
                 : () => _export(controller, transactions),
-            icon: const Icon(Icons.table_view_outlined, size: 17),
-            label: AppText(t('تصدير Excel', 'Export Excel')),
+            label: t('تصدير Excel', 'Export Excel'),
+            icon: Icons.table_view_outlined,
+            compact: true,
           ),
       ],
     );
@@ -1167,7 +1172,7 @@ class _CashboxWorkspaceScreenState extends State<_CashboxWorkspaceScreen> {
   ) {
     final raw = controller.transactionsForCashbox(
       widget.account.id,
-      criteria: const UnifiedFilterCriteria(),
+      criteria: criteria,
     );
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

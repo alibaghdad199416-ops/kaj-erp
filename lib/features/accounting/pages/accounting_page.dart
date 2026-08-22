@@ -1321,8 +1321,9 @@ class _AccountingPageState extends State<AccountingPage> {
   Widget _entryCard(
     BuildContext context,
     AccountingController controller,
-    JournalEntryModel entry,
-  ) {
+    JournalEntryModel entry, [
+    double runningBalance = 0,
+  ]) {
     return Card(
       margin: const EdgeInsets.only(bottom: 7),
       child: ExpansionTile(
@@ -1379,6 +1380,15 @@ class _AccountingPageState extends State<AccountingPage> {
                   viewPermission: 'accounting.view',
                   child: AppText(
                     '${AppTranslation.translate('إجمالي الدائن')}: ${MoneyFormatter.format(entry.totalCredit, currency: entry.currency)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                FieldPermissionVisibility(
+                  resource: 'accounting',
+                  field: 'runningBalance',
+                  viewPermission: 'accounting.view',
+                  child: AppText(
+                    '${AppTranslation.translate('رصيد')} ${MoneyFormatter.format(runningBalance, currency: entry.currency)}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
