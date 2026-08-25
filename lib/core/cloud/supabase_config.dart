@@ -13,8 +13,11 @@ class SupabaseConfig {
     defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
   );
 
-  /// Compatibility alias used by older scripts in existing deployments.
   static String get anonKey => publishableKey;
+
+  static bool _isLocalUrl(Uri uri) =>
+      (uri.host == '127.0.0.1' || uri.host == 'localhost') &&
+      (uri.scheme == 'http' || uri.scheme == 'https');
 
   static String? validate({String? projectUrl, String? publishableKey}) {
     final resolvedUrl = (projectUrl ?? url).trim();
@@ -22,14 +25,24 @@ class SupabaseConfig {
         .trim();
 
     final uri = Uri.tryParse(resolvedUrl);
-    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
-      return 'رابط Supabase غير صالح. استخدم رابط المشروع الأساسي عبر HTTPS.';
+    if (uri == null || uri.host.isEmpty) {
+      return 'رابط Supabase غير صالح.';
     }
+
+    // Local Docker/Supabase development is intentionally allowed only on the
+    // loopback interface. Production URLs still require HTTPS and .supabase.co.
+    final isLocal = _isLocalUrl(uri);
+    if (!isLocal) {
+      if (uri.scheme != 'https') {
+        return 'رابط Supabase غير صالح. استخدم رابط المشروع الأساسي عبر HTTPS.';
+      }
+      if (!uri.host.endsWith('.supabase.co')) {
+        return 'رابط Supabase يجب أن ينتهي بـ .supabase.co.';
+      }
+    }
+
     if (uri.path.isNotEmpty && uri.path != '/') {
       return 'استخدم رابط مشروع Supabase الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
-    }
-    if (!uri.host.endsWith('.supabase.co')) {
-      return 'رابط Supabase يجب أن ينتهي بـ .supabase.co.';
     }
     if (resolvedKey.isEmpty || resolvedKey.contains('YOUR_')) {
       return 'مفتاح Supabase العام غير مضبوط.';
