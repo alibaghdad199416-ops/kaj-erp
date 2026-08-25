@@ -1,0 +1,1 @@
+select id from auth.users where email = 'admin@kaj.com';
