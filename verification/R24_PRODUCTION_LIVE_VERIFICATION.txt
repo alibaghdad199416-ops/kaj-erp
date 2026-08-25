@@ -1,0 +1,84 @@
+Quality Line ERP — R24 Production Live Verification
+Date: 2026-08-08
+Supabase project: fjiaxdorunedmltgqtty
+Company: 11111111-1111-4111-8111-111111111111
+
+PRODUCTION MIGRATIONS — APPLIED
+PASS 20260808085021 r24_runtime_accounting_payment_performance_closure
+PASS 20260808085451 r24_journal_currency_invoice_closure
+PASS 20260808090027 r24_sales_invoice_immutable_logistics_closure
+PASS 20260808090250 r24_sales_fifo_alias_closure
+PASS 20260808091343 r24_partner_dual_ledger_canonical_closure
+
+LIVE CONTRACT HEALTH
+PASS Phase26 signature count = 1
+PASS Phase26 args = p_area text, p_action text, p_payload jsonb
+PASS authenticated EXECUTE = true
+PASS Phase26 system_monitor/health_check = healthy:true
+PASS long transactions >30 seconds = 0
+PASS master reads under authenticated company member:
+  erp_cash_accounts = 4
+  erp_cash_transactions = 1
+  erp_cars = 33
+PASS duplicate active cashbox ledger bindings = 0
+
+CURRENT CASHBOX BINDINGS
+BGW USD | USD | acc-1100 | linked BGW IQD
+BGW IQD | IQD | acc-1101 | linked BGW USD
+EBL USD | USD | 4b43fb7e-e239-4994-8e2a-fb08e00c691c | linked EBL IQD
+EBL IQD | IQD | a713e3b8-a44b-4225-a08e-5f8afa90d565 | linked EBL USD
+Both accountId/account_id aliases match the current ledger for every box.
+
+CURRENT LIVE CASH RECONCILIATION
+PASS BGW IQD | subledger 10,000,000 | ledger 10,000,000 | difference 0
+PASS EBL IQD | subledger 0 | ledger 0 | difference 0
+PASS BGW USD | subledger 0 | ledger 0 | difference 0
+PASS EBL USD | subledger 0 | ledger 0 | difference 0
+
+ROLLBACK SMOKE TESTS — NO TEST DATA LEFT BEHIND
+PASS Manual cash receipt (USD)
+PASS Manual cash payment (USD)
+PASS Same-currency cashbox transfer (USD -> USD)
+PASS Cross-currency cashbox transfer (USD -> IQD, 1 -> 1300 @ 1300)
+PASS Purchase invoice PI00012 approval
+  postingMode=direct_supplier_inventory
+  purchase cost in transaction=150 USD
+PASS Purchase same-currency partial payment
+PASS Combined Purchase -> Sales sequence
+  purchase invoice approved
+  car cost=150 USD
+  sales invoice approved
+  active FIFO/COGS=150 USD
+  purchase paidAmount=1
+  sales paidAmount=1
+PASS Purchase USD invoice paid from IQD cashbox through linked FX cashboxes
+PASS Sales USD invoice received into IQD cashbox through linked FX cashboxes
+  two FX transfer chains created inside transaction
+PASS Synthetic paid Maintenance invoice + IQD FX receipt
+  invoice journal created
+  paidAmount=1
+  capitalizationApplied=false
+All smoke transactions ended with ROLLBACK.
+
+SOURCE / CONTRACT GATES
+PASS R24 runtime accounting/UI closure
+PASS R8 through R24 verifiers individually
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1221 definitions / 683 active signatures
+PASS PostgreSQL text/UUID type-boundary verification — 682 active function signatures / 154 table schemas
+PASS Supabase-only structural verification — 329 reachable Dart files / 159 literal RPC calls / 31 executable tests / 222 migrations
+PASS static Dart source sanity — 332 Dart files
+PASS localization verification
+PASS modular runtime architecture
+
+CONFIGURATION IMMUTABILITY
+PASS dart_defines.json SHA-256 unchanged
+PASS .firebaserc SHA-256 unchanged
+PASS firebase.json SHA-256 unchanged
+
+LOCAL TOOLCHAIN LIMITATION OF THIS EXECUTION ENVIRONMENT
+NOT RUN here: flutter analyze
+NOT RUN here: flutter test
+NOT RUN here: fresh flutter build web
+NOT RUN here: Firebase Hosting deploy
+Reason: Flutter/Dart/Firebase CLI are not installed in this execution environment.
+R24 Windows validation/deployment scripts retain analyzer, tests and fresh web build as mandatory pre-hosting gates.

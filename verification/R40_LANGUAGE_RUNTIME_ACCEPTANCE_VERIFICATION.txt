@@ -1,0 +1,25 @@
+Quality Line ERP R40 Language & Runtime Acceptance
+Date: 2026-08-09
+
+Additional gaps closed after R39 audit:
+- Inventory Movement Log title, empty state, cards, and detail dialog now follow the active Arabic/English locale.
+- Product deletion confirmation and policy text now follow the active locale instead of always showing Arabic.
+- Product movement Excel/PDF remains English structured output with Date/Time, Product, Quantity, From, To, User, cost and reference fields.
+- R39 canonical maintenance create/edit remains authoritative and labor-only remains allowed.
+- Web PDF print service still performs true browser printing with download fallback.
+- No legacy erp_r28_cloud_command call remains in Flutter.
+- deploy:production now validates R40 before build/deploy.
+
+Verification:
+PASS R40 language/runtime acceptance — 11 gates
+PASS R39 canonical acceptance — 10 gates
+PASS Supabase-only structural verification — 162 literal RPC calls all defined, 232 migrations
+PASS static Dart source sanity — 338 Dart files
+PASS localization verification
+PASS PostgreSQL contracts — 1253 definitions / 705 active signatures
+PASS PostgreSQL UUID/text boundaries — 704 signatures / 154 schemas
+PASS clean package sanity
+PASS production deployment target
+
+No database migration was added in R40. Production backend remains R39/R37 authoritative.
+Flutter analyze/test/build still must be run on the workstation because Flutter SDK is unavailable in this environment.

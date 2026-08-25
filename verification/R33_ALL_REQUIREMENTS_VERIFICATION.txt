@@ -1,0 +1,27 @@
+Quality Line ERP R33 All Requirements Closure
+Date: 2026-08-09
+
+Additional closure over R32:
+- Removed every remaining Unix epoch fallback from Dart source under lib/.
+- Purchase, opportunity, backup, branch, audit/user, installment, account and car-image models now prefer real alternative timestamps (updated/effective/cloud timestamps) and never synthesize 1970.
+- Added global R33 gate rejecting fromMillisecondsSinceEpoch(0) and DateTime(1970) anywhere in lib/.
+- R33 release metadata/cache token unified.
+- Default deploy/validate path upgraded to R33.
+
+Verification executed in this environment:
+PASS R33 gate (13 checks)
+PASS R32 compatibility gate
+PASS static Dart source sanity (338 files)
+PASS localization verification
+PASS clean package sanity
+PASS production deployment target
+PASS PostgreSQL CREATE OR REPLACE compatibility (1241 definitions / 694 active signatures)
+
+Live Production Supabase verification:
+- EBL USD accountId == account_id == canonical account.
+- EBL IQD accountId == account_id == canonical account.
+- duplicate active cashbox ledger bindings = 0.
+- erp_r28_cloud_command signature count = 1.
+
+Environment limitation:
+Flutter/Dart SDK is not installed in this execution environment, therefore flutter analyze, flutter test, and flutter build web must be executed on the Windows workstation before Firebase deployment.

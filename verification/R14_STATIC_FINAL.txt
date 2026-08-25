@@ -1,0 +1,244 @@
+===== python -B tool/verify_supabase_only.py =====
+PASS Supabase-only structural verification
+  - Dart graph: 329 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 158 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 210
+===== python -B tool/verify_postgres_contracts.py =====
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1108 definitions checked, 608 active signatures
+===== python -B tool/verify_postgres_type_boundaries.py =====
+PASS PostgreSQL text/UUID type-boundary verification
+  - 607 active function signatures inspected
+  - 152 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+===== python -B tool/verify_static_dart_sanity.py =====
+PASS static Dart source sanity verification
+  - checked 332 Dart files
+  - all quality_line_erp package imports and exports resolve
+  - FontWeight values are supported by Flutter
+  - no unresolved merge markers
+===== python -B tool/verify_localization.py =====
+PASS localization verification
+  - English remains the primary locale and Arabic remains supported
+  - AppText follows the active widget-tree locale
+  - visible form properties and validators use localization
+===== python -B tool/verify_r8_release_closure.py =====
+PASS R8 release closure verification
+- Supabase/Firebase configuration hashes unchanged
+- typed XLSX export and explicit recycle-bin deletion identity verified
+- shared design-system text uses AppText/AppSelectableText localization layer
+- hardened operational-date FX cash transfer chain verified
+- delivery cleanliness is delegated to verify:package; CI compile gates are present
+NOTICE: exhaustive per-field UI permission wiring is not certified by this verifier.
+===== python -B tool/verify_r9_complete_closure.py =====
+PASS R9 complete closure
+- production Supabase/Firebase configuration hashes unchanged
+- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes
+- legacy invoice tabs no longer bypass authoritative order workflows
+- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns
+- operational date/time and null-runtime hardening retained
+- source-package cleanliness is delegated to verify:package
+===== python -B tool/verify_r10_windows_flutter_build_cleanup.py =====
+PASS R10 Windows/Flutter build cleanup verification
+  - production Supabase/Firebase files are byte-identical
+  - settings permission and legacy read-only cards are compile-safe
+  - analyzer warnings reported by the user's Flutter run are removed
+  - cashbox async BuildContext usage is mounted-guarded
+  - Python verifiers are UTF-8 deterministic on Windows
+  - deprecated --pwa-strategy is removed while cache cleanup remains
+===== python -B tool/verify_r11_formatter_semantic_closure.py =====
+PASS R11 formatter/semantic closure verification
+  - formatter-invariant matching is centralized in verification_text.py
+  - V7.4.1 invoice fallback checks are semantic and layout-independent
+  - R9/V22.9.3/V7.3.5/V7.5.7 legacy gates remain formatter-invariant
+  - multiline membership literals are blocked from verifier regressions
+  - Supabase/Firebase production configuration hashes are unchanged
+===== python -B tool/verify_r12_root_validation_closure.py =====
+PASS R12 root validation closure
+  - Python verifier decoding is explicit UTF-8
+  - V7.4.1 semantic invoice fallback checks are formatter-safe
+  - verify:all includes R12 and Windows validation is fail-fast
+  - production Supabase/Firebase configuration hashes are unchanged
+  - package cleanliness is delegated to the pre-install verify:delivery gate
+===== python -B tool/verify_r13_workspace_package_separation.py =====
+PASS R13 workspace/package separation
+  - clean delivery is checked before npm/flutter generate workspace artifacts
+  - installed workspace verification allows .dart_tool/node_modules/build metadata
+  - package cleanliness remains enforced by verify:package only
+  - fail-fast analyzer/test/web build remain mandatory
+  - Supabase/Firebase production configuration hashes are unchanged
+===== python -B tool/verify_r14_runtime_rpc_invoice_root_closure.py =====
+PASS R14 runtime RPC/invoice root closure
+  - R14 master CRUD/tombstone contracts replace the failing R9 browser endpoint and validate legacy table structure
+  - workflow status/accounting writes no longer require unrelated *.update field permission
+  - Phase-26 browser contract is recreated behind an explicit PostgREST schema reload
+  - sales/purchase invoice approval uses one diagnosable R14 contract over V23.0.2/V7.6.2
+  - sales cross-definition currency and purchase single-currency accounting policies are retained
+  - Supabase/Firebase production configuration hashes are unchanged
+
+--- config SHA256 ---
+53ea8bb4f55fbc85b06c70a91a682111bab652ce8ddced4730a55fc0a3179287  dart_defines.json
+003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e  .firebaserc
+ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a  firebase.json
+
+--- unfinished markers ---
+lib/core/printing/accounting_report_export_service.dart:78:                ? _excelCell(value.toDouble())
+lib/core/printing/accounting_report_export_service.dart:136:                    ? _excelCell(value.toDouble())
+lib/core/printing/accounting_report_export_service.dart:849:                ? value.toDouble()
+lib/core/finance/invoice_payment_batch_dialog.dart:194:        .toDouble();
+lib/core/finance/invoice_payment_batch_dialog.dart:263:        .toDouble();
+lib/core/widgets/app_top_navigation.dart:137:      _scrollController.jumpTo(target.clamp(0, maximum).toDouble());
+lib/core/widgets/app_full_page_route.dart:168:            .toDouble(),
+lib/core/widgets/app_full_page_route.dart:171:            .toDouble(),
+lib/core/widgets/app_full_page_route.dart:212:                .toDouble();
+lib/core/preferences/user_interface_preferences.dart:121:        ? value.toDouble()
+lib/core/accounting/cash_flow_hierarchy.dart:61:    if (value is num) return value.toDouble();
+lib/core/accounting/cash_flow_hierarchy.dart:212:    if (value is num) return value.toDouble();
+lib/core/utils/display_number_formatter.dart:22:    if (value is int || value == value.roundToDouble()) {
+lib/core/models/model_value_reader.dart:52:    if (value is num) return value.toDouble();
+lib/core/exporting/excel_workbook_presentation.dart:188:            : DoubleCellValue(number.toDouble());
+lib/core/exporting/excel_workbook_presentation.dart:214:    if (value is num) return DoubleCellValue(value.toDouble());
+lib/core/exporting/excel_workbook_presentation.dart:253:              : DoubleCellValue(number.toDouble());
+lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart:270:      ? value.toDouble()
+lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart:519:          ? value.toDouble()
+lib/features/purchases/pages/purchase_workflow_page.dart:108:    final remaining = (order['invoiceRemaining'] as num?)?.toDouble() ?? 0;
+lib/features/purchases/pages/purchase_workflow_page.dart:227:      remainingAmount: (order['invoiceRemaining'] as num?)?.toDouble() ?? 0,
+lib/features/purchases/pages/purchase_workflow_page.dart:546:                                            ?.toDouble() ??
+lib/features/purchases/pages/purchase_order_draft_page.dart:101:                baseCost: (row['baseCost'] as num?)?.toDouble() ?? 0,
+lib/features/purchases/pages/purchase_order_draft_page.dart:167:              baseCost: (row['unitCost'] as num?)?.toDouble() ?? 0,
+lib/features/purchases/pages/purchase_order_draft_page.dart:213:      (_subtotal - _discountValue).clamp(0, double.infinity).toDouble();
+lib/features/dashboard/data/dashboard_repository.dart:108:      v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+lib/features/inventory/data/inventory_repository.dart:113:          final value = (total?['value'] ?? 0).toDouble();
+lib/features/inventory/models/inventory_movement_model.dart:68:        unitCost: (map['unitCost'] as num?)?.toDouble() ?? 0,
+lib/features/inventory/models/inventory_movement_model.dart:69:        totalCost: (map['totalCost'] as num?)?.toDouble() ?? 0,
+lib/features/inventory/models/warehouse_stock_model.dart:31:        averageUnitCost: (map['averageUnitCost'] as num?)?.toDouble() ?? 0,
+lib/features/inventory/pages/product_warehouse_transfers_page.dart:248:            unitCost: _number(item['unitCost']).toDouble(),
+lib/features/inventory/cars/pages/car_warehouse_transfers_page.dart:45:      ? value.toDouble()
+lib/features/accounting/expenses/data/expense_repository.dart:55:    return _toDouble(result);
+lib/features/accounting/expenses/data/expense_repository.dart:156:  static double _toDouble(Object? value) =>
+lib/features/accounting/expenses/data/expense_repository.dart:157:      value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+lib/features/accounting/fixed_assets/fixed_assets_page.dart:288:                        (a['acquisition_cost'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/fixed_assets/fixed_assets_page.dart:290:                        (a['accumulated_depreciation'] as num?)?.toDouble() ??
+lib/features/accounting/fixed_assets/fixed_assets_page.dart:293:                        (a['salvage_value'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/repositories/accounting_repository.dart:198:    var balance = _toDouble(openingResult);
+lib/features/accounting/repositories/accounting_repository.dart:216:      openingBalance: _toDouble(openingResult),
+lib/features/accounting/repositories/accounting_repository.dart:231:          entry.key.toString().toUpperCase(): _toDouble(entry.value),
+lib/features/accounting/repositories/accounting_repository.dart:331:      'debit': _toDouble(row['debit']),
+lib/features/accounting/repositories/accounting_repository.dart:332:      'credit': _toDouble(row['credit']),
+lib/features/accounting/repositories/accounting_repository.dart:333:      'movementDebit': _toDouble(row['movementDebit']),
+lib/features/accounting/repositories/accounting_repository.dart:334:      'movementCredit': _toDouble(row['movementCredit']),
+lib/features/accounting/repositories/accounting_repository.dart:335:      'difference': _toDouble(row['difference']),
+lib/features/accounting/repositories/accounting_repository.dart:364:  static double _toDouble(Object? value) => value is num
+lib/features/accounting/repositories/accounting_repository.dart:365:      ? value.toDouble()
+lib/features/accounting/installments/data/installment_repository.dart:75:    return _toDouble((result as Map)['total']);
+lib/features/accounting/installments/data/installment_repository.dart:83:    return _toDouble((result as Map)['remaining']);
+lib/features/accounting/installments/data/installment_repository.dart:105:  static double _toDouble(Object? value) => value is num
+lib/features/accounting/installments/data/installment_repository.dart:106:      ? value.toDouble()
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:77:        row['cash_account_id'].toString(): _toDouble(row['balance']),
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:92:          'subledger': _toDouble(row['subledger_balance']),
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:93:          'ledger': _toDouble(row['ledger_balance']),
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:94:          'difference': _toDouble(row['difference']),
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:223:    final openingBalance = _toDouble(row['openingBalance']);
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:224:    final receipts = _toDouble(row['receipts']);
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:225:    final payments = _toDouble(row['payments']);
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:230:      'balance': _toDouble(row['balance']),
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:260:  static double _toDouble(Object? value) => value is num
+lib/features/accounting/cashbox/repositories/cashbox_repository.dart:261:      ? value.toDouble()
+lib/features/accounting/models/journal_entry_model.dart:76:      ? value.toDouble()
+lib/features/accounting/models/journal_line_model.dart:53:      ? value.toDouble()
+lib/features/accounting/models/account_model.dart:105:    if (value is num) return value.toDouble();
+lib/features/accounting/pages/accounting_page.dart:438:                              (row['outstanding_amount'] as num?)?.toDouble() ??
+lib/features/accounting/pages/accounting_page.dart:441:                              (row['total_amount'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/pages/accounting_page.dart:443:                              (row['paid_amount'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/pages/accounting_page.dart:701:                                    (row['amount'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/pages/accounting_page.dart:1063:                              (row['total_amount'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/pages/accounting_page.dart:1065:                              (row['paid_amount'] as num?)?.toDouble() ?? 0;
+lib/features/accounting/pages/accounting_page.dart:1067:                              (row['outstanding_amount'] as num?)?.toDouble() ??
+lib/features/accounting/pages/accounting_center_page.dart:1068:      final cashIn = _toDouble(row['cashIn']);
+lib/features/accounting/pages/accounting_center_page.dart:1069:      final cashOut = _toDouble(row['cashOut']);
+lib/features/accounting/pages/accounting_center_page.dart:1071:              (cashIn == 0 && cashOut == 0 && _toDouble(row['debit']) > 0)
+lib/features/accounting/pages/accounting_center_page.dart:1289:        source.fold(0, (sum, row) => sum + _toDouble(row[key]));
+lib/features/accounting/pages/accounting_center_page.dart:1338:              group.length.toDouble(),
+lib/features/accounting/pages/accounting_center_page.dart:1665:      ? _number(value.toDouble())
+lib/features/accounting/pages/accounting_center_page.dart:1679:  double _toDouble(Object? value) => value is num
+lib/features/accounting/pages/accounting_center_page.dart:1680:      ? value.toDouble()
+lib/features/global_search/repositories/global_search_repository.dart:54:    if (value is num) return value.toDouble();
+lib/features/customer_service/models/opportunity_model.dart:169:        ? value.toDouble()
+lib/features/sales/workflow/pages/sales_order_draft_page.dart:113:                basePrice: (row['basePrice'] as num?)?.toDouble() ?? 0,
+lib/features/sales/workflow/pages/sales_order_draft_page.dart:180:              basePrice: (row['unitPrice'] as num?)?.toDouble() ?? 0,
+lib/features/sales/workflow/pages/sales_order_draft_page.dart:223:      (_subtotal - _discountValue).clamp(0, double.infinity).toDouble();
+lib/features/sales/workflow/pages/order_details_dialog.dart:294:      ? value.toDouble()
+lib/features/sales/workflow/pages/order_details_dialog.dart:938:                          'النوع: ${item['itemType']} • الكمية: ${item['quantity']} • السعر: ${_money.format((item[unitField] as num?)?.toDouble() ?? 0)} • الإجمالي: ${_money.format((item['lineTotal'] as num?)?.toDouble() ?? 0)} ${order['currency']}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:939:                          'Type: ${item['itemType']} • Quantity: ${item['quantity']} • Price: ${_money.format((item[unitField] as num?)?.toDouble() ?? 0)} • Total: ${_money.format((item['lineTotal'] as num?)?.toDouble() ?? 0)} ${order['currency']}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:967:                    '${row['invoiceNumber']} — ${_money.format((row['total'] as num?)?.toDouble() ?? 0)} ${row['currency']}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:969:                  'الحالة: ${row['status']} • المدفوع: ${_money.format((row['paidAmount'] as num?)?.toDouble() ?? 0)} • المتبقي: ${_money.format((row['remainingAmount'] as num?)?.toDouble() ?? 0)}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:970:                  'Status: ${row['status']} • Paid: ${_money.format((row['paidAmount'] as num?)?.toDouble() ?? 0)} • Remaining: ${_money.format((row['remainingAmount'] as num?)?.toDouble() ?? 0)}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:981:                    '${row['cashAccountName'] ?? _bi('صندوق', 'Cash account')} — ${_money.format((row['cashAmount'] as num?)?.toDouble() ?? 0)} ${row['paymentCurrency']}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:993:                      (row['exchangeDifference'] as num?)?.toDouble() ?? 0;
+lib/features/sales/workflow/pages/order_details_dialog.dart:1006:                    'مبلغ الفاتورة: ${_money.format((row['invoiceAmount'] as num?)?.toDouble() ?? 0)} • $mode • $differenceText • التاريخ: ${row['paymentDate']}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:1007:                    'Invoice amount: ${_money.format((row['invoiceAmount'] as num?)?.toDouble() ?? 0)} • $mode • $differenceText • Date: ${row['paymentDate']}',
+lib/features/sales/workflow/pages/order_details_dialog.dart:1491:        _money.format((order['subtotal'] as num?)?.toDouble() ?? 0),
+lib/features/sales/workflow/pages/order_details_dialog.dart:1496:        _money.format((order['discount'] as num?)?.toDouble() ?? 0),
+lib/features/sales/workflow/pages/order_details_dialog.dart:1501:        _money.format((order['total'] as num?)?.toDouble() ?? 0),
+lib/features/sales/workflow/pages/sales_workflow_page.dart:109:    final remaining = (order['invoiceRemaining'] as num?)?.toDouble() ?? 0;
+lib/features/sales/workflow/pages/sales_workflow_page.dart:242:      remainingAmount: (order['invoiceRemaining'] as num?)?.toDouble() ?? 0,
+lib/features/sales/workflow/pages/sales_workflow_page.dart:544:                                            ?.toDouble() ??
+lib/features/maintenance/models/maintenance_order_model.dart:123:        laborCost: (map['laborCost'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:124:        partsCost: (map['partsCost'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:125:        totalCost: (map['totalCost'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:126:        salePrice: (map['salePrice'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:127:        profit: (map['profit'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:128:        carCostAdded: (map['carCostAdded'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:132:        exchangeRate: (map['exchangeRate'] as num?)?.toDouble() ?? 1,
+lib/features/maintenance/models/maintenance_order_model.dart:138:        paidAmount: (map['paidAmount'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:194:        unitCost: (map['unitCost'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/models/maintenance_order_model.dart:195:        unitPrice: (map['unitPrice'] as num?)?.toDouble() ?? 0,
+lib/features/maintenance/pages/maintenance_page.dart:249:        .toDouble();
+lib/features/settings/reports/services/report_export_service.dart:913:          (_tr('totalCars', l), r.totalCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:914:          (_tr('availableCars', l), r.availableCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:915:          (_tr('reservedCars', l), r.reservedCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:916:          (_tr('soldCars', l), r.soldCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:919:          (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:923:          (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:927:          (_tr('customers', l), r.totalCustomers.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:931:          (_tr('suppliers', l), r.totalSuppliers.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:958:          (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:971:          (_tr('customers', l), r.totalCustomers.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:972:          (_tr('suppliers', l), r.totalSuppliers.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:973:          (_tr('activeReservations', l), r.activeReservations.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:974:          (_tr('overdueInstallments', l), r.overdueInstallments.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:988:    (_tr('totalCars', l), r.totalCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:989:    (_tr('availableCars', l), r.availableCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:990:    (_tr('reservedCars', l), r.reservedCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:991:    (_tr('soldCars', l), r.soldCars.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:992:    (_tr('customers', l), r.totalCustomers.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:993:    (_tr('suppliers', l), r.totalSuppliers.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:994:    (_tr('inventoryItems', l), r.totalInventoryItems.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:995:    (_tr('activeReservations', l), r.activeReservations.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:996:    (_tr('overdueInstallments', l), r.overdueInstallments.toDouble()),
+lib/features/settings/reports/services/report_export_service.dart:1077:      v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
+lib/features/settings/reports/data/reports_repository.dart:59:  static double _d(Object? v) => (v as num?)?.toDouble() ?? 0;
+lib/features/settings/reports/pages/reports_page.dart:574:        .toDouble();
+lib/features/settings/reports/pages/reports_page.dart:582:          report.totalCars.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:587:          report.availableCars.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:592:          report.reservedCars.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:595:        ('المباعة', report.soldCars.toDouble(), Icons.sell_outlined),
+lib/features/settings/reports/pages/reports_page.dart:600:          report.totalInventoryItems.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:615:          report.totalInventoryItems.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:621:          report.availableCars.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:628:          report.totalCustomers.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:638:          report.totalSuppliers.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:700:          report.totalInventoryItems.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:718:        ('العملاء', report.totalCustomers.toDouble(), Icons.people_outline),
+lib/features/settings/reports/pages/reports_page.dart:721:          report.totalSuppliers.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:726:          report.activeReservations.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:731:          report.overdueInstallments.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:738:          report.activeReservations.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:743:          report.overdueInstallments.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:748:          report.availableCars.toDouble(),
+lib/features/settings/reports/pages/reports_page.dart:753:          report.totalInventoryItems.toDouble(),
+lib/features/settings/models/currency_model.dart:40:          ((map['exchangeRate'] ?? map['exchange_rate']) as num?)?.toDouble() ??
+lib/features/notifications/repositories/notification_center_repository.dart:34:            amount: (m['amount'] as num?)?.toDouble(),
+supabase/migrations/20260725001500_cloud_projects_assets_maintenance.sql:14: task_number text not null, title text not null, status text not null default 'todo', planned_start_date date,

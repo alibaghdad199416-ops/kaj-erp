@@ -1,0 +1,25 @@
+from pathlib import Path
+import sys
+ROOT = Path(__file__).resolve().parents[1]
+def t(p): return (ROOT / p).read_text(encoding='utf-8', errors='ignore')
+checks = {}
+def need(n, v): checks[n] = bool(v)
+repo = t('lib/features/inventory/cars/data/car_images_repository.dart')
+ctl = t('lib/features/inventory/cars/controllers/car_images_controller.dart')
+model = t('lib/features/inventory/cars/models/car_image_model.dart')
+editor = t('lib/features/inventory/cars/widgets/car_images_editor.dart')
+card = t('lib/features/inventory/cars/widgets/car_card.dart')
+mig = t('supabase/migrations/20260809223000_r44_thumbnail_performance_closure.sql')
+pkg = t('package.json')
+need('R44 thumbnail RPC client', 'erp_r44_list_car_thumbnails' in repo)
+need('thumbnail field model', 'thumbnailBase64' in model and "'thumbnailBase64': thumbnailBase64" in model)
+need('thumbnail generated on image add', 'maxWidth: 240' in editor and 'maxHeight: 180' in editor and 'maxOutputBytes: 24 * 1024' in editor and 'thumbnailBase64: thumbnail.base64' in editor)
+need('thumbnail preserved on reorder', 'thumbnailBase64: _images[index].thumbnailBase64' in editor)
+need('controller avoids original image for card thumbnail', 'images.first.thumbnailBase64' in ctl and 'images.first.imageBase64' not in ctl)
+need('card has no per-card image load', 'loadImages(' not in card)
+need('R44 RPC returns thumbnail only', "'thumbnailBase64', thumbnail_base64" in mig and "'imageBase64'" not in mig)
+need('R44 RPC rejects empty legacy thumbnails', "thumbnail_base64 <> ''" in mig)
+need('R44 scripts registered', 'verify:r44' in pkg and 'validate:r44' in pkg)
+for n, v in checks.items(): print(('PASS' if v else 'FAIL'), n)
+if not all(checks.values()): sys.exit(1)
+print(f'PASS R44 thumbnail performance closure — {len(checks)} gates')

@@ -1,0 +1,43 @@
+Quality Line ERP R29 Final Acceptance Closure
+Date: 2026-08-09
+
+Additional audit over R28 found and fixed:
+- Cash voucher PDF no longer calls Printing.layoutPdf directly on Web.
+- Maintenance PDF no longer calls Printing.layoutPdf directly on Web.
+- Warehouse transfer PDF no longer calls Printing.layoutPdf directly on Web.
+- Legacy sales/purchase PDF no longer calls Printing.layoutPdf directly on Web.
+- Bundled logos are optional on Web for these document types, preventing AssetManifest failures from blocking PDF creation.
+- All major PDF entry points now route through PdfPrintService; only the non-Web stub owns Printing.layoutPdf.
+- Recycle Bin Excel export is wired to ExcelExportService.
+- Product Edit and Details callbacks are wired in the inventory grid.
+- Product movement/history remain backed by the R28 server movement RPC and PDF/Excel exports.
+- Commercial order detail drill-down remains backed by the R28 complete details RPC.
+- Cashbox canonical R28 read/save endpoints remain active in Flutter source.
+- Cash transaction model contains no Unix-epoch fallback.
+- Accounting report UI retains currency/branch/cost-center/from/to date filters connected to ProfessionalAccountingRepository.loadReport.
+- Explicit English translations added for the user-requested Accounting/Reports/Users/Notifications terminology.
+- New cache token: r29-final-acceptance-closure-20260809.
+
+Verification results in this environment:
+- R29 acceptance gate: PASS (18 gates)
+- R28 compatibility gate: PASS (22 gates)
+- Localization verification: PASS
+- Static Dart source sanity: PASS (338 files)
+- PostgreSQL CREATE OR REPLACE compatibility: PASS (1241 definitions / 694 active signatures)
+- PostgreSQL text/UUID type boundary: PASS (693 active functions / 154 schemas)
+- Supabase-only structural verification: PASS
+- Package sanity: PASS
+- Deployment target verification: PASS
+
+Production backend status inherited from R28 live checks:
+- EBL USD/IQD canonical asset ledger mapping and save-readback: PASS.
+- Duplicate active cashbox ledger bindings: 0 at last live verification.
+- Purchase/Sales complete detail drill-down and movement semantics: PASS.
+- Trial Balance / General Ledger / Cash Flow filtered RPCs: PASS.
+- R28 Cloud Command health_check: PASS.
+
+Required workstation gates before Firebase deployment:
+- flutter analyze --fatal-infos --fatal-warnings
+- flutter test
+- npm run build:web
+- Edge/Chrome runtime acceptance: PDF/Excel downloads, remaining RenderFlex, full English UI, EBL save-exit-reenter.

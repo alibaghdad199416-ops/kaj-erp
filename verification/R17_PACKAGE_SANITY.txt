@@ -1,0 +1,6 @@
+PASS clean package sanity verification
+  - pubspec version: 22.9.8+229008
+  - generated/local paths are excluded by .gitignore
+  - Supabase is the application backend; Firebase is Hosting only
+  - local credentials and generated folders are excluded
+  - root command surface is concise and explicit

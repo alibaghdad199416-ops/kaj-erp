@@ -1,0 +1,976 @@
+=== npm run verify ===
+
+> verify
+> python -B tool/verify_project.py
+
+
+==> verify_supabase_only.py
+PASS Supabase-only structural verification
+  - Dart graph: 340 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 162 literal calls, all defined
+  - Executable tests: 35; support files: 1
+  - Migrations: 249
+
+==> verify_postgres_contracts.py
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1384 definitions checked, 796 active signatures
+
+==> verify_postgres_type_boundaries.py
+PASS PostgreSQL text/UUID type-boundary verification
+  - 795 active function signatures inspected
+  - 155 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+
+==> verify_modular_runtime_architecture.py
+PASS modular runtime architecture verification
+  - main.dart is reduced to bootstrap and composition
+  - all long-lived controllers are registered centrally or explicitly page-local
+  - all mutation and Realtime sources have an explicit refresh consumer
+  - data refresh is declarative, debounced, and re-entrant safe
+  - Supabase readiness is visible per module
+  - UI pages and widgets do not access Supabase directly
+  - critical cloud models use defensive key/type conversion
+  - English is the primary default and Arabic remains supported
+
+==> verify_static_dart_sanity.py
+PASS static Dart source sanity verification
+  - checked 343 Dart files
+  - all quality_line_erp package imports and exports resolve
+  - FontWeight values are supported by Flutter
+  - no unresolved merge markers
+
+==> verify_localization.py
+PASS localization verification
+  - English remains the primary locale and Arabic remains supported
+  - AppText follows the active widget-tree locale
+  - visible form properties and validators use localization
+  - fixed Arabic AppText/AppTranslation phrases have exact English catalog entries
+
+==> verify_v72_complete_linked_operations.py
+PASS V7.2 complete linked operations, recycle purge, preserved payments, and product/vehicle account assignment
+  - forward migration follows V7.1.1
+  - primary product transfer entry opens unified documents
+  - unified transfer page exposes create edit delete print actions
+  - product transfer form has no recursive document dependency
+  - transfer deletion uses verified v2 RPC
+  - transfer v2 validates header items and movement cleanup
+  - sales deletion uses latest reversible wrapper
+  - purchase deletion uses v3 reversible wrapper
+  - maintenance deletion uses v3 reversible wrapper
+  - commercial deletion preserves partner advances
+  - preserved payments appear in partner totals and documents
+  - preserved payments are listed and editable
+  - partner account UI manages edit and permanent delete by permission
+  - product accounts use isolated lazy loading with retry
+  - shared vehicle account fields load only chart accounts
+  - vehicle account assignments reset by currency and validate
+  - vehicle cloud map writes normalized and compatibility account aliases
+  - recycle item carries exact archive id
+  - recycle purge targets exact archive and validates result
+  - recycle permanent delete remains visible and runtime permission guarded
+  - exact batch purge removes archive rows and retries FK order
+  - new RPCs are revoked from anon and granted to authenticated
+
+==> verify_v721_recycle_purge_lint_fix.py
+PASS V7.2.1 recycle purge linked-lint repair
+  - forward migration exists after V7.2
+  - purge function is redefined
+  - temporary pg_temp queue is removed
+  - in-memory UUID retry queue is used
+  - exact archive and deletion batch are preserved
+  - foreign-key retry and blocked-state detection remain
+  - source rows and archive rows are counted
+  - permission boundary remains
+
+==> verify_v73_reversible_workflows.py
+PASS V7.3 reversible workflows and shell cleanup
+  - vehicle and product transfers are reversible and rebuild links
+  - orphaned purchased-car transfer chains can be removed
+  - products return to a deletable opening state after linked reversals
+  - sales, purchase, and maintenance components are independently managed
+  - maintenance payments are cashbox-owned
+  - accounting entries route deletion through their source
+  - recycle rows include deleting user and exact archive purge
+  - sidebar duplication is removed and top bar owns runtime actions
+
+==> verify_v731_preserved_payment_reallocation.py
+PASS V7.3.1 preserved payment reallocation
+  - operational reversal preserves cash payments as partner balances
+  - later approved invoices consume available balances by party/currency
+  - allocation deletion restores available balance
+  - deleting the cash transaction reverses every active allocation
+  - maintenance and commercial workflows share the accounting rule
+
+==> verify_v732_operational_state_report_links.py
+PASS V7.3.2 operational state and report links
+  - orphaned purchase receipts tolerate previously deleted vehicles
+  - vehicle warehouse and lifecycle status are replayed after reversals
+  - opening-state products are deletable after active links are removed
+  - duplicate body headers and wide document actions are removed
+  - contextual report tables wrap and link to related modules
+  - email/password login remains enabled while public signup is disabled
+
+==> verify_v733_premium_exports_nomenclature.py
+PASS V7.3.3 premium exports and nomenclature
+  - order command buttons share one system accent and icon language
+  - sales, purchase, maintenance, and field terminology are centralized
+  - Excel files carry typed values, metadata, and a relation index
+  - generic and contextual PDFs use the premium Quality Line identity
+
+==> verify_v734_complete_export_audit.py
+PASS V7.3.4 complete export audit
+  - command bars no longer carry per-action semantic colors
+  - generic Excel exports include profile and relation-index sheets
+  - field and document names share one bilingual catalog
+  - all principal PDF exporters use one premium visual theme
+
+==> verify_v734_analyzer_repairs.py
+PASS V7.3.4 analyzer regression repair
+  - Excel conditional map keys are valid Dart entries
+  - Excel cell values no longer use unsupported const constructors
+  - premium PDF theme is imported by the generic exporter
+  - dashboard user name is sourced from AccessController
+  - the strict analyzer interpolation info is removed
+
+==> verify_v735_workflow_performance_ui.py
+PASS V7.3.5 workflow approval, performance, login and UI
+  - legacy item/account gaps are repaired during stock approvals
+  - sales, purchase and maintenance approval chains share robust fallbacks
+  - refresh requests are coalesced and aggregate screens remain lazy
+  - login routes after the first successful authentication click
+  - command actions use one icon-only system accent
+  - module windows use one headless content surface and integrated close action
+
+==> verify_v736_invoice_owned_accounting_ui.py
+PASS V7.3.6 invoice-owned accounting and UI repair
+  - logistics updates quantity/state only; invoice approval owns accounting
+  - invoice quantities match approved multi-warehouse logistics exactly
+  - IQD/USD revenue and cost-currency journals are separated
+  - invoice cancellation restores journals, FIFO and valuation snapshots
+  - maintenance and opportunities follow the same invoice lifecycle
+  - pill navigation, one-line commands and headless windows are enforced
+  - web runtime assets bypass stale service-worker/browser caches
+
+==> verify_v737_complete_repairs.py
+PASS V7.3.7 invoice-owned accounting, UI, cache and performance repair
+  - logistics updates quantity/state only; invoice approval owns accounting
+  - invoice quantities match approved multi-warehouse logistics exactly
+  - IQD/USD revenue and cost-currency journals are separated
+  - invoice cancellation restores journals, FIFO and valuation snapshots
+  - maintenance and opportunities follow the same invoice lifecycle
+  - maintenance supports atomic multi-currency payment batches and settlements
+  - pill navigation, one-line commands and headless windows are enforced
+  - web runtime assets bypass stale service-worker/browser caches
+
+==> verify_v738_full_requirements.py
+PASS V7.3.8 full requirements verification
+  - heavy module tabs are lazy and hidden controllers are not refreshed
+  - command/metric rows stay horizontal and windows are headless
+  - active workflow documents drive invoice/payment controls
+  - warehouse approval is quantity-only; invoices own accounting/valuation
+  - opportunity, payment, naming and cross-device cache links are verified
+
+==> verify_v741_complete_requirements.py
+PASS V7.4.1 complete requirements verification
+  - version
+  - migration
+  - responsive reflow without canvas scaling
+  - integrated close
+  - sales invoice fallback
+  - details invoice fallback
+  - definition accounting
+  - compact references
+
+==> verify_v742_final_audit.py
+PASS V7.4.2 final conflict and completeness audit
+  - invoicing accepts approved historical logistics statuses
+  - sales and purchase projections expose the same eligibility rules
+  - invoice owns accounting; logistics remains quantity-only
+  - purchase postings use inventory nomenclature, not capitalization documents
+
+PASS current Quality Line ERP verification
+NOTE delivery-package cleanliness is checked separately with: npm run verify:package
+=== verify:r8 ===
+
+> verify:r8
+> python -B tool/verify_r8_release_closure.py
+
+PASS R8 release closure verification
+- Supabase/Firebase configuration hashes unchanged
+- typed XLSX export and explicit recycle-bin deletion identity verified
+- shared design-system text uses AppText/AppSelectableText localization layer
+- hardened operational-date FX cash transfer chain verified
+- delivery cleanliness is delegated to verify:package; CI compile gates are present
+NOTICE: exhaustive per-field UI permission wiring is not certified by this verifier.
+=== verify:r9 ===
+
+> verify:r9
+> python -B tool/verify_r9_complete_closure.py
+
+PASS R9 complete closure
+- production Supabase/Firebase configuration hashes unchanged
+- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes
+- legacy invoice tabs no longer bypass authoritative order workflows
+- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns
+- operational date/time and null-runtime hardening retained
+- source-package cleanliness is delegated to verify:package
+=== verify:r10 ===
+
+> verify:r10
+> python -B tool/verify_r10_windows_flutter_build_cleanup.py
+
+PASS R10 Windows/Flutter build cleanup verification
+  - production Supabase/Firebase files are byte-identical
+  - settings permission and legacy read-only cards are compile-safe
+  - analyzer warnings reported by the user's Flutter run are removed
+  - cashbox async BuildContext usage is mounted-guarded
+  - Python verifiers are UTF-8 deterministic on Windows
+  - deprecated --pwa-strategy is removed while cache cleanup remains
+=== verify:r11 ===
+
+> verify:r11
+> python -B tool/verify_r11_formatter_semantic_closure.py
+
+PASS R11 formatter/semantic closure verification
+  - formatter-invariant matching is centralized in verification_text.py
+  - V7.4.1 invoice fallback checks are semantic and layout-independent
+  - R9/V22.9.3/V7.3.5/V7.5.7 legacy gates remain formatter-invariant
+  - multiline membership literals are blocked from verifier regressions
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r12 ===
+
+> verify:r12
+> python -B tool/verify_r12_root_validation_closure.py
+
+=== verify:r12 ===
+
+> verify:r12
+> python -B tool/verify_r12_root_validation_closure.py
+
+PASS R12 root validation closure
+  - Python verifier decoding is explicit UTF-8
+  - V7.4.1 semantic invoice fallback checks are formatter-safe
+  - verify:all includes R12 and Windows validation is fail-fast
+  - production Supabase/Firebase configuration hashes are unchanged
+  - package cleanliness is delegated to the pre-install verify:delivery gate
+=== verify:r13 ===
+
+> verify:r13
+> python -B tool/verify_r13_workspace_package_separation.py
+
+PASS R13 workspace/package separation
+  - clean delivery is checked before npm/flutter generate workspace artifacts
+  - installed workspace verification allows .dart_tool/node_modules/build metadata
+  - package cleanliness remains enforced by verify:package only
+  - fail-fast analyzer/test/web build remain mandatory
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r14 ===
+
+> verify:r14
+> python -B tool/verify_r14_runtime_rpc_invoice_root_closure.py
+
+PASS R14 runtime RPC/invoice root closure
+  - R14 master CRUD/tombstone contracts replace the failing R9 browser endpoint and validate legacy table structure
+  - workflow status/accounting writes no longer require unrelated *.update field permission
+  - Phase-26 browser contract is recreated behind an explicit PostgREST schema reload
+  - sales/purchase invoice approval uses one diagnosable R14 contract over V23.0.2/V7.6.2
+  - sales cross-definition currency and purchase single-currency accounting policies are retained
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r15 ===
+
+> verify:r15
+> python -B tool/verify_r15_canonical_state_reconciliation.py
+
+PASS R15 canonical-state reconciliation
+  - deleted/purged tombstones permanently outrank stale master payloads unless explicitly restored
+  - optimistic versions prevent older screens/devices from silently overwriting newer Supabase state
+  - stale accounting sync cannot overwrite newer account/partner/item-cost state
+  - obsolete capitalization accounts cannot reactivate; contaminated purchase invoices normalize from source
+  - deleted/stale cashbox edits cannot revive or overwrite current definitions
+  - cashbox opening balance and cash-side journals follow the current cashbox ledger binding continuously
+  - production readiness exposes canonical data health and reconciliation drift
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r16 ===
+
+> verify:r16
+> python -B tool/verify_r16_persistent_canonical_state.py
+
+PASS R16 persistent canonical state
+  - permanent purge no longer erases deletion truth; stale clients cannot recreate a purged master ID
+  - recycle restore is the only path that clears an active canonical tombstone
+  - cashbox journal rebinding requires transaction/header/reference/account identity; amount-only matching is forbidden
+  - ambiguous/unmatched cash journals are recorded as reconciliation issues instead of being rewritten
+  - deferred reconciliation makes future cash postings converge after journal lines exist
+  - production readiness blocks on persistent deletion conflicts and unresolved canonical reconciliation issues
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r17 ===
+
+> verify:r17
+> python -B tool/verify_r17_deployment_orchestration.py
+
+PASS R17 deployment orchestration
+  - runtime identity is certified by contract gates + Dart analyzer/tests/build, not post-format source hashes
+  - pristine ZIP cleanliness is checked only before generated workspace artifacts exist
+  - installed workspace validation rebuilds and rechecks source without package-cleanliness false failures
+  - production deploy never calls pristine validation from an already-built workspace
+  - Supabase dry-run/push remains before Firebase Hosting and rejects unexpected migrations
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r18 ===
+
+> verify:r18
+> python -B tool/verify_r18_formatter_invariant_deployment.py
+
+PASS R18 formatter-safe deployment closure
+  - no post-format Dart source/token fingerprint can create false runtime failures
+  - R16 functional/canonical-state gates remain mandatory
+  - analyzer/tests/fresh web build remain the authoritative Dart runtime gates
+  - production deploy remains workspace-safe and database-before-hosting
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r19 ===
+
+> verify:r19
+> python -B tool/verify_r19_authoritative_gates.py
+
+PASS R19 authoritative-gates deployment closure
+  - post-format Dart hash/token identity gates are removed permanently
+  - R14/R15/R16 runtime, invoice and canonical-state contracts remain mandatory
+  - format-check, analyzer, tests and fresh web build are the authoritative Dart gates
+  - pristine package cleanliness remains separate from installed-workspace validation
+  - production deploy validates/builds first, then Supabase dry-run/push, then Firebase Hosting
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r20 ===
+
+> verify:r20
+> python -B tool/verify_r20_native_cli_deployment.py
+
+PASS R20 native CLI deployment closure
+  - ordinary Supabase/Firebase stderr cannot become a false PowerShell deployment failure
+  - native process exit codes are authoritative and stderr remains visible for diagnostics
+  - dry-run parsing still rejects every unexpected migration before production push
+  - R14/R15/R16 canonical runtime/state migrations remain the only allowed pending migrations
+  - analyzer/tests/fresh web build remain mandatory before Supabase and Firebase deployment
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r21 ===
+
+> verify:r21
+> python -B tool/verify_r21_r16_tombstone_signature_closure.py
+
+PASS R21 R16 tombstone-signature closure
+  - recycle-bin UUID actor columns are explicitly cast to the canonical text actor contract
+  - every R16 seed call resolves to the existing erp_r16_sync_tombstone text signature
+  - the corrected R16 migration remains the only pending canonical-state database step after R15
+  - R20 native CLI exit-code handling and unexpected-migration refusal remain mandatory
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r22 ===
+
+> verify:r22
+> python -B tool/verify_r22_production_accounting_consolidation.py
+
+PASS R22 production accounting consolidation
+  - new purchase invoices post directly Supplier <-> Inventory without legacy clearing/capitalization
+  - historical capitalized purchase journals rebuild from source without replaying inventory valuation
+  - sales/purchase approvals converge on one diagnosable R22 contract
+  - cash transfers carry immutable transaction/cashbox identity and ambiguous history is never rewritten blindly
+  - accounting/cash browser RPC exposure is consolidated under the R22 namespace
+  - Production Readiness requires R22 runtime, reconciliation and historical-rebuild contracts
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r23 ===
+
+> verify:r23
+> python -B tool/verify_r23_canonical_lifecycle_cash_reconciliation.py
+
+PASS R23 canonical lifecycle/cash reconciliation
+  - vehicle purchase/sale eligibility derives from current normalized workflow state, not legacy labels
+  - deleted/tombstoned vehicles/products are not resurrected into catalogs
+  - Phase26 exposes one authenticated PostgREST signature with schema reload
+  - cashbox ledger aliases converge on the current account and reconciliation uses that account
+  - historical rebinding uses transaction/transfer identity; amount is validation only
+  - live reconciliation uses SKIP LOCKED and reports deferred rows instead of blocking Production
+  - R22 direct purchase/sales accounting ownership remains intact
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r24 ===
+
+> verify:r24
+> python -B tool/verify_r24_runtime_accounting_ui_closure.py
+
+PASS R24 runtime accounting/UI closure
+  - cashbox saves and cash posting are bounded; historical rebind is removed from normal transactions
+  - receipt/payment payload fields survive field-level permission guarding
+  - cashbox duplicate ledgers are deterministically repaired without amount-based history guessing
+  - journal lines receive their currency before integrity validation
+  - purchase and sales invoices keep invoice-owned accounting; sales invoice validates immutable delivery allocation
+  - sales FIFO SQL aliases are unambiguous and maintenance uses canonical USD/IQD partner ledgers
+  - cashbox refreshes are coalesced and tab/page state is not mutated during build
+  - all form dropdowns expand responsively, closing the observed yellow/black RenderFlex class
+  - saved company language updates the active app locale and responsive settings layout
+  - R22 direct Supplier <-> Inventory purchase accounting remains intact
+  - Supabase/Firebase production configuration hashes are unchanged
+=== verify:r25 ===
+
+> verify:r25
+> python -B tool/verify_r25_functional_closure.py
+
+PASS car card uses R44 bulk thumbnails without per-card RPC
+PASS duplicate image load coalesced
+PASS r25 migration present
+PASS fifo cancellation alias fixed
+PASS delivery refreshes canonical vehicle
+PASS sales invoice accepts post-delivery order
+PASS sold vehicle maintenance source canonical
+PASS cashbox ledger canonicalized
+PASS cashbox duplicate ledger rejected
+PASS R25 functional closure
+=== verify:r26 ===
+
+> verify:r26
+> python -B tool/verify_r26_runtime_data_ui_closure.py
+
+PASS cash incoming ledger wins
+PASS car images dedicated rpc
+PASS safe image notifier
+PASS car grid no 190px extent
+PASS fresh web fallback token
+PASS R26 runtime data/UI closure
+=== verify:r27 ===
+
+> verify:r27
+> python -B tool/verify_r27_complete_functional_closure.py
+
+PASS r27 migration exists
+PASS r27 postgrest command
+PASS canonical cashbox read save
+PASS cashbox repo r27
+PASS movement log dedicated rpc
+PASS immutable removeWhere removed
+PASS movement source destination
+PASS cash dates no epoch
+PASS journal dates no epoch
+PASS car overflow fixed
+PASS product card overflow fixed
+PASS pdf font fallback
+PASS browser pdf download
+PASS record drilldown
+PASS details no false empty
+PASS history table export
+PASS r27 frontend endpoint
+PASS r27 cache token
+PASS R27 complete functional closure — 18 gates
+=== verify:r28 ===
+
+> verify:r28
+> python -B tool/verify_r28_complete_runtime_closure.py
+
+PASS r28 migrations exist
+PASS canonical cashbox list/save
+PASS cashbox asset currency validation
+PASS cashbox duplicate ledger rejected
+PASS cashbox row timestamp authoritative
+PASS cashbox repo r28-or-later endpoints
+PASS cash transaction real row dates
+PASS account codes are text identifiers
+PASS dedicated movement rpc
+PASS movement table export pdf excel
+PASS commercial details enriched rpc
+PASS frontend commercial details r28
+PASS web pdf native blob printing
+PASS web blob revoke delayed
+PASS car grid overflow headroom
+PASS product grid overflow headroom
+PASS product action buttons wrap
+PASS car action buttons wrap
+PASS r28 postgrest command exact wrapper
+PASS r28-or-later cache token
+PASS localization workflow phrases canonical
+PASS no immutable movement removewhere
+PASS R28 complete runtime closure — 22 gates
+=== verify:r29 ===
+
+> verify:r29
+> python -B tool/verify_r29_final_acceptance_closure.py
+
+PASS all major pdf paths use browser-safe facade
+PASS no direct Printing.layoutPdf in major pdf paths
+PASS cash voucher bundled logo optional on web
+PASS maintenance bundled logo optional on web
+PASS warehouse bundled logo optional on web
+PASS web pdf blob print path
+PASS excel blob lifetime safe
+PASS binary blob lifetime safe
+PASS recycle bin excel enabled
+PASS product edit and detail callbacks active
+PASS product movement rpc plus pdf excel
+PASS commercial details full drilldown endpoint
+PASS cashbox canonical read save endpoints
+PASS cash model has no unix epoch fallback
+PASS account code identifier semantics
+PASS accounting filters wired to repository
+PASS r29-or-later cache token
+PASS explicit requested English terminology covered
+PASS R29 final acceptance closure — 18 gates
+=== verify:r30 ===
+
+> verify:r30
+> python -B tool/verify_r30_completion_audit.py
+
+PASS r29 gate exists
+PASS r30-or-later cache token
+PASS account statement has no unix epoch fallback
+PASS report export has no unix epoch fallback
+PASS report export invalid dates render blank
+PASS production deploy points to r30-or-later
+PASS r30 deploy command exists
+PASS r30 workspace validation exists
+PASS workspace includes r30 gate
+PASS deployment hardcodes correct supabase
+PASS deployment hardcodes correct firebase
+PASS deployment verifies authoritative remote migrations
+PASS deployment does not replay production migrations
+PASS deployment uses fresh validated web build
+PASS canonical EBL cashbox endpoints retained
+PASS commercial drilldown retained
+PASS movement server rpc retained
+PASS product movement pdf excel retained
+PASS recycle bin excel retained
+PASS all major pdf paths remain web-safe
+PASS default deploy no longer points to r24
+PASS R30 completion audit — 21 gates
+=== verify:r31 ===
+
+> verify:r31
+> python -B tool/verify_r31_final_completion_closure.py
+
+PASS r30 gate retained
+PASS asset history has no unix epoch fallback
+PASS asset history date is nullable
+PASS asset history renders missing date safely
+PASS warehouse card overflow headroom
+PASS supplier card overflow headroom
+PASS customer card overflow headroom
+PASS maintenance picker overflow headroom
+PASS r31 cache token
+PASS r31 deploy script exists
+PASS r31 workspace validation exists
+PASS default deploy points r31
+PASS R31 final completion closure — 12 gates
+=== verify:r32 ===
+
+> verify:r32
+> python -B tool/verify_r32_final_verified_closure.py
+
+PASS r31 retained
+PASS recycle bin has no epoch fallback
+PASS recycle deleted date nullable
+PASS dashboard no epoch placeholder
+PASS customer card headroom
+PASS supplier card headroom
+PASS warehouse card headroom
+PASS maintenance picker headroom
+PASS r32 deploy script
+PASS r32 workspace validation
+PASS r32 deploy invokes r32 validation
+PASS default deploy r32-or-later
+PASS r32 cache token
+PASS r32 version metadata unified
+PASS R32 final verified closure — 14 gates
+=== verify:r33 ===
+
+> verify:r33
+> python -B tool/verify_r33_all_requirements_closure.py
+
+PASS r32 retained
+PASS no unix epoch fallback anywhere in Dart source
+PASS web PDF uses unified service
+PASS no legacy phase26 RPC in Flutter
+PASS R33-or-newer cache token
+PASS R33-or-newer metadata unified
+PASS R33 workspace validator exists
+PASS R33 deploy exists
+PASS R33 deploy invokes R33 validator
+PASS default deploy is R33 or newer
+PASS R33 part of workspace verification
+PASS cashbox save path retained
+PASS movement/history export paths retained
+PASS R33 all requirements closure — 13 gates
+=== verify:r34 ===
+
+> verify:r34
+> python -B tool/verify_r34_compile_runtime_closure.py
+
+PASS R33 retained
+PASS translation catalog has no duplicate literal keys
+PASS all ExportValueType references exist
+PASS order detail list rendering has no broken multiline quote
+PASS web PDF has no impossible nullable-window branch
+PASS cashbox repository has no unused legacy cloud field
+PASS no unix epoch fallback anywhere in Dart source
+PASS no legacy phase26 RPC in Flutter
+PASS R34 cache token or newer
+PASS R34 metadata or newer unified
+PASS R34 validator exists
+PASS R34 deploy exists
+PASS R34 deploy invokes R34 validator
+PASS default deploy is R34 or newer
+PASS R34 part of workspace verification
+PASS R34 compile/runtime closure — 15 gates
+=== verify:r35 ===
+
+> verify:r35
+> python -B tool/verify_r35_runtime_functional_closure.py
+
+PASS R35 cloud command client
+PASS R35 cloud command migration
+PASS canonical maintenance create client
+PASS canonical maintenance sold invoice source
+PASS opportunity workflow trigger
+PASS inventory loading responsive
+PASS no automatic detached scrollbar
+PASS web pdf direct download
+PASS web fonts do not consult AssetManifest
+PASS product details resilient
+PASS asset history canonical movement log
+PASS asset history English Excel/PDF
+PASS opportunity exports
+PASS workflow cards localized
+PASS details hide raw transport maps
+PASS R35 metadata
+PASS R35 runtime functional closure — 16 gates
+=== verify:r36 ===
+
+> verify:r36
+> python -B tool/verify_r36_ui_export_acceptance.py
+
+PASS product cards compact
+PASS car cards compact
+PASS warehouse cards compact
+PASS customer cards compact
+PASS supplier cards compact
+PASS product detail/edit bound
+PASS history English xlsx/pdf
+PASS movement xlsx/pdf
+PASS recycle bin English xlsx
+PASS opportunity xlsx/pdf
+PASS maintenance R35 create or newer
+PASS cloud command R35
+PASS web pdf direct download
+PASS R36 UI/export acceptance — 13 gates
+=== verify:r37 ===
+
+> verify:r37
+> python -B tool/verify_r37_full_functional_presentation_closure.py
+
+PASS product cards compact
+PASS car cards compact
+PASS warehouse cards compact
+PASS partner cards compact
+PASS partner cards localized
+PASS product details/edit direct
+PASS product history English structured
+PASS movement export English structured
+PASS recycle bin direct xlsx
+PASS opportunity xlsx/pdf
+PASS opportunity bidirectional reconciliation
+PASS maintenance explicit advance
+PASS maintenance labor-only create
+PASS cloud command R37
+PASS sales/purchase localized actions
+PASS filter chips localized
+PASS technical payload suppressed
+PASS web pdf direct browser download
+PASS R37 migration schema reload
+PASS default deploy R37
+PASS R37 full functional/presentation closure — 20 gates
+=== verify:r38 ===
+
+> verify:r38
+> python -B tool/verify_r38_final_functional_acceptance.py
+
+PASS maintenance labor-only client validation
+PASS maintenance labor-only page safe
+PASS maintenance R37 or newer create/advance
+PASS web print is actual print
+PASS no custom viewport warning
+PASS product cards tighter
+PASS car cards tighter
+PASS warehouse cards tighter
+PASS partner cards tighter
+PASS product details edit direct
+PASS history export English complete
+PASS movement export English complete
+PASS recycle xlsx web-safe
+PASS opportunity xlsx pdf
+PASS cloud command R37 retained
+PASS technical order payload hidden
+PASS default deploy R38 or newer
+PASS R38 final functional acceptance — 17 gates
+=== verify:r39 ===
+
+> verify:r39
+> python -B tool/verify_r39_canonical_acceptance.py
+
+PASS product details runtime-localized DataTable compiles
+PASS maintenance create canonical r39
+PASS maintenance edit canonical r39
+PASS maintenance create resolves vehicle aliases
+PASS maintenance edit supports empty parts
+PASS maintenance edit preserves lifecycle
+PASS R39 grants and schema reload
+PASS R39 metadata
+PASS R39 default deploy
+PASS R39 workspace gate
+PASS R39 canonical acceptance — 10 gates
+=== verify:r40 ===
+
+> verify:r40
+> python -B tool/verify_r40_language_runtime_acceptance.py
+
+PASS R39 retained
+PASS movement log English runtime title
+PASS movement details bilingual
+PASS movement export English structured
+PASS product delete dialog bilingual
+PASS R39 maintenance create/edit canonical
+PASS maintenance labor-only client allowed
+PASS web PDF print service
+PASS no legacy cloud command
+PASS R40 metadata
+PASS R40 deploy
+PASS R40 language/runtime acceptance — 11 gates
+=== verify:r41 ===
+
+> verify:r41
+> python -B tool/verify_r41_export_language_canonical_closure.py
+
+PASS R40 retained
+PASS browser PDF canonical English
+PASS native Arabic never falls back to Latin-only font
+PASS enterprise PDF canonical language
+PASS maintenance PDF canonical browser language
+PASS warehouse PDF canonical language
+PASS cash voucher PDF canonical browser language
+PASS report PDF error is not mixed-language
+PASS accounting Excel canonical English metadata
+PASS accounting columns and values canonical English
+PASS mixed legacy localization aliases removed
+PASS canonical Arabic localization retained
+PASS R39 canonical maintenance retained
+PASS true browser print retained
+PASS R41 metadata unified or superseded
+PASS R41 workspace gate
+PASS R41 default deploy or superseded
+PASS R41 export/language canonical closure — 17 gates
+=== verify:r42 ===
+
+> verify:r42
+> python -B tool/verify_r42_production_cashbox_guard_closure.py
+
+PASS R41 retained
+PASS cashbox list uses R42 canonical endpoint
+PASS cashbox save uses R42 canonical endpoint
+PASS cashbox payload writes all ledger aliases
+PASS cashbox read prefers canonical identity
+PASS R42 helper prefers canonical alias
+PASS DB before-write guard exists
+PASS DB guard validates asset and exact currency
+PASS DB guard blocks duplicate active ledger
+PASS EBL repair resolves account without hard-coded generated ids
+PASS R42 health RPC exists
+PASS R42 PostgREST endpoints granted
+PASS R42 metadata unified or superseded
+PASS R42 workspace gate
+PASS R42 deploy is default or superseded
+PASS R42 deploy requires production migration
+PASS production config untouched by R42 scripts
+PASS R42 production cashbox guard closure — 17 gates
+=== verify:r43 ===
+
+> verify:r43
+> python -B tool/verify_r43_performance_functional_closure.py
+
+PASS batch thumbnail RPC client
+PASS batch thumbnail cache
+PASS cars prefetch thumbnails
+PASS no per-card image RPC trigger
+PASS product detail Excel
+PASS product detail PDF
+PASS maintenance labor-only allowed
+PASS opportunity reconciliation after sales
+PASS R43 migration thumbnail function
+PASS R43 migration reconciliation
+PASS opportunity export visible with customer service view
+PASS commercial metric alias resilience
+PASS maintenance approval explicit
+PASS web print visible-tab fallback
+PASS R43 metadata
+PASS R43 default deploy safe gate
+PASS R43 performance/functional closure — 16 gates
+=== verify:r44 ===
+
+> verify:r44
+> python -B tool/verify_r44_thumbnail_performance_closure.py
+
+PASS R44 thumbnail RPC client
+PASS thumbnail field model
+PASS thumbnail generated on image add
+PASS thumbnail preserved on reorder
+PASS controller avoids original image for card thumbnail
+PASS card has no per-card image load
+PASS R44 RPC returns thumbnail only
+PASS R44 RPC rejects empty legacy thumbnails
+PASS R44 scripts registered
+PASS R44 thumbnail performance closure — 9 gates
+=== verify:r46 ===
+
+> verify:r46
+> python -B tool/verify_r46_invoice_posting_boundary_closure.py
+
+PASS order guard is currency-only
+PASS purchase receipt is quantity-only
+PASS sales delivery is quantity-only
+PASS maintenance issue accounting disabled
+PASS sales invoice owns posting
+PASS purchase invoice owns posting
+PASS maintenance invoice owns posting
+PASS canonical cost aliases prefer explicit binding
+PASS MULTI fallback is not written into strict master bindings
+PASS R44 verifier retained
+PASS R46 invoice posting boundary/account alias closure — 10 gates
+=== verify:r47 ===
+
+> verify:r47
+> python -B tool/verify_r47_production_runtime_dependency_closure.py
+
+PASS deterministic UUID helper restored
+PASS legacy cash transfer routes to R22
+PASS purchase invoice JSON object count fixed
+PASS maintenance reversal alias shadow fixed
+PASS R46 order guard remains currency only
+PASS R46 invoice boundary retained
+PASS R47 production runtime dependency closure — 6 gates
+=== verify:r48 ===
+
+> verify:r48
+> python -B tool/verify_r48_logistics_linked_payment_preservation.py
+
+PASS purchase receipt approval increases warehouse quantity
+PASS sales delivery approval decreases warehouse quantity
+PASS maintenance stock issue approval decreases warehouse quantity
+PASS maintenance logistics remains non-accounting until invoice
+PASS maintenance runtime still uses canonical advance wrapper
+PASS cross-currency payment UI requires linked invoice-currency cashbox
+PASS secure payment backend enforces linked cashboxes
+PASS sales and purchase payments use secure linked payment chain
+PASS maintenance payments use secure linked payment chain
+PASS cashbox FX transfer link guard preserved through R47
+PASS R46 invoice accounting boundary still preserved
+PASS R48 verifier registered
+PASS R48 logistics/linked-payment preservation — 12 gates
+=== verify:r49 ===
+
+> verify:r49
+> python -B tool/verify_r49_full_erp_functional_crm_ui_performance_closure.py
+
+PASS Expected Value uses thousands-aware parse on validation and save
+PASS Opportunity currency persists through model map/read-back
+PASS Opportunity stage persists through model map/read-back
+PASS Opportunity probability persists through model map/read-back
+PASS Opportunity description persists through model map/read-back
+PASS Opportunity expectedCloseDate persists through model map/read-back
+PASS Opportunity winLossReason persists through model map/read-back
+PASS Opportunity lifecycle UI includes new/contacted/qualified/proposal/negotiation/won/lost/closed
+PASS Opportunity can find and reuse one linked sales order
+PASS Canonical workflow projects order/delivery/invoice/payment back to opportunity
+PASS Opportunity edits read back canonical server state after save
+PASS Opportunity pipeline totals never mix currencies into one number
+PASS Opportunity stage/probability follow canonical sales workflow through paid closure
+PASS R49 business reference is 3 letters + 4 digits and unique per tenant
+PASS Cars and inventory receive compact references without replacing internal ids
+PASS R49 reference assignment preserves UUID relational keys
+PASS R44 thumbnail regression verifier retained
+PASS R49 verifier registered
+PASS No direct >=500px fixed UI dimensions remain outside the launch-shell breakpoint
+PASS R49 production orchestrator validates workspace and permits only the eleven R49 migrations
+PASS Responsive module windows reflow instead of scaling a fixed canvas
+PASS Workspace AlertDialogs receive bounded responsive content instead of unconditional scroll constraints
+PASS Account codes remain text identifiers without numeric parsing
+PASS Workflow cards visibly separate logistics, accounting, invoice and payment
+PASS Sales invoice creation is backend-idempotent under concurrent retry
+PASS Sales financial summaries stay separated by currency
+PASS Purchases load their canonical list once and derive summaries locally
+PASS Inventory bootstrap avoids duplicate warehouse master-data requests
+PASS Product detail optional-load failures are visible instead of silently swallowed
+PASS Inventory and car valuation summaries stay separated by cost currency
+PASS Dashboard monetary source of truth is per-currency including live cost-layer valuation
+PASS Report monetary summaries honor requested period and never export one mixed-currency scalar
+PASS Mixed-currency financial trend charts are suppressed instead of plotting unlike currencies on one axis
+PASS Fixed-assets UI has a repository boundary and responsive field reflow
+PASS Installments inherit canonical sale currency and never hard-code IQD totals
+PASS Maintenance aggregate cards never add unlike document currencies
+PASS Dashboard installment exposure stays currency-aware end to end
+PASS Inventory transfer money display uses central currency precision without changing transfer payload values
+PASS Invoice payment dialog never invents USD for malformed cashboxes
+PASS Existing financial documents never silently become USD when stored currency is missing
+PASS Financial read models never invent currency, posting status, or completed maintenance state
+PASS Commercial invoice accounting resolves stock/revenue/cost accounts from master data with currency guards
+PASS Paid maintenance invoice requires the real customer ledger and forbids generic receivable fallback
+PASS Permission-scope administration is tenant-bound and cannot be escalated through users.update
+PASS Document attachments enforce the same sales/purchase permissions in UI, RPC and Storage
+PASS Release metadata is synchronized across Dart, web manifest and boot fallback
+PASS Global search includes tenant-safe CRM opportunities and currency-aware monetary results
+PASS Global search cache invalidates on committed cross-module changes
+PASS Global search never labels a missing journal status as posted
+PASS Cashbox backend fails closed on permissions, currency and active-state integrity
+PASS Cashbox deletion requires accounting.delete and rejects boxes with financial movements
+PASS Financial active flags fail closed instead of inventing enabled master data
+PASS Existing-record currency editing fails closed while new records may use the application default
+PASS CRM CRUD permissions are granular in catalog, UI and backend command
+PASS Linked opportunity sales creation requires both CRM update and sales.create at the backend
+PASS Sales and purchase draft writes and approvals use protected R49 backend entry points
+PASS Opportunity, sales and purchase edits reject stale multi-user versions
+PASS Planned stock changes require inventory.adjust and active same-tenant product/warehouse
+PASS Logistics draft creation uses backend permission wrappers instead of exposed membership-only functions
+PASS Maintenance create/update is permission-protected and stale edits are rejected
+PASS Focused R49 migration keeps historical commercial implementations internal behind permission wrappers
+PASS Inventory CRUD, receipt and transfers use granular backend permissions instead of role-only master-data access
+PASS Cloud listWhere filters canonical records server-side instead of downloading whole tables
+PASS Legacy commercial write surfaces are protected by granular permissions and stale-version checks
+PASS Legacy commercial printing never fabricates payment or posted-journal detail rows
+PASS Notification read/archive state is per-user and server identity replaces client-supplied selectors
+PASS Invoice-owned accounting and logistics boundaries retained
+PASS Cashbox/FX linked payment guards retained
+PASS Persisted subledger and reporting currencies fail closed instead of defaulting to USD
+PASS Dashboard and reports include both product and car FIFO inventory value by currency
+PASS Financial report period includes canonical approved sales and purchase workflow invoices
+PASS Internal financial aggregation helpers cannot bypass R9 browser field permissions
+PASS Base subledger implementations are internal and canonical permission wrappers remain authoritative
+PASS Accounting profit KPI comes from posted GL revenue/expense lines instead of purchases-as-expense arithmetic
+PASS Dashboard and reports use the R49 accounting-profit wrappers while retaining R9 field permissions
+PASS Standalone installment schedule mutators are internal and browser repository is read-only
+PASS Accounting profit currency integrity fails closed with a bilingual user-facing error
+PASS R49 FULL ERP FUNCTIONAL CRM UI PERFORMANCE CLOSURE — 77 gates
+=== verify:delivery ===
+
+> verify:delivery
+> npm run verify:package && npm run verify:deployment-target
+
+
+> verify:package
+> python -B tool/verify_package_sanity.py
+
+PASS clean package sanity verification
+  - pubspec version: 22.9.8+229008
+  - generated/local paths are excluded by .gitignore
+  - Supabase is the application backend; Firebase is Hosting only
+  - local credentials and generated folders are excluded
+  - root command surface is concise and explicit
+
+> verify:deployment-target
+> python -B tool/verify_deployment_target.py
+
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: havlqebmnjdcwmpaaqew
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged
+ALL_REQUESTED_GATES_COMPLETED

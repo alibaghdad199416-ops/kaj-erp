@@ -1,0 +1,12 @@
+{
+    "projects":  {
+                     "default":  "kaj-erp",
+                     "production":  "kaj-erp"
+                 },
+    "targets":  {
+
+                },
+    "etags":  {
+
+              }
+}

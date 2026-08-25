@@ -1,0 +1,10 @@
+R18 FINAL STATIC VERIFICATION
+
+PASS R8-R18 individual release gates
+PASS PostgreSQL UUID/Text type-boundary verification: 639 active signatures, 154 tables
+PASS package sanity
+PASS production deployment target
+PASS formatter simulation: R17 + R18 remain green after whitespace/layout perturbation in the three Dart files changed by Windows dart format
+
+Runtime/migrations/tests are unchanged semantically/exactly as required from validated R16.
+Flutter analyze/test/build must be executed on Windows by validate:r18:windows; R16 already passed them in the user-provided run.

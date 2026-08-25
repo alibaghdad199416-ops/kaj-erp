@@ -1,0 +1,51 @@
+PASS R17 deployment orchestration
+  - runtime identity is certified by contract gates + Dart analyzer/tests/build, not post-format source hashes
+  - pristine ZIP cleanliness is checked only before generated workspace artifacts exist
+  - installed workspace validation rebuilds and rechecks source without package-cleanliness false failures
+  - production deploy never calls pristine validation from an already-built workspace
+  - Supabase dry-run/push remains before Firebase Hosting and rejects unexpected migrations
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R18 formatter-safe deployment closure
+  - no post-format Dart source/token fingerprint can create false runtime failures
+  - R16 functional/canonical-state gates remain mandatory
+  - analyzer/tests/fresh web build remain the authoritative Dart runtime gates
+  - production deploy remains workspace-safe and database-before-hosting
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R19 authoritative-gates deployment closure
+  - post-format Dart hash/token identity gates are removed permanently
+  - R14/R15/R16 runtime, invoice and canonical-state contracts remain mandatory
+  - format-check, analyzer, tests and fresh web build are the authoritative Dart gates
+  - pristine package cleanliness remains separate from installed-workspace validation
+  - production deploy validates/builds first, then Supabase dry-run/push, then Firebase Hosting
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS R20 native CLI deployment closure
+  - ordinary Supabase/Firebase stderr cannot become a false PowerShell deployment failure
+  - native process exit codes are authoritative and stderr remains visible for diagnostics
+  - dry-run parsing still rejects every unexpected migration before production push
+  - R14/R15/R16 canonical runtime/state migrations remain the only allowed pending migrations
+  - analyzer/tests/fresh web build remain mandatory before Supabase and Firebase deployment
+  - Supabase/Firebase production configuration hashes are unchanged
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1148 definitions checked, 640 active signatures
+PASS PostgreSQL text/UUID type-boundary verification
+  - 639 active function signatures inspected
+  - 154 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+PASS Supabase-only structural verification
+  - Dart graph: 329 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 159 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 212
+PASS clean package sanity verification
+  - pubspec version: 22.9.8+229008
+  - generated/local paths are excluded by .gitignore
+  - Supabase is the application backend; Firebase is Hosting only
+  - local credentials and generated folders are excluded
+  - root command surface is concise and explicit
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: fjiaxdorunedmltgqtty
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged

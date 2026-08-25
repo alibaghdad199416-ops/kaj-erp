@@ -1,0 +1,189 @@
+
+> verify:final
+> npm run verify:r6 && npm run verify:v2302 && npm run verify:v2301 && npm run verify:v2300 && npm run verify:v2299 && npm run verify:v2298:r2 && npm run verify:source && npm run verify:localization && npm run verify:structure && npm run verify:database && npm run audit:final
+
+
+> verify:r6
+> python -B tool/verify_r6_deployment_closure.py
+
+PASS R6 deployment/analyzer closure
+- deployment target verifier accepts the existing dart_defines.json without changing it
+- production configurator preserves dart_defines.json when the optional production template is absent
+- all three analyzer findings from the user run are closed at source
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: fjiaxdorunedmltgqtty
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged
+
+> verify:v2302
+> python -B tool/verify_v2302_runtime_accounting_root_closure.py
+
+PASS V23.0.2 runtime/accounting root closure
+- release-web TabBar null crash controller mismatch closed
+- sales supports cross-definition-currency stock with invoice-currency revenue
+- purchase definition-currency guard retained
+- trial balance uses the real report and separates USD/IQD totals
+- cash transfer IN/OUT is reflected by balances and reconciliation
+- Supabase/Firebase runtime configuration hashes are unchanged
+
+> verify:v2301
+> python -B tool/verify_v2301_acceptance_closure.py
+
+PASS V23.0.1 final acceptance closure
+- currency-specific revenue accounts override the legacy generic account
+- product and vehicle scrap/damage accounting is definition-driven and reversible
+- order effectiveAt reaches logistics documents, stock movements and vehicle timestamps
+- maintenance is single-currency and invoice-owned without vehicle capitalization
+- purchase/sales invoice accounting, linked FX cashboxes, deletion ownership and opportunity sync retained
+
+> verify:v2300
+> python -B tool/verify_v2300_runtime_console_closure.py
+
+PASS V23.0.0 runtime/console closure
+- historical purchase-create PostgREST overload path replaced with atomic payload RPC
+- single-currency item policy, dual partner ledgers and invoice-owned definition accounting retained
+- operational date/time covers commercial drafts, payments, product/car warehouse and cash transfers
+- scrap accounting uses definition asset account + currency-specific scrap expense account
+- enterprise audit feed and PDF/Excel export use the real database audit trail
+- browser-native XLSX download, persisted session, blue entry branding and >=15-decimal FX retained
+
+> verify:v2299
+> python -B tool/verify_v2299_runtime_requirements.py
+
+PASS V22.9.9 runtime requirements closure
+- persisted Supabase session restore verified
+- blue launch/login accent verified
+- >=15-decimal FX input and 20-decimal PostgreSQL storage verified
+- operational date/time propagation infrastructure verified
+- audit PDF/Excel and recycle-bin Excel paths verified
+- opportunity-sales and multi-currency accounting chains retained
+
+> verify:v2298:r2
+> python -B tool/verify_v2298_r2_analyzer_build_closure.py
+
+PASS V22.9.8 R2 analyzer/build closure
+- release metadata synchronized with pubspec
+- 14 known fatal analyzer warnings removed at source
+- English-only report export retained without constant-condition dead code
+
+> verify:source
+> python -B tool/verify_static_dart_sanity.py
+
+PASS static Dart source sanity verification
+  - checked 332 Dart files
+  - all quality_line_erp package imports and exports resolve
+  - FontWeight values are supported by Flutter
+  - no unresolved merge markers
+
+> verify:localization
+> python -B tool/verify_localization.py
+
+PASS localization verification
+  - English remains the primary locale and Arabic remains supported
+  - AppText follows the active widget-tree locale
+  - visible form properties and validators use localization
+
+> verify:structure
+> python -B tool/verify_supabase_only.py
+
+PASS Supabase-only structural verification
+  - Dart graph: 329 reachable source files; 3 explicitly test-only support files; no import cycles
+  - RPC contract: 156 literal calls, all defined
+  - Executable tests: 31; support files: 1
+  - Migrations: 209
+
+> verify:database
+> python -B tool/verify_postgres_contracts.py && python -B tool/verify_postgres_type_boundaries.py
+
+PASS PostgreSQL CREATE OR REPLACE compatibility — 1089 definitions checked, 595 active signatures
+PASS PostgreSQL text/UUID type-boundary verification
+  - 594 active function signatures inspected
+  - 152 table schemas inspected
+  - legacy text columns cannot be compared directly with UUID parameters or variables
+  - JSON text extraction cannot be compared directly with UUID parameters or variables
+  - erp_records company matching uses one explicit UUID-to-legacy-key boundary
+
+> audit:final
+> python -B tool/audit_ui_localization.py
+
+PASS final UI and localization audit generated
+- dartFiles: 332
+- unlocalizedRawUiTextCandidates: 0
+- runtimeLocalizedAppTextLiterals: 399
+- nonDesignSystemColorLiterals: 76
+- nonDesignSystemRadiusLiterals: 113
+
+> verify:r8
+> python -B tool/verify_r8_release_closure.py
+
+PASS R8 release closure verification
+- Supabase/Firebase configuration hashes unchanged
+- typed XLSX export and explicit recycle-bin deletion identity verified
+- shared design-system text uses AppText/AppSelectableText localization layer
+- hardened operational-date FX cash transfer chain verified
+- stale build/cache directories excluded and CI compile gates present
+NOTICE: exhaustive per-field UI permission wiring is not certified by this verifier.
+
+> verify:r9
+> python -B tool/verify_r9_complete_closure.py
+
+PASS R9 complete closure
+- production Supabase/Firebase configuration hashes unchanged
+- granular field permissions are catalogued, assignable, UI-enforced and server-enforced across master, finance, commercial and report reads/writes
+- legacy invoice tabs no longer bypass authoritative order workflows
+- FX precision is 20 decimals in key UI inputs and persisted workflow/payment columns
+- operational date/time and null-runtime hardening retained
+- source delivery excludes stale build/cache artifacts
+
+> verify:r10
+> python -B tool/verify_r10_windows_flutter_build_cleanup.py
+
+PASS R10 Windows/Flutter build cleanup verification
+  - production Supabase/Firebase files are byte-identical
+  - settings permission and legacy read-only cards are compile-safe
+  - analyzer warnings reported by the user's Flutter run are removed
+  - cashbox async BuildContext usage is mounted-guarded
+  - Python verifiers are UTF-8 deterministic on Windows
+  - deprecated --pwa-strategy is removed while cache cleanup remains
+
+> verify:r11
+> python -B tool/verify_r11_formatter_semantic_closure.py
+
+PASS R11 formatter/semantic closure verification
+  - formatter-invariant matching is centralized in verification_text.py
+  - V7.4.1 invoice fallback checks are semantic and layout-independent
+  - R9/V22.9.3/V7.3.5/V7.5.7 legacy gates remain formatter-invariant
+  - multiline membership literals are blocked from verifier regressions
+  - Supabase/Firebase production configuration hashes are unchanged
+
+> verify:r12
+> python -B tool/verify_r12_root_validation_closure.py
+
+PASS R12 root validation closure
+  - Python verifier decoding is explicit UTF-8
+  - V7.4.1 semantic invoice fallback checks are formatter-safe
+  - verify:all includes R12 and Windows validation is fail-fast
+  - production Supabase/Firebase configuration hashes are unchanged
+  - generated build/cache directories are excluded from source delivery
+
+> verify:package
+> python -B tool/verify_package_sanity.py
+
+PASS clean package sanity verification
+  - pubspec version: 22.9.8+229008
+  - generated/local paths are excluded by .gitignore
+  - Supabase is the application backend; Firebase is Hosting only
+  - local credentials and generated folders are excluded
+  - root command surface is concise and explicit
+
+> verify:deployment-target
+> python -B tool/verify_deployment_target.py
+
+PASS production deployment target verification
+  - runtime config: dart_defines.json
+  - Supabase project: fjiaxdorunedmltgqtty
+  - Firebase project: kaj-erp
+  - public self-signup is disabled; ERP administrators create users inside the app
+  - only a publishable browser key is packaged

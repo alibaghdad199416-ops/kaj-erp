@@ -1,0 +1,18 @@
+R49 FINAL ABSOLUTE ACCEPTANCE — CHANGED FILES
+
+CHANGED
+START_HERE_AR.md
+lib/core/finance/invoice_payment_batch_dialog.dart
+lib/core/localization/module_translation_catalog.dart
+lib/features/settings/access/models/permission_catalog.dart
+tool/deploy_r49_production.ps1
+tool/verify_localization.py
+tool/verify_package_sanity.py
+tool/verify_r49_full_erp_functional_crm_ui_performance_closure.py
+
+ADDED
+R49_FINAL_ABSOLUTE_ACCEPTANCE_AR.md
+supabase/migrations/20260810070000_r49_permission_scope_integrity.sql
+
+REMOVED
+supabase-push-debug.txt

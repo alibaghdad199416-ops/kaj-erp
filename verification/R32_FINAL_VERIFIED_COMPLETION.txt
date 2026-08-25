@@ -1,0 +1,35 @@
+Quality Line ERP R32 Final Verified Closure
+Date: 2026-08-09
+
+Source verification:
+- R28 complete runtime closure PASS (22 gates)
+- R29 final acceptance closure PASS (18 gates)
+- R30 completion audit PASS (21 gates)
+- R31 final completion closure PASS (12 gates)
+- R32 final verified closure PASS (14 gates)
+- PostgreSQL contracts PASS: 1241 definitions / 694 active signatures
+- PostgreSQL text/UUID boundaries PASS: 693 functions / 154 schemas
+- Static Dart sanity PASS: 338 Dart files
+- Localization PASS
+- Clean package PASS
+- Production deployment target PASS
+
+R32 additional closures:
+- Recycle Bin no longer fabricates 1970 when deleted_at is absent; missing dates render as em dash.
+- Dashboard initial state no longer starts at Unix epoch.
+- Removed the final DateTime(1970) customer sort fallback; null dates sort last.
+- Added more vertical headroom to Customer/Supplier/Warehouse/Maintenance cards.
+- R32 version.json metadata unified to 22.9.8 / build 229008 / r32-final-verified-closure.
+- deploy:production points to R32 and R32 deploy invokes validate_r32_workspace.ps1.
+- R28-R31 compatibility gates were updated to accept the newer R32 cache/deployment contract.
+
+Production live verification (2026-08-09):
+- EBL IQD accountId/account_id/canonical all equal a713e3b8-a44b-4225-a08e-5f8afa90d565.
+- EBL USD accountId/account_id/canonical all equal 4b43fb7e-e239-4994-8e2a-fb08e00c691c.
+- duplicate active cashbox ledger bindings: 0.
+- erp_r28_cloud_command signature count: 1.
+
+No R32 database migration was required; R32 is source/UI/release-validation hardening on top of the already-applied R28 Production backend contracts.
+
+Environment limitation:
+Flutter/Dart SDK is not installed in this execution environment. Final flutter analyze, flutter test, flutter build web, and visual browser acceptance must be run on the user's workstation before Firebase deployment.

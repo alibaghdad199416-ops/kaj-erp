@@ -1,0 +1,6 @@
+PASS R12 root validation closure
+  - Python verifier decoding is explicit UTF-8
+  - V7.4.1 semantic invoice fallback checks are formatter-safe
+  - verify:all includes R12 and Windows validation is fail-fast
+  - production Supabase/Firebase configuration hashes are unchanged
+  - package cleanliness is delegated to the pre-install verify:delivery gate

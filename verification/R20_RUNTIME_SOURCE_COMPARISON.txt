@@ -1,0 +1,7 @@
+R20 pristine runtime comparison against R19
+lib: IDENTICAL
+supabase/migrations: IDENTICAL
+test: IDENTICAL
+integration_test: IDENTICAL
+
+R20 changes deployment/validation tooling only.

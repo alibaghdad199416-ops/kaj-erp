@@ -1,0 +1,28 @@
+Quality Line ERP R26 Runtime Data/UI Contract Closure
+Date: 2026-08-08
+
+Production-verified:
+- Cashbox canonical account Save -> Reload test passed inside rollback. accountId/account_id/canonical remained identical to incoming selected ledger.
+- Sales order SO00027 approved/paid delete cascade passed inside rollback. Payments preserved as partner unapplied credit; vehicle state replayed.
+- Sold vehicle maintenance eligibility RPC returns the sold vehicle and customer.
+- Product sales SO00028 invoice draft creation passed inside rollback.
+- Product sales SO00028 invoice approval passed when its pre-delete FIFO layer was temporarily restored to the exact valid active state; rollback left production unchanged.
+- R26 dedicated car-image RPC deployed to eliminate whole-table master reads per car card.
+- PostgREST schema reload issued.
+
+Source verified:
+- verify:r26 PASS.
+- Static Dart sanity PASS (332 files).
+- PostgreSQL CREATE OR REPLACE compatibility PASS (1229 definitions / 684 active signatures).
+- PostgreSQL UUID/text boundary PASS (683 active function signatures / 154 schemas).
+- Web fallback build token no longer points at v744-cashbox-fixes.
+- Car image controller uses safe deferred notification and duplicate load coalescing.
+- Cars grid no longer uses fixed 190px card extent.
+
+Still requires workstation Flutter runtime verification before Firebase deployment:
+- flutter analyze --fatal-infos --fatal-warnings
+- flutter test
+- flutter build web
+- Browser print dialog for Sales/Purchase order
+- Arabic/English visual completeness across all legacy screens
+- All dialog/detail windows under real layout constraints

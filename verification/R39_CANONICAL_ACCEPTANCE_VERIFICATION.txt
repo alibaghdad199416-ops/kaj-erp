@@ -1,0 +1,34 @@
+Quality Line ERP R39 Canonical Acceptance Verification
+Date: 2026-08-09
+
+Additional gaps found after R38 review and fixed:
+1. Product Details DataTable used a const column list with runtime context.l10n values. Removed const so Flutter can compile runtime-localized headers.
+2. Maintenance create/edit paths are now unified on R39 canonical RPCs.
+3. Maintenance create accepts canonical car row id or historical carId/car_id/vehicleId/vehicle_id aliases.
+4. Maintenance edit supports labor-only orders with zero parts; prior active parts are explicitly removed when changing to labor-only.
+5. Maintenance linked edit preserves the previous workflow stage and restores payment state using the existing V67 lifecycle snapshot/rebuild contract.
+6. R38 verifier compatibility was updated so verify:workspace can accept the newer R39 create/deploy path.
+
+Production Supabase:
+- Migration applied: 20260809161514 r39_canonical_maintenance_compile_closure
+- erp_r39_create_cloud_maintenance_order(...) exists and authenticated can execute.
+- erp_r39_update_cloud_maintenance_draft(...) exists and authenticated can execute.
+
+Verification in this environment:
+- PASS R38 final functional acceptance (compatibility)
+- PASS R39 canonical acceptance
+- PASS static Dart source sanity — 338 files
+- PASS PostgreSQL CREATE OR REPLACE compatibility — 1253 definitions / 705 active signatures
+- PASS PostgreSQL text/UUID boundaries — 704 signatures / 154 schemas
+- PASS Supabase-only structure — 162 Dart RPC calls all defined / 232 migrations
+- PASS localization verification
+- PASS clean package sanity
+- PASS production deployment target
+
+Production configuration hashes unchanged:
+- dart_defines.json 53ea8bb4f55fbc85b06c70a91a682111bab652ce8ddced4730a55fc0a3179287
+- .firebaserc 003c25fc2e4659367989cfd4ca9703505abad207657fe6effc49c9317877098e
+- firebase.json ba6d0df13954597d2070d0d3acd628d06836bd36d17e072e04e3a82d4085031a
+
+Important runtime gate:
+Flutter/Dart SDK is not installed in this environment. flutter analyze, flutter test, web build, and browser visual acceptance must be run on the workstation before Firebase deployment.

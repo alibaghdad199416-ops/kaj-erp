@@ -1,0 +1,73 @@
+R22 PRODUCTION ACCOUNTING CONSOLIDATION — ROOT FIX MAP
+
+Migration:
+  supabase/migrations/20260808043000_r22_production_accounting_consolidation.sql
+
+Canonical invoice functions:
+  erp_r22_invoice_preflight
+  erp_r22_post_purchase_invoice_direct
+  erp_r22_approve_workflow_invoice
+  erp_r22_approve_sales_invoice
+  erp_r22_approve_purchase_invoice
+
+Historical accounting:
+  erp_r22_normalize_legacy_purchase_invoice
+  erp_r15_normalize_legacy_purchase_invoice -> R22 compatibility delegate
+
+Cash identity/reconciliation:
+  erp_r22_bind_cash_transaction_exact
+  erp_r22_repair_cash_transfer
+  erp_r22_transfer_cloud_cash
+  erp_r22_cash_health
+  erp_r22_reconcile_company_state
+
+Runtime/browser surface:
+  erp_r22_phase26_cloud_command
+  erp_r22_runtime_contract_probe
+  erp_r22_list_cloud_ledger_accounts
+  erp_r22_save_cloud_ledger_account
+  erp_r22_post_cloud_manual_journal
+  erp_r22_update_cloud_manual_journal
+  erp_r22_post_cloud_expense
+  erp_r22_save_fixed_asset
+  erp_r22_post_fixed_asset_depreciation_at
+  erp_r22_list_journal_lines
+  erp_r22_cloud_account_statement
+  erp_r22_cloud_account_balance_before
+  erp_r22_cloud_receivables_payables
+  erp_r22_cloud_partner_subledger_details_v2
+  erp_r22_cloud_partner_subledger_documents
+  erp_r22_cloud_trial_balance
+  erp_r22_cloud_detailed_accounting_report
+  erp_r22_cloud_cash_flow_hierarchy
+  erp_r22_cloud_expense_total
+  erp_r22_list_fixed_assets
+  erp_r22_save_cloud_cash_account
+  erp_r22_post_cloud_cash_transaction
+  erp_r22_cloud_cash_account_balances
+  erp_r22_cloud_cash_ledger_reconciliation
+  erp_r22_cloud_cash_currency_summary
+
+Flutter routes changed:
+  lib/core/cloud/cloud_feature_command.dart
+  lib/core/release/production_readiness_service.dart
+  lib/features/purchases/repositories/purchase_workflow_repository.dart
+  lib/features/sales/workflow/repositories/sales_workflow_repository.dart
+  lib/features/accounting/cashbox/repositories/cashbox_repository.dart
+  lib/features/accounting/repositories/accounting_repository.dart
+  lib/features/accounting/repositories/professional_accounting_repository.dart
+  lib/features/accounting/expenses/data/expense_repository.dart
+  lib/features/accounting/fixed_assets/fixed_assets_page.dart
+
+Release gates:
+  tool/verify_r22_production_accounting_consolidation.py
+  tool/validate_r22_workspace.ps1
+  tool/validate_r22_windows.ps1
+  tool/deploy_r22_production.ps1
+
+Important invariants:
+  PURCHASE = same definition/invoice currency; direct Supplier Credit vs Inventory Debit.
+  SALES = Revenue/Customer invoice currency; Inventory/COGS cost/FIFO currency.
+  CASH = no amount-only journal rewriting; transaction/cashbox identity mandatory.
+  LEGACY = source-document rebuild only; no blind ledger deletion/rewrite.
+  DELETE = persistent canonical tombstone remains authoritative.

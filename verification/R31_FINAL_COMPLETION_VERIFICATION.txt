@@ -1,0 +1,31 @@
+Quality Line ERP R31 Final Completion Closure
+Date: 2026-08-09
+
+Additional completion audit after R30:
+- Removed the last Unix epoch fallback from Car/Product Asset History.
+- Asset history missing dates now remain null and render as an em dash instead of 1970.
+- Added vertical layout headroom to Warehouse, Customer, Supplier cards and Maintenance item selector.
+- R31 cache token prevents stale R29/R30 web assets.
+- deploy:production now targets R31 validation/deployment.
+- R28/R29/R30 compatibility gates remain active and forward-compatible.
+
+Production re-check:
+- EBL IQD accountId/account_id/canonical are identical.
+- EBL USD accountId/account_id/canonical are identical.
+- Duplicate active cashbox ledger bindings: 0.
+- R28 cloud-command signature count: 1.
+
+Local verification in this environment:
+- R31 final completion closure: PASS (12 gates)
+- R30 completion audit: PASS (21 gates)
+- R29 final acceptance: PASS (18 gates)
+- R28 complete runtime closure: PASS (22 gates)
+- PostgreSQL CREATE OR REPLACE compatibility: PASS (1241 definitions / 694 active signatures)
+- PostgreSQL UUID/text type boundaries: PASS (693 functions / 154 schemas)
+- Static Dart source sanity: PASS (338 Dart files)
+- Localization verification: PASS
+- Package sanity: PASS
+- Production deployment target: PASS
+
+Important limitation:
+Flutter/Dart SDK is not installed in this execution environment. The final flutter analyze, flutter test, and web build must run on the user's Windows workstation before Firebase Hosting deployment.
