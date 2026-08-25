@@ -13,10 +13,10 @@ declare
     'erp_r9_cloud_detailed_accounting_report','erp_r9_cloud_cash_flow_hierarchy',
     'erp_r9_cloud_contextual_report','erp_r9_cloud_model_report',
     'erp_r9_cloud_customer_service_report','erp_r9_cloud_report_audit',
-    'erp_r15_current_state_health','erp_r49_get_sales_order_draft',
-    'erp_r49_get_purchase_order_draft','erp_get_cloud_current_document_blob',
-    'erp_get_cloud_document','erp_list_cloud_document_versions',
-    'erp_list_cloud_document_permissions'
+    'erp_r15_current_state_health','erp_r16_current_state_health',
+    'erp_r49_get_sales_order_draft','erp_r49_get_purchase_order_draft',
+    'erp_get_cloud_current_document_blob','erp_get_cloud_document',
+    'erp_list_cloud_document_versions','erp_list_cloud_document_permissions'
   ];
 begin
   for r in
