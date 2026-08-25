@@ -1,12 +1,10 @@
 begin;
 
--- These routines read database state and/or call routines that can change state.
--- Marking them VOLATILE is the truthful PostgreSQL contract and prevents the
--- planner from reusing a result across statements where that would be unsafe.
+-- Truthful PostgreSQL volatility contracts for routines that read changing
+-- database state or call routines with volatile behavior.
 do $$
 declare
   v_name text;
-  v_oid oid;
   v_args text;
 begin
   foreach v_name in array array[
@@ -32,12 +30,10 @@ begin
     'erp_get_cloud_document',
     'erp_list_cloud_document_versions',
     'erp_list_cloud_document_permissions',
-    'erp_r49_cloud_global_search',
-    'erp_r49_get_sales_order_draft',
-    'erp_r49_get_purchase_order_draft'
+    'erp_r49_cloud_global_search'
   ] loop
-    for v_oid, v_args in
-      select p.oid, pg_get_function_identity_arguments(p.oid)
+    for v_args in
+      select pg_get_function_identity_arguments(p.oid)
       from pg_proc p
       join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='public' and p.proname=v_name
@@ -47,17 +43,16 @@ begin
   end loop;
 end $$;
 
--- The date/time parsing helpers may depend on session configuration, so they
--- must not promise IMMUTABLE semantics.
+-- Date/time parsing may depend on session configuration; STABLE is the safe
+-- contract and avoids the incorrect IMMUTABLE promise reported by db lint.
 do $$
 declare
   v_name text;
-  v_oid oid;
   v_args text;
 begin
   foreach v_name in array array['erp_try_date','erp_try_timestamptz'] loop
-    for v_oid, v_args in
-      select p.oid, pg_get_function_identity_arguments(p.oid)
+    for v_args in
+      select pg_get_function_identity_arguments(p.oid)
       from pg_proc p
       join pg_namespace n on n.oid=p.pronamespace
       where n.nspname='public' and p.proname=v_name
@@ -67,4 +62,35 @@ begin
   end loop;
 end $$;
 
+-- Repaired SECURITY DEFINER entry points must not be callable anonymously.
+do $$
+begin
+  revoke all on function public.erp_r9_list_cloud_master_records(uuid,text) from public, anon;
+  grant execute on function public.erp_r9_list_cloud_master_records(uuid,text) to authenticated, service_role;
+  revoke all on function public.erp_r9_get_cloud_master_record(uuid,text,text) from public, anon;
+  grant execute on function public.erp_r9_get_cloud_master_record(uuid,text,text) to authenticated, service_role;
+  revoke all on function public.erp_r49_cloud_global_search(uuid,text,integer) from public, anon;
+  grant execute on function public.erp_r49_cloud_global_search(uuid,text,integer) to authenticated, service_role;
+  revoke all on function public.erp_r15_current_state_health(uuid) from public, anon;
+  grant execute on function public.erp_r15_current_state_health(uuid) to authenticated, service_role;
+  revoke all on function public.erp_r15_reconcile_company_state(uuid) from public, anon;
+  grant execute on function public.erp_r15_reconcile_company_state(uuid) to authenticated, service_role;
+  revoke all on function public.erp_r16_current_state_health(uuid) from public, anon;
+  grant execute on function public.erp_r16_current_state_health(uuid) to authenticated, service_role;
+  revoke all on function public.erp_r16_reconcile_company_state(uuid) from public, anon;
+  grant execute on function public.erp_r16_reconcile_company_state(uuid) to authenticated, service_role;
+  revoke all on function public.erp_phase2_post_scrap(uuid,text,text,text,jsonb,text) from public, anon;
+  grant execute on function public.erp_phase2_post_scrap(uuid,text,text,text,jsonb,text) to authenticated, service_role;
+end $$;
+
+-- Document-processing jobs remain tenant-scoped. This preserves the existing
+-- contract-master storage model while making the RLS policy explicit.
+alter table public.erp_document_processing_jobs enable row level security;
+drop policy if exists tenant_access on public.erp_document_processing_jobs;
+create policy tenant_access on public.erp_document_processing_jobs
+  for all
+  using (public.erp_user_belongs_to_company(company_id))
+  with check (public.erp_user_belongs_to_company(company_id));
+
+notify pgrst,'reload schema';
 commit;
