@@ -27,7 +27,12 @@ class SalesOrderItemInput {
     if (quantity <= 0 || (itemType == 'car' && quantity != 1)) {
       throw ArgumentError('كمية مادة أمر البيع غير صحيحة');
     }
-    if (unitPrice < 0) throw ArgumentError('سعر البيع لا يمكن أن يكون سالباً');
+    if (!unitPrice.isFinite || unitPrice < 0) {
+      throw ArgumentError('سعر البيع لا يمكن أن يكون سالباً أو غير صالح');
+    }
+    if (!lineTotal.isFinite) {
+      throw ArgumentError('إجمالي مادة أمر البيع غير صالح');
+    }
   }
 }
 
@@ -53,14 +58,21 @@ class InvoicePaymentInput {
   final PaymentSettlementMode settlementMode;
 
   void validate() {
-    if (cashAccountId.trim().isEmpty)
+    if (cashAccountId.trim().isEmpty) {
       throw ArgumentError('يجب اختيار الصندوق المالي');
+    }
     if (paymentCurrency != 'USD' && paymentCurrency != 'IQD') {
       throw ArgumentError('عملة الدفعة غير مدعومة');
     }
-    if (invoiceAmount <= 0 || cashAmount <= 0)
-      throw ArgumentError('مبلغ الدفعة يجب أن يكون أكبر من صفر');
-    if (exchangeRate <= 0)
-      throw ArgumentError('معامل التحويل يجب أن يكون أكبر من صفر');
+    if (!invoiceAmount.isFinite || !cashAmount.isFinite ||
+        invoiceAmount <= 0 || cashAmount <= 0) {
+      throw ArgumentError('مبلغ الدفعة يجب أن يكون أكبر من صفر وصالحاً');
+    }
+    if (!exchangeRate.isFinite || exchangeRate <= 0) {
+      throw ArgumentError('معامل التحويل يجب أن يكون أكبر من صفر وصالحاً');
+    }
+    if (paymentDate.isUtc && paymentDate.isUtc && paymentDate.toIso8601String().isEmpty) {
+      throw ArgumentError('تاريخ الدفعة غير صالح');
+    }
   }
 }
