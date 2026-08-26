@@ -1,24 +1,19 @@
-# Quality Line ERP — R49 Focused Final Completion
+# Quality Line ERP — Final Cross-Stage Integrity Closure
 
-المرجع النهائي لهذه الحزمة:
+المرجع التشغيلي النهائي لهذه الحزمة هو:
 
-`R49_FOCUSED_FINAL_COMPLETION_AR.md`
+`Final Cross-Stage Integrity Closure (R57/R58/R59)`
 
-وVerification Matrix:
+الإصدار canonical:
 
-`docs/audit/R49_FOCUSED_VERIFICATION_MATRIX.md`
+`22.9.8+229008`
 
-لا تغيّر `dart_defines.json` أو `.firebaserc` أو `firebase.json` أثناء الفحص.
+وسلسلة التحقق الرئيسية هي `npm run verify:workspace`، ولا تعتمد على GitHub Quality Gate كبديل عن الفحص الداخلي.
 
 ## 1) التثبيت والفحص الكامل
 ```powershell
 npm ci
 flutter pub get
-powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r49_workspace.ps1
-```
-
-أو يدويًا:
-```powershell
 npm run verify:workspace
 npm run format:check
 npm run analyze
@@ -45,9 +40,6 @@ npx supabase db push --linked --dry-run
 npx supabase migration list --linked
 ```
 
-## 4) النشر بعد نجاح اختبارات البيئة الخارجية فقط
-```powershell
-npm run deploy:production
-```
+## 4) النشر
 
-ترتيب النشر المجهز: Validation/Build → Supabase → Firebase Hosting. لم يُنفذ Production Deployment أثناء التطوير.
+لا يتم تنفيذ Production Deployment ضمن جولة الإصلاح الحالية. عند تنفيذ النشر مستقبلًا، يجب أن تمر العملية عبر منظومة التحقق الحالية وأن تكتشف جميع migrations الموجودة في المستودع بدل الاعتماد على قائمة R49 ثابتة.
