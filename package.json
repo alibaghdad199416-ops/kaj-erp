@@ -69,7 +69,7 @@
     "verify:v2160": "python -B tool/verify_v2160_phase07_final_release.py",
     "verify:v2200": "python -B tool/verify_v2200_full_redesign_stage01.py",
     "verify:v2210": "python -B tool/verify_v2210_full_redesign_stage02.py",
-    "verify:final": "npm run verify:r6 && npm run verify:v2302 && npm run verify:v2301 && npm run verify:v2300 && npm run verify:v2299 && npm run verify:v2298:r2 && npm run verify:source && npm run verify:localization && npm run verify:structure && npm run verify:database && npm run audit:final",
+    "verify:final": "npm run verify:r6 && npm run verify:v2302 && npm run verify:v2301 && npm run verify:v2300 && npm run verify:v2299 && npm run verify:v2298:r2 && npm run verify:source && npm run verify:localization && npm run verify:structure && npm run verify:database && npm run audit:final && npm run verify:final-cross-stage",
     "verify:v2220": "python -B tool/verify_v2220_full_redesign_stage03.py",
     "verify:v2230": "python -B tool/verify_v2230_full_redesign_stage04.py",
     "verify:v2240": "python -B tool/verify_v2240_full_redesign_stage05.py",
@@ -105,7 +105,7 @@
     "validate:r12:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r12_windows.ps1",
     "verify:delivery": "npm run verify:package && npm run verify:deployment-target",
     "verify:preinstall": "npm run verify:delivery",
-    "verify:workspace": "npm run verify && npm run verify:final && npm run verify:r8 && npm run verify:r9 && npm run verify:r10 && npm run verify:r11 && npm run verify:r12 && npm run verify:r13 && npm run verify:r14 && npm run verify:r15 && npm run verify:r16 && npm run verify:r17 && npm run verify:r18 && npm run verify:r19 && npm run verify:r20 && npm run verify:r21 && npm run verify:r22 && npm run verify:r23 && npm run verify:r24 && npm run verify:r25 && npm run verify:r26 && npm run verify:r27 && npm run verify:r28 && npm run verify:r29 && npm run verify:r30 && npm run verify:r31 && npm run verify:r32 && npm run verify:r33 && npm run verify:r34 && npm run verify:r35 && npm run verify:r36 && npm run verify:r37 && npm run verify:r38 && npm run verify:r39 && npm run verify:r40 && npm run verify:r41 && npm run verify:r42 && npm run verify:r43 && npm run verify:r44 && npm run verify:r46 && npm run verify:r47 && npm run verify:r48 && npm run verify:r49",
+    "verify:workspace": "npm run verify && npm run verify:final && npm run verify:r8 && npm run verify:r9 && npm run verify:r10 && npm run verify:r11 && npm run verify:r12 && npm run verify:r13 && npm run verify:r14 && npm run verify:r15 && npm run verify:r16 && npm run verify:r17 && npm run verify:r18 && npm run verify:r19 && npm run verify:r20 && npm run verify:r21 && npm run verify:r22 && npm run verify:r23 && npm run verify:r24 && npm run verify:r25 && npm run verify:r26 && npm run verify:r27 && npm run verify:r28 && npm run verify:r29 && npm run verify:r30 && npm run verify:r31 && npm run verify:r32 && npm run verify:r33 && npm run verify:r34 && npm run verify:r35 && npm run verify:r36 && npm run verify:r37 && npm run verify:r38 && npm run verify:r39 && npm run verify:r40 && npm run verify:r41 && npm run verify:r42 && npm run verify:r43 && npm run verify:r44 && npm run verify:r46 && npm run verify:r47 && npm run verify:r48 && npm run verify:r49 && npm run verify:stage11 && npm run verify:stage12 && npm run verify:stage12:storage && npm run verify:final-cross-stage",
     "verify:r13": "python -B tool/verify_r13_workspace_package_separation.py",
     "validate:r13:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r13_windows.ps1",
     "verify:preformat": "npm run verify:preinstall",
@@ -196,7 +196,11 @@
     "verify:r48": "python -B tool/verify_r48_logistics_linked_payment_preservation.py",
     "verify:r49": "python -B tool/verify_r49_full_erp_functional_crm_ui_performance_closure.py",
     "validate:r49:workspace": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r49_workspace.ps1",
-    "deploy:r49:production": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/deploy_r49_production.ps1"
+    "deploy:r49:production": "powershell -NoProfile -ExecutionPolicy Bypass -File tool/deploy_r49_production.ps1",
+    "verify:stage11": "python -B tool/verify_stage11_full_program_closure.py",
+    "verify:stage12": "python -B tool/verify_stage12_full_program_closure.py",
+    "verify:stage12:storage": "python -B tool/verify_stage12_storage_object_closure.py",
+    "verify:final-cross-stage": "python -B tool/verify_final_cross_stage_integrity.py"
   },
   "devDependencies": {
     "supabase": "^2.109.1"
