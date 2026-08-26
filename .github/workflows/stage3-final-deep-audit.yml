@@ -47,6 +47,12 @@ jobs:
         run: supabase start
       - name: Replay complete schema from zero
         run: supabase db reset --yes
+      - name: Stage 2 security regression
+        shell: bash
+        run: |
+          conn="$(supabase status -o env | grep '^DB' | cut -d= -f2-)"
+          test -n "$conn"
+          psql "$conn" -v ON_ERROR_STOP=1 -f tool/phase2_database_security_audit.sql
       - name: Stage 3 transactional ERP runtime audit
         shell: bash
         run: |
@@ -59,3 +65,5 @@ jobs:
         run: flutter test
       - name: Flutter web release build
         run: flutter build web --release
+      - name: Database lint
+        run: supabase db lint
