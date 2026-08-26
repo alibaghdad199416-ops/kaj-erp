@@ -15,6 +15,14 @@ insert into public.company_memberships(company_id,user_id,role_code,is_system_ad
 select set_config('request.jwt.claim.sub',user_id::text,true) from audit_constants;
 select set_config('request.jwt.claim.role','authenticated',true);
 
+-- Minimal accounting master fixture required by the inventory/cars runtime guards.
+insert into public.erp_accounts(organization_id,account_id,code,name,account_type,currency,is_active)
+select company_id,'audit-inventory-asset','AUDIT-INV-ASSET','Audit Inventory Asset','asset','USD',true from audit_constants
+on conflict(organization_id,account_id) do update set is_active=true;
+insert into public.erp_accounts(organization_id,account_id,code,name,account_type,currency,is_active)
+select company_id,'audit-cogs-expense','AUDIT-COGS','Audit COGS Expense','expense','USD',true from audit_constants
+on conflict(organization_id,account_id) do update set is_active=true;
+
 -- Applied security contract.
 do $$
 declare v text;
@@ -48,7 +56,7 @@ end $$;
 insert into public.erp_customers(company_id,id,data,created_by,updated_by) select company_id,'audit-customer',jsonb_build_object('name','Final Audit Customer','currency','USD','isActive',true),user_id,user_id from audit_constants on conflict(company_id,id) do update set data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
 insert into public.erp_suppliers(company_id,id,data,created_by,updated_by) select company_id,'audit-supplier',jsonb_build_object('name','Final Audit Supplier','currency','USD','isActive',true),user_id,user_id from audit_constants on conflict(company_id,id) do update set data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
 insert into public.erp_warehouses(company_id,id,data,created_by,updated_by) select company_id,'audit-warehouse',jsonb_build_object('code','AUDIT','name','Final Audit Warehouse','isActive',true),user_id,user_id from audit_constants on conflict(company_id,id) do update set data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
-insert into public.erp_cars(company_id,id,data,created_by,updated_by) select company_id,'audit-car',jsonb_build_object('brand','Audit','model','E2E','chassis','AUDIT-R56-R68','status','available','warehouse_id','audit-warehouse','warehouseId','audit-warehouse','currency','USD'),user_id,user_id from audit_constants on conflict(company_id,id) do update set data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
+insert into public.erp_cars(company_id,id,data,created_by,updated_by) select company_id,'audit-car',jsonb_build_object('brand','Audit','model','E2E','chassis','AUDIT-R56-R68','status','available','warehouse_id','audit-warehouse','warehouseId','audit-warehouse','currency','USD','inventoryAssetAccountId','audit-inventory-asset','inventory_asset_account_id','audit-inventory-asset','salesCostExpenseAccountId','audit-cogs-expense','sales_cost_expense_account_id','audit-cogs-expense'),user_id,user_id from audit_constants on conflict(company_id,id) do update set data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
 
 -- Sales: create + idempotent retry + rollback on invalid master data.
 do $$
