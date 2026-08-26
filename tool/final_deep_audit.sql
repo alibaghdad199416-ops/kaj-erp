@@ -27,10 +27,7 @@ do $$
 declare other_company uuid:='33333333-3333-4333-8333-333333333333';
 begin
   insert into public.companies(id,slug,name_ar,name_en,default_currency_code) values(other_company,'audit-other-company','شركة ثانية','Audit Other Company','USD') on conflict(id) do nothing;
-  begin
-    perform public.erp_v2300_create_sales_order(other_company,jsonb_build_object('customerId','audit-customer','currency','USD','exchangeRate',1,'items',jsonb_build_array(jsonb_build_object('itemType','car','itemId','audit-car','quantity',1,'unitPrice',10,'description','cross tenant'))));
-    raise exception 'FINAL_DEEP_AUDIT cross-tenant write succeeded';
-  exception when others then if sqlstate<>'42501' and sqlerrm not like '%tenant_denied%' and sqlerrm not like '%company_membership_required%' then raise; end if; end;
+  begin perform public.erp_v2300_create_sales_order(other_company,jsonb_build_object('customerId','audit-customer','currency','USD','exchangeRate',1,'items',jsonb_build_array(jsonb_build_object('itemType','car','itemId','audit-car','quantity',1,'unitPrice',10,'description','cross tenant')))); raise exception 'FINAL_DEEP_AUDIT cross-tenant write succeeded'; exception when others then if sqlstate<>'42501' and sqlerrm not like '%tenant_denied%' and sqlerrm not like '%company_membership_required%' then raise; end if; end;
 end $$;
 
 insert into public.erp_customers(company_id,id,data,created_by,updated_by) select company_id,'audit-customer',jsonb_build_object('name','Final Audit Customer','currency','USD','isActive',true),user_id,user_id from audit_constants on conflict(company_id,id) do update set data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
@@ -63,7 +60,7 @@ begin
 end $$;
 
 do $$
-declare company_slug text; initial_updated timestamptz; first_updated timestamptz; payload jsonb; rejected boolean:=false;
+declare company_slug text; initial_updated timestamptz; first_updated timestamptz; payload jsonb; rejected boolean:=false; probe jsonb;
 begin
   select slug into company_slug from public.companies where id=(select company_id from audit_constants);
   insert into public.erp_records(company_id,entity_type,record_id,payload,updated_at) values(company_slug,'opportunities','audit-concurrency',jsonb_build_object('id','audit-concurrency','status','pending','auditMarker','AUDIT-R56-R68'),now()) on conflict(company_id,entity_type,record_id) do update set payload=excluded.payload,deleted_at=null,updated_at=now();
@@ -74,6 +71,10 @@ begin
   if first_updated is null or first_updated=initial_updated then raise exception 'concurrency version did not advance'; end if;
   begin perform public.erp_r49_opportunity_command('save',payload); exception when others then rejected:=sqlstate='40001' or sqlerrm like '%stale_record_conflict%'; end;
   if not rejected then raise exception 'stale update accepted'; end if;
+  if to_regprocedure('public.erp_r22_approve_workflow_invoice(uuid,uuid,text)') is null then raise exception 'R22 approval RPC missing'; end if;
+  probe:=public.erp_r22_approve_workflow_invoice(c,gen_random_uuid(),'sales');
+  if coalesce((probe->>'ok')::boolean,true) then raise exception 'R22 missing-invoice probe unexpectedly succeeded'; end if;
+  if coalesce(probe->>'error','') not like '%workflow_invoice_not_found%' then raise exception 'R22 missing-invoice probe returned unexpected error: %',probe; end if;
 end $$;
 
 do $$
@@ -85,14 +86,6 @@ begin
   begin perform public.erp_register_cloud_document_blob(c,d,v,'other-company/file.bin',4); raise exception 'foreign document path accepted'; exception when others then if sqlerrm not like '%invalid_document_storage_path%' then raise; end if; end;
   perform public.erp_register_cloud_document_blob(c,d,v,c::text||'/'||d::text||'/'||v::text||'.bin',4);
   if not exists(select 1 from public.erp_document_versions where id=v and data->>'storagePath' like c::text||'/%') then raise exception 'canonical storage path not persisted'; end if;
-end $$;
-
-do $$
-declare c uuid; probe jsonb;
-begin
-  select company_id into c from audit_constants;
-  probe:=public.erp_r22_runtime_contract_probe(c);
-  if coalesce((probe->>'ok')::boolean,false) is not true then raise exception 'accounting runtime probe failed: %',probe; end if;
 end $$;
 
 commit;
