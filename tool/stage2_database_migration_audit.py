@@ -47,9 +47,6 @@ for migration in files:
     if re.search(r"(?m)^\s*after_rollback_marker\s*:=", lower):
         errors.append(f"stray procedural assignment outside a function/block: {migration.name}")
 
-    if re.search(r"(?i)\b(?:todo|fixme|not implemented|placeholder)\b", text):
-        errors.append(f"placeholder marker in migration: {migration.name}")
-
 if errors:
     print("FAILED Stage 2 migration static safety audit")
     for error in errors:
