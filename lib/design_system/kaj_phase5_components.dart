@@ -53,7 +53,10 @@ class KajCommercialHero extends StatelessWidget {
             padding: const EdgeInsets.all(KajDesignTokens.space20),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compact = constraints.maxWidth < 920;
+                // Four metrics plus heading/actions need more width than the
+                // previous breakpoint guaranteed. Stack below 1180px to
+                // prevent narrow desktop/tablet overflow.
+                final compact = constraints.maxWidth < 1180;
                 final heading = Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -90,6 +93,8 @@ class KajCommercialHero extends StatelessWidget {
                           const SizedBox(height: KajDesignTokens.space6),
                           AppText(
                             title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: theme.colorScheme.onSurface,
                               fontSize: compact ? 23 : 29,
@@ -100,6 +105,8 @@ class KajCommercialHero extends StatelessWidget {
                           const SizedBox(height: KajDesignTokens.space8),
                           AppText(
                             subtitle,
+                            maxLines: compact ? 4 : 3,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: theme.colorScheme.onSurfaceVariant,
                               fontSize: 13,
@@ -120,6 +127,10 @@ class KajCommercialHero extends StatelessWidget {
                       .toList(growable: false),
                 );
 
+                final actionsWidget = actions.isEmpty
+                    ? null
+                    : Wrap(spacing: 8, runSpacing: 8, children: actions);
+
                 if (compact) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,22 +138,23 @@ class KajCommercialHero extends StatelessWidget {
                       heading,
                       const SizedBox(height: KajDesignTokens.space16),
                       metricsWidget,
-                      if (actions.isNotEmpty) ...<Widget>[
+                      if (actionsWidget != null) ...<Widget>[
                         const SizedBox(height: KajDesignTokens.space12),
-                        Wrap(spacing: 8, runSpacing: 8, children: actions),
+                        actionsWidget,
                       ],
                     ],
                   );
                 }
 
                 return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(flex: 4, child: heading),
                     const SizedBox(width: KajDesignTokens.space20),
                     Expanded(flex: 5, child: metricsWidget),
-                    if (actions.isNotEmpty) ...<Widget>[
+                    if (actionsWidget != null) ...<Widget>[
                       const SizedBox(width: KajDesignTokens.space16),
-                      Wrap(spacing: 8, runSpacing: 8, children: actions),
+                      Flexible(child: actionsWidget),
                     ],
                   ],
                 );
@@ -178,7 +190,7 @@ class KajCommercialMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      constraints: const BoxConstraints(minWidth: 152),
+      constraints: const BoxConstraints(minWidth: 152, maxWidth: 280),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: data.accent.withValues(alpha: .075),
@@ -190,27 +202,33 @@ class KajCommercialMetric extends StatelessWidget {
         children: <Widget>[
           Icon(data.icon, color: data.accent, size: 19),
           const SizedBox(width: 9),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              AppText(
-                data.label,
-                style: TextStyle(
-                  color: scheme.onSurfaceVariant,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                AppText(
+                  data.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              AppText(
-                data.value,
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
+                const SizedBox(height: 3),
+                AppText(
+                  data.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -234,11 +252,14 @@ class KajCommercialWorkflow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final effectiveAccent = accent ?? KajDesignTokens.electricBlue;
+    final safeIndex = steps.isEmpty
+        ? -1
+        : currentIndex.clamp(0, steps.length - 1);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: List<Widget>.generate(steps.length, (index) {
-          final reached = index <= currentIndex;
+          final reached = index <= safeIndex;
           return Row(
             children: <Widget>[
               Container(
@@ -272,6 +293,8 @@ class KajCommercialWorkflow extends StatelessWidget {
                     const SizedBox(width: 6),
                     AppText(
                       steps[index],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: reached
                             ? scheme.onSurface
