@@ -82,12 +82,16 @@ class AppRoutes {
     products: (_) => _protected(
       route: products,
       permission: 'inventory.view',
-      child: const StockCatalogPage(initialIndex: 2),
+      child: const StockCatalogPage(
+        initialIndex: StockCatalogPage.productsTabIndex,
+      ),
     ),
     inventory: (_) => _protected(
       route: inventory,
       permission: 'inventory.view',
-      child: const StockCatalogPage(initialIndex: 0),
+      child: const StockCatalogPage(
+        initialIndex: StockCatalogPage.carsTabIndex,
+      ),
     ),
     maintenance: (_) => _protected(
       route: maintenance,
