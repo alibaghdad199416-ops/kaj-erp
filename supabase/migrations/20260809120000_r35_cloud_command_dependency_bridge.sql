@@ -1,4 +1,4 @@
-﻿begin;
+begin;
 
 -- Compatibility bridge required before R37.
 -- R35's final implementation is applied later in the migration chain.
