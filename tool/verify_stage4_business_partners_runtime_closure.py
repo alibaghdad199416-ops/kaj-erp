@@ -11,10 +11,10 @@ customer=read('lib/features/business_partners/customers/pages/customers_page.dar
 customer_card=read('lib/features/business_partners/customers/widgets/customer_card.dart')
 supplier_card=read('lib/features/business_partners/suppliers/widgets/supplier_card.dart')
 service=read('lib/features/business_partners/shared/data/business_partner_card_service.dart')
-
+executable='\n'.join(line for line in migration.splitlines() if not line.strip().startswith('--'))
 checks={
  'stage4 migration is forward-only':'begin;' in migration and 'commit;' in migration,
- 'stage4 migration explicitly excludes quality-line gating':'Quality Line Base/Tail' in migration,
+ 'no executable quality-line dependency':'quality line' not in executable.lower() and 'qualityline.' not in executable.lower(),
  'customer CRUD is granular at RLS':'customers.create' in migration and 'customers.update' in migration and 'customers.delete' in migration and 'customers.view' in migration,
  'supplier CRUD is granular at RLS':'suppliers.create' in migration and 'suppliers.update' in migration and 'suppliers.delete' in migration and 'suppliers.view' in migration,
  'customer national ID tenant uniqueness':'erp_customers_company_national_id_uq' in migration,
@@ -26,7 +26,6 @@ checks={
  'partner profile loads authoritative RPC':'erp_r49_business_partner_card_summary' in service,
  'phase4 luxury verifier remains present':exists('tool/verify_v194_phase4_luxury.py'),
 }
-
 for name,ok in checks.items(): print(('PASS' if ok else 'FAIL'),name)
 if not all(checks.values()): sys.exit(1)
-print(f'PASS Stage 4 business-partners runtime closure — {len(checks)} gates')
+print(f'PASS Stage 4 deep business-partners closure — {len(checks)} gates')
