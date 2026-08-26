@@ -1,4 +1,5 @@
-# Stage 2 verification branch: execute the authoritative database closure gate.
+# Stage 2 verification branch: authoritative database closure gate.
+# Synchronization checkpoint after migration-audit correction.
 name: Quality Gates
 
 on:
