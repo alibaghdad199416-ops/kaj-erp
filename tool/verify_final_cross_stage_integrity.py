@@ -77,6 +77,7 @@ for required in (
     '20260826233000_r59_stage12_storage_object_version_closure.sql',
     '20260826240000_r60_stage12_storage_helper_tenant_scope.sql',
     '20260826250000_full_application_rpc_authorization_closure.sql',
+    '20260826260000_full_application_accounting_rpc_boundary_closure.sql',
 ):
     need(required in migrations, f'required closure migration is missing: {required}')
 
@@ -132,6 +133,12 @@ need("'sales.approve'" in v762_fix and "'purchases.approve'" in v762_fix, 'V7.6.
 need("'cashbox.payment'" in v762_fix, 'V7.6.2 payment permission check missing')
 need("'maintenance.view'" in v762_fix, 'V7.6.2 maintenance view boundary missing')
 
+v763_fix = read('supabase/migrations/20260826260000_full_application_accounting_rpc_boundary_closure.sql')
+need('public.erp_v763_accounting_integrity_audit' in v763_fix, 'V7.6.3 accounting audit closure missing')
+need('public.erp_cloud_trial_balance' in v763_fix, 'V7.6.3 trial-balance closure missing')
+need('public.is_active_company_member(p_company_id)' in v763_fix, 'V7.6.3 tenant membership check missing')
+need('revoke all on function public.erp_v763_accounting_integrity_audit(uuid) from public,anon' in v763_fix, 'V7.6.3 audit RPC grant boundary missing')
+
 for sql in migrations_dir.glob('*.sql'):
     text = sql.read_text(encoding='utf-8', errors='strict')
     for match in re.finditer(r'grant\s+execute\s+on\s+function\s+([^;]+?)\s+to\s+(public|anon)\s*;', text, re.IGNORECASE | re.DOTALL):
@@ -182,5 +189,5 @@ if errors:
 
 print('PASS FINAL CROSS-STAGE INTEGRITY AUDIT')
 print(f'- canonical application version: {canonical_version}')
-print('- R57/R58/R59/R60 and independent V7.6.2 authorization closure are checked')
+print('- R57/R58/R59/R60 plus independent V7.6.2/V7.6.3 authorization closures are checked')
 print('- canonical state, storage identity, tenant authorization, SECURITY DEFINER boundaries and ERP domain surfaces are checked')
