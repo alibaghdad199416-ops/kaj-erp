@@ -147,7 +147,7 @@ for sql in migrations_dir.glob('*.sql'):
         defs = re.finditer(r'create\s+(?:or\s+replace\s+)?function\b.*?security\s+definer.*?as\s+\$\$', text, re.IGNORECASE | re.DOTALL)
         for definition in defs:
             snippet = definition.group(0)
-            need('set search_path=' in snippet.lower(), f'SECURITY DEFINER function without pinned search_path in {sql.name}')
+            need(re.search(r'set\s+search_path\s*=', snippet, re.IGNORECASE) is not None, f'SECURITY DEFINER function without pinned search_path in {sql.name}')
 
 # ---------------------------------------------------------------------------
 # ERP cross-stage source contracts
