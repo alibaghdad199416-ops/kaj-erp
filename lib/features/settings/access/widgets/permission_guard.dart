@@ -51,6 +51,7 @@ class _PermissionGuardState extends State<PermissionGuard> {
     if (!_deniedRecorded) {
       _deniedRecorded = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
         await context.read<AccessController>().recordDeniedAccess(
           widget.permission,
         );
@@ -89,13 +90,20 @@ class _PermissionGuardState extends State<PermissionGuard> {
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: () async {
+                      // Never push the protected dashboard blindly: a valid
+                      // authenticated role may legitimately lack dashboard.view.
+                      // Pushing it again would create an infinite denial loop.
+                      if (Navigator.of(context).canPop()) {
+                        await Navigator.of(context).maybePop();
+                        return;
+                      }
                       await Navigator.of(context).pushNamedAndRemoveUntil(
-                        AppRouteNames.dashboard,
+                        AppRouteNames.login,
                         (route) => false,
                       );
                     },
-                    icon: const Icon(Icons.dashboard_outlined),
-                    label: const AppText('العودة إلى لوحة التحكم'),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const AppText('العودة إلى الصفحة السابقة'),
                     style: FilledButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
