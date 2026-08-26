@@ -29,10 +29,10 @@ jobs:
         run: supabase db reset --yes
 
       - name: Phase 2 — Database/Auth/RLS deep gate
-        run: supabase db query --file tool/phase2_database_security_audit.sql
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tool/phase2_database_security_audit.sql
 
       - name: Execute transactional ERP runtime matrix
-        run: supabase db query --file tool/final_deep_audit.sql
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tool/final_deep_audit.sql
 
       - name: Run all existing integrity gates
         run: |
