@@ -1,0 +1,17 @@
+name: R56 Functional ERP Audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  functional-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+      - run: flutter pub get
+      - run: python3 tool/verify_r56_functional_erp_audit.py
+      - run: flutter analyze
+      - run: flutter test
