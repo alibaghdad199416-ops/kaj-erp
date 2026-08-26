@@ -3,13 +3,13 @@ class AppReleaseInfo {
 
   static const String version = '22.9.8';
   static const int buildNumber = 229008;
-  static const String channel = 'release-candidate';
-  static const String syncEngine = '22.9.8-r49-focused-final-completion';
+  static const String channel = 'final';
+  static const String syncEngine = '22.9.8-final-cross-stage-integrity-r57-r58-r59';
 
   static const String operationalRevision =
-      '22.9.8-r49-focused-final-completion';
+      '22.9.8-final-cross-stage-integrity-r57-r58-r59';
 
-  static const String releaseToken = 'r49-focused-final-completion-20260810';
+  static const String releaseToken = 'final-cross-stage-integrity-20260826';
 
   // Historical audit markers retained for backward-compatible release checks:
   // 18.9.8 / 189800 / v738-full-verified-runtime-accounting-ui-20260806
