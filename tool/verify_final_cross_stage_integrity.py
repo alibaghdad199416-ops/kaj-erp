@@ -126,6 +126,7 @@ need("revoke all on function public.erp_r59_document_storage_identity_valid(text
 
 v762_fix = read('supabase/migrations/20260826250000_full_application_rpc_authorization_closure.sql')
 need('public.erp_v762_assert_posted_journal_balanced' in v762_fix, 'V7.6.2 journal helper closure missing')
+need("revoke all on function public.erp_v762_assert_posted_journal_balanced(uuid,text,text) from public,anon,authenticated" in v762_fix, 'V7.6.2 journal helper remains directly callable by browser sessions')
 need('public.is_active_company_member(p_company_id)' in v762_fix, 'V7.6.2 tenant membership check missing')
 need("'sales.approve'" in v762_fix and "'purchases.approve'" in v762_fix, 'V7.6.2 approval permission checks missing')
 need("'cashbox.payment'" in v762_fix, 'V7.6.2 payment permission check missing')
