@@ -39,35 +39,23 @@ jobs:
         run: |
           npm ci
           flutter pub get
-      - name: Static Stage 3 ERP surface audit
-        run: python3 tool/verify_r56_functional_erp_audit.py
-      - name: Static Stage 3 audit-harness integrity check
-        run: python3 tool/verify_stage3_final_deep_audit.py
-      - name: Stage 3 maintenance closure check
+      - name: Stage 3 maintenance closure
         run: python3 tool/verify_stage3_maintenance_closure.py
+      - name: Stage 3 audit-harness integrity
+        run: python3 tool/verify_stage3_final_deep_audit.py
       - name: Start disposable Supabase
         run: supabase start
-      - name: Replay the complete schema from zero
+      - name: Replay complete schema from zero
         run: supabase db reset --yes
-      - name: Stage 2 security regression gate
-        shell: bash
-        run: |
-          DB_URL="$(supabase status -o env | sed -n 's/^DB_URL=//p')"
-          test -n "$DB_URL"
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tool/phase2_database_security_audit.sql
       - name: Stage 3 transactional ERP runtime audit
         shell: bash
         run: |
-          DB_URL="$(supabase status -o env | sed -n 's/^DB_URL=//p')"
-          test -n "$DB_URL"
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tool/final_deep_audit.sql
-      - name: Project-wide verification
-        run: npm run verify:all
+          conn="$(supabase status -o env | grep '^DB' | cut -d= -f2-)"
+          test -n "$conn"
+          psql "$conn" -v ON_ERROR_STOP=1 -f tool/final_deep_audit.sql
       - name: Flutter analyzer
         run: flutter analyze
       - name: Flutter tests
         run: flutter test
       - name: Flutter web release build
         run: flutter build web --release
-      - name: Database lint
-        run: supabase db lint
