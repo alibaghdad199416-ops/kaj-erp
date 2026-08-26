@@ -11,13 +11,16 @@ def need(path, text=None):
     checks.append((ok, f'{path}' + (f' contains {text}' if text else ' exists')))
 
 
-# Stage 09 verifies the repository's current release contract.  The file name
-# is retained for backward compatibility with existing automation.
+# This verifier name is retained for backward compatibility with existing
+# automation, but its release contract is now the final cross-stage identity.
 need('pubspec.yaml', 'version: 22.9.8+229008')
 need('lib/core/release/app_release_info.dart', "version = '22.9.8'")
 need('lib/core/release/app_release_info.dart', 'buildNumber = 229008')
-need('lib/core/release/app_release_info.dart', "channel = 'release-candidate'")
-need('lib/core/release/app_release_info.dart', 'r49-focused-final-completion-20260810')
+need('lib/core/release/app_release_info.dart', "channel = 'final'")
+need('lib/core/release/app_release_info.dart', 'final-cross-stage-integrity-20260826')
+need('lib/core/release/app_release_info.dart', '22.9.8-final-cross-stage-integrity-r57-r58-r59')
+need('web/version.json', '"releaseToken": "final-cross-stage-integrity-20260826"')
+need('web/version.json', '"channel": "final"')
 need('tool/audit_ui_localization.py')
 need('tool/final_release_check.ps1')
 
