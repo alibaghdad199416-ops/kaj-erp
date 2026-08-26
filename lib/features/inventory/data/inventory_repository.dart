@@ -132,12 +132,13 @@ class InventoryRepository {
                               ])
                             : 0))
                     .toInt(),
-            'warehouseId': ?normalizedWarehouseId,
+            'warehouseId': normalizedWarehouseId,
             if (quantity > 0) 'unitCost': value / quantity,
           });
-        }).toList()..sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
+        }).toList()
+      ..sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
     return mapped.skip(page.offset).take(page.limit).toList(growable: false);
   }
 
@@ -353,8 +354,9 @@ class InventoryRepository {
 
   Future<void> updateGroup(InventoryGroupModel group) async {
     final existing = await _cloud.getById('erp_inventory_groups', group.id);
-    if (existing == null)
+    if (existing == null) {
       throw StateError('المجموعة غير موجودة أو تعذر تحديثها');
+    }
     await _cloud.upsert(
       'erp_inventory_groups',
       group.id,
@@ -369,8 +371,9 @@ class InventoryRepository {
       field: 'groupId',
       value: id,
     );
-    if (products.isNotEmpty)
+    if (products.isNotEmpty) {
       throw StateError('لا يمكن حذف مجموعة مرتبطة بمنتجات');
+    }
     await _cloud.delete('erp_inventory_groups', id);
     _lookupCache.invalidate();
   }
@@ -424,8 +427,9 @@ class InventoryRepository {
     String? notes,
     DateTime? effectiveAt,
   }) async {
-    if (fromWarehouseId == toWarehouseId)
+    if (fromWarehouseId == toWarehouseId) {
       throw ArgumentError('يجب اختيار مخزنين مختلفين');
+    }
     final result = await _client.rpc(
       'erp_r49_create_car_warehouse_transfer',
       params: {
@@ -547,8 +551,9 @@ class InventoryRepository {
     required int quantity,
     String? notes,
   }) async {
-    if (fromWarehouseId == toWarehouseId)
+    if (fromWarehouseId == toWarehouseId) {
       throw ArgumentError('يجب اختيار مخزنين مختلفين');
+    }
     if (quantity <= 0) throw ArgumentError('يجب أن تكون الكمية أكبر من صفر');
     await _client.rpc(
       'erp_r49_transfer_inventory_stock',
@@ -570,8 +575,9 @@ class InventoryRepository {
     required int quantity,
     String? notes,
   }) async {
-    if (quantity <= 0)
+    if (quantity <= 0) {
       throw ArgumentError('يجب أن تكون الكمية المتوقعة أكبر من صفر');
+    }
     await _client.rpc(
       'erp_r49_plan_inventory_movement',
       params: {
