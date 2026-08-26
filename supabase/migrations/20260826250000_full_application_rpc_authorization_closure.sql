@@ -3,13 +3,12 @@ begin;
 -- Independent full-application audit finding:
 -- V7.6.2 exposed SECURITY DEFINER workflow helpers to authenticated callers,
 -- but several entry points trusted the caller-supplied company id and invoice
--- id without enforcing authentication, tenant membership, or the action-level
+-- id without enforcing authentication, tenant membership, or action-level
 -- permission at the RPC boundary. Downstream functions are not a substitute
--- for the boundary because the helpers themselves read/lock tenant rows and
--- can return existence/integrity information before delegation.
+-- because these helpers themselves read/lock tenant rows before delegation.
 --
--- Forward-only, data-preserving remediation. Public RPC signatures are kept
--- unchanged so existing Flutter callers remain compatible.
+-- Forward-only, data-preserving remediation. Existing public RPC signatures
+-- remain unchanged so Flutter callers stay compatible.
 
 create or replace function public.erp_v762_assert_posted_journal_balanced(
   p_company_id uuid,p_entry_id text,p_context text
@@ -17,12 +16,6 @@ create or replace function public.erp_v762_assert_posted_journal_balanced(
 language plpgsql security definer set search_path=public as $$
 declare v_debit numeric; v_credit numeric; v_count integer;
 begin
-  if auth.uid() is null
-     or not public.is_active_company_member(p_company_id)
-     or (not public.erp_cloud_user_has_permission(p_company_id,'accounting.post')
-         and not public.is_company_admin(p_company_id)) then
-    raise exception 'accounting_permission_required' using errcode='42501';
-  end if;
   if nullif(btrim(coalesce(p_entry_id,'')),'') is null then
     raise exception using errcode='P7621',message='posting_journal_missing',detail=p_context;
   end if;
@@ -39,6 +32,12 @@ begin
       detail=jsonb_build_object('context',p_context,'journalEntryId',p_entry_id,'debit',v_debit,'credit',v_credit)::text;
   end if;
 end;$$;
+
+-- This helper is internal to the SECURITY DEFINER workflow functions. It must
+-- not be directly callable by browser sessions because its success/failure
+-- result is a cross-tenant journal existence/integrity oracle.
+revoke all on function public.erp_v762_assert_posted_journal_balanced(uuid,text,text) from public,anon,authenticated;
+grant execute on function public.erp_v762_assert_posted_journal_balanced(uuid,text,text) to service_role;
 
 create or replace function public.erp_v762_approve_workflow_invoice(
   p_company_id uuid,p_invoice_id uuid,p_module text
