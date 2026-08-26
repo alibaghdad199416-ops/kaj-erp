@@ -6,7 +6,7 @@ Premium bilingual Flutter Web ERP for automotive, spare-parts, inventory, sales,
 - **Hosting:** Firebase Hosting only.
 - **Currencies:** USD and IQD with guarded linked-cashbox/FX workflows.
 - **Languages:** English + Arabic/RTL.
-- **Release:** `22.9.8+229008` — Final Cross-Stage Integrity Closure (R57/R58/R59).
+- **Release:** `22.9.8+229008` — Final Cross-Stage Integrity Closure (R57/R58/R59/R60).
 
 The current operational and deployment entry point is [`START_HERE_AR.md`](START_HERE_AR.md). Verification is authoritative from `npm run verify:workspace`, which includes the stage 11/12 closure verifiers and the final cross-stage integrity audit.
 
