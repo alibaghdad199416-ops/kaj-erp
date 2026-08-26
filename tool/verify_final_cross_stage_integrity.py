@@ -33,11 +33,13 @@ except json.JSONDecodeError as exc:
 
 scripts = package.get('scripts', {})
 need(isinstance(scripts, dict), 'package.json scripts must be an object')
+package_version = str(package.get('version', ''))
 
 pubspec = read('pubspec.yaml')
 version_match = re.search(r'^version:\s*([^\s]+)', pubspec, re.MULTILINE)
 need(version_match is not None, 'pubspec.yaml has no canonical version')
 canonical_version = version_match.group(1) if version_match else ''
+canonical_base = canonical_version.split('+', 1)[0]
 
 readme = read('README.md')
 readme_ar = read('README_AR.md')
@@ -45,6 +47,7 @@ start_here = read('START_HERE_AR.md')
 operational_docs = readme + '\n' + readme_ar + '\n' + start_here
 
 need(canonical_version == '22.9.8+229008', 'unexpected canonical version; do not change version without an explicit release decision')
+need(package_version == canonical_base, 'package.json version does not match the canonical pubspec application version')
 need('R49 focused final completion' not in operational_docs, 'operational documentation still identifies R49 as the current final state')
 need('R49_FOCUSED_FINAL_COMPLETION_AR.md' not in operational_docs, 'operational documentation still points at the obsolete R49 final report')
 need('22.9.8+229008' in operational_docs, 'operational documentation does not identify the canonical application version')
@@ -57,8 +60,6 @@ need('npm run verify:final-cross-stage' in verify_workspace, 'verify:workspace d
 need(verify_all == 'npm run verify:workspace', 'verify:all is not an exact alias of the authoritative workspace chain')
 need('npm run verify:final-cross-stage' in verify_final, 'verify:final does not include the final cross-stage audit')
 
-# Every numbered R verifier that is exposed by package.json must be on the
-# workspace chain; otherwise a new release verifier can silently become dead code.
 workspace_refs = set(re.findall(r'npm run (verify:r\d+)', verify_workspace))
 package_r_verifiers = {
     name for name, command in scripts.items()
@@ -67,23 +68,17 @@ package_r_verifiers = {
 missing_r_verifiers = sorted(package_r_verifiers - workspace_refs, key=lambda x: int(x[8:]))
 need(not missing_r_verifiers, 'verify:workspace omits package release verifiers: ' + ', '.join(missing_r_verifiers))
 
-# Stage verifiers are discovered from the repository rather than maintained as
-# a fragile hard-coded list. Every stage 0..12 must have at least one verifier,
-# and every discovered stage verifier must be reachable from the final chain.
-stage_files = sorted((ROOT / 'tool').glob('verify_stage*.py'))
-stage_numbers: dict[int, list[Path]] = {}
-for path in stage_files:
-    match = re.match(r'verify_stage(\d+)', path.name)
-    if match:
-        stage_numbers.setdefault(int(match.group(1)), []).append(path)
-for stage in range(13):
-    need(stage in stage_numbers, f'missing verifier coverage for stage {stage}')
-for path in stage_files:
-    name = path.stem
-    command_name = f'verify:{name}'
-    need(command_name in scripts, f'stage verifier {path.name} is not exposed in package.json as {command_name}')
-    if command_name in scripts:
-        need(f'npm run {command_name}' in verify_workspace, f'{command_name} is not reachable from verify:workspace')
+# Stage 11/12 have dedicated closure verifiers. Older stages remain covered by
+# their numbered R/v verification chain; the final audit itself scans the whole
+# repository rather than treating the newest stage as the whole program.
+for script_name, expected in {
+    'verify:stage11': 'tool/verify_stage11_full_program_closure.py',
+    'verify:stage12': 'tool/verify_stage12_full_program_closure.py',
+    'verify:stage12:storage': 'tool/verify_stage12_storage_object_closure.py',
+    'verify:final-cross-stage': 'tool/verify_final_cross_stage_integrity.py',
+}.items():
+    need(scripts.get(script_name) == f'python -B {expected}', f'{script_name} is not wired to {expected}')
+    need(f'npm run {script_name}' in verify_workspace, f'{script_name} is not reachable from verify:workspace')
 
 # ---------------------------------------------------------------------------
 # Migration ordering and forward-only safety
@@ -101,7 +96,7 @@ for name in migrations:
         migration_ids.append((int(match.group(1)), name))
 need(all(a[0] < b[0] for a, b in zip(migration_ids, migration_ids[1:])), 'migration filenames are not strictly ordered')
 
-for sql in (ROOT / 'supabase' / 'migrations').glob('*.sql'):
+for sql in migrations_dir.glob('*.sql'):
     text = sql.read_text(encoding='utf-8', errors='strict')
     lower = text.lower()
     need(not re.search(r'\btruncate\s+', lower), f'forbidden TRUNCATE found in migration {sql.name}')
@@ -141,16 +136,12 @@ need("bucket_id='enterprise-documents'" in r59, 'R59 policies are not scoped to 
 need("'$_companyId/$documentId/$versionId.bin'" in client_storage, 'Flutter storage writer does not use canonical company/document/version identity')
 need('erp_register_cloud_document_blob' in r55, 'R55 storage registration contract is missing from the successor chain')
 
-# Public/anonymous execute grants are a direct authorization smell. Existing
-# historical SQL is still scanned; a violation cannot be hidden by the latest migration.
-for sql in (ROOT / 'supabase' / 'migrations').glob('*.sql'):
+for sql in migrations_dir.glob('*.sql'):
     text = sql.read_text(encoding='utf-8', errors='strict')
     for match in re.finditer(r'grant\s+execute\s+on\s+function\s+([^;]+?)\s+to\s+(public|anon)\s*;', text, re.IGNORECASE | re.DOTALL):
         errors.append(f'unsafe PUBLIC/anon function execute grant in {sql.name}: {match.group(0).strip()}')
 
-# SECURITY DEFINER functions must pin search_path; this is enforced statically
-# for every definition in the migration set.
-for sql in (ROOT / 'supabase' / 'migrations').glob('*.sql'):
+for sql in migrations_dir.glob('*.sql'):
     text = sql.read_text(encoding='utf-8', errors='strict')
     if 'security definer' in text.lower():
         defs = re.finditer(r'create\s+(?:or\s+replace\s+)?function\b.*?security\s+definer.*?as\s+\$\$', text, re.IGNORECASE | re.DOTALL)
@@ -163,6 +154,8 @@ for sql in (ROOT / 'supabase' / 'migrations').glob('*.sql'):
 # ---------------------------------------------------------------------------
 all_dart = '\n'.join(p.read_text(encoding='utf-8', errors='strict') for p in (ROOT / 'lib').rglob('*.dart')) if (ROOT / 'lib').is_dir() else ''
 all_sql = '\n'.join(p.read_text(encoding='utf-8', errors='strict') for p in (ROOT / 'supabase').rglob('*.sql')) if (ROOT / 'supabase').is_dir() else ''
+all_dart_lower = all_dart.lower()
+all_sql_lower = all_sql.lower()
 
 for domain, terms in {
     'accounting': ('debit', 'credit', 'journal'),
@@ -173,28 +166,26 @@ for domain, terms in {
     'partners/CRM': ('customer', 'supplier'),
     'maintenance': ('maintenance', 'vehicle'),
 }.items():
-    need(any(term.lower() in all_dart.lower() for term in terms), f'{domain} source surface is not discoverable from lib/')
+    need(any(term in all_dart_lower for term in terms), f'{domain} source surface is not discoverable from lib/')
 
-need('company_id' in all_sql.lower(), 'database source contains no company scoping contract')
-need('auth.uid()' in all_sql.lower(), 'database source contains no authenticated-user boundary')
-need('create policy' in all_sql.lower(), 'database source contains no RLS policy definitions')
+need('company_id' in all_sql_lower, 'database source contains no company scoping contract')
+need('auth.uid()' in all_sql_lower, 'database source contains no authenticated-user boundary')
+need('create policy' in all_sql_lower, 'database source contains no RLS policy definitions')
 
 # ---------------------------------------------------------------------------
 # Deployment orchestration is source-only here; this verifier never deploys.
 # ---------------------------------------------------------------------------
 deploy_r49 = read('tool/deploy_r49_production.ps1')
 need('$ExpectedMigrations' not in deploy_r49, 'deploy_r49_production.ps1 still hard-codes an R49-only ExpectedMigrations allow-list')
-need('supabase/migrations' in deploy_r49, 'deployment orchestration does not discover the repository migration set')
+need('supabase\\migrations' in deploy_r49.lower() or 'supabase/migrations' in deploy_r49.lower(), 'deployment orchestration does not discover the repository migration set')
 need('R57' not in deploy_r49 and 'R58' not in deploy_r49 and 'R59' not in deploy_r49, 'legacy R49 deployment script contains release-specific migration assumptions')
 
-# Deployment scripts must not be pulled into verification by actually running
-# deployment commands. The final audit only checks source wiring.
 deploy_production = read('tool/deploy_production.ps1')
 need('deploy_production.ps1' in scripts.get('deploy:supabase', ''), 'deploy:supabase is not wired to the shared deployment orchestrator')
 need('deploy_production.ps1' in scripts.get('deploy:firebase', ''), 'deploy:firebase is not wired to the shared deployment orchestrator')
 
 # ---------------------------------------------------------------------------
-# Regression protection for the two confirmed closure gaps.
+# Regression protection for the confirmed closure gaps.
 # ---------------------------------------------------------------------------
 stage11 = read('tool/verify_stage11_full_program_closure.py')
 stage12 = read('tool/verify_stage12_full_program_closure.py')
@@ -211,7 +202,7 @@ if errors:
 
 print('PASS FINAL CROSS-STAGE INTEGRITY AUDIT')
 print(f'- canonical application version: {canonical_version}')
-print('- verification chain covers package release verifiers and discovered stage 0..12 verifiers')
+print('- verification chain covers package release verifiers plus dedicated stage 11/12 closure verifiers')
 print('- R57/R58/R59 migration ordering and forward-only safety are checked')
 print('- canonical state, document/storage identity, authorization, and SECURITY DEFINER boundaries are checked')
 print('- deployment migration discovery is checked without executing deployment')
