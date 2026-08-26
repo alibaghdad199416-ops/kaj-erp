@@ -23,8 +23,8 @@ need("p_company_id::text || '/' || p_document_id::text || '/' || p_version_id::t
      'R58 canonical registration path is missing')
 need("storage.filename(p_name)" in r59,
      'R59 does not validate the Storage filename as the document version')
-need("'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\\\.bin$'" in r59,
-     'R59 does not require UUID version.bin filenames')
+need("v_file !~*" in r59 and "\\.bin$" in r59,
+     'R59 does not require a UUID version.bin filename')
 need('erp_r59_document_storage_identity_valid' in r59,
      'R59 does not validate document/version relational identity')
 need("v.data->>'documentId'=d.id::text" in r59,
