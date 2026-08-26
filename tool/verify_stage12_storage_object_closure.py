@@ -14,11 +14,12 @@ def need(condition: bool, message: str) -> None:
 
 r58 = read('supabase/migrations/20260826230000_r58_stage12_document_path_integrity_closure.sql')
 r59 = read('supabase/migrations/20260826233000_r59_stage12_storage_object_version_closure.sql')
+r60 = read('supabase/migrations/20260826240000_r60_stage12_storage_helper_tenant_scope.sql')
 r55 = read('supabase/migrations/20260826061000_r55_document_storage_permission_alignment.sql')
 client = read('lib/core/documents/repositories/document_storage_repository.dart')
 
-# R58 registration and R59 direct Storage authorization must describe exactly
-# the same canonical identity.
+# R58 registration and R59/R60 direct Storage authorization must describe exactly
+# the same canonical identity and tenant boundary.
 need("p_company_id::text || '/' || p_document_id::text || '/' || p_version_id::text || '.bin'" in r58,
      'R58 canonical registration path is missing')
 need("storage.filename(p_name)" in r59,
@@ -37,6 +38,14 @@ need("'$_companyId/$documentId/$versionId.bin'" in client,
      'Flutter writer is not using the canonical path')
 need('erp_register_cloud_document_blob' in r55,
      'R55 registration contract is missing from the chain')
+need('auth.uid() is null' in r60,
+     'R60 storage identity helper does not reject unauthenticated calls')
+need('erp_is_active_company_member(v_company)' in r60,
+     'R60 storage identity helper is not tenant-scoped')
+need('revoke all on function public.erp_r59_document_storage_identity_valid(text) from public,anon' in r60,
+     'R60 storage identity helper is not closed to public/anonymous execution')
+need('grant execute on function public.erp_r59_document_storage_identity_valid(text) to authenticated,service_role' in r60,
+     'R60 storage identity helper execution grants are not explicit')
 
 if errors:
     print('FAIL Stage 12 storage-object completion')
@@ -45,6 +54,7 @@ if errors:
     raise SystemExit(1)
 
 print('PASS Stage 12 storage-object completion')
-print('- direct Storage insert/update/delete/read is now bound to a real document version')
+print('- direct Storage insert/update/delete/read is bound to a real document version')
 print('- arbitrary filenames under an authorized document are rejected')
 print('- document/version/company identity remains consistent across Flutter, Storage and PostgreSQL')
+print('- authenticated direct helper calls are tenant-scoped by active company membership')
