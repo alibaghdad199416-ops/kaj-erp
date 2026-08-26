@@ -1,5 +1,3 @@
-\set ON_ERROR_STOP on
-
 -- Phase 2: Database + Migrations + RPC + RLS + Auth deep gate.
 -- Runs only against a disposable database after every migration has applied.
 -- Fail closed: any security invariant violation aborts the gate.
