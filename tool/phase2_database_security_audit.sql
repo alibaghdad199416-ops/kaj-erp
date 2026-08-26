@@ -89,7 +89,7 @@ do $$
 declare r record; v text;
 begin
   for r in select schemaname,tablename,policyname,lower(coalesce(qual,'')||' '||coalesce(with_check,'')) expr from pg_policies where schemaname='public' and tablename in(select table_name from information_schema.columns where table_schema='public' and column_name='company_id') and tablename not like 'supabase_%' loop
-    if r.policyname in ('erp_canonical_deletion_tombstones_client_deny','erp_notification_user_states_client_deny','erp_canonical_reconciliation_issues_client_deny','memberships_self_select') then
+    if r.policyname in ('erp_canonical_deletion_tombstones_client_deny','erp_notification_user_states_client_deny','erp_canonical_reconciliation_issues_client_deny','erp_contracts_compatibility_client_deny','memberships_self_select') then
       continue;
     end if;
     if r.expr not like '%company_id%' and r.expr not like '%is_active_company_member%' and r.expr not like '%is_company_admin%' then v:=coalesce(v||', ','')||r.tablename||':'||r.policyname; end if;
