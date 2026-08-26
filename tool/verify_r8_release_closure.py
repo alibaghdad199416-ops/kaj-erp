@@ -72,6 +72,7 @@ engine = read('lib/core/security/access_policy_engine.dart')
 for marker in ('hiddenFields', 'readOnlyFields', 'filterReadableFields', 'filterWritableFields'):
     assert marker in engine, marker
 
+# Delivery cleanliness is verified separately by verify:package
 print('PASS R8 release closure verification')
 print('- Supabase/Firebase configuration hashes unchanged')
 print('- typed XLSX export and explicit recycle-bin deletion identity verified')
