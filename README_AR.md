@@ -6,9 +6,9 @@
 - **Hosting:** Firebase Hosting فقط.
 - **العملات:** USD وIQD مع Cashbox/FX guards.
 - **اللغة:** العربية RTL والإنجليزية LTR.
-- **الإصدار:** `22.9.8+229008` — Final Cross-Stage Integrity Closure (R57/R58/R59).
+- **الإصدار:** `22.9.8+229008` — Final Cross-Stage Integrity Closure (R57/R58/R59/R60).
 
-ابدأ من `START_HERE_AR.md`. سلسلة التحقق authoritative تبدأ من `npm run verify:workspace` وتشمل فاحصي المرحلتين 11 و12 وفحص التكامل النهائي بين جميع المراحل.
+ابدأ من `START_HERE_AR.md`. سلسلة التحقق الرئيسية تبدأ من `npm run verify:workspace` وتشمل فاحصي المرحلتين 11 و12 وفحص التكامل النهائي بين جميع المراحل.
 
 لا تستبدل ملفات الاتصال الحالية أثناء الفحص، ولم يتم تنفيذ Production Deployment داخل جولة التطوير.
 
