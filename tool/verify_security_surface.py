@@ -7,7 +7,10 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / "lib"
-R53 = ROOT / "supabase" / "migrations" / "20260826033000_r53_security_permission_closure.sql"
+MIGRATIONS = ROOT / "supabase" / "migrations"
+R53 = MIGRATIONS / "20260826033000_r53_security_permission_closure.sql"
+R54 = MIGRATIONS / "20260826060000_r54_document_storage_security_closure.sql"
+R55 = MIGRATIONS / "20260826061000_r55_document_storage_permission_alignment.sql"
 errors: list[str] = []
 
 # Never allow the obsolete browser login pattern back into the application.
@@ -35,9 +38,6 @@ else:
         if marker not in source:
             errors.append(f"R53 security migration missing required guard: {marker}")
 
-    # The two generic master readers are the high-risk dynamic SQL surfaces.
-    # Verify the guards in the current effective replacement migration rather
-    # than rejecting historical migrations that are intentionally superseded.
     for function_name in ("erp_r9_get_cloud_master_record", "erp_r9_list_cloud_master_records"):
         pattern = rf"create\s+or\s+replace\s+function\s+public\.{function_name}.*?security\s+definer.*?\$\$(.*?)\$\$;"
         match = re.search(pattern, source, flags=re.I | re.S)
@@ -53,6 +53,45 @@ else:
             if marker not in body:
                 errors.append(f"R53 {function_name} missing guard: {marker}")
 
+for path, required in (
+    (R54, (
+        "insert into storage.buckets",
+        "enterprise-documents",
+        "enterprise_documents_storage_select",
+        "enterprise_documents_storage_insert",
+        "erp_register_cloud_document_blob",
+    )),
+    (R55, (
+        "erp_r54_document_storage_can_read",
+        "erp_r54_document_storage_can_write",
+        "erp_r49_document_can_read",
+        "erp_r49_document_can_write",
+        "document_write_permission_required",
+        "enterprise_documents_storage_delete",
+    )),
+):
+    if not path.is_file():
+        errors.append(f"missing document storage security migration: {path.name}")
+    else:
+        source = path.read_text(encoding="utf-8")
+        for marker in required:
+            if marker not in source:
+                errors.append(f"{path.name} missing required storage guard: {marker}")
+
+storage_repo = LIB / "core" / "documents" / "repositories" / "document_storage_repository.dart"
+if storage_repo.is_file():
+    source = storage_repo.read_text(encoding="utf-8")
+    for marker in (
+        "enterprise-documents",
+        "erp_register_cloud_document_blob",
+        "remove([path])",
+        "path.startsWith('$companyId/')",
+    ):
+        if marker not in source:
+            errors.append(f"document storage repository missing reliability guard: {marker}")
+else:
+    errors.append("missing document storage repository")
+
 if errors:
     print("FAILED security surface verification")
     for error in errors:
@@ -62,4 +101,5 @@ if errors:
 print("PASS security surface verification")
 print("  - no obsolete hardcoded browser credentials")
 print("  - R53 tenant/permission/master-contract guards present")
-print("  - generic SECURITY DEFINER master readers are fail-closed")
+print("  - document storage bucket, tenant isolation, and module permissions are enforced")
+print("  - document upload rollback prevents orphaned blobs after registration failure")
