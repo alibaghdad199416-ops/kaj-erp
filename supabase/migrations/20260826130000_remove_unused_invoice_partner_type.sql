@@ -19,9 +19,21 @@ begin
     raise exception 'erp_approve_invoice_cloud_not_found';
   end if;
 
-  v_definition := replace(v_definition, E'  v_partner_type text;\n', '');
-  v_definition := replace(v_definition, E'    v_partner_type := ''customer'';\n', '');
-  v_definition := replace(v_definition, E'    v_partner_type := ''supplier'';\n', '');
+  -- pg_get_functiondef() is canonical, but its whitespace/layout can differ
+  -- from the historical source. Remove the declaration and both assignments
+  -- structurally instead of depending on one exact indentation/newline form.
+  v_definition := regexp_replace(
+    v_definition,
+    E'(?im)^\\s*v_partner_type\\s+text\\s*;\\s*$',
+    E'',
+    'g'
+  );
+  v_definition := regexp_replace(
+    v_definition,
+    E'(?im)^\\s*v_partner_type\\s*:=\\s*''(?:customer|supplier)''\\s*;\\s*$',
+    E'',
+    'g'
+  );
 
   if position('v_partner_type' in v_definition) > 0 then
     raise exception 'unused_partner_type_cleanup_incomplete';
