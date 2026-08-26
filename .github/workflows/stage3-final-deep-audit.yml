@@ -47,6 +47,9 @@ jobs:
       - name: Static Stage 3 ERP surface audit
         run: python3 tool/verify_r56_functional_erp_audit.py
 
+      - name: Static Stage 3 audit-harness integrity check
+        run: python3 tool/verify_stage3_final_deep_audit.py
+
       - name: Start disposable Supabase
         run: supabase start
 
