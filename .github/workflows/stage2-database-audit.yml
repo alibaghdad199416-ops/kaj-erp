@@ -1,0 +1,53 @@
+name: Stage 2 Database Migration Audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage2-database-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Static migration safety audit
+        run: python -B tool/stage2_database_migration_audit.py
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Offline PostgreSQL contract gates
+        run: npm run verify:database
+
+      - name: Check Supabase CLI
+        run: npx supabase --version
+
+      - name: Start isolated local Supabase
+        run: npx supabase start
+
+      - name: Apply all migrations from zero
+        run: npx supabase db reset
+
+      - name: Lint local PostgreSQL schema
+        run: npx supabase db lint
