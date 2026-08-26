@@ -35,7 +35,7 @@ jobs:
           version: latest
 
       - name: Start disposable Supabase (database and auth only)
-        run: supabase start --exclude realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+        run: supabase start --exclude realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor --ignore-health-check
 
       - name: Rebuild disposable database from every migration
         run: supabase db reset --yes
