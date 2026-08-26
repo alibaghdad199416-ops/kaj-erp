@@ -1,25 +1,65 @@
 from pathlib import Path
-import json, sys
-root=Path(__file__).resolve().parents[1]
-checks=[]
-def need(path,*tokens):
- p=root/path; text=p.read_text(encoding='utf-8') if p.exists() else ''
- checks.append((p.exists() and all(t in text for t in tokens),str(path),tokens))
-need(Path('lib/design_system/kaj_relationship_stage5_components.dart'),'KajRelationshipHero','KajRelationshipSection','KajRelationshipState','KajWorkflowRibbon')
-need(Path('lib/features/maintenance/pages/maintenance_page.dart'),'KajRelationshipHero','kaj_relationship_stage5_components.dart')
-need(Path('lib/features/maintenance/pages/add_maintenance_order_page.dart'),'kaj_relationship_stage5_components.dart')
-need(Path('lib/features/maintenance/pages/maintenance_order_details_dialog.dart'),'kaj_relationship_stage5_components.dart')
-need(Path('lib/features/business_partners/pages/business_partners_page.dart'),'KajRelationshipHero','UNIFIED RELATIONSHIPS')
-need(Path('lib/features/business_partners/customers/pages/add_customer_page.dart'),'kaj_relationship_stage5_components.dart')
-need(Path('lib/features/business_partners/suppliers/pages/add_supplier_page.dart'),'kaj_relationship_stage5_components.dart')
-need(Path('lib/features/business_partners/shared/widgets/business_partner_profile_dialog.dart'),'kaj_relationship_stage5_components.dart')
-need(Path('lib/features/customer_service/pages/customer_service_page.dart'),'KajRelationshipHero','kaj_relationship_stage5_components.dart')
-need(Path('lib/features/customer_service/pages/add_opportunity_page.dart'),'kaj_relationship_stage5_components.dart')
-checks.append(('version: 22.4.0+224000' in (root/'pubspec.yaml').read_text(encoding='utf-8'),'pubspec.yaml',('22.4.0+224000',)))
-checks.append((json.loads((root/'package.json').read_text(encoding='utf-8')).get('version')=='22.4.0','package.json',('22.4.0',)))
-failed=[c for c in checks if not c[0]]
+import json, re, sys
+
+ROOT = Path(__file__).resolve().parents[1]
+checks = []
+
+def read(path):
+    p = ROOT / path
+    return p.read_text(encoding='utf-8') if p.exists() else ''
+
+def need(name, ok):
+    checks.append((name, bool(ok)))
+
+pubspec = read('pubspec.yaml')
+package = read('package.json')
+phase5 = read('lib/design_system/kaj_phase5_components.dart')
+sales = read('lib/features/sales/pages/sales_page.dart')
+purchases = read('lib/features/purchases/pages/purchases_page.dart')
+sales_ops = read('lib/features/sales/pages/sales_operations_page.dart')
+purchase_ops = read('lib/features/purchases/pages/purchase_operations_page.dart')
+sales_card = read('lib/features/sales/widgets/sale_card.dart')
+purchase_card = read('lib/features/purchases/widgets/purchase_card.dart')
+
+# Stage 5 is the commercial/sales/purchasing domain. The verifier deliberately
+# uses source contracts and independent invariants; Quality Line output is not
+# an acceptance dependency.
+need('current package version', 'version: 22.9.8+229008' in pubspec)
+try:
+    need('current npm package version', json.loads(package).get('version') == '22.9.8')
+except Exception:
+    need('current npm package version', False)
+
+need('commercial hero exists', 'class KajCommercialHero' in phase5)
+need('commercial metrics are presentation-only', 'class KajCommercialMetricData' in phase5)
+need('commercial workflow exists', 'class KajCommercialWorkflow' in phase5)
+need('hero avoids narrow two-column overflow', 'constraints.maxWidth < 1180' in phase5)
+need('metric value is overflow-safe', 'maxLines: 2' in phase5 and 'TextOverflow.ellipsis' in phase5)
+need('workflow index is bounded', 'currentIndex.clamp(0, steps.length - 1)' in phase5)
+
+need('sales uses commercial hero', 'KajCommercialHero' in sales)
+need('purchases uses commercial hero', 'KajCommercialHero' in purchases)
+need('sales workflow entry exists', "AppTranslation.translate('أوامر البيع')" in sales_ops)
+need('purchase workflow entry exists', "AppTranslation.translate('أوامر الشراء')" in purchase_ops)
+need('sale cards use design tokens', 'KajDesignTokens.radiusMd' in sales_card)
+need('purchase cards use design tokens', 'KajDesignTokens.radiusMd' in purchase_card)
+
+# UI actions must remain permission-aware; backend/RPC enforcement is still the
+# authoritative boundary, while the page must not silently bypass the gate.
+need('sales delete permission gate', "'sales.delete'" in sales)
+need('purchase delete permission gate', "'purchases.delete'" in purchases)
+need('sales printing handles failures', 'userFacingError(' in sales)
+need('purchase printing handles failures', 'userFacingError(' in purchases)
+
+# No executable acceptance contract may depend on Quality Line.
+all_stage_text = '\n'.join([phase5, sales, purchases, sales_ops, purchase_ops])
+need('no Quality Line executable dependency',
+     'quality_line' not in all_stage_text.lower() and 'qualityline.' not in all_stage_text.lower())
+
+failed = [name for name, ok in checks if not ok]
+for name, ok in checks:
+    print(('PASS' if ok else 'FAIL'), name)
 if failed:
- for _,p,t in failed: print('FAIL',p,'missing',', '.join(t))
- sys.exit(1)
-print('PASS V22.4 full redesign stage 05 maintenance, partners and CRM verification')
-print(f'PASS {len(checks)} relationship, workflow, localization and release contracts')
+    print(f'FAILED Stage 5 deep closure — {len(failed)} unresolved contracts')
+    sys.exit(1)
+print(f'PASS Stage 5 deep commercial closure — {len(checks)} independent contracts')
