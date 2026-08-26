@@ -26,9 +26,8 @@ dependencies:
   printing: ^5.13.4
   file_saver: ^0.2.14
   excel: ^4.0.6
-  
+
   supabase_flutter: ^2.17.2
-  flutter_riverpod: ^2.6.1
   go_router: ^18.0.0
 
 dev_dependencies:
