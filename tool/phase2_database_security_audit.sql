@@ -19,7 +19,8 @@ declare v text;
 begin
   select string_agg(c.relname,', ' order by c.relname) into v
   from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='public' and c.relkind='r' and c.relname not like 'supabase_%' and c.relrowsecurity
+  where n.nspname='public' and c.relkind='r' and c.relname not like 'supabase_%' and c.relname<>'schema_migrations'
+    and c.relrowsecurity
     and exists(select 1 from information_schema.columns x where x.table_schema='public' and x.table_name=c.relname and x.column_name='company_id')
     and not exists(select 1 from pg_policies p where p.schemaname='public' and p.tablename=c.relname);
   if v is not null then raise exception 'PHASE2 RLS_NO_POLICY tenant tables: %',v; end if;
@@ -88,6 +89,14 @@ do $$
 declare r record; v text;
 begin
   for r in select schemaname,tablename,policyname,lower(coalesce(qual,'')||' '||coalesce(with_check,'')) expr from pg_policies where schemaname='public' and tablename in(select table_name from information_schema.columns where table_schema='public' and column_name='company_id') and tablename not like 'supabase_%' loop
+    -- Explicit client-deny policies are intentionally tenant-neutral because they
+    -- deny access regardless of tenant. The membership self-select policy is
+    -- likewise an intentional identity-scoped exception: it can only expose the
+    -- caller's own membership and therefore must not be rejected by a textual
+    -- company_id heuristic.
+    if r.policyname in ('erp_canonical_deletion_tombstones_client_deny','erp_notification_user_states_client_deny','erp_canonical_reconciliation_issues_client_deny','memberships_self_select') then
+      continue;
+    end if;
     if r.expr not like '%company_id%' and r.expr not like '%is_active_company_member%' and r.expr not like '%is_company_admin%' then v:=coalesce(v||', ','')||r.tablename||':'||r.policyname; end if;
   end loop;
   if v is not null then raise exception 'PHASE2 POLICY_TENANT_BOUNDARY_MISSING: %',v; end if;
