@@ -163,7 +163,7 @@ class _CustomersPageState extends State<CustomersPage> {
                 padding: const EdgeInsets.all(10),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 320,
-                  mainAxisExtent: 126,
+                  mainAxisExtent: 176,
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
                 ),
@@ -258,7 +258,6 @@ class _CustomersPageState extends State<CustomersPage> {
 
   Future<void> _editCustomer(CustomerModel customer) async {
     if (!await PermissionAction.require(context, 'customers.update')) return;
-    if (!mounted) return;
     await showAppModuleDialog(
       context: context,
       title: 'تعديل عميل',
@@ -269,15 +268,24 @@ class _CustomersPageState extends State<CustomersPage> {
 
   Future<void> _deleteCustomer(CustomerModel customer) async {
     if (!await PermissionAction.require(context, 'customers.delete')) return;
-    if (!mounted) return;
-    final confirmed = await showAppConfirmDialog(
-      context,
-      title: 'تأكيد حذف العميل',
-      message: 'هل تريد حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.',
-      confirmLabel: 'حذف',
-      destructive: true,
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: 'حذف العميل',
+        content: AppText('هل أنت متأكد من حذف ${customer.name}؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const AppText('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const AppText('حذف'),
+          ),
+        ],
+      ),
     );
-    if (!confirmed || !mounted) return;
-    await context.read<CustomersController>().removeCustomer(customer.id);
+    if (confirmed != true || !mounted) return;
+    await context.read<CustomersController>().deleteCustomer(customer.id);
   }
 }
