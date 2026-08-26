@@ -1,3 +1,5 @@
+# Stage 2 verification branch: authoritative database closure gate.
+# Synchronization checkpoint after dead compatibility module cleanup.
 name: Quality Gates
 
 on:

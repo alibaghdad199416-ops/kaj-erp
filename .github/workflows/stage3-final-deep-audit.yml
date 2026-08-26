@@ -1,0 +1,61 @@
+name: Stage 3 Final Deep ERP Audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'stage3/**'
+      - stage3-final-deep-audit
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: stage3-final-deep-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Install project dependencies
+        run: |
+          npm ci
+          flutter pub get
+      - name: Stage 3 maintenance closure
+        run: python3 tool/verify_stage3_maintenance_closure.py
+      - name: Stage 3 audit-harness integrity
+        run: python3 tool/verify_stage3_final_deep_audit.py
+      - name: Start disposable Supabase
+        run: supabase start
+      - name: Replay complete schema from zero
+        run: supabase db reset --yes
+      - name: Stage 3 transactional ERP runtime audit
+        shell: bash
+        run: |
+          conn="$(supabase status -o env | grep '^DB' | cut -d= -f2-)"
+          test -n "$conn"
+          psql "$conn" -v ON_ERROR_STOP=1 -f tool/final_deep_audit.sql
+      - name: Flutter analyzer
+        run: flutter analyze
+      - name: Flutter tests
+        run: flutter test
+      - name: Flutter web release build
+        run: flutter build web --release
