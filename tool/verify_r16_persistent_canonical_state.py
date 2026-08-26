@@ -59,6 +59,23 @@ for token in [
     "'identitySafeCashReconciliation'",
 ]: need(token in m,f'missing R16 health/runtime contract: {token}')
 
+# Stage 11 restores the complete health contract after Stage 10's cumulative
+# counter fix. This check prevents future later migrations from silently
+# dropping the persistent issue/tombstone dimensions again.
+stage11_path=ROOT/'supabase/migrations/20260826220000_r57_stage11_state_health_closure.sql'
+if stage11_path.exists():
+    stage11=read('supabase/migrations/20260826220000_r57_stage11_state_health_closure.sql')
+    for token in [
+        "'persistentDeletionConflictCount'",
+        "'permanentDeletionTombstoneCount'",
+        "'unresolvedCanonicalReconciliationIssueCount'",
+        "'openCanonicalIssues'",
+        "'canonicalStateVersion', 16",
+        "v_conflicts := v_conflicts + coalesce(v_count, 0)",
+        "grant execute on function public.erp_r16_current_state_health(uuid) to authenticated, service_role",
+    ]:
+        need(token in stage11, f'Stage 11 health contract regression: {token}')
+
 # Current Flutter client must retain R16 canonical guarantees directly or
 # through the verified R22 successor, which delegates its base reconciliation
 # to R16 and exposes the same persistent-state health.
@@ -113,4 +130,5 @@ print('  - cashbox journal rebinding requires transaction/header/reference/accou
 print('  - ambiguous/unmatched cash journals are recorded as reconciliation issues instead of being rewritten')
 print('  - deferred reconciliation makes future cash postings converge after journal lines exist')
 print('  - production readiness blocks on persistent deletion conflicts and unresolved canonical reconciliation issues')
+print('  - Stage 11 preserves the complete persistent-state health contract after cumulative conflict aggregation')
 print('  - Supabase/Firebase production configuration hashes are unchanged')
