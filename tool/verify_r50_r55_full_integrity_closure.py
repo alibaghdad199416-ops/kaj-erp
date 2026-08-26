@@ -8,7 +8,7 @@ MIGRATIONS = {
     "20260826030000_r50_integrity_repair.sql": (
         "erp_document_processing_jobs",
         "erp_r49_cloud_global_search",
-        "erp_validate",
+        "erp_r49_search_result_currency",
     ),
     "20260826050000_r51_runtime_schema_and_accounting_closure.sql": (
         "erp_r9_list_cloud_master_records",
