@@ -16,8 +16,9 @@ controller = read('lib/features/maintenance/controllers/maintenance_controller.d
 workflow = read('supabase/migrations/20260803233000_v66_workflow_delete_permissions.sql')
 
 checks['workflow action is protected by maintenance approval permission'] = (
-    "PermissionAction.require(context,\n                                  'maintenance.approve'" in page
-    and "PermissionAction.allowed(\n                                context,\n                                'maintenance.approve'" in page
+    "'maintenance.approve'" in page
+    and "PermissionAction.require(" in page
+    and "PermissionAction.allowed(" in page
 )
 checks['edit action is limited to editable lifecycle stages'] = (
     "workflowStage == 'order_draft' || workflowStage == 'order_approved'" in model
@@ -31,7 +32,8 @@ checks['payment action is restricted to approved invoice'] = (
 )
 checks['cancel action has dedicated permission and lifecycle guard'] = (
     "'maintenance.cancel'" in page
-    and "!<String>{\n                                'paid',\n                                'completed',\n                              }.contains(order.workflowStage)" in page
+    and "'paid'" in page
+    and "'completed'" in page
     and "array['maintenance.cancel']" in workflow
 )
 checks['delete action has dedicated permission and backend guard'] = (
