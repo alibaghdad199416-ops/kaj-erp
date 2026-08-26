@@ -1,9 +1,31 @@
 begin;
 
 -- R52 consolidated integrity closure. Additive and data-preserving.
-create table if not exists public.erp_document_processing_jobs (like public.erp_contracts including all);
+-- Do not derive this operational queue from erp_contracts: contract migrations
+-- may legitimately be absent in an already-established migration history.
+create table if not exists public.erp_document_processing_jobs (
+  company_id uuid not null,
+  id uuid not null,
+  data jsonb not null default '{}'::jsonb,
+  version bigint not null default 1,
+  is_deleted boolean not null default false,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (company_id,id)
+);
 create index if not exists erp_doc_job_status_idx_r52 on public.erp_document_processing_jobs(company_id,((data->>'status')),created_at);
 alter table public.erp_document_processing_jobs enable row level security;
+
+do $$
+begin
+  drop policy if exists tenant_access on public.erp_document_processing_jobs;
+  create policy tenant_access on public.erp_document_processing_jobs
+    for all using (public.erp_user_belongs_to_company(company_id))
+    with check (public.erp_user_belongs_to_company(company_id));
+exception when undefined_function then
+  null;
+end $$;
 
 -- Avoid signature drift: change volatility by function name, regardless of its
 -- historical argument list. Missing legacy routines are simply skipped.
