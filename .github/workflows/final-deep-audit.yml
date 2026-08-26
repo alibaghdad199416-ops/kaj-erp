@@ -1,0 +1,80 @@
+name: Final Deep Audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'repair/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: final-deep-audit-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  deep-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start disposable Supabase (database and auth only)
+        run: supabase start --exclude realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor --ignore-health-check
+
+      - name: Rebuild disposable database from every migration
+        run: supabase db reset --yes
+
+      - name: Phase 2 database/auth/RLS gate
+        run: PGHOST=127.0.0.1 PGPORT=54322 PGUSER=postgres PGPASSWORD=postgres psql -d postgres -v ON_ERROR_STOP=1 -f tool/phase2_database_security_audit.sql
+
+      - name: Final transactional ERP runtime matrix
+        run: PGHOST=127.0.0.1 PGPORT=54322 PGUSER=postgres PGPASSWORD=postgres psql -d postgres -v ON_ERROR_STOP=1 -f tool/final_deep_audit.sql
+
+      - name: Repository and security gates
+        run: |
+          npm ci
+          python -B tool/verify_r56_functional_erp_audit.py
+          python -B tool/verify_v2300_runtime_console_closure.py
+          python -B tool/verify_security_surface.py
+          npm run verify:database
+          npm run verify:all
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Flutter dependencies
+        run: flutter pub get
+
+      - name: Format gate
+        run: npm run format:check
+
+      - name: Analyzer gate
+        run: npm run analyze
+
+      - name: Test gate
+        run: npm run test
+
+      - name: Web release build gate
+        run: npm run build:web
+
+      - name: Final explicit PASS marker
+        run: echo "FINAL_DEEP_AUDIT_ALL_GATES_PASS"
