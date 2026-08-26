@@ -88,25 +88,30 @@ class _PermissionGuardState extends State<PermissionGuard> {
                     style: const TextStyle(color: Colors.black54),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      // Never push the protected dashboard blindly: a valid
-                      // authenticated role may legitimately lack dashboard.view.
-                      // Pushing it again would create an infinite denial loop.
-                      if (Navigator.of(context).canPop()) {
-                        await Navigator.of(context).maybePop();
-                        return;
-                      }
-                      await Navigator.of(context).pushNamedAndRemoveUntil(
-                        AppRouteNames.login,
-                        (route) => false,
-                      );
-                    },
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    label: const AppText('العودة إلى الصفحة السابقة'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  Tooltip(
+                    message: MaterialLocalizations.of(context).backButtonTooltip,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        // Never push the protected dashboard blindly: a valid
+                        // authenticated role may legitimately lack dashboard.view.
+                        // Pushing it again would create an infinite denial loop.
+                        if (Navigator.of(context).canPop()) {
+                          await Navigator.of(context).maybePop();
+                          return;
+                        }
+                        await Navigator.of(context).pushNamedAndRemoveUntil(
+                          AppRouteNames.login,
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: Text(
+                        MaterialLocalizations.of(context).backButtonTooltip,
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
                   ),
                 ],
