@@ -17,11 +17,10 @@ for p in (ROOT / 'lib').rglob('*.dart'):
     assert 'UnimplementedError(' not in text, f'unimplemented operation: {p.relative_to(ROOT)}'
     assert not re.search(r'\b(TODO|FIXME)\b', text), f'placeholder marker: {p.relative_to(ROOT)}'
 
-# Core ERP areas must contain both presentation and data-access code.
 for area in ('accounting','sales','purchases','inventory'):
     base = ROOT / 'lib/features' / area
     files = list(base.rglob('*.dart'))
-    assert any(re.search(r'(^|/)pages?/|_page\.dart$', str(p.relative_to(base)), re.I) for p in files), f'presentation layer missing: {area}'
+    assert any('_page.dart' in p.name.lower() or p.parent.name.lower() in ('pages','page') for p in files), f'presentation layer missing: {area}'
     assert any('repository' in p.name.lower() for p in files), f'data access layer missing: {area}'
 
 print('PASS R56 functional ERP audit gate')
