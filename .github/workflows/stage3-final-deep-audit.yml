@@ -1,0 +1,75 @@
+name: Stage 3 Final Deep ERP Audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'stage3/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: stage3-final-deep-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install project dependencies
+        run: |
+          npm ci
+          flutter pub get
+
+      - name: Static Stage 3 ERP surface audit
+        run: python3 tool/verify_r56_functional_erp_audit.py
+
+      - name: Start disposable Supabase
+        run: supabase start
+
+      - name: Replay the complete schema from zero
+        run: supabase db reset --yes
+
+      - name: Stage 2 security regression gate
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tool/phase2_database_security_audit.sql
+
+      - name: Stage 3 transactional ERP runtime audit
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tool/final_deep_audit.sql
+
+      - name: Project-wide verification
+        run: npm run verify:all
+
+      - name: Flutter analyzer
+        run: flutter analyze
+
+      - name: Flutter tests
+        run: flutter test
+
+      - name: Flutter web release build
+        run: flutter build web --release
+
+      - name: Database lint
+        run: supabase db lint
