@@ -1,0 +1,4 @@
+-- KAJ ERP local seed hook.
+-- Core deterministic reference data is created by migrations so `supabase db reset`
+-- remains self-contained and does not depend on mutable test credentials.
+-- Runtime E2E tests create and clean their own authenticated test fixtures.
