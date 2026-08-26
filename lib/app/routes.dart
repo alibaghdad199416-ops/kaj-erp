@@ -77,13 +77,12 @@ class AppRoutes {
       permission: 'dashboard.view',
       child: const NotificationCenterPage(),
     ),
-    // Products and inventory are distinct route contracts. Products must keep
-    // their own route identity so shell navigation, audit telemetry and future
-    // module-specific guards do not silently report them as inventory.
+    // Products and inventory are distinct route contracts. Products must open
+    // the products tab rather than silently landing on the cars tab.
     products: (_) => _protected(
       route: products,
       permission: 'inventory.view',
-      child: const StockCatalogPage(initialIndex: 0),
+      child: const StockCatalogPage(initialIndex: 2),
     ),
     inventory: (_) => _protected(
       route: inventory,
