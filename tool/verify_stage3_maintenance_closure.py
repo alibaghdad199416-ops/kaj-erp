@@ -74,6 +74,10 @@ checks['no generic maintenance write endpoint is used by the client'] = (
     "'erp_create_cloud_maintenance_order'" not in repo
     and "'erp_update_cloud_maintenance_draft'" not in repo
 )
+checks['phase closure does not depend on Quality Line base offer'] = all(
+    token not in (model + repo + controller + page + r37 + r39 + r49_permissions + r49_identity).lower()
+    for token in ('quality line base offer', 'quality_line_base_offer', 'base offer')
+)
 
 for name, ok in checks.items():
     print(('PASS' if ok else 'FAIL'), name)
@@ -81,4 +85,4 @@ for name, ok in checks.items():
 if not all(checks.values()):
     sys.exit(1)
 
-print(f'PASS Stage 3 maintenance closure — {len(checks)} gates')
+print(f'PASS Stage 3 maintenance closure — {len(checks)} checks')
