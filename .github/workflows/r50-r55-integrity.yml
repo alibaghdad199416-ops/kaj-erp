@@ -1,0 +1,15 @@
+name: R50-R55 Integrity Closure
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  integrity-closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify R50-R55 closure
+        run: python -B tool/verify_r50_r55_full_integrity_closure.py
