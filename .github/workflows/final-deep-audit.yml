@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: final-deep-audit-${{ github.ref }}
+  group: final-deep-audit-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
