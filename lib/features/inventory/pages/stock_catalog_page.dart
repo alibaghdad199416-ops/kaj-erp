@@ -14,11 +14,15 @@ import 'warehouse_management_page.dart';
 class StockCatalogPage extends StatelessWidget {
   const StockCatalogPage({super.key, this.initialIndex = 0});
 
+  static const int carsTabIndex = 0;
+  static const int warehousesTabIndex = 1;
+  static const int productsTabIndex = 2;
+
   final int initialIndex;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    initialIndex: initialIndex.clamp(0, 2).toInt(),
+    initialIndex: initialIndex.clamp(carsTabIndex, productsTabIndex).toInt(),
     length: 3,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
