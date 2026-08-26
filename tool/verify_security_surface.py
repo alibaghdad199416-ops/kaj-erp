@@ -20,6 +20,21 @@ for path in LIB.rglob("*.dart"):
     if "admin@kaj.com" in lowered or "texteditingcontroller(text: '123456'" in lowered:
         errors.append(f"hardcoded legacy credential found in {path.relative_to(ROOT)}")
 
+# Permission denial must be fail-closed. In particular, the guard must never
+# navigate back to the same protected dashboard blindly, because a legitimate
+# authenticated role can lack dashboard.view and would otherwise loop forever.
+guard = LIB / "features" / "settings" / "access" / "widgets" / "permission_guard.dart"
+if guard.is_file():
+    source = guard.read_text(encoding="utf-8", errors="ignore")
+    if "pushNamedAndRemoveUntil(\n                        AppRouteNames.dashboard" in source:
+        errors.append("PermissionGuard can loop by redirecting denied users to protected dashboard")
+    if "Navigator.of(context).canPop()" not in source:
+        errors.append("PermissionGuard lacks safe back-navigation for denied routes")
+    if "AppRouteNames.login" not in source:
+        errors.append("PermissionGuard lacks fail-closed login fallback")
+else:
+    errors.append("missing PermissionGuard")
+
 if not R53.is_file():
     errors.append("missing R53 security permission closure migration")
 else:
@@ -100,6 +115,7 @@ if errors:
 
 print("PASS security surface verification")
 print("  - no obsolete hardcoded browser credentials")
+print("  - PermissionGuard cannot loop on denied dashboard access")
 print("  - R53 tenant/permission/master-contract guards present")
 print("  - document storage bucket, tenant isolation, and module permissions are enforced")
 print("  - document upload rollback prevents orphaned blobs after registration failure")
