@@ -11,6 +11,7 @@ model = read('lib/features/maintenance/models/maintenance_order_model.dart')
 repo = read('lib/features/maintenance/data/maintenance_repository.dart')
 controller = read('lib/features/maintenance/controllers/maintenance_controller.dart')
 page = read('lib/features/maintenance/pages/maintenance_page.dart')
+phase3 = read('supabase/migrations/20260731001000_maintenance_phase3_complete.sql')
 r37 = read('supabase/migrations/20260809125507_r37_maintenance_labor_only_closure.sql')
 r39 = read('supabase/migrations/20260809161514_r39_canonical_maintenance_compile_closure.sql')
 r49_permissions = read('supabase/migrations/20260810090000_r49_focused_final_permission_runtime_closure.sql')
@@ -18,7 +19,7 @@ r49_identity = read('supabase/migrations/20260810060000_r49_product_identity_acc
 
 checks['editability matches backend lifecycle'] = (
     "workflowStage == 'order_draft' || workflowStage == 'order_approved'" in model
-    and "if o.workflow_stage not in ('order_draft','order_approved')" in r39
+    and "if o.workflow_stage not in ('order_draft','order_approved')" in phase3
 )
 checks['maintenance create uses permission wrapper'] = (
     'erp_r49_create_cloud_maintenance_order' in repo
@@ -34,7 +35,7 @@ checks['labor-only maintenance remains supported'] = (
     and "jsonb_array_length(v_parts)>0 then" in r39
 )
 checks['maintenance workflow is forward-only'] = all(
-    token in r37
+    token in phase3
     for token in (
         "workflow_stage='order_approved'",
         "workflow_stage='stock_issue_draft'",
@@ -44,9 +45,9 @@ checks['maintenance workflow is forward-only'] = all(
     )
 )
 checks['maintenance material issue is the inventory movement owner'] = (
-    'erp_inventory_insert_movement' in r37
-    and "'maintenance_out'" in r37
-    and "line_type<>'service'" in r37
+    'erp_inventory_insert_movement' in phase3
+    and "'maintenance_out'" in phase3
+    and "line_type<>'service'" in phase3
 )
 checks['paid maintenance invoice requires real customer ledger'] = (
     'paid_maintenance_customer_required' in r49_identity
@@ -75,7 +76,7 @@ checks['no generic maintenance write endpoint is used by the client'] = (
     and "'erp_update_cloud_maintenance_draft'" not in repo
 )
 checks['phase closure does not depend on Quality Line base offer'] = all(
-    token not in (model + repo + controller + page + r37 + r39 + r49_permissions + r49_identity).lower()
+    token not in (model + repo + controller + page + phase3 + r37 + r39 + r49_permissions + r49_identity).lower()
     for token in ('quality line base offer', 'quality_line_base_offer', 'base offer')
 )
 
