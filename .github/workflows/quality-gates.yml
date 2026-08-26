@@ -1,3 +1,4 @@
+# Stage 2 verification branch: execute the authoritative database closure gate.
 name: Quality Gates
 
 on:
