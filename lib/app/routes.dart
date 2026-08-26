@@ -21,7 +21,7 @@ import 'package:quality_line_erp/features/splash/pages/splash_page.dart';
 
 /// Canonical application routes.
 ///
-/// Only the eleven accepted business modules are exposed as top-level routes.
+/// Only the accepted business modules are exposed as top-level routes.
 /// Authentication routes and the reports sub-route are infrastructure/utility
 /// routes and are intentionally not registered as ERP modules.
 class AppRoutes {
@@ -41,8 +41,6 @@ class AppRoutes {
   static const purchases = AppRouteNames.purchases;
   static const accounting = AppRouteNames.accounting;
   static const settings = AppRouteNames.settings;
-
-  /// Cross-module reports live inside Settings and are not a standalone module.
   static const reports = AppRouteNames.reports;
 
   static final Set<String> businessModuleRoutes = ErpModuleRegistry.modules
@@ -79,8 +77,11 @@ class AppRoutes {
       permission: 'dashboard.view',
       child: const NotificationCenterPage(),
     ),
+    // Products and inventory are distinct route contracts. Products must keep
+    // their own route identity so shell navigation, audit telemetry and future
+    // module-specific guards do not silently report them as inventory.
     products: (_) => _protected(
-      route: inventory,
+      route: products,
       permission: 'inventory.view',
       child: const StockCatalogPage(initialIndex: 0),
     ),
