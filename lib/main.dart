@@ -44,7 +44,21 @@ Future<void> _bootstrap() async {
       _AppFailureView(message: details.exceptionAsString());
   AppPerformance.configure();
 
+  // Supabase Cloud is the only production persistence/authentication boundary.
+  // Fail closed before starting providers, refresh loops, or cached tenant
+  // state so local preferences can never masquerade as an ERP session.
   final cloud = await CloudBootstrap.initialize();
+  if (!cloud.supabaseReady) {
+    runApp(
+      _CloudUnavailableApp(
+        message: cloud.messages.isEmpty
+            ? 'تعذر تهيئة Supabase Cloud.'
+            : cloud.messages.join(' | '),
+      ),
+    );
+    return;
+  }
+
   try {
     await CloudTenantContext.instance.load();
   } catch (error, stackTrace) {
@@ -63,11 +77,6 @@ Future<void> _bootstrap() async {
     primaryData: const [],
     aggregates: const [],
   );
-  if (!cloud.supabaseReady) {
-    AppLogger.debug(
-      'Supabase bootstrap is incomplete: ${cloud.messages.join(' | ')}',
-    );
-  }
 
   final dependencies = AppDependencies.create();
   try {
@@ -81,6 +90,20 @@ Future<void> _bootstrap() async {
   runApp(
     MultiProvider(providers: dependencies.providers, child: const MyApp()),
   );
+}
+
+class _CloudUnavailableApp extends StatelessWidget {
+  const _CloudUnavailableApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: _AppFailureView(message: message),
+    );
+  }
 }
 
 class _AppFailureView extends StatelessWidget {
@@ -108,7 +131,7 @@ class _AppFailureView extends StatelessWidget {
                     const Icon(Icons.error_outline_rounded, size: 46),
                     const SizedBox(height: 14),
                     const AppText(
-                      'حدث خطأ غير متوقع',
+                      'تعذر تشغيل النظام السحابي',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -116,7 +139,7 @@ class _AppFailureView extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const AppText(
-                      'أعد تحميل الصفحة. إذا تكرر الخطأ، احتفظ بصورة من الشاشة وسجل المتصفح.',
+                      'لم يتم تشغيل بيانات ERP أو جلسة محلية بديلة. تحقق من إعدادات Supabase Cloud ثم أعد تحميل الصفحة.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
