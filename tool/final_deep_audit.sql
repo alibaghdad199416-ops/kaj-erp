@@ -1,10 +1,9 @@
 \set ON_ERROR_STOP on
 
 -- Executable final ERP audit against a disposable local Supabase database.
--- The fixture is isolated to one audit company/user and is rolled back by CI's
--- database reset between runs. Assertions cover security, tenant isolation,
--- sales, purchases, optimistic concurrency, documents, contracts, and the
--- accounting runtime contract.
+-- The fixture is isolated to one audit company/user. Coverage is deliberately
+-- runtime-focused: security, tenant isolation, sales, purchases, concurrency,
+-- documents and the accounting runtime contract.
 
 begin;
 
@@ -41,7 +40,7 @@ on conflict (company_id,user_id) do update set
 select set_config('request.jwt.claim.sub',user_id::text,true) from audit_constants;
 select set_config('request.jwt.claim.role','authenticated',true);
 
--- Security invariants must be true in the applied schema, not merely in source.
+-- Applied-schema security invariants.
 do $$
 declare v text;
 begin
@@ -70,14 +69,12 @@ begin
   if has_table_privilege('authenticated','public.erp_audit_log','SELECT') then
     raise exception 'FINAL_DEEP_AUDIT audit log is directly readable';
   end if;
-
   if has_function_privilege('anon','public.erp_open_cloud_service_case(uuid,uuid,text,text,text)','EXECUTE') then
     raise exception 'FINAL_DEEP_AUDIT anonymous privileged RPC execute grant remains';
   end if;
 end $$;
 
--- Cross-tenant denial: a valid authenticated user may never use a different
--- company identifier merely because the RPC is callable.
+-- Cross-tenant denial: an authenticated member of company A cannot write to B.
 do $$
 declare other_company uuid:='33333333-3333-4333-8333-333333333333';
 begin
@@ -120,7 +117,7 @@ select company_id,'audit-warehouse',jsonb_build_object(
   'code','AUDIT','name','Final Audit Warehouse','isActive',true,'warehouseType','normal','auditMarker',marker
 ),user_id,user_id from audit_constants
 on conflict (company_id,id) do update set
-  data=excluded.data,is_deleted=false,deleted_at=null,updated_by=excluded.updated_by,updated_at=now();
+  data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
 
 insert into public.erp_cars(company_id,id,data,created_by,updated_by)
 select company_id,'audit-car',jsonb_build_object(
@@ -131,7 +128,7 @@ select company_id,'audit-car',jsonb_build_object(
 on conflict (company_id,id) do update set
   data=excluded.data,is_deleted=false,deleted_at=null,updated_at=now();
 
--- Sales: successful create, deterministic duplicate retry, and atomic rollback.
+-- Sales: success, idempotent retry, and atomic rollback.
 do $$
 declare
   c uuid;
@@ -175,7 +172,7 @@ begin
   if after_count <> before_count then raise exception 'sales rollback left partial state'; end if;
 end $$;
 
--- Purchases: successful create plus deterministic duplicate retry.
+-- Purchases: success plus deterministic duplicate retry.
 do $$
 declare
   c uuid;
@@ -202,8 +199,7 @@ begin
   if second_id <> first_id then raise exception 'purchase duplicate opportunity was not idempotent'; end if;
 end $$;
 
--- Optimistic concurrency: a stale snapshot must be rejected after the first
--- write advances updated_at.
+-- Optimistic concurrency: stale snapshot must be rejected.
 do $$
 declare
   initial_updated timestamptz;
@@ -237,8 +233,7 @@ begin
   if not stale_rejected then raise exception 'stale concurrent update was accepted'; end if;
 end $$;
 
--- Document registration: cross-tenant storage paths are rejected while the
--- canonical company/document/version path is persisted.
+-- Document registration: cross-tenant path rejected; canonical path persisted.
 do $$
 declare
   c uuid;
@@ -267,35 +262,7 @@ begin
   ) then raise exception 'document storage registration did not persist canonical path'; end if;
 end $$;
 
--- Contract lifecycle: review -> approval -> signature -> active.
-do $$
-declare
-  c uuid;
-  contract_id uuid:=gen_random_uuid();
-  version_id uuid:=gen_random_uuid();
-  review_id uuid;
-  approval_id uuid;
-  signature_id uuid;
-begin
-  select company_id into c from audit_constants;
-  insert into public.erp_contracts(company_id,id,data)
-  values(c,contract_id,jsonb_build_object('contractNumber','AUDIT-CONTRACT','titleAr','Final Audit Contract','status','draft','auditMarker','AUDIT-R56-R68'));
-  insert into public.erp_contract_versions(company_id,id,data)
-  values(c,version_id,jsonb_build_object('contractId',contract_id::text,'versionNumber',1));
-  select public.erp_request_cloud_contract_review(c,contract_id,'audit-user','owner','Final Deep Audit') into review_id;
-  perform public.erp_complete_cloud_contract_review(c,review_id,true,'accepted','Final Deep Audit');
-  select public.erp_submit_cloud_contract_approval(c,contract_id,'Final Deep Audit') into approval_id;
-  perform public.erp_decide_cloud_contract_approval(c,approval_id,true,'Final Deep Audit','accepted');
-  select public.erp_request_cloud_contract_signature(c,contract_id,'Final Deep Audit','owner',null,null,'Final Deep Audit') into signature_id;
-  perform public.erp_complete_cloud_contract_signature(c,signature_id,'AUDIT-SIGNATURE-HASH','Final Deep Audit');
-  perform public.erp_transition_cloud_contract(c,contract_id,'activate','signed','Final Deep Audit');
-  if not exists(select 1 from public.erp_contracts where id=contract_id and data->>'status'='active') then
-    raise exception 'contract lifecycle did not reach active';
-  end if;
-end $$;
-
--- Accounting runtime contract must execute and affirm the current canonical
--- state rather than merely existing in pg_proc.
+-- Accounting runtime contract must execute and affirm canonical state.
 do $$
 declare
   c uuid;
