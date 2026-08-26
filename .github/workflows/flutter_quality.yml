@@ -37,3 +37,6 @@ jobs:
 
       - name: Unit and widget tests
         run: flutter test --no-pub
+
+      - name: Web release build
+        run: flutter build web --release --no-pub
