@@ -15,3 +15,4 @@ jobs:
       - run: python3 tool/verify_r56_functional_erp_audit.py
       - run: flutter analyze
       - run: flutter test
+      - run: flutter build web --release
