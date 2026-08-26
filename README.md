@@ -1,4 +1,4 @@
-# Quality Line ERP — R49 Focused Final Completion
+# Quality Line ERP — Final Cross-Stage Integrity Closure
 
 Premium bilingual Flutter Web ERP for automotive, spare-parts, inventory, sales, purchases, maintenance, CRM, accounting, cashboxes and multi-currency workflows.
 
@@ -6,9 +6,9 @@ Premium bilingual Flutter Web ERP for automotive, spare-parts, inventory, sales,
 - **Hosting:** Firebase Hosting only.
 - **Currencies:** USD and IQD with guarded linked-cashbox/FX workflows.
 - **Languages:** English + Arabic/RTL.
-- **Release:** `22.9.8+229008`, R49 focused final completion.
+- **Release:** `22.9.8+229008` — Final Cross-Stage Integrity Closure (R57/R58/R59).
 
-The current operational and deployment entry point is [`START_HERE_AR.md`](START_HERE_AR.md). The final verification report for this delivery is `R49_FOCUSED_FINAL_COMPLETION_AR.md`.
+The current operational and deployment entry point is [`START_HERE_AR.md`](START_HERE_AR.md). Verification is authoritative from `npm run verify:workspace`, which includes the stage 11/12 closure verifiers and the final cross-stage integrity audit.
 
 Do not replace the existing production connection files while validating this package. Production deployment is intentionally **not** performed during development.
 
@@ -17,10 +17,13 @@ Full workspace validation on a machine with Flutter/Dart installed:
 ```powershell
 npm ci
 flutter pub get
-powershell -NoProfile -ExecutionPolicy Bypass -File tool/validate_r49_workspace.ps1
+npm run verify:workspace
+npm run format:check
+npm run analyze
+npm run test
 ```
 
-After validation, review the Supabase dry run before any production deployment:
+Before any production deployment, review the Supabase dry run and migration list:
 
 ```powershell
 npx supabase db push --linked --dry-run
