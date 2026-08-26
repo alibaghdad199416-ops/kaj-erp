@@ -69,6 +69,15 @@ for script_name, expected in {
     need(scripts.get(script_name) == f'python -B {expected}', f'{script_name} wiring mismatch')
     need(f'npm run {script_name}' in verify_workspace, f'{script_name} is not reachable from workspace')
 
+config = read('supabase/config.toml')
+seed = read('supabase/seed.sql')
+need(re.search(r'\[db\.seed\][\s\S]*?enabled\s*=\s*true', config) is not None, 'Supabase seed is not enabled as configured')
+need('sql_paths = ["./seed.sql"]' in config, 'Supabase seed path is not ./seed.sql')
+need(seed.strip() != '', 'configured Supabase seed.sql is empty')
+need('canonical Quality Line company is missing' in seed, 'seed contract does not verify canonical company')
+need('canonical MAIN branch is missing' in seed, 'seed contract does not verify canonical branch')
+need('IQD currency is missing' in seed and 'USD currency is missing' in seed, 'seed contract does not verify required currencies')
+
 migrations_dir = ROOT / 'supabase' / 'migrations'
 migrations = sorted(p.name for p in migrations_dir.glob('*.sql')) if migrations_dir.is_dir() else []
 for required in (
@@ -109,6 +118,7 @@ need('revoke all on function public.erp_r16_current_state_health(uuid) from anon
 
 r58 = read('supabase/migrations/20260826230000_r58_stage12_document_path_integrity_closure.sql')
 r59 = read('supabase/migrations/20260826233000_r59_stage12_storage_object_version_closure.sql')
+r60 = read('supabase/migrations/20260826240000_r60_storage_helper_tenant_scope.sql')
 r60 = read('supabase/migrations/20260826240000_r60_stage12_storage_helper_tenant_scope.sql')
 r55 = read('supabase/migrations/20260826061000_r55_document_storage_permission_alignment.sql')
 client_storage = read('lib/core/documents/repositories/document_storage_repository.dart')
@@ -148,12 +158,15 @@ need('erp_pay_cloud_sales_workflow_invoice' in execute_closure, 'V7.6.2 payment 
 
 for sql in migrations_dir.glob('*.sql'):
     text = sql.read_text(encoding='utf-8', errors='strict')
-    for match in re.finditer(r'grant\s+execute\s+on\s+function\s+([^;]+?)\s+to\s+(public|anon)\s*;', text, re.IGNORECASE | re.DOTALL):
-        errors.append(f'unsafe PUBLIC/anon execute grant in {sql.name}: {match.group(0).strip()}')
+    for match in re.finditer(r'grant\s+execute\s+on\s+function\s+([^;]+?)\s+to\s+([^;]+);', text, re.IGNORECASE | re.DOTALL):
+        grantees = match.group(2).lower()
+        if re.search(r'\b(?:public|anon)\b', grantees):
+            errors.append(f'unsafe PUBLIC/anon execute grant in {sql.name}: {match.group(0).strip()}')
     if 'security definer' in text.lower():
-        defs = re.finditer(r'create\s+(?:or\s+replace\s+)?function\b.*?security\s+definer.*?as\s+\$\$', text, re.IGNORECASE | re.DOTALL)
+        defs = re.finditer(r'create\s+(?:or\s+replace\s+)?function\b[\s\S]*?(?=\n\s*create\s+(?:or\s+replace\s+)?function\b|\Z)', text, re.IGNORECASE)
         for definition in defs:
-            need(re.search(r'set\s+search_path\s*=', definition.group(0), re.IGNORECASE) is not None, f'SECURITY DEFINER without pinned search_path in {sql.name}')
+            if re.search(r'\bsecurity\s+definer\b', definition, re.IGNORECASE):
+                need(re.search(r'\bset\s+search_path\s*=', definition, re.IGNORECASE) is not None, f'SECURITY DEFINER without pinned search_path in {sql.name}')
 
 all_dart = '\n'.join(p.read_text(encoding='utf-8', errors='strict') for p in (ROOT / 'lib').rglob('*.dart')) if (ROOT / 'lib').is_dir() else ''
 all_sql = '\n'.join(p.read_text(encoding='utf-8', errors='strict') for p in (ROOT / 'supabase').rglob('*.sql')) if (ROOT / 'supabase').is_dir() else ''
@@ -197,4 +210,4 @@ if errors:
 print('PASS FINAL CROSS-STAGE INTEGRITY AUDIT')
 print(f'- canonical application version: {canonical_version}')
 print('- R57/R58/R59/R60 plus independent V7.6.2/V7.6.3 authorization and EXECUTE-boundary closures are checked')
-print('- canonical state, storage identity, tenant authorization, SECURITY DEFINER boundaries and ERP domain surfaces are checked')
+print('- canonical state, storage identity, tenant authorization, SECURITY DEFINER boundaries, seed contract and ERP domain surfaces are checked')
