@@ -1,0 +1,70 @@
+name: final-audit-package-wire
+
+on:
+  push:
+    branches:
+      - final-cross-stage-integrity-audit-2026-08-26
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wire authoritative verification chain
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          path = Path('package.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          scripts = data.setdefault('scripts', {})
+
+          scripts['verify:stage11'] = 'python -B tool/verify_stage11_full_program_closure.py'
+          scripts['verify:stage12'] = 'python -B tool/verify_stage12_full_program_closure.py'
+          scripts['verify:stage12:storage'] = 'python -B tool/verify_stage12_storage_object_closure.py'
+          scripts['verify:final-cross-stage'] = 'python -B tool/verify_final_cross_stage_integrity.py'
+
+          def append_once(value, addition):
+              return value if addition in value else value + ' && ' + addition
+
+          scripts['verify:workspace'] = append_once(
+              scripts.get('verify:workspace', 'npm run verify'),
+              'npm run verify:stage11'
+          )
+          scripts['verify:workspace'] = append_once(
+              scripts['verify:workspace'],
+              'npm run verify:stage12'
+          )
+          scripts['verify:workspace'] = append_once(
+              scripts['verify:workspace'],
+              'npm run verify:stage12:storage'
+          )
+          scripts['verify:workspace'] = append_once(
+              scripts['verify:workspace'],
+              'npm run verify:final-cross-stage'
+          )
+          scripts['verify:final'] = append_once(
+              scripts.get('verify:final', 'npm run verify'),
+              'npm run verify:final-cross-stage'
+          )
+          scripts['verify:all'] = 'npm run verify:workspace'
+
+          path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+      - name: Commit package wiring and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/final-audit-package-wire.yml
+          git add package.json .github/workflows/final-audit-package-wire.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: wire stage 11 and 12 closure into verification chain"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
