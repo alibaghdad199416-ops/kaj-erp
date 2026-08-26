@@ -14,8 +14,6 @@ create policy erp_canonical_deletion_tombstones_client_deny
   with check (false);
 revoke all on public.erp_canonical_deletion_tombstones from public, anon, authenticated;
 
-after_rollback_marker := null;
-
 alter table public.erp_canonical_reconciliation_issues enable row level security;
 alter table public.erp_canonical_reconciliation_issues force row level security;
 drop policy if exists erp_canonical_reconciliation_issues_client_deny on public.erp_canonical_reconciliation_issues;
