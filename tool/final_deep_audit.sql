@@ -47,10 +47,7 @@ begin
   select public.erp_v2300_create_sales_order(c,jsonb_build_object('customerId','audit-customer','currency','USD','exchangeRate',1,'opportunityId','AUDIT-SALES-OPP','items',jsonb_build_array(jsonb_build_object('itemType','car','itemId','audit-car','quantity',1,'unitPrice',1000,'description','duplicate retry')))) into retry_id;
   if retry_id<>first_id then raise exception 'sales retry not idempotent'; end if;
   select count(*) into before_count from public.erp_sales_orders_cloud where company_id=c;
-  begin
-    perform public.erp_v2300_create_sales_order(c,jsonb_build_object('customerId','missing-audit-customer','currency','USD','exchangeRate',1,'items',jsonb_build_array(jsonb_build_object('itemType','car','itemId','audit-car','quantity',1,'unitPrice',10))));
-    raise exception 'invalid sales order unexpectedly succeeded';
-  exception when others then if sqlerrm not like '%customer_not_found%' then raise; end if; end;
+  begin perform public.erp_v2300_create_sales_order(c,jsonb_build_object('customerId','missing-audit-customer','currency','USD','exchangeRate',1,'items',jsonb_build_array(jsonb_build_object('itemType','car','itemId','audit-car','quantity',1,'unitPrice',10)))); raise exception 'invalid sales order unexpectedly succeeded'; exception when others then if sqlerrm not like '%customer_not_found%' then raise; end if; end;
   select count(*) into after_count from public.erp_sales_orders_cloud where company_id=c;
   if after_count<>before_count then raise exception 'sales rollback left partial state'; end if;
 end $$;
@@ -66,14 +63,14 @@ begin
 end $$;
 
 do $$
-declare c uuid; initial_updated timestamptz; first_updated timestamptz; payload jsonb; rejected boolean:=false;
+declare company_slug text; initial_updated timestamptz; first_updated timestamptz; payload jsonb; rejected boolean:=false;
 begin
-  select company_id into c from audit_constants;
-  insert into public.erp_records(company_id,entity_type,record_id,payload,updated_at) values(c,'opportunities','audit-concurrency',jsonb_build_object('id','audit-concurrency','status','pending','auditMarker','AUDIT-R56-R68'),now()) on conflict(company_id,entity_type,record_id) do update set payload=excluded.payload,deleted_at=null,updated_at=now();
-  select updated_at into initial_updated from public.erp_records where company_id=c and entity_type='opportunities' and record_id='audit-concurrency';
+  select slug into company_slug from public.companies where id=(select company_id from audit_constants);
+  insert into public.erp_records(company_id,entity_type,record_id,payload,updated_at) values(company_slug,'opportunities','audit-concurrency',jsonb_build_object('id','audit-concurrency','status','pending','auditMarker','AUDIT-R56-R68'),now()) on conflict(company_id,entity_type,record_id) do update set payload=excluded.payload,deleted_at=null,updated_at=now();
+  select updated_at into initial_updated from public.erp_records where company_id=company_slug and entity_type='opportunities' and record_id='audit-concurrency';
   payload:=jsonb_build_object('record',jsonb_build_object('id','audit-concurrency','status','pending'),'expected_updated_at',initial_updated::text);
   perform public.erp_r49_opportunity_command('save',payload);
-  select updated_at into first_updated from public.erp_records where company_id=c and entity_type='opportunities' and record_id='audit-concurrency';
+  select updated_at into first_updated from public.erp_records where company_id=company_slug and entity_type='opportunities' and record_id='audit-concurrency';
   if first_updated is null or first_updated=initial_updated then raise exception 'concurrency version did not advance'; end if;
   begin perform public.erp_r49_opportunity_command('save',payload); exception when others then rejected:=sqlstate='40001' or sqlerrm like '%stale_record_conflict%'; end;
   if not rejected then raise exception 'stale update accepted'; end if;
