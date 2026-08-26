@@ -9,12 +9,11 @@ void main() {
     expect(AppRoutes.routes, contains(AppRouteNames.inventory));
   });
 
-  test('all canonical business routes are registered exactly once', () {
-    final expected = <String>{
+  test('all canonical business module routes are registered exactly once', () {
+    final expectedModules = <String>{
       AppRouteNames.dashboard,
       AppRouteNames.globalSearch,
       AppRouteNames.notifications,
-      AppRouteNames.products,
       AppRouteNames.inventory,
       AppRouteNames.maintenance,
       AppRouteNames.businessPartners,
@@ -25,7 +24,8 @@ void main() {
       AppRouteNames.settings,
     };
 
-    expect(AppRoutes.businessModuleRoutes, equals(expected));
-    expect(AppRoutes.routes.keys, containsAll(expected));
+    expect(AppRoutes.businessModuleRoutes, equals(expectedModules));
+    expect(AppRoutes.routes.keys, containsAll(expectedModules));
+    expect(AppRoutes.routes.keys, contains(AppRouteNames.products));
   });
 }
