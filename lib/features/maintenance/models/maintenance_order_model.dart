@@ -58,7 +58,8 @@ class MaintenanceOrderModel {
   final DateTime? updatedAt;
 
   bool get isCancelled => workflowStage == 'cancelled';
-  bool get canEdit => workflowStage != 'cancelled';
+  bool get canEdit =>
+      workflowStage == 'order_draft' || workflowStage == 'order_approved';
 
   String workflowLabel(bool isArabic) {
     const labels = <String, List<String>>{
