@@ -17,7 +17,7 @@ jobs:
       - name: Reset database from all migrations and seed
         run: supabase db reset --yes
       - name: Phase 2 — Database/Auth/RLS deep gate
-        run: supabase db psql --file tool/phase2_database_security_audit.sql
+        run: supabase db query --file tool/phase2_database_security_audit.sql
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
