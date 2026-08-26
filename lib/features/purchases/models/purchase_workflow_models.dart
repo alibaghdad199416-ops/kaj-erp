@@ -30,6 +30,9 @@ class PurchaseOrderItemInput {
     if (itemType == 'car' && quantity != 1) {
       throw ArgumentError('كمية السيارة يجب أن تكون سيارة واحدة');
     }
+    if (!unitCost.isFinite || !lineTotal.isFinite) {
+      throw ArgumentError('كلفة بند الشراء غير صالحة');
+    }
   }
 }
 
@@ -55,14 +58,17 @@ class PurchaseInvoicePaymentInput {
   final PaymentSettlementMode settlementMode;
 
   void validate() {
-    if (cashAccountId.trim().isEmpty)
+    if (cashAccountId.trim().isEmpty) {
       throw ArgumentError('يجب اختيار الصندوق المالي');
+    }
     if (paymentCurrency != 'USD' && paymentCurrency != 'IQD') {
       throw ArgumentError('عملة الدفعة غير مدعومة');
     }
-    if (invoiceAmount <= 0 || cashAmount <= 0 || exchangeRate <= 0) {
+    if (!invoiceAmount.isFinite || !cashAmount.isFinite ||
+        invoiceAmount <= 0 || cashAmount <= 0 ||
+        !exchangeRate.isFinite || exchangeRate <= 0) {
       throw ArgumentError(
-        'مبالغ الدفعة ومعامل التحويل يجب أن تكون أكبر من صفر',
+        'مبالغ الدفعة ومعامل التحويل يجب أن تكون أكبر من صفر وصالحة',
       );
     }
   }
