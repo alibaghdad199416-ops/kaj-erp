@@ -5,8 +5,9 @@ begin;
 -- command surfaces anonymously. All business writes remain behind controlled
 -- RPCs and their authorization checks.
 
--- Notification delivery state is server-maintained.
+-- Server-maintained notification state is fail-closed and forced through RLS.
 alter table public.erp_notification_user_states enable row level security;
+alter table public.erp_notification_user_states force row level security;
 drop policy if exists erp_notification_user_states_client_deny on public.erp_notification_user_states;
 create policy erp_notification_user_states_client_deny
   on public.erp_notification_user_states
@@ -14,6 +15,12 @@ create policy erp_notification_user_states_client_deny
   using (false)
   with check (false);
 revoke all on public.erp_notification_user_states from public, anon, authenticated;
+
+-- Internal audit and document-processing state is also forced through RLS.
+alter table public.erp_audit_log enable row level security;
+alter table public.erp_audit_log force row level security;
+alter table public.erp_document_processing_jobs enable row level security;
+alter table public.erp_document_processing_jobs force row level security;
 
 -- Remove direct client-side DML from every public application table. This is
 -- intentionally catalog-driven so future tables cannot silently retain the
