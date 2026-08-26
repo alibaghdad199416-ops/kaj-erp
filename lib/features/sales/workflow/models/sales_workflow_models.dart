@@ -71,8 +71,5 @@ class InvoicePaymentInput {
     if (!exchangeRate.isFinite || exchangeRate <= 0) {
       throw ArgumentError('معامل التحويل يجب أن يكون أكبر من صفر وصالحاً');
     }
-    if (paymentDate.isUtc && paymentDate.isUtc && paymentDate.toIso8601String().isEmpty) {
-      throw ArgumentError('تاريخ الدفعة غير صالح');
-    }
   }
 }
