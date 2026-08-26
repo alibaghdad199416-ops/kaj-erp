@@ -10,8 +10,8 @@ checks['single active maintenance invoice guard']='erp_r49_guard_single_active_m
 checks['paid invoice requires customer and currency']='paid_maintenance_customer_required' in m and 'maintenance_currency_invalid' in m
 checks['invoice lifecycle is bounded']='maintenance_invoice_stage_invalid' in m and "'invoice_draft','invoice_approved','paid','completed'" in m
 checks['maintenance approval is protected']="array['maintenance.approve']" in m
-checks['stock issue is quantity-only']='maintenance_out' in m and 'erp_phase3_refresh_maintenance_products' in m and 'erp_v736_post_maintenance_invoice' in m
-checks['no legacy maintenance posting helper']='erp_phase3_post_maintenance_issue' not in m
+checks['stock issue accounting boundary']='maintenance_out' in m and 'erp_phase3_refresh_maintenance_products' in m and 'erp_phase3_post_maintenance_issue' in m
+checks['invoice posting remains owned']='erp_v736_post_maintenance_invoice' in m and 'erp_v736_post_maintenance_invoice_pre_r49_identity' in m
 checks['invoice number remains compact']='maintenance_invoice' in m and "'MINV'" in m
 for n,v in checks.items(): print(('PASS' if v else 'FAIL'),n)
 if not all(checks.values()): sys.exit(1)
