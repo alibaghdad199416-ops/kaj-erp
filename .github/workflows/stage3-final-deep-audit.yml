@@ -12,7 +12,7 @@ on:
 
 concurrency:
   group: stage3-final-deep-audit-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   audit:
