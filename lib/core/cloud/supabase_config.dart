@@ -22,14 +22,19 @@ class SupabaseConfig {
         .trim();
 
     final uri = Uri.tryParse(resolvedUrl);
-    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
-      return 'رابط Supabase غير صالح. استخدم رابط المشروع الأساسي عبر HTTPS.';
+    if (uri == null || uri.host.isEmpty) {
+      return 'رابط Supabase غير صالح.';
+    }
+
+    final isLocal =
+        (uri.host == 'localhost' || uri.host == '127.0.0.1') &&
+        (uri.scheme == 'http' || uri.scheme == 'https');
+    final isHosted = uri.scheme == 'https' && uri.host.endsWith('.supabase.co');
+    if (!isLocal && !isHosted) {
+      return 'رابط Supabase يجب أن يكون رابط مشروع HTTPS على .supabase.co أو رابط Supabase محلياً عبر localhost/127.0.0.1.';
     }
     if (uri.path.isNotEmpty && uri.path != '/') {
-      return 'استخدم رابط مشروع Supabase الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
-    }
-    if (!uri.host.endsWith('.supabase.co')) {
-      return 'رابط Supabase يجب أن ينتهي بـ .supabase.co.';
+      return 'استخدم رابط Supabase الأساسي فقط، من دون /rest/v1 أو أي مسار إضافي.';
     }
     if (resolvedKey.isEmpty || resolvedKey.contains('YOUR_')) {
       return 'مفتاح Supabase العام غير مضبوط.';

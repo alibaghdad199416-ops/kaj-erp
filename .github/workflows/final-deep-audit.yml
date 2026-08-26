@@ -1,0 +1,50 @@
+name: Final Deep Audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+  workflow_dispatch:
+
+concurrency:
+  group: final-deep-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start disposable Supabase
+        run: supabase start
+
+      - name: Reset database from every migration and seed hook
+        run: supabase db reset --yes
+
+      - name: Phase 2 — Database/Auth/RLS deep gate
+        run: supabase db psql --file tool/phase2_database_security_audit.sql
+
+      - name: Execute transactional ERP runtime matrix
+        run: supabase db psql --file tool/final_deep_audit.sql
+
+      - name: Run all existing integrity gates
+        run: |
+          python3 tool/verify_r56_functional_erp_audit.py
+          python3 tool/verify_v2300_runtime_console_closure.py
+          python3 tool/verify_security_surface.py
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release

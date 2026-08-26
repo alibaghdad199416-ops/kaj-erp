@@ -9,6 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start disposable Supabase
+        run: supabase start
+      - name: Reset database from all migrations and seed
+        run: supabase db reset --yes
+      - name: Phase 2 — Database/Auth/RLS deep gate
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tool/phase2_database_security_audit.sql
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'

@@ -1,7 +1,18 @@
 begin;
 
 -- R52 consolidated integrity closure. Additive and data-preserving.
-create table if not exists public.erp_document_processing_jobs (like public.erp_contracts including all);
+-- The accepted-module cleanup intentionally retires erp_contracts before this
+-- migration. Do not use a retired table as a CREATE TABLE LIKE template.
+create table if not exists public.erp_document_processing_jobs (
+  company_id uuid not null,
+  id uuid not null,
+  data jsonb not null default '{}'::jsonb,
+  is_deleted boolean not null default false,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key(company_id,id)
+);
 create index if not exists erp_doc_job_status_idx_r52 on public.erp_document_processing_jobs(company_id,((data->>'status')),created_at);
 alter table public.erp_document_processing_jobs enable row level security;
 
@@ -30,8 +41,6 @@ begin
   end loop;
 end $$;
 
--- R15: never quote an identifier array as one relation name. Process each
--- canonical table independently.
 create or replace function public.erp_r15_reconcile_company_state(p_company_id uuid)
 returns jsonb language plpgsql security definer set search_path=public as $$
 declare
@@ -61,8 +70,6 @@ begin
  return jsonb_build_object('companyId',p_company_id,'canonicalConflicts',conflicts,'healthy',conflicts=0);
 end; $$;
 
--- Replace record/dynamic-SQL master readers with scalar targets so an empty
--- result never leaves an unassigned record whose tuple type is indeterminate.
 create or replace function public.erp_r9_get_cloud_master_record(p_company_id uuid,p_table text,p_record_id text)
 returns jsonb language plpgsql security definer set search_path=public as $$
 declare v_id text; v_data jsonb; v_version bigint; v_updated timestamptz;
@@ -82,8 +89,6 @@ begin
  return;
 end; $$;
 
--- erp_records has updated_at but not created_at; use payload createdAt when
--- available and fall back to updated_at. This removes the invalid column error.
 create or replace function public.erp_r49_cloud_global_search(p_company_id uuid,p_query text,p_limit integer default 50)
 returns setof jsonb language plpgsql security definer set search_path=public as $$
 declare v_slug text; v_limit integer:=greatest(1,least(coalesce(p_limit,50),200));
