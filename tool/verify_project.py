@@ -13,6 +13,7 @@ GATES = (
     "verify_postgres_type_boundaries.py",
     "verify_modular_runtime_architecture.py",
     "verify_static_dart_sanity.py",
+    "verify_security_surface.py",
     "verify_localization.py",
     "verify_v72_complete_linked_operations.py",
     "verify_v721_recycle_purge_lint_fix.py",
