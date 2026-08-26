@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - 'repair/**'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
