@@ -1,0 +1,19 @@
+name: Stage 1 Flutter Structural Audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: flutter analyze
+      - run: python3 tool/stage1_flutter_structural_audit.py
+      - run: flutter test
