@@ -62,6 +62,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   Future<void> saveCompany(CompanySettingsModel value) async {
+    await _requirePermission(PermissionCodes.settingsView);
     await _run(() async {
       await _repository.saveCompanySettings(value);
       company = value;
@@ -70,6 +71,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   Future<void> saveBranch(BranchModel value) async {
+    await _requirePermission(PermissionCodes.settingsView);
     await _run(() async {
       await _repository.saveBranch(value);
       branches = await _repository.getBranches();
@@ -78,6 +80,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   Future<void> deleteBranch(String id) async {
+    await _requirePermission(PermissionCodes.settingsView);
     await _run(() async {
       await _repository.deleteBranch(id);
       branches = await _repository.getBranches();
@@ -86,6 +89,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   Future<void> saveCurrency(CurrencyModel value) async {
+    await _requirePermission(PermissionCodes.settingsView);
     await _run(() async {
       await _repository.saveCurrency(value);
       currencies = await _repository.getCurrencies();
@@ -94,6 +98,7 @@ class SettingsController extends ChangeNotifier {
   }
 
   Future<void> deleteCurrency(String code) async {
+    await _requirePermission(PermissionCodes.settingsView);
     await _run(() async {
       await _repository.deleteCurrency(code);
       currencies = await _repository.getCurrencies();
