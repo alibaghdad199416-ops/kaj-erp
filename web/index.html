@@ -78,40 +78,53 @@
         const stored = localStorage.getItem(VERSION_KEY);
         // Always remove obsolete Flutter service workers and CacheStorage.
         // A device may have installed them before version.json existed, so a
-        // version change must remain authoritative even without stored state.
-        if (stored === build) return;
-        localStorage.setItem(VERSION_KEY, build);
-        localStorage.removeItem(RELOAD_KEY);
-
+        // version comparison alone is not sufficient to recover its UI.
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map((registration) => registration.unregister()));
+          await Promise.all(registrations.map(registration => registration.unregister()));
         }
         if ('caches' in window) {
           const names = await caches.keys();
-          await Promise.all(names.map((name) => caches.delete(name)));
+          await Promise.all(names.map(name => caches.delete(name)));
         }
+        localStorage.setItem(VERSION_KEY, build);
+        return stored !== null && stored !== build;
       }
 
       async function start() {
         try {
           const build = await deployedBuild();
-          await clearObsoleteRuntime(build);
+          window.__KAJ_BUILD__ = build;
+          const changed = await clearObsoleteRuntime(build);
+          if (changed && sessionStorage.getItem(RELOAD_KEY) !== build) {
+            sessionStorage.setItem(RELOAD_KEY, build);
+            location.replace(`${location.pathname}?v=${encodeURIComponent(build)}${location.hash}`);
+            return;
+          }
+          sessionStorage.removeItem(RELOAD_KEY);
           const script = document.createElement('script');
           script.src = `flutter_bootstrap.js?v=${encodeURIComponent(build)}`;
-          script.async = true;
-          script.onload = () => setTimeout(removeBoot, 180);
-          script.onerror = () => showBootError('تعذر تحميل واجهة Flutter.');
+          script.defer = true;
+          script.onerror = () => showBootError('تعذر تحميل ملفات البرنامج. تأكد من رفع مجلد build/web بالكامل.');
           document.body.appendChild(script);
         } catch (error) {
-          showBootError(error instanceof Error ? error.message : String(error));
+          console.warn('KAJ startup recovery:', error);
+          showBootError('تعذر تهيئة النسخة الحالية. أعد المحاولة بعد التحقق من الاتصال.');
         }
       }
 
-      window.addEventListener('load', start, {once:true});
-      setTimeout(() => {
-        if (!removed) start();
-      }, 1500);
+      window.addEventListener('flutter-first-frame', removeBoot, {once:true});
+      document.addEventListener('flutter-first-frame', removeBoot, {once:true});
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          if (!removed) {
+            showBootError('استغرق تشغيل التطبيق وقتًا أطول من المتوقع. افتح أدوات المطور وراجع Console ثم أعد المحاولة.');
+          }
+        }, 30000);
+      }, {once:true});
+      window.addEventListener('online', () => console.info('KAJ ERP connectivity restored.'));
+      window.addEventListener('offline', () => console.warn('KAJ ERP is offline; cloud operations are unavailable.'));
+      start();
     })();
   </script>
 </body>
