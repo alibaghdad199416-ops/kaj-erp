@@ -72,6 +72,18 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
     );
   }
 
+  void _commitSearch(String value) {
+    _debounce?.cancel();
+    final normalized = value.trim();
+    if (_searchController.text != normalized) {
+      _searchController.value = TextEditingValue(
+        text: normalized,
+        selection: TextSelection.collapsed(offset: normalized.length),
+      );
+    }
+    widget.controller.setSearch(normalized);
+  }
+
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     if (value.trim().isEmpty) {
@@ -79,7 +91,7 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 250), () {
-      if (mounted) widget.controller.setSearch(value);
+      if (mounted) _commitSearch(value);
     });
   }
 
@@ -137,6 +149,7 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
       animation: widget.controller,
       builder: (context, _) {
         final state = widget.controller.state;
+        final hasSearchText = _searchController.text.trim().isNotEmpty;
         final chips = <Widget>[
           ...state.filters.map(
             (token) => InputChip(
@@ -167,13 +180,14 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                   final search = TextField(
                     controller: _searchController,
                     onChanged: _onSearchChanged,
+                    onSubmitted: _commitSearch,
                     textDirection: Directionality.of(context),
+                    textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: widget.searchHint,
                       prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: state.search.trim().isEmpty
-                          ? null
-                          : IconButton(
+                      suffixIcon: hasSearchText
+                          ? IconButton(
                               tooltip: 'مسح البحث',
                               onPressed: () {
                                 _debounce?.cancel();
@@ -181,7 +195,8 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                                 widget.controller.setSearch('');
                               },
                               icon: const Icon(Icons.clear_rounded),
-                            ),
+                            )
+                          : null,
                       isDense: true,
                     ),
                   );
