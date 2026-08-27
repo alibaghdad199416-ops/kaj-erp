@@ -53,6 +53,10 @@ class AppEntityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final insideModuleWindow = AppWorkspaceWindowScope.maybeOf(context) != null;
+    // A workspace window already has its own title/chrome. Rendering another
+    // section header inside it creates the duplicated module-top container
+    // that is especially noticeable in RTL and narrow layouts.
+    final effectiveHideHeader = hideHeader || insideModuleWindow;
     final effectiveActions = <Widget>[
       ...actions,
       if (insideModuleWindow && toolbar == null) const AppWindowCloseButton(),
@@ -87,7 +91,7 @@ class AppEntityPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      if (!hideHeader)
+                      if (!effectiveHideHeader)
                         KajSectionHeader(
                           title: title,
                           subtitle: subtitle,
@@ -110,12 +114,12 @@ class AppEntityPage extends StatelessWidget {
                       else if (effectiveActions.isNotEmpty)
                         AppHorizontalStrip(children: effectiveActions),
                       if (statistics != null &&
-                          (!hideHeader ||
+                          (!effectiveHideHeader ||
                               !mergeHiddenHeaderActionsAndStatistics)) ...<
                         Widget
                       >[
                         SizedBox(
-                          height: hideHeader
+                          height: effectiveHideHeader
                               ? KajDesignTokens.space8
                               : KajDesignTokens.space16,
                         ),
@@ -123,7 +127,7 @@ class AppEntityPage extends StatelessWidget {
                       ],
                       if (effectiveToolbar != null) ...<Widget>[
                         SizedBox(
-                          height: hideHeader
+                          height: effectiveHideHeader
                               ? KajDesignTokens.space8
                               : KajDesignTokens.space12,
                         ),
@@ -138,7 +142,7 @@ class AppEntityPage extends StatelessWidget {
                           effectiveToolbar,
                       ],
                       SizedBox(
-                        height: hideHeader
+                        height: effectiveHideHeader
                             ? KajDesignTokens.space8
                             : KajDesignTokens.space16,
                       ),
