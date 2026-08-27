@@ -53,7 +53,6 @@ class UnifiedFilterCriteria {
   final Set<String> groupIds;
 
   /// Generic exact-value filters for module-specific dimensions.
-  /// Each key is mapped by [UnifiedFilterAdapter.fieldValues].
   final Map<String, Set<String>> fieldValues;
 
   final DateTime? fromDate;
@@ -117,7 +116,7 @@ class UnifiedFilterAdapter<T> {
     this.userId,
     this.groupId,
     this.date,
-    this.fieldValues = const <String, Object? Function(dynamic)>{},
+    this.fieldValues = const <String, Object? Function(T value)>{},
   });
 
   final Iterable<Object?> Function(T value) searchableText;
@@ -130,9 +129,6 @@ class UnifiedFilterAdapter<T> {
   final Object? Function(T value)? userId;
   final Object? Function(T value)? groupId;
   final DateTime? Function(T value)? date;
-
-  /// Module-specific exact filter dimensions keyed by the same key used in
-  /// [UnifiedFilterCriteria.fieldValues].
   final Map<String, Object? Function(T value)> fieldValues;
 }
 
