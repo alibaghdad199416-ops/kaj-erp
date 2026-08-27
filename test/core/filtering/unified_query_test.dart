@@ -68,5 +68,39 @@ void main() {
       expect(controller.state.filters, isEmpty);
       expect(controller.state.sorts, isEmpty);
     });
+
+    test('repeated values do not emit redundant state notifications', () {
+      final controller = UnifiedQueryController();
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      controller.setSearch('invoice');
+      controller.setSearch('invoice');
+      controller.setFilters(const <UnifiedFilterToken>[]);
+      controller.setFilters(const <UnifiedFilterToken>[]);
+      controller.setSorts(const <UnifiedSortRule>[]);
+      controller.setSorts(const <UnifiedSortRule>[]);
+
+      expect(notifications, 1);
+    });
+
+    test('removing an unknown filter or sort leaves state unchanged', () {
+      final controller = UnifiedQueryController();
+      final filter = UnifiedFilterToken(
+        key: 'status',
+        label: 'الحالة',
+        value: 'open',
+        valueLabel: 'مفتوح',
+      );
+      controller.addFilter(filter);
+      controller.addSort(const UnifiedSortRule(field: 'name', label: 'الاسم'));
+      final before = controller.state;
+
+      controller.removeFilterKey('missing');
+      controller.removeSort('missing');
+      controller.removeSortAt(99);
+
+      expect(controller.state, same(before));
+    });
   });
 }
