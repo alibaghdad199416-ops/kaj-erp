@@ -1,8 +1,12 @@
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/features/settings/reports/models/contextual_report_section.dart';
 import 'package:quality_line_erp/features/settings/reports/models/report_export_options.dart';
 
-/// Applies user-defined report projection, filtering, sorting and row limits
-/// without mutating the complete source data returned by Supabase.
+/// Applies report projection, filtering, sorting and row limits through the
+/// same unified filtering engine used by ERP module screens.
+///
+/// The persisted ReportExportOptions shape remains backward compatible, while
+/// execution no longer maintains a second bespoke search/sort algorithm.
 class ContextualReportCustomizer {
   const ContextualReportCustomizer();
 
@@ -12,74 +16,82 @@ class ContextualReportCustomizer {
   ) {
     return sections
         .where((section) => options.sectionEnabled[section.key] ?? true)
-        .map((section) {
-          final requested =
-              options.selectedColumns[section.key] ?? const <String>[];
-          final indexes = requested.isEmpty
-              ? List<int>.generate(section.columns.length, (index) => index)
-              : requested
-                    .map(section.columns.indexOf)
-                    .where((index) => index >= 0)
-                    .toList(growable: false);
-          final candidateIndexes = indexes.isEmpty
-              ? List<int>.generate(section.columns.length, (index) => index)
-              : indexes;
-          final safeIndexes = candidateIndexes
-              .where(
-                (index) => !_isHiddenColumn(section, section.columns[index]),
-              )
-              .toList(growable: false);
-
-          final query = (options.sectionQueries[section.key] ?? '')
-              .trim()
-              .toLowerCase();
-          var rows = section.rows
-              .where((row) {
-                if (query.isEmpty) return true;
-                return row.any((value) => value.toLowerCase().contains(query));
-              })
-              .toList(growable: false);
-
-          final sortColumn = options.sortColumns[section.key];
-          final sortIndex = sortColumn == null
-              ? -1
-              : section.columns.indexOf(sortColumn);
-          if (sortIndex >= 0) {
-            final ascending = options.sortAscending[section.key] ?? true;
-            rows = [...rows]
-              ..sort((left, right) {
-                final a = sortIndex < left.length ? left[sortIndex] : '';
-                final b = sortIndex < right.length ? right[sortIndex] : '';
-                final numericA = num.tryParse(a.replaceAll(',', ''));
-                final numericB = num.tryParse(b.replaceAll(',', ''));
-                final result = numericA != null && numericB != null
-                    ? numericA.compareTo(numericB)
-                    : a.toLowerCase().compareTo(b.toLowerCase());
-                return ascending ? result : -result;
-              });
-          }
-
-          final rowLimit = options.sectionRowLimits[section.key] ?? 0;
-          if (rowLimit > 0 && rows.length > rowLimit) {
-            rows = rows.take(rowLimit).toList(growable: false);
-          }
-
-          return ContextualReportSection(
-            key: section.key,
-            title: section.title,
-            columns: safeIndexes
-                .map((index) => section.columns[index])
-                .toList(growable: false),
-            rows: rows
-                .map(
-                  (row) => safeIndexes
-                      .map((index) => index < row.length ? row[index] : '')
-                      .toList(growable: false),
-                )
-                .toList(growable: false),
-          );
-        })
+        .map((section) => _applySection(section, options))
         .toList(growable: false);
+  }
+
+  ContextualReportSection _applySection(
+    ContextualReportSection section,
+    ReportExportOptions options,
+  ) {
+    final requested = options.selectedColumns[section.key] ?? const <String>[];
+    final indexes = requested.isEmpty
+        ? List<int>.generate(section.columns.length, (index) => index)
+        : requested
+              .map(section.columns.indexOf)
+              .where((index) => index >= 0)
+              .toList(growable: false);
+    final candidateIndexes = indexes.isEmpty
+        ? List<int>.generate(section.columns.length, (index) => index)
+        : indexes;
+    final safeIndexes = candidateIndexes
+        .where((index) => !_isHiddenColumn(section, section.columns[index]))
+        .toList(growable: false);
+
+    final query = (options.sectionQueries[section.key] ?? '').trim();
+    final sortColumn = options.sortColumns[section.key];
+    final sortIndex = sortColumn == null
+        ? -1
+        : section.columns.indexOf(sortColumn);
+
+    final sorts = sortIndex < 0
+        ? const <UnifiedSortCriterion<List<String>>>[]
+        : <UnifiedSortCriterion<List<String>>>[
+            UnifiedSortCriterion<List<String>>(
+              key: sortColumn!,
+              direction: options.sortAscending[section.key] ?? true
+                  ? UnifiedSortDirection.ascending
+                  : UnifiedSortDirection.descending,
+              value: (row) => _sortableValue(row, sortIndex),
+            ),
+          ];
+
+    final filteredAndSorted = UnifiedFilterEngine.apply<List<String>>(
+      section.rows,
+      criteria: UnifiedFilterCriteria(searchText: query),
+      adapter: const UnifiedFilterAdapter<List<String>>(
+        searchableText: _searchableRow,
+      ),
+      sorts: sorts,
+    );
+
+    final rowLimit = options.sectionRowLimits[section.key] ?? 0;
+    final rows = rowLimit > 0 && filteredAndSorted.length > rowLimit
+        ? filteredAndSorted.take(rowLimit).toList(growable: false)
+        : filteredAndSorted;
+
+    return ContextualReportSection(
+      key: section.key,
+      title: section.title,
+      columns: safeIndexes
+          .map((index) => section.columns[index])
+          .toList(growable: false),
+      rows: rows
+          .map(
+            (row) => safeIndexes
+                .map((index) => index < row.length ? row[index] : '')
+                .toList(growable: false),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  static Iterable<Object?> _searchableRow(List<String> row) => row;
+
+  static Comparable<dynamic> _sortableValue(List<String> row, int index) {
+    final value = index < row.length ? row[index] : '';
+    final numeric = num.tryParse(value.replaceAll(',', '').trim());
+    return numeric ?? UnifiedFilterEngine.normalize(value);
   }
 
   static bool _isHiddenColumn(ContextualReportSection section, String column) {
