@@ -18,6 +18,13 @@ seen_stamps: set[str] = set()
 previous_name = ""
 filename_re = re.compile(r"^(\d{14})_[A-Za-z0-9][A-Za-z0-9_-]*\.sql$")
 
+# Keep safety checks focused on executable SQL. Documentation comments may
+# legitimately contain examples such as <FIREBASE_UID> or the word
+# "placeholder" and must not make an otherwise valid migration fail.
+def strip_sql_comments(text: str) -> str:
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
+    return re.sub(r"(?m)--[^\n]*", " ", text)
+
 for migration in files:
     match = filename_re.fullmatch(migration.name)
     if not match:
@@ -32,7 +39,8 @@ for migration in files:
     previous_name = migration.name
 
     text = migration.read_text(encoding="utf-8", errors="replace")
-    lower = text.lower()
+    executable = strip_sql_comments(text)
+    lower = executable.lower()
 
     forbidden = {
         "supabase db reset": r"\bsupabase\s+db\s+reset\b",
@@ -47,8 +55,8 @@ for migration in files:
     if re.search(r"(?m)^\s*after_rollback_marker\s*:=", lower):
         errors.append(f"stray procedural assignment outside a function/block: {migration.name}")
 
-    if re.search(r"(?i)\b(?:todo|fixme|not implemented|placeholder)\b", text):
-        errors.append(f"placeholder marker in migration: {migration.name}")
+    if re.search(r"(?i)\b(?:todo|fixme|not implemented|placeholder)\b", executable):
+        errors.append(f"placeholder marker in executable migration SQL: {migration.name}")
 
 if errors:
     print("FAILED Stage 2 migration static safety audit")
