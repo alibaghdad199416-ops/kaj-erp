@@ -209,11 +209,15 @@ class UnifiedQueryController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Adds a sort field without disturbing the other criteria. Selecting the
+  /// same field again toggles its direction, which makes the shared toolbar
+  /// usable without module-specific sort state.
   void addSort(UnifiedSortRule rule) {
     final next = List<UnifiedSortRule>.from(_state.sorts);
     final index = next.indexWhere((item) => item.field == rule.field);
     if (index >= 0) {
-      next[index] = rule;
+      final existing = next[index];
+      next[index] = existing.copyWith(descending: !existing.descending);
     } else {
       next.add(rule);
     }
@@ -222,6 +226,13 @@ class UnifiedQueryController extends ChangeNotifier {
 
   void removeSort(String field) {
     final next = _state.removeSort(field);
+    if (next == _state) return;
+    _state = next;
+    notifyListeners();
+  }
+
+  void removeSortAt(int index) {
+    final next = _state.removeSortAt(index);
     if (next == _state) return;
     _state = next;
     notifyListeners();
