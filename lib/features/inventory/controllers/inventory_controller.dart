@@ -51,8 +51,8 @@ class InventoryController extends ChangeNotifier {
   bool get hasLoaded => _inventoryLoadedAt.isNotEmpty;
   String? get selectedWarehouseId => _selectedWarehouseId;
 
-  /// Compatibility accessors retained only while existing pages migrate to
-  /// [query]. They contain no independent state.
+  /// Compatibility accessors retained while existing pages migrate to [query].
+  /// They contain no independent query state.
   String get searchQuery => query.state.search;
   String? get selectedGroupId => _groupFilterValue;
 
@@ -78,7 +78,6 @@ class InventoryController extends ChangeNotifier {
             item.serialNumber,
             item.description,
           ],
-          warehouseId: (item) => item.warehouseId,
           groupId: (item) => item.groupId,
           type: (item) => item.itemType,
           currency: (item) => item.costCurrency ?? item.currency,
@@ -87,21 +86,14 @@ class InventoryController extends ChangeNotifier {
       );
 
   UnifiedFilterCriteria _criteriaFromQuery() {
-    var warehouseIds = <String>{};
     var groupIds = <String>{};
     for (final token in query.state.filters) {
-      switch (token.key) {
-        case 'inventory.warehouse':
-          warehouseIds = {token.value.toString()};
-          break;
-        case 'inventory.group':
-          groupIds = {token.value.toString()};
-          break;
+      if (token.key == 'inventory.group') {
+        groupIds = {token.value.toString()};
       }
     }
     return UnifiedFilterCriteria(
       searchText: query.state.search,
-      warehouseIds: warehouseIds,
       groupIds: groupIds,
     );
   }
@@ -232,33 +224,33 @@ class InventoryController extends ChangeNotifier {
     _inventoryLoadedAt.clear();
   }
 
-  /// Legacy compatibility API. New UI must use [query.setSearch].
   @Deprecated('Use query.setSearch()')
   void setSearchQuery(String value) => query.setSearch(value);
 
-  /// Legacy compatibility API. New UI must use [query.addFilter].
   @Deprecated('Use query.addFilter()')
   void setGroupFilter(String? value) {
     if (value == null || value.isEmpty) {
       query.removeFilterKey('inventory.group');
       return;
     }
+    var label = value;
+    for (final group in _groups) {
+      if (group.id == value) {
+        label = group.name;
+        break;
+      }
+    }
     query.addFilter(
       UnifiedFilterToken(
         key: 'inventory.group',
         label: 'Group',
         value: value,
-        valueLabel: _groups
-                .where((item) => item.id == value)
-                .map((item) => item.name)
-                .firstOrNull ??
-            value,
+        valueLabel: label,
       ),
     );
   }
 
-  /// Warehouse selection controls the Cloud data scope. It is intentionally
-  /// separate from interactive result filtering.
+  /// Warehouse selection is a Cloud data scope, not a local query filter.
   Future<void> setWarehouseFilter(String? value) async {
     if (_selectedWarehouseId == value) return;
     _selectedWarehouseId = value;
@@ -401,10 +393,10 @@ class InventoryController extends ChangeNotifier {
       freightCost: freightCost,
       customsCost: customsCost,
       insuranceCost: insuranceCost,
+      otherCost: otherCost,
       supplierId: supplierId,
       supplierName: supplierName,
       notes: notes,
-      otherCost: otherCost,
     );
     invalidateMaintenanceCatalog();
     invalidateInventoryCache();
