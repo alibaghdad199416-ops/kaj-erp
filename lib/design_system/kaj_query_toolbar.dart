@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 
+export 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart'
+    show UnifiedQueryFilterOption, UnifiedQuerySortOption;
+
 /// Backwards-compatible design-system entry point for the canonical unified
 /// query surface. The implementation lives in [UnifiedQueryToolbar] so there
 /// is only one search/filter/sort UI and one query-state contract.
