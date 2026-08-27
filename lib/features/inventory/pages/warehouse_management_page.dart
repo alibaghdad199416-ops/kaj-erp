@@ -2,6 +2,9 @@ import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:quality_line_erp/design_system/kaj_inventory_stage4_components.dart';
 
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -25,8 +28,7 @@ class WarehouseManagementPage extends StatefulWidget {
 }
 
 class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
-  final _search = TextEditingController();
-  bool _showInactive = true;
+  final UnifiedQueryController _queryController = UnifiedQueryController();
 
   @override
   void initState() {
@@ -34,12 +36,6 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<InventoryController>().loadInventory();
     });
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
   }
 
   Future<void> _openEditor([WarehouseModel? warehouse]) async {
@@ -109,145 +105,200 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
     }
   }
 
+  List<UnifiedSortCriterion<WarehouseModel>> _sorts(UnifiedQueryState state) {
+    return state.sorts.map((rule) {
+      final direction = rule.descending
+          ? UnifiedSortDirection.descending
+          : UnifiedSortDirection.ascending;
+      switch (rule.field) {
+        case 'code':
+          return UnifiedSortCriterion<WarehouseModel>(
+            key: rule.field,
+            direction: direction,
+            value: (warehouse) => warehouse.code,
+          );
+        case 'status':
+          return UnifiedSortCriterion<WarehouseModel>(
+            key: rule.field,
+            direction: direction,
+            value: (warehouse) => warehouse.isActive ? 1 : 0,
+          );
+        default:
+          return UnifiedSortCriterion<WarehouseModel>(
+            key: rule.field,
+            direction: direction,
+            value: (warehouse) => warehouse.name,
+          );
+      }
+    }).toList(growable: false);
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<InventoryController>();
-    final query = _search.text.trim().toLowerCase();
-    final rows = controller.allWarehouses
-        .where((warehouse) {
-          if (!_showInactive && !warehouse.isActive) return false;
-          if (query.isEmpty) return true;
-          return <String?>[
-            warehouse.id,
-            warehouse.code,
-            warehouse.name,
-            warehouse.branchId,
-            warehouse.address,
-            warehouse.notes,
-          ].any((value) => value?.toLowerCase().contains(query) ?? false);
-        })
-        .toList(growable: false);
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          KajInventoryActionBar(
-            title: context.l10n.isArabic
-                ? 'إدارة المخازن'
-                : 'Warehouse management',
-            subtitle: context.l10n.isArabic
-                ? 'إدارة مواقع التخزين والفروع وحالة كل مخزن ضمن مساحة موحدة.'
-                : 'Manage storage locations, branches and warehouse availability in one workspace.',
-            icon: Icons.warehouse_rounded,
-            actions: <Widget>[
-              FilledButton.icon(
-                onPressed: () => _openEditor(),
-                icon: const Icon(Icons.add_business_rounded),
-                label: AppText(
-                  context.l10n.isArabic ? 'إضافة مخزن' : 'Add warehouse',
-                ),
-              ),
-            ],
-            metrics: <Widget>[
-              KajInventoryMetricPill(
-                label: context.l10n.isArabic
-                    ? 'إجمالي المخازن'
-                    : 'Total warehouses',
-                value: '${controller.allWarehouses.length}',
-                icon: Icons.warehouse_outlined,
-              ),
-              KajInventoryMetricPill(
-                label: context.l10n.isArabic ? 'الفعالة' : 'Active',
-                value:
-                    '${controller.allWarehouses.where((item) => item.isActive).length}',
-                icon: Icons.verified_outlined,
-                accent: const Color(0xFF16A36A),
-              ),
+    return AnimatedBuilder(
+      animation: _queryController,
+      builder: (context, _) {
+        final state = _queryController.state;
+        final activeToken = state.filters
+            .where((item) => item.key == 'active')
+            .firstOrNull;
+        final showInactive = activeToken == null || activeToken.value != false;
+
+        final sortOptions = <UnifiedQuerySortOption>[
+          const UnifiedQuerySortOption(
+            rule: UnifiedSortRule(field: 'name', label: 'الاسم'),
+            icon: Icons.sort_by_alpha_rounded,
+          ),
+          const UnifiedQuerySortOption(
+            rule: UnifiedSortRule(field: 'code', label: 'الرمز'),
+            icon: Icons.tag_outlined,
+          ),
+          const UnifiedQuerySortOption(
+            rule: UnifiedSortRule(field: 'status', label: 'الحالة'),
+            icon: Icons.verified_outlined,
+          ),
+        ];
+
+        final filterOptions = <UnifiedQueryFilterOption>[
+          UnifiedQueryFilterOption(
+            token: UnifiedFilterToken(
+              key: 'active',
+              label: 'الحالة',
+              value: true,
+              valueLabel: 'الفعالة فقط',
+            ),
+            icon: Icons.verified_outlined,
+          ),
+          UnifiedQueryFilterOption(
+            token: UnifiedFilterToken(
+              key: 'active',
+              label: 'الحالة',
+              value: false,
+              valueLabel: 'إظهار الفعالة وغير الفعالة',
+            ),
+            icon: Icons.visibility_outlined,
+          ),
+        ];
+
+        var rows = UnifiedFilterEngine.apply<WarehouseModel>(
+          controller.allWarehouses,
+          criteria: UnifiedFilterCriteria(searchText: state.search),
+          adapter: UnifiedFilterAdapter<WarehouseModel>(
+            searchableText: (warehouse) => <Object?>[
+              warehouse.code,
+              warehouse.name,
+              warehouse.branchId,
+              warehouse.address,
+              warehouse.notes,
             ],
           ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final search = TextField(
-                controller: _search,
-                decoration: InputDecoration(
-                  labelText: AppTranslation.translate(
-                    'بحث في جميع بيانات المخازن',
-                  ),
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  border: const OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() {}),
-              );
-              final inactive = FilterChip(
-                selected: _showInactive,
-                onSelected: (value) => setState(() => _showInactive = value),
-                avatar: const Icon(Icons.visibility_outlined, size: 18),
-                label: AppText(
-                  context.l10n.isArabic ? 'إظهار غير الفعال' : 'Show inactive',
-                ),
-              );
-              if (constraints.maxWidth < 680) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    search,
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: inactive,
+          sorts: _sorts(state),
+        );
+
+        if (!showInactive) {
+          rows = rows.where((warehouse) => warehouse.isActive).toList(growable: false);
+        }
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              KajInventoryActionBar(
+                title: context.l10n.isArabic
+                    ? 'إدارة المخازن'
+                    : 'Warehouse management',
+                subtitle: context.l10n.isArabic
+                    ? 'إدارة مواقع التخزين والفروع وحالة كل مخزن ضمن مساحة موحدة.'
+                    : 'Manage storage locations, branches and warehouse availability in one workspace.',
+                icon: Icons.warehouse_rounded,
+                actions: <Widget>[
+                  FilledButton.icon(
+                    onPressed: () => _openEditor(),
+                    icon: const Icon(Icons.add_business_rounded),
+                    label: AppText(
+                      context.l10n.isArabic ? 'إضافة مخزن' : 'Add warehouse',
                     ),
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: search),
-                  const SizedBox(width: 12),
-                  inactive,
+                  ),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: controller.isLoading && controller.allWarehouses.isEmpty
-                ? const KajInventoryLoadingState()
-                : rows.isEmpty
-                ? Center(
-                    child: AppText(
-                      context.l10n.isArabic
-                          ? 'لا توجد مخازن مطابقة'
-                          : 'No matching warehouses',
-                    ),
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final count = constraints.maxWidth >= 1180
-                          ? 3
-                          : constraints.maxWidth >= 720
-                          ? 2
-                          : 1;
-                      return GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: count,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          mainAxisExtent: 124,
-                        ),
-                        itemCount: rows.length,
-                        itemBuilder: (_, index) => _WarehouseCard(
-                          warehouse: rows[index],
-                          onEdit: () => _openEditor(rows[index]),
-                          onDelete: () => _delete(rows[index]),
-                        ),
-                      );
-                    },
+                metrics: <Widget>[
+                  KajInventoryMetricPill(
+                    label: context.l10n.isArabic
+                        ? 'إجمالي المخازن'
+                        : 'Total warehouses',
+                    value: '${controller.allWarehouses.length}',
+                    icon: Icons.warehouse_outlined,
                   ),
+                  KajInventoryMetricPill(
+                    label: context.l10n.isArabic ? 'الفعالة' : 'Active',
+                    value:
+                        '${controller.allWarehouses.where((item) => item.isActive).length}',
+                    icon: Icons.verified_outlined,
+                    accent: const Color(0xFF16A36A),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              UnifiedQueryToolbar(
+                controller: _queryController,
+                searchHint: context.l10n.isArabic
+                    ? 'ابحث بالرمز أو الاسم أو الفرع أو العنوان...'
+                    : 'Search by code, name, branch or address...',
+                filters: filterOptions,
+                sorts: sortOptions,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: controller.isLoading && controller.allWarehouses.isEmpty
+                    ? const KajInventoryLoadingState()
+                    : rows.isEmpty
+                    ? Center(
+                        child: AppText(
+                          state.isEmpty
+                              ? (context.l10n.isArabic
+                                    ? 'لا توجد مخازن'
+                                    : 'No warehouses')
+                              : (context.l10n.isArabic
+                                    ? 'لا توجد مخازن مطابقة'
+                                    : 'No matching warehouses'),
+                        ),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final count = constraints.maxWidth >= 1180
+                              ? 3
+                              : constraints.maxWidth >= 720
+                              ? 2
+                              : 1;
+                          return GridView.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: count,
+                                  mainAxisSpacing: 14,
+                                  crossAxisSpacing: 14,
+                                  mainAxisExtent: 124,
+                                ),
+                            itemCount: rows.length,
+                            itemBuilder: (_, index) => _WarehouseCard(
+                              warehouse: rows[index],
+                              onEdit: () => _openEditor(rows[index]),
+                              onDelete: () => _delete(rows[index]),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
