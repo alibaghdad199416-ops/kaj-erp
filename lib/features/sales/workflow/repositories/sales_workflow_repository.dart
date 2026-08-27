@@ -45,7 +45,7 @@ class SalesWorkflowRepository {
         AppTranslation.translate('عملة أمر البيع غير مدعومة'),
       );
     }
-    if (discount < 0) {
+    if (!discount.isFinite || discount < 0) {
       throw ArgumentError(AppTranslation.translate('قيمة الخصم غير صحيحة'));
     }
   }
@@ -65,7 +65,7 @@ class SalesWorkflowRepository {
       currency: currency,
       discount: discount,
     );
-    if (exchangeRate <= 0) {
+    if (!exchangeRate.isFinite || exchangeRate <= 0) {
       throw ArgumentError(
         AppTranslation.translate('سعر الصرف يجب أن يكون أكبر من صفر'),
       );
@@ -196,7 +196,7 @@ class SalesWorkflowRepository {
       currency: currency,
       discount: discount,
     );
-    if (exchangeRate <= 0) {
+    if (!exchangeRate.isFinite || exchangeRate <= 0) {
       throw ArgumentError(
         AppTranslation.translate('سعر الصرف يجب أن يكون أكبر من صفر'),
       );
@@ -389,8 +389,6 @@ class SalesWorkflowRepository {
 
   void _publishCommittedChange(String operation) {
     AppDataChangeBus.instance.publish('sales', operation: operation);
-    // Every committed sales workflow step is reflected back into its linked
-    // opportunity (order, delivery, invoice, cancellation, and payments).
     AppDataChangeBus.instance.publish('opportunities', operation: operation);
     if (operation.contains('receipt') ||
         operation.contains('delivery') ||
