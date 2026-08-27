@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
@@ -30,6 +32,7 @@ class KajQueryToolbar extends StatefulWidget {
 class _KajQueryToolbarState extends State<KajQueryToolbar> {
   late final TextEditingController _searchController =
       TextEditingController(text: widget.controller.state.search);
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -48,6 +51,7 @@ class _KajQueryToolbarState extends State<KajQueryToolbar> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     widget.controller.removeListener(_syncSearch);
     _searchController.dispose();
     super.dispose();
@@ -59,6 +63,13 @@ class _KajQueryToolbarState extends State<KajQueryToolbar> {
       text: value,
       selection: TextSelection.collapsed(offset: value.length),
     );
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) widget.controller.setSearch(value);
+    });
   }
 
   void _syncSearch() {
@@ -84,7 +95,7 @@ class _KajQueryToolbarState extends State<KajQueryToolbar> {
               child: TextField(
                 key: const ValueKey('kaj-unified-search'),
                 controller: _searchController,
-                onChanged: widget.controller.setSearch,
+                onChanged: _onSearchChanged,
                 textDirection: Directionality.of(context),
                 textAlign: TextAlign.start,
                 decoration: InputDecoration(
@@ -94,7 +105,11 @@ class _KajQueryToolbarState extends State<KajQueryToolbar> {
                       ? null
                       : IconButton(
                           tooltip: 'مسح البحث',
-                          onPressed: () => widget.controller.setSearch(''),
+                          onPressed: () {
+                            _searchDebounce?.cancel();
+                            _searchController.clear();
+                            widget.controller.setSearch('');
+                          },
                           icon: const Icon(Icons.close_rounded),
                         ),
                   isDense: true,
