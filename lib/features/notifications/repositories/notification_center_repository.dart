@@ -91,8 +91,8 @@ class NotificationCenterRepository {
       params: {'p_company_id': _companyId},
     );
     final count = (result as num?)?.toInt() ?? 0;
-    NotificationUnreadState.update(count);
-    return count;
+    NotificationUnreadState.update(count.clamp(0, 1 << 31));
+    return count < 0 ? 0 : count;
   }
 
   Future<void> markAsRead(String id) async {
@@ -100,7 +100,8 @@ class NotificationCenterRepository {
       'erp_r49_mark_cloud_notification_read',
       params: {'p_company_id': _companyId, 'p_notification_id': id},
     );
-    NotificationUnreadState.update(NotificationUnreadState.count.value - 1);
+    final current = NotificationUnreadState.count.value;
+    NotificationUnreadState.update(current > 0 ? current - 1 : 0);
   }
 
   Future<void> markAllAsRead() async {
