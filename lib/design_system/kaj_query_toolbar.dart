@@ -7,122 +7,148 @@ import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 ///
 /// Modules provide their own filter controls through [filterBuilder], while
 /// the lifecycle and presentation of active conditions remains consistent.
-class KajQueryToolbar extends StatelessWidget {
+class KajQueryToolbar extends StatefulWidget {
   const KajQueryToolbar({
     super.key,
     required this.controller,
     this.hintText = 'بحث في السجلات...',
     this.filterBuilder,
-    this.showSort = true,
+    this.sortBuilder,
     this.compact = false,
   });
 
   final UnifiedQueryController controller;
   final String hintText;
   final WidgetBuilder? filterBuilder;
-  final bool showSort;
+  final WidgetBuilder? sortBuilder;
   final bool compact;
 
   @override
+  State<KajQueryToolbar> createState() => _KajQueryToolbarState();
+}
+
+class _KajQueryToolbarState extends State<KajQueryToolbar> {
+  late final TextEditingController _searchController =
+      TextEditingController(text: widget.controller.state.search);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_syncSearch);
+  }
+
+  @override
+  void didUpdateWidget(covariant KajQueryToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    oldWidget.controller.removeListener(_syncSearch);
+    widget.controller.addListener(_syncSearch);
+    _setSearchText(widget.controller.state.search);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncSearch);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _setSearchText(String value) {
+    if (_searchController.text == value) return;
+    _searchController.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  void _syncSearch() {
+    if (!mounted) return;
+    _setSearchText(widget.controller.state.search);
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final state = controller.state;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final state = widget.controller.state;
+    final brightness = Theme.of(context).brightness;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: KajDesignTokens.space8,
+          runSpacing: KajDesignTokens.space8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Wrap(
-              spacing: KajDesignTokens.space8,
-              runSpacing: KajDesignTokens.space8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SizedBox(
-                  width: compact ? 220 : 320,
-                  child: TextField(
-                    key: const ValueKey('kaj-unified-search'),
-                    controller: TextEditingController(text: state.search)
-                      ..selection = TextSelection.collapsed(
-                        offset: state.search.length,
-                      ),
-                    onChanged: controller.setSearch,
-                    textDirection: TextDirection.rtl,
-                    decoration: InputDecoration(
-                      hintText: hintText,
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: state.search.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: 'مسح البحث',
-                              onPressed: () => controller.setSearch(''),
-                              icon: const Icon(Icons.close_rounded),
-                            ),
-                      isDense: true,
-                      filled: true,
-                      fillColor: KajDesignTokens.raisedSurface(
-                        Theme.of(context).brightness,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          KajDesignTokens.radiusMd,
+            SizedBox(
+              width: widget.compact ? 220 : 320,
+              child: TextField(
+                key: const ValueKey('kaj-unified-search'),
+                controller: _searchController,
+                onChanged: widget.controller.setSearch,
+                textDirection: TextDirection.rtl,
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: state.search.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'مسح البحث',
+                          onPressed: () => widget.controller.setSearch(''),
+                          icon: const Icon(Icons.close_rounded),
                         ),
-                        borderSide: BorderSide(
-                          color: KajDesignTokens.border(
-                            Theme.of(context).brightness,
-                          ),
-                        ),
-                      ),
+                  isDense: true,
+                  filled: true,
+                  fillColor: KajDesignTokens.raisedSurface(brightness),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      KajDesignTokens.radiusMd,
+                    ),
+                    borderSide: BorderSide(
+                      color: KajDesignTokens.border(brightness),
                     ),
                   ),
                 ),
-                if (filterBuilder != null) filterBuilder!(context),
-                if (showSort && state.sorts.isNotEmpty)
-                  OutlinedButton.icon(
-                    onPressed: null,
-                    icon: const Icon(Icons.sort_rounded, size: 17),
-                    label: Text('${state.sorts.length} فرز'),
-                  ),
-              ],
+              ),
             ),
-            if (state.filters.isNotEmpty || state.sorts.isNotEmpty) ...[
-              const SizedBox(height: KajDesignTokens.space8),
-              Wrap(
-                spacing: KajDesignTokens.space6,
-                runSpacing: KajDesignTokens.space6,
-                children: [
-                  ...state.filters.map(
-                    (filter) => InputChip(
-                      key: ValueKey(
-                        'kaj-filter-${filter.key}-${filter.value}',
-                      ),
-                      label: Text('${filter.label}: ${filter.valueLabel}'),
-                      onDeleted: () => controller.removeFilter(filter),
-                    ),
+            if (widget.filterBuilder != null) widget.filterBuilder!(context),
+            if (widget.sortBuilder != null) widget.sortBuilder!(context),
+          ],
+        ),
+        if (state.filters.isNotEmpty || state.sorts.isNotEmpty) ...[
+          const SizedBox(height: KajDesignTokens.space8),
+          Wrap(
+            spacing: KajDesignTokens.space6,
+            runSpacing: KajDesignTokens.space6,
+            children: [
+              ...state.filters.map(
+                (filter) => InputChip(
+                  key: ValueKey('kaj-filter-${filter.key}-${filter.value}'),
+                  label: Text('${filter.label}: ${filter.valueLabel}'),
+                  onDeleted: () => widget.controller.removeFilter(filter),
+                ),
+              ),
+              ...state.sorts.map(
+                (sort) => InputChip(
+                  key: ValueKey('kaj-sort-${sort.field}'),
+                  avatar: Icon(
+                    sort.descending
+                        ? Icons.south_rounded
+                        : Icons.north_rounded,
+                    size: 15,
                   ),
-                  ...state.sorts.map(
-                    (sort) => InputChip(
-                      key: ValueKey('kaj-sort-${sort.field}'),
-                      avatar: Icon(
-                        sort.descending
-                            ? Icons.south_rounded
-                            : Icons.north_rounded,
-                        size: 15,
-                      ),
-                      label: Text(sort.label),
-                      onDeleted: () => controller.removeSort(sort.field),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: controller.clear,
-                    icon: const Icon(Icons.clear_all_rounded, size: 17),
-                    label: const Text('مسح الكل'),
-                  ),
-                ],
+                  label: Text(sort.label),
+                  onDeleted: () => widget.controller.removeSort(sort.field),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: widget.controller.clear,
+                icon: const Icon(Icons.clear_all_rounded, size: 17),
+                label: const Text('مسح الكل'),
               ),
             ],
-          ],
-        );
-      },
+          ),
+        ],
+      ],
     );
   }
 }
