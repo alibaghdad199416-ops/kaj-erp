@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_executor.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,7 +10,6 @@ import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_empty.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_loading.dart';
-import 'package:quality_line_erp/core/widgets/app_search.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
@@ -19,11 +19,8 @@ import 'package:quality_line_erp/features/business_partners/suppliers/models/sup
 import 'package:quality_line_erp/features/business_partners/suppliers/widgets/supplier_card.dart';
 import 'package:quality_line_erp/features/business_partners/shared/data/business_partner_card_service.dart';
 import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
+import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 import 'add_supplier_page.dart';
-
-enum _SupplierFilter { all, active, inactive }
-
-enum _SupplierSort { newest, name, highestBalance }
 
 class SuppliersPage extends StatefulWidget {
   const SuppliersPage({super.key});
@@ -33,41 +30,49 @@ class SuppliersPage extends StatefulWidget {
 }
 
 class _SuppliersPageState extends State<SuppliersPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  _SupplierFilter _filter = _SupplierFilter.all;
-  _SupplierSort _sort = _SupplierSort.newest;
+  late final UnifiedQueryController _queryController = UnifiedQueryController(
+    const UnifiedQueryState(
+      sorts: <UnifiedSortRule>[
+        UnifiedSortRule(
+          field: 'created_at',
+          label: 'الأحدث أولاً',
+          descending: true,
+        ),
+      ],
+    ),
+  );
 
   @override
   void initState() {
     super.initState();
+    _queryController.addListener(_onQueryChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted)
-        unawaited(context.read<SuppliersController>().loadSuppliers());
+      if (mounted) unawaited(context.read<SuppliersController>().loadSuppliers());
     });
+  }
+
+  void _onQueryChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _queryController.removeListener(_onQueryChanged);
+    _queryController.dispose();
     super.dispose();
   }
 
   List<SupplierModel> _visible(List<SupplierModel> suppliers) {
-    final statuses = switch (_filter) {
-      _SupplierFilter.all => const <String>{},
-      _SupplierFilter.active => const <String>{'active'},
-      _SupplierFilter.inactive => const <String>{'inactive'},
-    };
-    final result = UnifiedFilterEngine.apply<SupplierModel>(
-      suppliers,
-      criteria: UnifiedFilterCriteria(
-        searchText: _searchQuery,
-        statuses: statuses,
+    final executor = UnifiedQueryExecutor<SupplierModel>(
+      criteriaBuilder: (state) => UnifiedFilterCriteria(
+        searchText: state.search,
+        statuses: state.filters
+            .where((filter) => filter.key == 'status')
+            .map((filter) => filter.value.toString())
+            .toSet(),
       ),
-      adapter: UnifiedFilterAdapter<SupplierModel>(
+      filterAdapter: UnifiedFilterAdapter<SupplierModel>(
         searchableText: (supplier) => <Object?>[
-          supplier.id,
           supplier.name,
           supplier.phone,
           supplier.alternativePhone,
@@ -80,19 +85,18 @@ class _SuppliersPageState extends State<SuppliersPage> {
         currency: (supplier) => supplier.currency,
         date: (supplier) => supplier.createdAt,
       ),
+      sort: (left, right, field) {
+        switch (field) {
+          case 'name':
+            return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+          case 'opening_balance':
+            return left.openingBalance.compareTo(right.openingBalance);
+          default:
+            return left.createdAt.compareTo(right.createdAt);
+        }
+      },
     );
-
-    switch (_sort) {
-      case _SupplierSort.newest:
-        result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      case _SupplierSort.name:
-        result.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
-      case _SupplierSort.highestBalance:
-        result.sort((a, b) => b.openingBalance.compareTo(a.openingBalance));
-    }
-    return result;
+    return executor.execute(suppliers, _queryController.state);
   }
 
   @override
@@ -101,6 +105,11 @@ class _SuppliersPageState extends State<SuppliersPage> {
     final suppliers = controller.suppliers;
     final visible = _visible(suppliers);
     final canCreate = PermissionAction.allowed(context, 'suppliers.create');
+    final state = _queryController.state;
+    final statusFilter = state.filters
+        .where((filter) => filter.key == 'status')
+        .map((filter) => filter.value.toString())
+        .firstOrNull;
 
     return AppEntityPage(
       hideHeader: true,
@@ -120,86 +129,62 @@ class _SuppliersPageState extends State<SuppliersPage> {
           ),
       ],
       statistics: _SupplierStatistics(controller: controller),
-      toolbar: LayoutBuilder(
-        builder: (context, constraints) {
-          final search = AppSearch(
-            controller: _searchController,
-            hintText: AppTranslation.translate(
-              'البحث بالاسم أو الهاتف أو الشركة',
-            ),
-            onChanged: (value) => setState(() => _searchQuery = value),
-          );
-          final filters = SegmentedButton<_SupplierFilter>(
-            segments: const [
-              ButtonSegment(value: _SupplierFilter.all, label: AppText('الكل')),
-              ButtonSegment(
-                value: _SupplierFilter.active,
-                label: AppText('نشط'),
+      toolbar: KajQueryToolbar(
+        controller: _queryController,
+        hintText: 'البحث بالاسم أو الهاتف أو الشركة أو العنوان',
+        filterBuilder: (_) => SegmentedButton<String?>(
+          segments: const [
+            ButtonSegment<String?>(value: null, label: AppText('الكل')),
+            ButtonSegment<String?>(value: 'active', label: AppText('نشط')),
+            ButtonSegment<String?>(value: 'inactive', label: AppText('غير نشط')),
+          ],
+          selected: {statusFilter},
+          showSelectedIcon: false,
+          onSelectionChanged: (value) {
+            final selected = value.first;
+            if (selected == null) {
+              _queryController.removeFilterKey('status');
+            } else {
+              _queryController.addFilter(
+                UnifiedFilterToken(
+                  key: 'status',
+                  label: 'الحالة',
+                  value: selected,
+                  valueLabel: selected == 'active' ? 'نشط' : 'غير نشط',
+                ),
+              );
+            }
+          },
+        ),
+        sortBuilder: (_) => PopupMenuButton<String>(
+          tooltip: AppTranslation.translate('إضافة فرز'),
+          icon: const Icon(Icons.sort_rounded),
+          onSelected: (field) {
+            final rule = switch (field) {
+              'name' => const UnifiedSortRule(field: 'name', label: 'الاسم'),
+              'opening_balance' => const UnifiedSortRule(
+                field: 'opening_balance',
+                label: 'الرصيد',
+                descending: true,
               ),
-              ButtonSegment(
-                value: _SupplierFilter.inactive,
-                label: AppText('غير نشط'),
+              _ => const UnifiedSortRule(
+                field: 'created_at',
+                label: 'الأحدث أولاً',
+                descending: true,
               ),
-            ],
-            selected: {_filter},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) =>
-                setState(() => _filter = value.first),
-          );
-          final sort = PopupMenuButton<_SupplierSort>(
-            tooltip: AppTranslation.translate('الترتيب'),
-            initialValue: _sort,
-            onSelected: (value) => setState(() => _sort = value),
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: _SupplierSort.newest,
-                child: AppText('الأحدث أولاً'),
-              ),
-              PopupMenuItem(
-                value: _SupplierSort.name,
-                child: AppText('حسب الاسم'),
-              ),
-              PopupMenuItem(
-                value: _SupplierSort.highestBalance,
-                child: AppText('أعلى رصيد'),
-              ),
-            ],
-            child: ActionChip(
-              avatar: const Icon(Icons.sort_rounded, size: 17),
-              label: AppText(_sortLabel),
-              onPressed: null,
-            ),
-          );
-          final controls = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [filters, sort],
-          );
-          if (constraints.maxWidth < 760) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [search, const SizedBox(height: 8), controls],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: search),
-              const SizedBox(width: 8),
-              controls,
-            ],
-          );
-        },
+            };
+            _queryController.addSort(rule);
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'created_at', child: AppText('الأحدث أولاً')),
+            PopupMenuItem(value: 'name', child: AppText('الاسم')),
+            PopupMenuItem(value: 'opening_balance', child: AppText('الرصيد')),
+          ],
+        ),
       ),
       body: _buildBody(controller, suppliers, visible, canCreate),
     );
   }
-
-  String get _sortLabel => switch (_sort) {
-    _SupplierSort.newest => 'الأحدث أولاً',
-    _SupplierSort.name => 'حسب الاسم',
-    _SupplierSort.highestBalance => 'أعلى رصيد',
-  };
 
   Widget _buildBody(
     SuppliersController controller,
