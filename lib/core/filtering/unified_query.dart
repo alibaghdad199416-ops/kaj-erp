@@ -45,6 +45,13 @@ class UnifiedQuery<T> {
       );
 }
 
+/// Null-safe access to the first item of an iterable without requiring
+/// the collection package. Kept in the shared query layer so every module
+/// using Unified Query can use the same convenience API.
+extension UnifiedIterableFirstOrNull<E> on Iterable<E> {
+  E? get firstOrNull => isEmpty ? null : first;
+}
+
 class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryController([
     UnifiedQueryState initial = const UnifiedQueryState(),
