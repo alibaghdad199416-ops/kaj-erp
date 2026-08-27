@@ -46,7 +46,7 @@ class CustomersController extends ChangeNotifier {
     );
   }
 
-  Future<void> removeCustomer(String id) async {
+  Future<void> deleteCustomer(String id) async {
     await _repository.deleteCustomer(id);
     _customers = _customers
         .where((value) => value.id != id)
