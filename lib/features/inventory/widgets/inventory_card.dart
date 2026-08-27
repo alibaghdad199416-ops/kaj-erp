@@ -148,20 +148,29 @@ class InventoryCard extends StatelessWidget {
                           label: _t(context, 'تفاصيل', 'Details'),
                           onPressed: onView,
                         ),
-                        _ActionButton(
-                          icon: Icons.edit_outlined,
-                          label: _t(context, 'تعديل', 'Edit'),
-                          onPressed: onEdit,
+                        PermissionVisibility(
+                          permission: 'inventory.update',
+                          child: _ActionButton(
+                            icon: Icons.edit_outlined,
+                            label: _t(context, 'تعديل', 'Edit'),
+                            onPressed: onEdit,
+                          ),
                         ),
-                        _ActionButton(
-                          icon: Icons.history_rounded,
-                          label: _t(context, 'السجل', 'History'),
-                          onPressed: onHistory,
+                        PermissionVisibility(
+                          permission: 'inventory.view_history',
+                          child: _ActionButton(
+                            icon: Icons.history_rounded,
+                            label: _t(context, 'السجل', 'History'),
+                            onPressed: onHistory,
+                          ),
                         ),
-                        IconButton(
-                          tooltip: _t(context, 'حذف', 'Delete'),
-                          onPressed: onDelete,
-                          icon: Icon(Icons.delete_outline, color: colors.error),
+                        PermissionVisibility(
+                          permission: 'inventory.delete',
+                          child: IconButton(
+                            tooltip: _t(context, 'حذف', 'Delete'),
+                            onPressed: onDelete,
+                            icon: Icon(Icons.delete_outline, color: colors.error),
+                          ),
                         ),
                       ],
                     ),
