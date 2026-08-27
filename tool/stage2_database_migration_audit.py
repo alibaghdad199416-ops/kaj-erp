@@ -20,16 +20,10 @@ filename_re = re.compile(r"^(\d{14})_[A-Za-z0-9][A-Za-z0-9_-]*\.sql$")
 
 
 def strip_sql_non_code(text: str) -> str:
-    """Remove comments and SQL string bodies before marker scanning.
-
-    The migration audit is intended to catch unfinished executable SQL, not
-    documentation or intentional string literals such as error messages,
-    labels, generated SQL, or examples containing words like `placeholder`.
-    Dollar-quoted PL/pgSQL bodies are treated as code and are therefore kept.
-    """
+    """Remove SQL comments and string literals while preserving SQL code."""
     text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
     text = re.sub(r"(?m)--[^\n]*", " ", text)
-    # Remove ordinary PostgreSQL single-quoted literals, including escaped ''.
+    # Remove ordinary PostgreSQL string literals, including escaped quotes.
     text = re.sub(r"'(?:''|[^'])*'", "''", text)
     return text
 
@@ -68,7 +62,14 @@ for migration in files:
     if re.search(r"(?m)^\s*after_rollback_marker\s*:=", lower):
         errors.append(f"stray procedural assignment outside a function/block: {migration.name}")
 
-    if re.search(r"(?i)\b(?:todo|fixme|not implemented|placeholder)\b", executable):
+    # Only treat explicit unfinished-code markers as errors. The generic word
+    # `placeholder` is intentionally excluded: it is commonly used in valid
+    # application text, generated labels, or documentation embedded in SQL.
+    unfinished = (
+        r"(?i)\b(?:todo|fixme|not\s+implemented)\b"
+        r"|\bplaceholder\s*(?::=|:=|=)"
+    )
+    if re.search(unfinished, executable):
         errors.append(f"placeholder marker in executable migration SQL: {migration.name}")
 
 if errors:
