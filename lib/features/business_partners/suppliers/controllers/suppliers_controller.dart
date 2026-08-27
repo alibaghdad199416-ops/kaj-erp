@@ -17,13 +17,11 @@ class SuppliersController extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _errorMessage;
-  String _searchQuery = '';
   bool _hasLoaded = false;
 
   List<SupplierModel> get suppliers => List.unmodifiable(_suppliers);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String get searchQuery => _searchQuery;
   bool get hasLoaded => _hasLoaded;
 
   int get totalSuppliers => _suppliers.length;
@@ -67,32 +65,6 @@ class SuppliersController extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
-  }
-
-  Future<void> searchSuppliers(String query) async {
-    _searchQuery = query.trim();
-    _setLoading(true);
-    _clearError();
-
-    try {
-      final suppliers = await _repository.searchSuppliers(_searchQuery);
-
-      _suppliers
-        ..clear()
-        ..addAll(suppliers);
-    } catch (error, stackTrace) {
-      AppLogger.debug('SuppliersController.searchSuppliers error: $error');
-      AppLogger.stack(stackTrace);
-
-      _setError('تعذر البحث في الموردين.');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<void> clearSearch() async {
-    _searchQuery = '';
-    await loadSuppliers();
   }
 
   Future<void> addSupplier(SupplierModel supplier) async {
