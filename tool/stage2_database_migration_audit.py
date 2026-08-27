@@ -18,28 +18,41 @@ seen_stamps: set[str] = set()
 previous_name = ""
 filename_re = re.compile(r"^(\d{14})_[A-Za-z0-9][A-Za-z0-9_-]*\.sql$")
 
-# Keep safety checks focused on executable SQL. Documentation comments may
-# legitimately contain examples such as <FIREBASE_UID> or the word
-# "placeholder" and must not make an otherwise valid migration fail.
-def strip_sql_comments(text: str) -> str:
+
+def strip_sql_non_code(text: str) -> str:
+    """Remove comments and SQL string bodies before marker scanning.
+
+    The migration audit is intended to catch unfinished executable SQL, not
+    documentation or intentional string literals such as error messages,
+    labels, generated SQL, or examples containing words like `placeholder`.
+    Dollar-quoted PL/pgSQL bodies are treated as code and are therefore kept.
+    """
     text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
-    return re.sub(r"(?m)--[^\n]*", " ", text)
+    text = re.sub(r"(?m)--[^\n]*", " ", text)
+    # Remove ordinary PostgreSQL single-quoted literals, including escaped ''.
+    text = re.sub(r"'(?:''|[^'])*'", "''", text)
+    return text
+
 
 for migration in files:
     match = filename_re.fullmatch(migration.name)
     if not match:
         errors.append(f"invalid migration filename: {migration.name}")
         continue
+
     stamp = match.group(1)
     if stamp in seen_stamps:
         errors.append(f"duplicate migration timestamp: {stamp}")
     seen_stamps.add(stamp)
+
     if previous_name and migration.name <= previous_name:
-        errors.append(f"migration ordering is not strictly increasing: {previous_name} -> {migration.name}")
+        errors.append(
+            f"migration ordering is not strictly increasing: {previous_name} -> {migration.name}"
+        )
     previous_name = migration.name
 
     text = migration.read_text(encoding="utf-8", errors="replace")
-    executable = strip_sql_comments(text)
+    executable = strip_sql_non_code(text)
     lower = executable.lower()
 
     forbidden = {
