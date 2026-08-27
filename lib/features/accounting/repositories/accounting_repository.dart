@@ -140,20 +140,6 @@ class AccountingRepository {
     );
   }
 
-  Future<List<JournalEntryModel>> searchEntries(String query) async {
-    final value = query.trim().toLowerCase();
-    final entries = await getEntries();
-    if (value.isEmpty) return entries;
-    return entries
-        .where(
-          (entry) =>
-              entry.entryNumber.toLowerCase().contains(value) ||
-              entry.description.toLowerCase().contains(value) ||
-              (entry.referenceType ?? '').toLowerCase().contains(value),
-        )
-        .toList(growable: false);
-  }
-
   Future<AccountStatementResult> getAccountStatement({
     required AccountModel account,
     required DateTime fromDate,
