@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/data/query_page.dart';
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 
 import 'package:quality_line_erp/features/inventory/data/inventory_repository.dart';
 import 'package:quality_line_erp/features/inventory/models/inventory_group_model.dart';
@@ -12,6 +13,7 @@ import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
 
 class InventoryController extends ChangeNotifier {
   final InventoryRepository _repository = InventoryRepository();
+  final UnifiedQueryController query = UnifiedQueryController();
 
   List<InventoryModel> _items = [];
   List<InventoryModel> _maintenanceItems = [];
@@ -25,8 +27,19 @@ class InventoryController extends ChangeNotifier {
   List<InventoryGroupModel> _groups = [];
   bool _isLoading = false;
   String? _selectedWarehouseId;
-  String _searchQuery = '';
-  String? _selectedGroupId;
+
+  InventoryController() {
+    query.addListener(_notifyQueryChanged);
+  }
+
+  void _notifyQueryChanged() => notifyListeners();
+
+  @override
+  void dispose() {
+    query.removeListener(_notifyQueryChanged);
+    query.dispose();
+    super.dispose();
+  }
 
   List<InventoryModel> get items => List.unmodifiable(_items);
   List<InventoryModel> get maintenanceItems =>
@@ -37,18 +50,22 @@ class InventoryController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get hasLoaded => _inventoryLoadedAt.isNotEmpty;
   String? get selectedWarehouseId => _selectedWarehouseId;
-  String get searchQuery => _searchQuery;
-  String? get selectedGroupId => _selectedGroupId;
 
-  List<InventoryModel> get filteredItems =>
-      UnifiedFilterEngine.apply<InventoryModel>(
+  /// Compatibility accessors retained only while existing pages migrate to
+  /// [query]. They contain no independent state.
+  String get searchQuery => query.state.search;
+  String? get selectedGroupId => _groupFilterValue;
+
+  String? get _groupFilterValue {
+    for (final token in query.state.filters) {
+      if (token.key == 'inventory.group') return token.value.toString();
+    }
+    return null;
+  }
+
+  List<InventoryModel> get filteredItems => UnifiedFilterEngine.apply<InventoryModel>(
         _items,
-        criteria: UnifiedFilterCriteria(
-          searchText: _searchQuery,
-          groupIds: _selectedGroupId == null
-              ? const <String>{}
-              : <String>{_selectedGroupId!},
-        ),
+        criteria: _criteriaFromQuery(),
         adapter: UnifiedFilterAdapter<InventoryModel>(
           searchableText: (item) => <Object?>[
             item.code,
@@ -61,11 +78,68 @@ class InventoryController extends ChangeNotifier {
             item.serialNumber,
             item.description,
           ],
+          warehouseId: (item) => item.warehouseId,
           groupId: (item) => item.groupId,
           type: (item) => item.itemType,
           currency: (item) => item.costCurrency ?? item.currency,
         ),
+        sorts: _sortsFromQuery(),
       );
+
+  UnifiedFilterCriteria _criteriaFromQuery() {
+    var warehouseIds = <String>{};
+    var groupIds = <String>{};
+    for (final token in query.state.filters) {
+      switch (token.key) {
+        case 'inventory.warehouse':
+          warehouseIds = {token.value.toString()};
+          break;
+        case 'inventory.group':
+          groupIds = {token.value.toString()};
+          break;
+      }
+    }
+    return UnifiedFilterCriteria(
+      searchText: query.state.search,
+      warehouseIds: warehouseIds,
+      groupIds: groupIds,
+    );
+  }
+
+  List<UnifiedSortCriterion<InventoryModel>> _sortsFromQuery() {
+    return query.state.sorts.map((rule) {
+      final direction = rule.descending
+          ? UnifiedSortDirection.descending
+          : UnifiedSortDirection.ascending;
+      Comparable<dynamic> value(InventoryModel item) {
+        switch (rule.field) {
+          case 'code':
+            return item.code.toLowerCase();
+          case 'name':
+            return item.name.toLowerCase();
+          case 'quantity':
+            return item.quantity;
+          case 'availableQuantity':
+            return item.availableQuantity;
+          case 'expectedQuantity':
+            return item.expectedQuantity;
+          case 'purchasePrice':
+            return item.purchasePrice;
+          case 'salePrice':
+            return item.salePrice;
+          case 'unitCost':
+            return item.unitCost;
+          default:
+            return item.name.toLowerCase();
+        }
+      }
+      return UnifiedSortCriterion<InventoryModel>(
+        key: rule.field,
+        value: value,
+        direction: direction,
+      );
+    }).toList(growable: false);
+  }
 
   Future<void> loadInventory({bool force = false}) {
     final warehouseId = _selectedWarehouseId;
@@ -158,16 +232,33 @@ class InventoryController extends ChangeNotifier {
     _inventoryLoadedAt.clear();
   }
 
-  void setSearchQuery(String value) {
-    _searchQuery = value;
-    notifyListeners();
-  }
+  /// Legacy compatibility API. New UI must use [query.setSearch].
+  @Deprecated('Use query.setSearch()')
+  void setSearchQuery(String value) => query.setSearch(value);
 
+  /// Legacy compatibility API. New UI must use [query.addFilter].
+  @Deprecated('Use query.addFilter()')
   void setGroupFilter(String? value) {
-    _selectedGroupId = value;
-    notifyListeners();
+    if (value == null || value.isEmpty) {
+      query.removeFilterKey('inventory.group');
+      return;
+    }
+    query.addFilter(
+      UnifiedFilterToken(
+        key: 'inventory.group',
+        label: 'Group',
+        value: value,
+        valueLabel: _groups
+                .where((item) => item.id == value)
+                .map((item) => item.name)
+                .firstOrNull ??
+            value,
+      ),
+    );
   }
 
+  /// Warehouse selection controls the Cloud data scope. It is intentionally
+  /// separate from interactive result filtering.
   Future<void> setWarehouseFilter(String? value) async {
     if (_selectedWarehouseId == value) return;
     _selectedWarehouseId = value;
@@ -282,7 +373,9 @@ class InventoryController extends ChangeNotifier {
   Future<void> deleteGroup(String id) async {
     await _repository.deleteGroup(id);
     invalidateInventoryCache();
-    if (_selectedGroupId == id) _selectedGroupId = null;
+    if (_groupFilterValue == id) {
+      query.removeFilterKey('inventory.group');
+    }
     AppDataChangeBus.instance.publish('inventory', operation: 'group-delete');
     await loadInventory(force: true);
   }
@@ -308,10 +401,10 @@ class InventoryController extends ChangeNotifier {
       freightCost: freightCost,
       customsCost: customsCost,
       insuranceCost: insuranceCost,
-      otherCost: otherCost,
       supplierId: supplierId,
       supplierName: supplierName,
       notes: notes,
+      otherCost: otherCost,
     );
     invalidateMaintenanceCatalog();
     invalidateInventoryCache();
