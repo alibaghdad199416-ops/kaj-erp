@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 
 void main() {
   test('all populated conditions are combined with logical AND', () {
@@ -81,20 +82,23 @@ void main() {
 
     expect(sorted.map((row) => row['name']).toList(), ['A', 'C', 'B']);
 
-    final withoutScoreSort = UnifiedFilterEngine.apply(
-      rows,
-      criteria: const UnifiedFilterCriteria(),
-      adapter: adapter,
+    final query = UnifiedQuery<Map<String, Object?>>(
+      criteria: const UnifiedFilterCriteria(searchText: 'a'),
       sorts: [
+        UnifiedSortCriterion<Map<String, Object?>>(
+          key: 'score',
+          value: (row) => row['score']! as int,
+          direction: UnifiedSortDirection.descending,
+        ),
         UnifiedSortCriterion<Map<String, Object?>>(
           key: 'name',
           value: (row) => row['name']! as String,
         ),
       ],
     );
-    expect(
-      withoutScoreSort.map((row) => row['name']).toList(),
-      ['A', 'B', 'C'],
-    );
+    final withoutScore = query.removeSort('score');
+    expect(withoutScore.criteria.searchText, 'a');
+    expect(withoutScore.sorts.map((sort) => sort.key), ['name']);
+    expect(query.sorts.map((sort) => sort.key), ['score', 'name']);
   });
 }
