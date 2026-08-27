@@ -37,8 +37,6 @@ class PurchasesController extends ChangeNotifier {
 
   void _notifyQueryChanged() => notifyListeners();
 
-  /// The public collection is query-aware so existing list pages automatically
-  /// consume the canonical search/filter/sort state.
   List<PurchaseModel> get purchases => filteredPurchases;
 
   List<PurchaseModel> get filteredPurchases =>
@@ -262,11 +260,6 @@ class PurchasesController extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
-  @Deprecated('Use query.setSearch() and filteredPurchases')
-  Future<void> searchPurchases(String value) async => query.setSearch(value);
-
-  Future<void> clearSearch() async => query.clear();
 
   Future<bool> invoiceNumberExists(
     String number, {
