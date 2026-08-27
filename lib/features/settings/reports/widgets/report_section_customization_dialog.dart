@@ -188,6 +188,17 @@ class _ReportSectionCustomizationDialogState
   ];
 
   @override
+  void dispose() {
+    for (final controller in _rowLimits.values) {
+      controller.dispose();
+    }
+    for (final controller in _queries.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: AppText(
