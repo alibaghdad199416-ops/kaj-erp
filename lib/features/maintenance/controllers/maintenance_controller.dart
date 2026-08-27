@@ -34,6 +34,10 @@ class MaintenanceController extends ChangeNotifier {
 
   void _notifyQueryChanged() => notifyListeners();
 
+  DateTime _dateOf(MaintenanceOrderModel order) =>
+      DateTime.tryParse(order.maintenanceDate) ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+
   List<MaintenanceOrderModel> get orders => filteredOrders;
 
   List<MaintenanceOrderModel> get filteredOrders =>
@@ -53,7 +57,7 @@ class MaintenanceController extends ChangeNotifier {
           ],
           status: (order) => order.workflowStage,
           currency: (order) => order.currencyCode,
-          date: (order) => order.createdAt,
+          date: _dateOf,
         ),
         sorts: _sortsFromQuery(),
       );
@@ -90,9 +94,9 @@ class MaintenanceController extends ChangeNotifier {
             case 'price':
               return order.salePrice;
             case 'date':
-              return order.createdAt;
+              return _dateOf(order);
             default:
-              return order.createdAt;
+              return _dateOf(order);
           }
         }
 
