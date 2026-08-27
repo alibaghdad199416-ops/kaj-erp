@@ -96,14 +96,16 @@ class NotificationCenterRepository {
   }
 
   Future<void> markAsRead(String id) async {
+    final notificationId = id.trim();
+    if (notificationId.isEmpty) {
+      throw ArgumentError.value(id, 'id', 'Notification id is required.');
+    }
     await _client.rpc(
       'erp_r49_mark_cloud_notification_read',
-      params: {'p_company_id': _companyId, 'p_notification_id': id},
+      params: {'p_company_id': _companyId, 'p_notification_id': notificationId},
     );
-    // The server is authoritative for the unread count. Do not decrement the
-    // local value blindly: the notification may already be read, another tab
-    // may have changed the count, or the RPC may be retried. The next count
-    // refresh synchronizes the shared unread state with Cloud.
+    // Cloud is authoritative. The caller can refresh unreadCount() to obtain
+    // the exact value instead of applying an unsafe local decrement.
   }
 
   Future<void> markAllAsRead() async {
@@ -111,14 +113,22 @@ class NotificationCenterRepository {
       'erp_r49_mark_all_cloud_notifications_read',
       params: {'p_company_id': _companyId},
     );
-    NotificationUnreadState.update(0);
+    // Do not assume zero locally: another tab/session or server-side policy
+    // may affect the result. Synchronize from Cloud after the mutation.
+    await unreadCount();
   }
 
   Future<void> archiveNotification(String id) async {
+    final notificationId = id.trim();
+    if (notificationId.isEmpty) {
+      throw ArgumentError.value(id, 'id', 'Notification id is required.');
+    }
     await _client.rpc(
       'erp_r49_archive_cloud_notification',
-      params: {'p_company_id': _companyId, 'p_notification_id': id},
+      params: {'p_company_id': _companyId, 'p_notification_id': notificationId},
     );
+    // Archiving can change the visible/unread set, so the next page refresh
+    // should read both notifications and unread count from Cloud.
   }
 
   static NotificationSeverity _severity(String? value) => switch (value) {
