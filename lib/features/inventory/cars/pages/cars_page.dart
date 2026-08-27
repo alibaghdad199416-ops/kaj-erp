@@ -122,7 +122,7 @@ class _CarsPageState extends State<CarsPage> {
 
   String? _selectedStatus(UnifiedQueryState state) {
     final token = state.filters.where((item) => item.key == 'status').firstOrNull;
-    return token?.value?.toString();
+    return token?.value.toString();
   }
 
   void _setStatus(String? value) {
@@ -143,6 +143,8 @@ class _CarsPageState extends State<CarsPage> {
 
   String _statusLabel(CarStatus status) {
     switch (status) {
+      case CarStatus.defined:
+        return 'معرفة';
       case CarStatus.available:
         return 'متاحة';
       case CarStatus.purchasing:
@@ -151,8 +153,8 @@ class _CarsPageState extends State<CarsPage> {
         return 'قيد البيع';
       case CarStatus.sold:
         return 'مباعة';
-      default:
-        return status.name;
+      case CarStatus.damaged:
+        return 'تالفة';
     }
   }
 
@@ -234,19 +236,20 @@ class _CarsPageState extends State<CarsPage> {
           return UnifiedSortCriterion<CarModel>(
             key: rule.field,
             direction: direction,
-            value: (car) => car.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+            value: (car) => DateTime.tryParse(car.purchaseDate ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0),
           );
         case 'number':
           return UnifiedSortCriterion<CarModel>(
             key: rule.field,
             direction: direction,
-            value: (car) => car.carNumber ?? '',
+            value: (car) => car.carNumber,
           );
         case 'plate':
           return UnifiedSortCriterion<CarModel>(
             key: rule.field,
             direction: direction,
-            value: (car) => car.plateNumber ?? '',
+            value: (car) => car.plateNumber,
           );
         case 'cost':
           return UnifiedSortCriterion<CarModel>(
@@ -354,15 +357,12 @@ class _CarsPageState extends State<CarsPage> {
           sorts: _sorts(state),
         );
 
-        final statusOptions = CarStatus.values
-            .where((status) => status != CarStatus.unknown)
-            .map(
-              (status) => DropdownMenuItem<String>(
-                value: status.name,
-                child: Text(_statusLabel(status)),
-              ),
-            )
-            .toList();
+        final statusOptions = CarStatus.values.map(
+          (status) => DropdownMenuItem<String>(
+            value: status.name,
+            child: Text(_statusLabel(status)),
+          ),
+        ).toList();
 
         final sortOptions = <UnifiedQuerySortOption>[
           const UnifiedQuerySortOption(
