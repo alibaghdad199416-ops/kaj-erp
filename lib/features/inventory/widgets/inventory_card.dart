@@ -38,6 +38,7 @@ class InventoryCard extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final colors = Theme.of(context).colorScheme;
     return Container(
+      constraints: const BoxConstraints(minHeight: KajDesignTokens.cardMinHeight),
       decoration: BoxDecoration(
         color: KajDesignTokens.surface(brightness),
         borderRadius: BorderRadius.circular(KajDesignTokens.radiusLg),
@@ -48,15 +49,15 @@ class InventoryCard extends StatelessWidget {
       child: InkWell(
         onTap: onView,
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(KajDesignTokens.space8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               _field(
                 'image',
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(
                       KajDesignTokens.radiusMd,
@@ -69,7 +70,7 @@ class InventoryCard extends StatelessWidget {
                   child: _image(context),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: KajDesignTokens.space8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,6 +91,7 @@ class InventoryCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 4),
                         _field('quantity', _StatusBadge(item: item)),
                       ],
                     ),
@@ -137,10 +139,10 @@ class InventoryCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
+                      spacing: 2,
+                      runSpacing: 2,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: <Widget>[
                         _ActionButton(
@@ -159,6 +161,7 @@ class InventoryCard extends StatelessWidget {
                           onPressed: onHistory,
                         ),
                         IconButton(
+                          visualDensity: VisualDensity.compact,
                           tooltip: _t(context, 'حذف', 'Delete'),
                           onPressed: onDelete,
                           icon: Icon(Icons.delete_outline, color: colors.error),
@@ -180,12 +183,12 @@ class InventoryCard extends StatelessWidget {
     if (value == null || value.isEmpty) {
       return ColoredBox(
         color: Theme.of(context).colorScheme.primary.withValues(alpha: .06),
-        child: const Center(child: Icon(Icons.inventory_2_outlined, size: 38)),
+        child: const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
       );
     }
     final bytes = Base64ImageCache.instance.decode(value);
     if (bytes == null) {
-      return const Center(child: Icon(Icons.broken_image_outlined, size: 34));
+      return const Center(child: Icon(Icons.broken_image_outlined, size: 32));
     }
     return Image.memory(
       bytes,
@@ -193,7 +196,7 @@ class InventoryCard extends StatelessWidget {
       gaplessPlayback: true,
       filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) =>
-          const Center(child: Icon(Icons.broken_image_outlined, size: 34)),
+          const Center(child: Icon(Icons.broken_image_outlined, size: 32)),
     );
   }
 }
@@ -207,7 +210,7 @@ class _ValueChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(10),
@@ -235,6 +238,12 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onPressed,
+    style: TextButton.styleFrom(
+      minimumSize: const Size(0, KajDesignTokens.controlHeightCompact),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    ),
     icon: Icon(icon, size: 14),
     label: AppText(label, style: const TextStyle(fontSize: 10)),
   );
@@ -252,7 +261,7 @@ class _StatusBadge extends StatelessWidget {
         ? (warning ? 'منخفض' : 'متوفر')
         : (warning ? 'Low stock' : 'Available');
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(999),
