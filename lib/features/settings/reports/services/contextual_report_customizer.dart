@@ -49,7 +49,7 @@ class ContextualReportCustomizer {
         : <UnifiedSortCriterion<List<String>>>[
             UnifiedSortCriterion<List<String>>(
               key: sortColumn!,
-              direction: options.sortAscending[section.key] ?? true
+              direction: (options.sortAscending[section.key] ?? true)
                   ? UnifiedSortDirection.ascending
                   : UnifiedSortDirection.descending,
               value: (row) => _sortableValue(row, sortIndex),
