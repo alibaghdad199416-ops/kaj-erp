@@ -111,6 +111,22 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     }
   }
 
+  Future<void> _markAllAsRead() async {
+    if (_unreadCount == 0) return;
+    try {
+      await _repository.markAllAsRead();
+      if (mounted) await _load();
+    } catch (error, stackTrace) {
+      AppLogger.debug('Mark all notifications read failed: $error\n$stackTrace');
+      if (mounted) _showError(userFacingError(
+        error,
+        isArabic: context.l10n.isArabic,
+        arabicFallback: 'تعذر تعليم الإشعارات كمقروءة.',
+        englishFallback: 'Unable to mark all notifications as read.',
+      ));
+    }
+  }
+
   Future<void> _archive(String id) async {
     if (id.trim().isEmpty) return;
     try {
@@ -211,7 +227,6 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     final visiblePersistent = _visiblePersistent();
     final critical = _alerts.where((e) => e.severity == NotificationSeverity.critical).length;
     final warning = _alerts.where((e) => e.severity == NotificationSeverity.warning).length;
-    final info = _alerts.where((e) => e.severity == NotificationSeverity.info).length;
 
     final filterOptions = <UnifiedQueryFilterOption>[
       UnifiedQueryFilterOption(token: UnifiedFilterToken(key: _severityKey, label: ar ? 'النوع' : 'Type', value: 'critical', valueLabel: ar ? 'حرج' : 'Critical'), icon: Icons.crisis_alert_rounded),
@@ -240,7 +255,15 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
                 KajSignatureMetricData(label: ar ? 'تحذيرات' : 'WARNINGS', value: '$warning', icon: Icons.warning_amber_rounded, accent: KajDesignTokens.warning),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: _unreadCount == 0 ? null : () => unawaited(_markAllAsRead()),
+                icon: const Icon(Icons.done_all_rounded, size: 18),
+                label: AppText(ar ? 'تعليم الكل كمقروء' : 'Mark all as read'),
+              ),
+            ),
             UnifiedQueryToolbar(
               controller: _queryController,
               searchHint: ar ? 'ابحث في العنوان والوصف والنوع والمرجع والمستخدم...' : 'Search title, message, type, reference and user...',
@@ -302,6 +325,7 @@ class _PersistentNotificationCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onMarkRead;
   final VoidCallback onArchive;
+
   @override
   Widget build(BuildContext context) {
     final isArabic = AppTranslation.isArabic;
@@ -317,6 +341,7 @@ class _PersistentNotificationCard extends StatelessWidget {
     final createdAt = DateTime.tryParse('${notification['createdAt'] ?? notification['created_at'] ?? ''}')?.toLocal();
     final user = '${notification['userName'] ?? notification['user_name'] ?? ''}'.trim();
     final reference = '${notification['reference'] ?? notification['referenceNumber'] ?? notification['reference_number'] ?? ''}'.trim();
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: isRead ? 0 : 1,
@@ -325,33 +350,71 @@ class _PersistentNotificationCard extends StatelessWidget {
         onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(width: 38, height: 38, decoration: BoxDecoration(color: tone.withValues(alpha: .12), borderRadius: BorderRadius.circular(11)), child: Icon(Icons.notifications_outlined, color: tone, size: 20)),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                AppText(title, style: TextStyle(fontWeight: isRead ? FontWeight.w700 : FontWeight.w900, fontSize: 14)),
-                if (!isRead) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: tone.withValues(alpha: .11), borderRadius: BorderRadius.circular(20)), child: AppText(isArabic ? 'غير مقروء' : 'Unread', style: TextStyle(color: tone, fontSize: 10, fontWeight: FontWeight.w700))),
-              ]),
-              if (body.isNotEmpty) ...[const SizedBox(height: 3), AppText(body, style: const TextStyle(fontSize: 12))],
-              const SizedBox(height: 5),
-              Wrap(spacing: 10, runSpacing: 3, children: [
-                if (createdAt != null) _MetaText(DateFormat('yyyy-MM-dd HH:mm').format(createdAt)),
-                if (user.isNotEmpty) _MetaText(isArabic ? 'المستخدم: $user' : 'User: $user'),
-                if (reference.isNotEmpty) _MetaText(isArabic ? 'المرجع: $reference' : 'Ref: $reference'),
-              ]),
-            ])),
-            const SizedBox(width: 4),
-            Wrap(spacing: 0, children: [
-              if (!isRead) IconButton(tooltip: isArabic ? 'تعليم كمقروء' : 'Mark as read', onPressed: onMarkRead, icon: const Icon(Icons.mark_email_read_outlined, size: 19)),
-              IconButton(tooltip: isArabic ? 'أرشفة الإشعار' : 'Archive notification', onPressed: onArchive, icon: const Icon(Icons.archive_outlined, size: 19)),
-              IconButton(tooltip: isArabic ? 'فتح السجل المرتبط' : 'Open linked record', onPressed: onOpen, icon: const Icon(Icons.open_in_new_rounded, size: 19)),
-            ]),
-          ]),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 620;
+              final content = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 38, height: 38, decoration: BoxDecoration(color: tone.withValues(alpha: .12), borderRadius: BorderRadius.circular(11)), child: Icon(Icons.notifications_outlined, color: tone, size: 20)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                      AppText(title, style: TextStyle(fontWeight: isRead ? FontWeight.w700 : FontWeight.w900, fontSize: 14)),
+                      if (!isRead) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: tone.withValues(alpha: .11), borderRadius: BorderRadius.circular(20)), child: AppText(isArabic ? 'غير مقروء' : 'Unread', style: TextStyle(color: tone, fontSize: 10, fontWeight: FontWeight.w700))),
+                    ]),
+                    if (body.isNotEmpty) ...[const SizedBox(height: 3), AppText(body, style: const TextStyle(fontSize: 12))],
+                    const SizedBox(height: 5),
+                    Wrap(spacing: 10, runSpacing: 3, children: [
+                      if (createdAt != null) _MetaText(DateFormat('yyyy-MM-dd HH:mm').format(createdAt)),
+                      if (user.isNotEmpty) _MetaText(isArabic ? 'المستخدم: $user' : 'User: $user'),
+                      if (reference.isNotEmpty) _MetaText(isArabic ? 'المرجع: $reference' : 'Ref: $reference'),
+                    ]),
+                  ])),
+                  if (!compact) ...[
+                    const SizedBox(width: 4),
+                    _NotificationActions(isRead: isRead, isArabic: isArabic, onMarkRead: onMarkRead, onArchive: onArchive, onOpen: onOpen),
+                  ],
+                ],
+              );
+
+              if (!compact) return content;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  content,
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: _NotificationActions(isRead: isRead, isArabic: isArabic, onMarkRead: onMarkRead, onArchive: onArchive, onOpen: onOpen),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
+}
+
+class _NotificationActions extends StatelessWidget {
+  const _NotificationActions({required this.isRead, required this.isArabic, required this.onMarkRead, required this.onArchive, required this.onOpen});
+  final bool isRead;
+  final bool isArabic;
+  final VoidCallback onMarkRead;
+  final VoidCallback onArchive;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 0,
+    children: [
+      if (!isRead) IconButton(tooltip: isArabic ? 'تعليم كمقروء' : 'Mark as read', onPressed: onMarkRead, icon: const Icon(Icons.mark_email_read_outlined, size: 19)),
+      IconButton(tooltip: isArabic ? 'أرشفة الإشعار' : 'Archive notification', onPressed: onArchive, icon: const Icon(Icons.archive_outlined, size: 19)),
+      IconButton(tooltip: isArabic ? 'فتح السجل المرتبط' : 'Open linked record', onPressed: onOpen, icon: const Icon(Icons.open_in_new_rounded, size: 19)),
+    ],
+  );
 }
 
 class _MetaText extends StatelessWidget {
@@ -372,18 +435,22 @@ class _AlertCard extends StatelessWidget {
     final severityLabel = switch (alert.severity) { NotificationSeverity.critical => ar ? 'حرج' : 'Critical', NotificationSeverity.warning => ar ? 'تحذير' : 'Warning', NotificationSeverity.info => ar ? 'معلومة' : 'Information' };
     return Card(margin: const EdgeInsets.only(bottom: 8), child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(width: 38, height: 38, decoration: BoxDecoration(color: tone.withValues(alpha: .12), borderRadius: BorderRadius.circular(11)), child: Icon(alert.icon, color: tone, size: 20)),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Wrap(spacing: 6, runSpacing: 4, children: [AppText(alert.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: tone.withValues(alpha: .11), borderRadius: BorderRadius.circular(20)), child: AppText(severityLabel, style: TextStyle(color: tone, fontSize: 10, fontWeight: FontWeight.w700)))]),
-          const SizedBox(height: 3),
-          AppText(alert.message, style: const TextStyle(fontSize: 12)),
-          if (alert.amount != null) ...[const SizedBox(height: 5), AppText(ar ? 'القيمة المرتبطة: ${NumberFormat('#,##0.##').format(alert.amount)}' : 'Related value: ${NumberFormat('#,##0.##').format(alert.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))],
-        ])),
-        const SizedBox(width: 6),
-        FilledButton.tonalIcon(onPressed: () => AppModuleNavigation.open(context, alert.route), icon: const Icon(Icons.open_in_new_rounded, size: 16), label: AppText(ar ? 'فتح' : 'Open')),
-      ]),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+        final body = Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: tone.withValues(alpha: .12), borderRadius: BorderRadius.circular(11)), child: Icon(alert.icon, color: tone, size: 20)),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Wrap(spacing: 6, runSpacing: 4, children: [AppText(alert.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: tone.withValues(alpha: .11), borderRadius: BorderRadius.circular(20)), child: AppText(severityLabel, style: TextStyle(color: tone, fontSize: 10, fontWeight: FontWeight.w700)))]),
+            const SizedBox(height: 3),
+            AppText(alert.message, style: const TextStyle(fontSize: 12)),
+            if (alert.amount != null) ...[const SizedBox(height: 5), AppText(ar ? 'القيمة المرتبطة: ${NumberFormat('#,##0.##').format(alert.amount)}' : 'Related value: ${NumberFormat('#,##0.##').format(alert.amount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))],
+          ])),
+          if (!compact) ...[const SizedBox(width: 6), FilledButton.tonalIcon(onPressed: () => AppModuleNavigation.open(context, alert.route), icon: const Icon(Icons.open_in_new_rounded, size: 16), label: AppText(ar ? 'فتح' : 'Open'))],
+        ]);
+        if (!compact) return body;
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [body, const SizedBox(height: 6), Align(alignment: AlignmentDirectional.centerEnd, child: FilledButton.tonalIcon(onPressed: () => AppModuleNavigation.open(context, alert.route), icon: const Icon(Icons.open_in_new_rounded, size: 16), label: AppText(ar ? 'فتح' : 'Open'))) ]);
+      }),
     ));
   }
 }
