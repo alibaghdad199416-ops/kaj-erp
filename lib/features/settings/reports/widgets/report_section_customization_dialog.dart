@@ -41,6 +41,7 @@ class _ReportSectionCustomizationDialogState
         section.key: UnifiedQueryController(
           UnifiedQueryState(
             search: widget.initialOptions.sectionQueries[section.key] ?? '',
+            filters: widget.initialOptions.sectionFilters[section.key] ?? const [],
             sorts: _initialSorts(section.key),
           ),
         ),
@@ -86,15 +87,53 @@ class _ReportSectionCustomizationDialogState
     super.dispose();
   }
 
+  List<UnifiedQueryFilterOption> _filterOptions(
+    BuildContext context,
+    ContextualReportSection section,
+  ) {
+    final options = <UnifiedQueryFilterOption>[];
+    for (var columnIndex = 0; columnIndex < section.columns.length; columnIndex++) {
+      final column = section.columns[columnIndex];
+      if (column.trim().isEmpty) continue;
+      final values = <String>{};
+      for (final row in section.rows) {
+        if (columnIndex >= row.length) continue;
+        final value = row[columnIndex].trim();
+        if (value.isNotEmpty) values.add(value);
+        if (values.length >= 20) break;
+      }
+      for (final value in values.take(20)) {
+        options.add(
+          UnifiedQueryFilterOption(
+            token: UnifiedFilterToken(
+              key: column,
+              label: _label(context, column),
+              value: value,
+              valueLabel: value,
+            ),
+            icon: Icons.filter_alt_outlined,
+          ),
+        );
+      }
+    }
+    return options;
+  }
+
   ReportExportOptions _result() {
     final sortColumns = <String, String>{};
     final sortAscending = <String, bool>{};
     final sectionQueries = <String, String>{};
+    final sectionFilters = <String, List<UnifiedFilterToken>>{};
 
     for (final section in widget.sections) {
       final query = _queries[section.key]!.state;
       if (query.search.trim().isNotEmpty) {
         sectionQueries[section.key] = query.search.trim();
+      }
+      if (query.filters.isNotEmpty) {
+        sectionFilters[section.key] = List<UnifiedFilterToken>.unmodifiable(
+          query.filters,
+        );
       }
       if (query.sorts.isNotEmpty) {
         final sort = query.sorts.first;
@@ -111,6 +150,7 @@ class _ReportSectionCustomizationDialogState
               .toList(growable: false),
       },
       sectionQueries: sectionQueries,
+      sectionFilters: sectionFilters,
       sortColumns: sortColumns,
       sortAscending: sortAscending,
       sectionEnabled: Map<String, bool>.from(_sectionEnabled),
@@ -199,12 +239,13 @@ class _ReportSectionCustomizationDialogState
                                     'بحث في بيانات القسم',
                                     'Search section data',
                                   ),
+                                  filters: _filterOptions(context, section),
                                   sorts: _sortOptions(context, section),
                                   compact: true,
                                   padding: EdgeInsets.zero,
                                   filterButtonLabel: _bi(context, 'فلترة', 'Filter'),
                                   sortButtonLabel: _bi(context, 'فرز', 'Sort'),
-                                  clearAllLabel: _bi(context, 'مسح البحث والفرز', 'Clear query'),
+                                  clearAllLabel: _bi(context, 'مسح البحث والفرز والفلترة', 'Clear query'),
                                   clearSearchTooltip: _bi(context, 'مسح البحث', 'Clear search'),
                                   ascendingLabel: _bi(context, 'تصاعدي', 'Ascending'),
                                   descendingLabel: _bi(context, 'تنازلي', 'Descending'),
