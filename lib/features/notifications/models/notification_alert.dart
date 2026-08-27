@@ -44,15 +44,19 @@ class KajActivitySkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Column(
-      children: List.generate(rows, (index) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Container(
-          height: 64,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
+      children: List.generate(
+        rows,
+        (index) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
-      ));
+      ),
+    );
   }
 }
