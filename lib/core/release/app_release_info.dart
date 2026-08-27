@@ -4,7 +4,8 @@ class AppReleaseInfo {
   static const String version = '22.9.8';
   static const int buildNumber = 229008;
   static const String channel = 'final';
-  static const String syncEngine = '22.9.8-final-cross-stage-integrity-r57-r58-r59-r60';
+  static const String syncEngine =
+      '22.9.8-final-cross-stage-integrity-r57-r58-r59-r60';
 
   static const String operationalRevision =
       '22.9.8-final-cross-stage-integrity-r57-r58-r59-r60';

@@ -106,31 +106,33 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
   }
 
   List<UnifiedSortCriterion<WarehouseModel>> _sorts(UnifiedQueryState state) {
-    return state.sorts.map((rule) {
-      final direction = rule.descending
-          ? UnifiedSortDirection.descending
-          : UnifiedSortDirection.ascending;
-      switch (rule.field) {
-        case 'code':
-          return UnifiedSortCriterion<WarehouseModel>(
-            key: rule.field,
-            direction: direction,
-            value: (warehouse) => warehouse.code,
-          );
-        case 'status':
-          return UnifiedSortCriterion<WarehouseModel>(
-            key: rule.field,
-            direction: direction,
-            value: (warehouse) => warehouse.isActive ? 1 : 0,
-          );
-        default:
-          return UnifiedSortCriterion<WarehouseModel>(
-            key: rule.field,
-            direction: direction,
-            value: (warehouse) => warehouse.name,
-          );
-      }
-    }).toList(growable: false);
+    return state.sorts
+        .map((rule) {
+          final direction = rule.descending
+              ? UnifiedSortDirection.descending
+              : UnifiedSortDirection.ascending;
+          switch (rule.field) {
+            case 'code':
+              return UnifiedSortCriterion<WarehouseModel>(
+                key: rule.field,
+                direction: direction,
+                value: (warehouse) => warehouse.code,
+              );
+            case 'status':
+              return UnifiedSortCriterion<WarehouseModel>(
+                key: rule.field,
+                direction: direction,
+                value: (warehouse) => warehouse.isActive ? 1 : 0,
+              );
+            default:
+              return UnifiedSortCriterion<WarehouseModel>(
+                key: rule.field,
+                direction: direction,
+                value: (warehouse) => warehouse.name,
+              );
+          }
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -204,7 +206,9 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
         );
 
         if (!showInactive) {
-          rows = rows.where((warehouse) => warehouse.isActive).toList(growable: false);
+          rows = rows
+              .where((warehouse) => warehouse.isActive)
+              .toList(growable: false);
         }
 
         return Padding(

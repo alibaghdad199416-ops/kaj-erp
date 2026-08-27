@@ -206,7 +206,10 @@ class InventoryCard extends StatelessWidget {
           tooltip: _t(context, 'حذف', 'Delete'),
           visualDensity: VisualDensity.compact,
           onPressed: onDelete,
-          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+          icon: Icon(
+            Icons.delete_outline,
+            color: Theme.of(context).colorScheme.error,
+          ),
         ),
       ),
     ],

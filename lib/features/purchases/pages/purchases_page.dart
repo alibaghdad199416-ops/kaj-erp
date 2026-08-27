@@ -81,11 +81,20 @@ class _PurchasesPageState extends State<PurchasesPage> {
               children: [
                 AppText('المورد: ${purchase.supplierName}'),
                 AppText('العملة: ${purchase.currencyCode}'),
-                AppText('الإجمالي: ${MoneyFormatter.withCurrency(purchase.totalAmount, purchase.currencyCode)}'),
-                AppText('المدفوع: ${MoneyFormatter.withCurrency(purchase.paidAmount, purchase.currencyCode)}'),
-                AppText('المتبقي: ${MoneyFormatter.withCurrency(purchase.remainingAmount, purchase.currencyCode)}'),
+                AppText(
+                  'الإجمالي: ${MoneyFormatter.withCurrency(purchase.totalAmount, purchase.currencyCode)}',
+                ),
+                AppText(
+                  'المدفوع: ${MoneyFormatter.withCurrency(purchase.paidAmount, purchase.currencyCode)}',
+                ),
+                AppText(
+                  'المتبقي: ${MoneyFormatter.withCurrency(purchase.remainingAmount, purchase.currencyCode)}',
+                ),
                 const Divider(height: 28),
-                const AppText('بنود الفاتورة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                const AppText(
+                  'بنود الفاتورة',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 8),
                 ...items.map(
                   (item) => Card(
@@ -94,11 +103,20 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          AppText(item.carName, style: const TextStyle(fontWeight: FontWeight.w900)),
+                          AppText(
+                            item.carName,
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
                           AppText('رقم الشاصي: ${item.chassisNumber}'),
-                          AppText('الكلفة: ${MoneyFormatter.withCurrency(item.purchasePrice, purchase.currencyCode)}'),
-                          AppText('التكاليف الإضافية: ${MoneyFormatter.withCurrency(item.additionalCosts, purchase.currencyCode)}'),
-                          AppText('الكلفة النهائية: ${MoneyFormatter.withCurrency(item.totalCost, purchase.currencyCode)}'),
+                          AppText(
+                            'الكلفة: ${MoneyFormatter.withCurrency(item.purchasePrice, purchase.currencyCode)}',
+                          ),
+                          AppText(
+                            'التكاليف الإضافية: ${MoneyFormatter.withCurrency(item.additionalCosts, purchase.currencyCode)}',
+                          ),
+                          AppText(
+                            'الكلفة النهائية: ${MoneyFormatter.withCurrency(item.totalCost, purchase.currencyCode)}',
+                          ),
                         ],
                       ),
                     ),
@@ -168,85 +186,85 @@ class _PurchasesPageState extends State<PurchasesPage> {
   }
 
   List<UnifiedQueryFilterOption> _filters(BuildContext context) => [
-        UnifiedQueryFilterOption(
-          token: UnifiedFilterToken(
-            key: 'paymentStatus',
-            label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
-            value: 'paid',
-            valueLabel: context.l10n.isArabic ? 'مدفوعة' : 'Paid',
-          ),
-          icon: Icons.payments_outlined,
+    UnifiedQueryFilterOption(
+      token: UnifiedFilterToken(
+        key: 'paymentStatus',
+        label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
+        value: 'paid',
+        valueLabel: context.l10n.isArabic ? 'مدفوعة' : 'Paid',
+      ),
+      icon: Icons.payments_outlined,
+    ),
+    UnifiedQueryFilterOption(
+      token: UnifiedFilterToken(
+        key: 'paymentStatus',
+        label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
+        value: 'partial',
+        valueLabel: context.l10n.isArabic ? 'جزئية' : 'Partial',
+      ),
+      icon: Icons.timelapse_outlined,
+    ),
+    UnifiedQueryFilterOption(
+      token: UnifiedFilterToken(
+        key: 'paymentStatus',
+        label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
+        value: 'credit',
+        valueLabel: context.l10n.isArabic ? 'آجلة' : 'Credit',
+      ),
+      icon: Icons.account_balance_wallet_outlined,
+    ),
+    for (final currency in const ['IQD', 'USD'])
+      UnifiedQueryFilterOption(
+        token: UnifiedFilterToken(
+          key: 'currency',
+          label: context.l10n.isArabic ? 'العملة' : 'Currency',
+          value: currency,
+          valueLabel: currency,
         ),
-        UnifiedQueryFilterOption(
-          token: UnifiedFilterToken(
-            key: 'paymentStatus',
-            label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
-            value: 'partial',
-            valueLabel: context.l10n.isArabic ? 'جزئية' : 'Partial',
-          ),
-          icon: Icons.timelapse_outlined,
-        ),
-        UnifiedQueryFilterOption(
-          token: UnifiedFilterToken(
-            key: 'paymentStatus',
-            label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
-            value: 'credit',
-            valueLabel: context.l10n.isArabic ? 'آجلة' : 'Credit',
-          ),
-          icon: Icons.account_balance_wallet_outlined,
-        ),
-        for (final currency in const ['IQD', 'USD'])
-          UnifiedQueryFilterOption(
-            token: UnifiedFilterToken(
-              key: 'currency',
-              label: context.l10n.isArabic ? 'العملة' : 'Currency',
-              value: currency,
-              valueLabel: currency,
-            ),
-            icon: Icons.currency_exchange_outlined,
-          ),
-      ];
+        icon: Icons.currency_exchange_outlined,
+      ),
+  ];
 
   List<UnifiedQuerySortOption> _sorts(BuildContext context) => [
-        UnifiedQuerySortOption(
-          rule: UnifiedSortRule(
-            field: 'date',
-            label: context.l10n.isArabic ? 'التاريخ' : 'Date',
-            descending: true,
-          ),
-          icon: Icons.event_outlined,
-        ),
-        UnifiedQuerySortOption(
-          rule: UnifiedSortRule(
-            field: 'invoiceNumber',
-            label: context.l10n.isArabic ? 'رقم الفاتورة' : 'Invoice number',
-          ),
-          icon: Icons.tag_outlined,
-        ),
-        UnifiedQuerySortOption(
-          rule: UnifiedSortRule(
-            field: 'supplier',
-            label: context.l10n.isArabic ? 'المورد' : 'Supplier',
-          ),
-          icon: Icons.business_outlined,
-        ),
-        UnifiedQuerySortOption(
-          rule: UnifiedSortRule(
-            field: 'total',
-            label: context.l10n.isArabic ? 'الإجمالي' : 'Total',
-            descending: true,
-          ),
-          icon: Icons.summarize_outlined,
-        ),
-        UnifiedQuerySortOption(
-          rule: UnifiedSortRule(
-            field: 'remaining',
-            label: context.l10n.isArabic ? 'المتبقي' : 'Remaining',
-            descending: true,
-          ),
-          icon: Icons.hourglass_bottom_outlined,
-        ),
-      ];
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'date',
+        label: context.l10n.isArabic ? 'التاريخ' : 'Date',
+        descending: true,
+      ),
+      icon: Icons.event_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'invoiceNumber',
+        label: context.l10n.isArabic ? 'رقم الفاتورة' : 'Invoice number',
+      ),
+      icon: Icons.tag_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'supplier',
+        label: context.l10n.isArabic ? 'المورد' : 'Supplier',
+      ),
+      icon: Icons.business_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'total',
+        label: context.l10n.isArabic ? 'الإجمالي' : 'Total',
+        descending: true,
+      ),
+      icon: Icons.summarize_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'remaining',
+        label: context.l10n.isArabic ? 'المتبقي' : 'Remaining',
+        descending: true,
+      ),
+      icon: Icons.hourglass_bottom_outlined,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -269,10 +287,15 @@ class _PurchasesPageState extends State<PurchasesPage> {
               ),
               Chip(
                 avatar: const Icon(Icons.description_outlined, size: 17),
-                label: AppText('${arabic ? 'الفواتير' : 'Invoices'}: ${controller.purchasesCount}'),
+                label: AppText(
+                  '${arabic ? 'الفواتير' : 'Invoices'}: ${controller.purchasesCount}',
+                ),
               ),
               Chip(
-                avatar: const Icon(Icons.account_balance_wallet_outlined, size: 17),
+                avatar: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 17,
+                ),
                 label: AppText(
                   '${arabic ? 'المتبقي' : 'Remaining'}: ${CurrencyTotalsFormatter.format(controller.totalRemainingByCurrency)}',
                 ),
@@ -305,24 +328,24 @@ class _PurchasesPageState extends State<PurchasesPage> {
             child: controller.isLoading && controller.purchases.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : controller.purchases.isEmpty
-                    ? Center(
-                        child: AppText(
-                          controller.errorMessage ??
-                              AppTranslation.translate('لا توجد فواتير مشتريات'),
-                        ),
-                      )
-                    : IncrementalListView(
-                        itemCount: controller.purchases.length,
-                        itemBuilder: (context, index) {
-                          final purchase = controller.purchases[index];
-                          return PurchaseCard(
-                            purchase: purchase,
-                            onView: () => _openDetails(purchase),
-                            onDelete: () => _delete(purchase),
-                            onPrint: () => _printPurchase(purchase),
-                          );
-                        },
-                      ),
+                ? Center(
+                    child: AppText(
+                      controller.errorMessage ??
+                          AppTranslation.translate('لا توجد فواتير مشتريات'),
+                    ),
+                  )
+                : IncrementalListView(
+                    itemCount: controller.purchases.length,
+                    itemBuilder: (context, index) {
+                      final purchase = controller.purchases[index];
+                      return PurchaseCard(
+                        purchase: purchase,
+                        onView: () => _openDetails(purchase),
+                        onDelete: () => _delete(purchase),
+                        onPrint: () => _printPurchase(purchase),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

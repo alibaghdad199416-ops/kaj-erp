@@ -8,16 +8,27 @@ export 'unified_query_state.dart';
 
 @immutable
 class UnifiedQuery<T> {
-  const UnifiedQuery({this.criteria = const UnifiedFilterCriteria(), this.sorts = const []});
+  const UnifiedQuery({
+    this.criteria = const UnifiedFilterCriteria(),
+    this.sorts = const [],
+  });
 
   final UnifiedFilterCriteria criteria;
   final List<UnifiedSortCriterion<T>> sorts;
 
   bool get isEmpty => criteria.isEmpty && sorts.isEmpty;
 
-  UnifiedQuery<T> copyWith({UnifiedFilterCriteria? criteria, List<UnifiedSortCriterion<T>>? sorts}) => UnifiedQuery<T>(criteria: criteria ?? this.criteria, sorts: sorts ?? this.sorts);
+  UnifiedQuery<T> copyWith({
+    UnifiedFilterCriteria? criteria,
+    List<UnifiedSortCriterion<T>>? sorts,
+  }) => UnifiedQuery<T>(
+    criteria: criteria ?? this.criteria,
+    sorts: sorts ?? this.sorts,
+  );
 
-  UnifiedQuery<T> removeSort(String key) => copyWith(sorts: sorts.where((sort) => sort.key != key).toList(growable: false));
+  UnifiedQuery<T> removeSort(String key) => copyWith(
+    sorts: sorts.where((sort) => sort.key != key).toList(growable: false),
+  );
 
   UnifiedQuery<T> removeSortAt(int index) {
     if (index < 0 || index >= sorts.length) return this;
@@ -25,11 +36,19 @@ class UnifiedQuery<T> {
     return copyWith(sorts: List<UnifiedSortCriterion<T>>.unmodifiable(next));
   }
 
-  List<T> apply(Iterable<T> values, UnifiedFilterAdapter<T> adapter) => UnifiedFilterEngine.apply(values, criteria: criteria, adapter: adapter, sorts: sorts);
+  List<T> apply(Iterable<T> values, UnifiedFilterAdapter<T> adapter) =>
+      UnifiedFilterEngine.apply(
+        values,
+        criteria: criteria,
+        adapter: adapter,
+        sorts: sorts,
+      );
 }
 
 class UnifiedQueryController extends ChangeNotifier {
-  UnifiedQueryController([UnifiedQueryState initial = const UnifiedQueryState()]) : _state = initial;
+  UnifiedQueryController([
+    UnifiedQueryState initial = const UnifiedQueryState(),
+  ]) : _state = initial;
 
   UnifiedQueryState _state;
   UnifiedQueryState get state => _state;
@@ -49,7 +68,9 @@ class UnifiedQueryController extends ChangeNotifier {
   }
 
   void addFilter(UnifiedFilterToken token) {
-    final next = _state.filters.where((item) => item.key != token.key).toList(growable: false);
+    final next = _state.filters
+        .where((item) => item.key != token.key)
+        .toList(growable: false);
     setFilters([...next, token]);
   }
 

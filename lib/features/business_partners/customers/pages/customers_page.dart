@@ -45,32 +45,35 @@ class _CustomersPageState extends State<CustomersPage> {
   }
 
   List<UnifiedSortCriterion<CustomerModel>> _sorts(UnifiedQueryState state) {
-    return state.sorts.map((rule) {
-      final direction = rule.descending
-          ? UnifiedSortDirection.descending
-          : UnifiedSortDirection.ascending;
-      switch (rule.field) {
-        case 'name':
-          return UnifiedSortCriterion<CustomerModel>(
-            key: rule.field,
-            direction: direction,
-            value: (customer) => customer.name.toLowerCase(),
-          );
-        case 'createdAt':
-          return UnifiedSortCriterion<CustomerModel>(
-            key: rule.field,
-            direction: direction,
-            value: (customer) =>
-                customer.createdAtDate ?? DateTime.fromMillisecondsSinceEpoch(0),
-          );
-        default:
-          return UnifiedSortCriterion<CustomerModel>(
-            key: rule.field,
-            direction: direction,
-            value: (customer) => customer.name.toLowerCase(),
-          );
-      }
-    }).toList(growable: false);
+    return state.sorts
+        .map((rule) {
+          final direction = rule.descending
+              ? UnifiedSortDirection.descending
+              : UnifiedSortDirection.ascending;
+          switch (rule.field) {
+            case 'name':
+              return UnifiedSortCriterion<CustomerModel>(
+                key: rule.field,
+                direction: direction,
+                value: (customer) => customer.name.toLowerCase(),
+              );
+            case 'createdAt':
+              return UnifiedSortCriterion<CustomerModel>(
+                key: rule.field,
+                direction: direction,
+                value: (customer) =>
+                    customer.createdAtDate ??
+                    DateTime.fromMillisecondsSinceEpoch(0),
+              );
+            default:
+              return UnifiedSortCriterion<CustomerModel>(
+                key: rule.field,
+                direction: direction,
+                value: (customer) => customer.name.toLowerCase(),
+              );
+          }
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -100,7 +103,11 @@ class _CustomersPageState extends State<CustomersPage> {
 
         final sortOptions = <UnifiedQuerySortOption>[
           const UnifiedQuerySortOption(
-            rule: UnifiedSortRule(field: 'createdAt', label: 'الأحدث', descending: true),
+            rule: UnifiedSortRule(
+              field: 'createdAt',
+              label: 'الأحدث',
+              descending: true,
+            ),
             icon: Icons.schedule_rounded,
           ),
           const UnifiedQuerySortOption(
@@ -116,7 +123,8 @@ class _CustomersPageState extends State<CustomersPage> {
           actions: [
             IconButton(
               tooltip: AppTranslation.translate('تحديث البيانات'),
-              onPressed: () => context.read<CustomersController>().loadCustomers(),
+              onPressed: () =>
+                  context.read<CustomersController>().loadCustomers(),
               icon: const Icon(Icons.refresh_rounded, size: 19),
             ),
             if (canCreate)
@@ -155,12 +163,13 @@ class _CustomersPageState extends State<CustomersPage> {
                   child: GridView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(10),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 320,
-                      mainAxisExtent: 176,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 320,
+                          mainAxisExtent: 176,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                        ),
                     itemCount: filteredCustomers.length,
                     itemBuilder: (context, index) {
                       final customer = filteredCustomers[index];
@@ -232,7 +241,8 @@ class _CustomersPageState extends State<CustomersPage> {
             icon: Icons.location_on_outlined,
           ),
       ],
-      notes: context.read<AccessController>().canViewField(
+      notes:
+          context.read<AccessController>().canViewField(
             'customers',
             'notes',
             viewPermission: 'customers.view',

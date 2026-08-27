@@ -12,10 +12,10 @@ class AppDialog extends AlertDialog {
     Widget? content,
     List<Widget>? actions,
   }) : super(
-          title: AppText(AppTranslation.translate(title)),
-          content: content,
-          actions: actions,
-        );
+         title: AppText(AppTranslation.translate(title)),
+         content: content,
+         actions: actions,
+       );
 }
 
 Future<bool> showAppConfirmDialog(
@@ -28,7 +28,9 @@ Future<bool> showAppConfirmDialog(
   final translatedTitle = AppTranslation.translate(title);
   final translatedMessage = AppTranslation.translate(message);
   final translatedConfirm = AppTranslation.translate(confirmLabel);
-  final accent = destructive ? KajDesignTokens.danger : KajDesignTokens.electricBlue;
+  final accent = destructive
+      ? KajDesignTokens.danger
+      : KajDesignTokens.electricBlue;
 
   return await showDialog<bool>(
         context: context,
@@ -47,24 +49,47 @@ Future<bool> showAppConfirmDialog(
                 border: Border.all(color: accent.withValues(alpha: .28)),
               ),
               child: Icon(
-                destructive ? Icons.delete_outline_rounded : Icons.verified_outlined,
+                destructive
+                    ? Icons.delete_outline_rounded
+                    : Icons.verified_outlined,
                 color: accent,
               ),
             ),
           ),
           titlePadding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
-          title: AppText(translatedTitle, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+          title: AppText(
+            translatedTitle,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
           contentPadding: const EdgeInsets.fromLTRB(22, 10, 22, 8),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
-            child: AppText(translatedMessage, style: TextStyle(color: Theme.of(dialogContext).colorScheme.onSurfaceVariant, height: 1.5)),
+            child: AppText(
+              translatedMessage,
+              style: TextStyle(
+                color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
           ),
           actions: <Widget>[
-            OutlinedButton(onPressed: () => Navigator.pop(dialogContext, false), child: AppText(AppTranslation.translate('إلغاء'))),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: AppText(AppTranslation.translate('إلغاء')),
+            ),
             FilledButton.icon(
-              style: destructive ? FilledButton.styleFrom(backgroundColor: KajDesignTokens.danger, foregroundColor: Colors.white) : null,
+              style: destructive
+                  ? FilledButton.styleFrom(
+                      backgroundColor: KajDesignTokens.danger,
+                      foregroundColor: Colors.white,
+                    )
+                  : null,
               onPressed: () => Navigator.pop(dialogContext, true),
-              icon: Icon(destructive ? Icons.delete_forever_outlined : Icons.check_rounded),
+              icon: Icon(
+                destructive
+                    ? Icons.delete_forever_outlined
+                    : Icons.check_rounded,
+              ),
               label: AppText(translatedConfirm),
             ),
           ],

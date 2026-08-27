@@ -15,7 +15,8 @@ class UnifiedFilterToken {
   final String valueLabel;
 
   @override
-  bool operator ==(Object other) => other is UnifiedFilterToken && other.key == key && other.value == value;
+  bool operator ==(Object other) =>
+      other is UnifiedFilterToken && other.key == key && other.value == value;
 
   @override
   int get hashCode => Object.hash(key, value);
@@ -23,16 +24,27 @@ class UnifiedFilterToken {
 
 @immutable
 class UnifiedSortRule {
-  const UnifiedSortRule({required this.field, required this.label, this.descending = false});
+  const UnifiedSortRule({
+    required this.field,
+    required this.label,
+    this.descending = false,
+  });
 
   final String field;
   final String label;
   final bool descending;
 
-  UnifiedSortRule copyWith({bool? descending}) => UnifiedSortRule(field: field, label: label, descending: descending ?? this.descending);
+  UnifiedSortRule copyWith({bool? descending}) => UnifiedSortRule(
+    field: field,
+    label: label,
+    descending: descending ?? this.descending,
+  );
 
   @override
-  bool operator ==(Object other) => other is UnifiedSortRule && other.field == field && other.descending == descending;
+  bool operator ==(Object other) =>
+      other is UnifiedSortRule &&
+      other.field == field &&
+      other.descending == descending;
 
   @override
   int get hashCode => Object.hash(field, descending);
@@ -40,7 +52,11 @@ class UnifiedSortRule {
 
 @immutable
 class UnifiedQueryState {
-  const UnifiedQueryState({this.search = '', this.filters = const <UnifiedFilterToken>[], this.sorts = const <UnifiedSortRule>[]});
+  const UnifiedQueryState({
+    this.search = '',
+    this.filters = const <UnifiedFilterToken>[],
+    this.sorts = const <UnifiedSortRule>[],
+  });
 
   final String search;
   final List<UnifiedFilterToken> filters;
@@ -48,13 +64,27 @@ class UnifiedQueryState {
 
   bool get isEmpty => search.trim().isEmpty && filters.isEmpty && sorts.isEmpty;
 
-  UnifiedQueryState copyWith({String? search, List<UnifiedFilterToken>? filters, List<UnifiedSortRule>? sorts}) => UnifiedQueryState(search: search ?? this.search, filters: List.unmodifiable(filters ?? this.filters), sorts: List.unmodifiable(sorts ?? this.sorts));
+  UnifiedQueryState copyWith({
+    String? search,
+    List<UnifiedFilterToken>? filters,
+    List<UnifiedSortRule>? sorts,
+  }) => UnifiedQueryState(
+    search: search ?? this.search,
+    filters: List.unmodifiable(filters ?? this.filters),
+    sorts: List.unmodifiable(sorts ?? this.sorts),
+  );
 
-  UnifiedQueryState removeFilter(UnifiedFilterToken token) => copyWith(filters: filters.where((item) => item != token).toList(growable: false));
+  UnifiedQueryState removeFilter(UnifiedFilterToken token) => copyWith(
+    filters: filters.where((item) => item != token).toList(growable: false),
+  );
 
-  UnifiedQueryState removeFilterKey(String key) => copyWith(filters: filters.where((item) => item.key != key).toList(growable: false));
+  UnifiedQueryState removeFilterKey(String key) => copyWith(
+    filters: filters.where((item) => item.key != key).toList(growable: false),
+  );
 
-  UnifiedQueryState removeSort(String field) => copyWith(sorts: sorts.where((item) => item.field != field).toList(growable: false));
+  UnifiedQueryState removeSort(String field) => copyWith(
+    sorts: sorts.where((item) => item.field != field).toList(growable: false),
+  );
 
   UnifiedQueryState removeSortAt(int index) {
     if (index < 0 || index >= sorts.length) return this;
@@ -65,8 +95,13 @@ class UnifiedQueryState {
   UnifiedQueryState clear() => const UnifiedQueryState();
 
   @override
-  bool operator ==(Object other) => other is UnifiedQueryState && other.search == search && listEquals(other.filters, filters) && listEquals(other.sorts, sorts);
+  bool operator ==(Object other) =>
+      other is UnifiedQueryState &&
+      other.search == search &&
+      listEquals(other.filters, filters) &&
+      listEquals(other.sorts, sorts);
 
   @override
-  int get hashCode => Object.hash(search, Object.hashAll(filters), Object.hashAll(sorts));
+  int get hashCode =>
+      Object.hash(search, Object.hashAll(filters), Object.hashAll(sorts));
 }

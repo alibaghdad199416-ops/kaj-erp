@@ -118,7 +118,10 @@ class ReportExportOptions {
               key: raw['key']?.toString() ?? '',
               label: raw['label']?.toString() ?? '',
               value: raw['value'] ?? '',
-              valueLabel: raw['valueLabel']?.toString() ?? raw['value']?.toString() ?? '',
+              valueLabel:
+                  raw['valueLabel']?.toString() ??
+                  raw['value']?.toString() ??
+                  '',
             ),
       ];
     }

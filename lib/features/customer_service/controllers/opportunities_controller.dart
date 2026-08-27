@@ -27,36 +27,37 @@ class OpportunitiesController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   List<OpportunityModel> get visibleOpportunities => UnifiedFilterEngine.apply(
-        _items,
-        criteria: UnifiedFilterCriteria(
-          searchText: query.state.search,
-          statuses: {
-            for (final token in query.state.filters)
-              if (token.key == 'status') token.value.toString(),
-          },
-        ),
-        adapter: UnifiedFilterAdapter<OpportunityModel>(
-          searchableText: (item) => <Object?>[
-            item.opportunityNumber,
-            item.title,
-            item.customerName,
-            item.customerPhone,
-            item.assignedUserName,
-            item.source,
-            item.invoiceNumber,
-            item.carName,
-            item.salesOrderStatus,
-            item.deliveryNumber,
-            item.invoiceStatus,
-            item.paymentStatus,
-          ],
-          status: (item) => item.status.name,
-          partnerId: (item) => item.customerId,
-          userId: (item) => item.assignedUserId,
-          currency: (item) => item.currency,
-          date: (item) => item.createdAt,
-        ),
-        sorts: query.state.sorts.map((rule) {
+    _items,
+    criteria: UnifiedFilterCriteria(
+      searchText: query.state.search,
+      statuses: {
+        for (final token in query.state.filters)
+          if (token.key == 'status') token.value.toString(),
+      },
+    ),
+    adapter: UnifiedFilterAdapter<OpportunityModel>(
+      searchableText: (item) => <Object?>[
+        item.opportunityNumber,
+        item.title,
+        item.customerName,
+        item.customerPhone,
+        item.assignedUserName,
+        item.source,
+        item.invoiceNumber,
+        item.carName,
+        item.salesOrderStatus,
+        item.deliveryNumber,
+        item.invoiceStatus,
+        item.paymentStatus,
+      ],
+      status: (item) => item.status.name,
+      partnerId: (item) => item.customerId,
+      userId: (item) => item.assignedUserId,
+      currency: (item) => item.currency,
+      date: (item) => item.createdAt,
+    ),
+    sorts: query.state.sorts
+        .map((rule) {
           final key = rule.field;
           Comparable<dynamic> value(OpportunityModel item) {
             switch (key) {
@@ -69,7 +70,8 @@ class OpportunitiesController extends ChangeNotifier {
               case 'status':
                 return item.status.name;
               case 'followUpDate':
-                return item.followUpDate ?? DateTime.fromMillisecondsSinceEpoch(0);
+                return item.followUpDate ??
+                    DateTime.fromMillisecondsSinceEpoch(0);
               case 'createdAt':
               default:
                 return item.createdAt;
@@ -83,8 +85,9 @@ class OpportunitiesController extends ChangeNotifier {
                 ? UnifiedSortDirection.descending
                 : UnifiedSortDirection.ascending,
           );
-        }).toList(growable: false),
-      );
+        })
+        .toList(growable: false),
+  );
 
   void _onQueryChanged() => notifyListeners();
 

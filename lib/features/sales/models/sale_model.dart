@@ -86,8 +86,15 @@ class SaleModel {
     invoiceNumber: ModelValueReader.nullableString(map, 'invoiceNumber'),
     opportunityId: ModelValueReader.nullableString(map, 'opportunityId'),
     createdByUserId: ModelValueReader.nullableString(map, 'createdByUserId'),
-    createdByUserName: ModelValueReader.nullableString(map, 'createdByUserName'),
-    updatedAt: ModelValueReader.dateTime(map, 'updatedAt', aliases: const ['_cloudUpdatedAt']),
+    createdByUserName: ModelValueReader.nullableString(
+      map,
+      'createdByUserName',
+    ),
+    updatedAt: ModelValueReader.dateTime(
+      map,
+      'updatedAt',
+      aliases: const ['_cloudUpdatedAt'],
+    ),
     saleType: ModelValueReader.string(map, 'saleType', fallback: 'primary'),
     previousSaleId: ModelValueReader.nullableString(map, 'previousSaleId'),
     sellerCustomerId: ModelValueReader.nullableString(map, 'sellerCustomerId'),

@@ -281,10 +281,7 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
 }
 
 class UnifiedQueryFilterOption {
-  const UnifiedQueryFilterOption({
-    required this.token,
-    this.icon,
-  });
+  const UnifiedQueryFilterOption({required this.token, this.icon});
 
   final UnifiedFilterToken token;
   final IconData? icon;
@@ -294,10 +291,7 @@ class UnifiedQueryFilterOption {
 }
 
 class UnifiedQuerySortOption {
-  const UnifiedQuerySortOption({
-    required this.rule,
-    this.icon,
-  });
+  const UnifiedQuerySortOption({required this.rule, this.icon});
 
   final UnifiedSortRule rule;
   final IconData? icon;

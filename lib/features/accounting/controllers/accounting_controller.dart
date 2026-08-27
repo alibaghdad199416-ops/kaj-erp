@@ -45,32 +45,33 @@ class AccountingController extends ChangeNotifier {
       Map.unmodifiable(_payablesByCurrency);
 
   List<JournalEntryModel> get visibleEntries => UnifiedFilterEngine.apply(
-        _entries,
-        criteria: UnifiedFilterCriteria(
-          searchText: query.state.search,
-          statuses: {
-            for (final token in query.state.filters)
-              if (token.key == 'status') token.value.toString(),
-          },
-          currencies: {
-            for (final token in query.state.filters)
-              if (token.key == 'currency') token.value.toString(),
-          },
-        ),
-        adapter: UnifiedFilterAdapter<JournalEntryModel>(
-          searchableText: (entry) => <Object?>[
-            entry.entryNumber,
-            entry.description,
-            entry.currency,
-            entry.status,
-            entry.referenceType,
-            entry.referenceId,
-          ],
-          status: (entry) => entry.status,
-          currency: (entry) => entry.currency,
-          date: (entry) => entry.entryDate,
-        ),
-        sorts: query.state.sorts.map((rule) {
+    _entries,
+    criteria: UnifiedFilterCriteria(
+      searchText: query.state.search,
+      statuses: {
+        for (final token in query.state.filters)
+          if (token.key == 'status') token.value.toString(),
+      },
+      currencies: {
+        for (final token in query.state.filters)
+          if (token.key == 'currency') token.value.toString(),
+      },
+    ),
+    adapter: UnifiedFilterAdapter<JournalEntryModel>(
+      searchableText: (entry) => <Object?>[
+        entry.entryNumber,
+        entry.description,
+        entry.currency,
+        entry.status,
+        entry.referenceType,
+        entry.referenceId,
+      ],
+      status: (entry) => entry.status,
+      currency: (entry) => entry.currency,
+      date: (entry) => entry.entryDate,
+    ),
+    sorts: query.state.sorts
+        .map((rule) {
           Comparable<dynamic> value(JournalEntryModel entry) {
             switch (rule.field) {
               case 'entryNumber':
@@ -98,8 +99,9 @@ class AccountingController extends ChangeNotifier {
                 ? UnifiedSortDirection.descending
                 : UnifiedSortDirection.ascending,
           );
-        }).toList(growable: false),
-      );
+        })
+        .toList(growable: false),
+  );
 
   void _onQueryChanged() => notifyListeners();
 

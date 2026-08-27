@@ -12,7 +12,7 @@ import 'package:quality_line_erp/features/purchases/repositories/purchase_reposi
 
 class PurchasesController extends ChangeNotifier {
   PurchasesController({PurchaseRepository? repository})
-      : _repository = repository ?? PurchaseRepository() {
+    : _repository = repository ?? PurchaseRepository() {
     query.addListener(_notifyQueryChanged);
   }
 
@@ -58,8 +58,8 @@ class PurchasesController extends ChangeNotifier {
           status: (p) => p.isPaid
               ? 'paid'
               : p.isPartial
-                  ? 'partial'
-                  : 'credit',
+              ? 'partial'
+              : 'credit',
           currency: (p) => p.currencyCode,
           date: (p) => p.purchaseDate,
         ),
@@ -80,8 +80,10 @@ class PurchasesController extends ChangeNotifier {
     return token == null ? const <String>{} : {token.value.toString()};
   }
 
-  List<UnifiedSortCriterion<PurchaseModel>> _sortsFromQuery() =>
-      query.state.sorts.map((rule) {
+  List<UnifiedSortCriterion<PurchaseModel>> _sortsFromQuery() => query
+      .state
+      .sorts
+      .map((rule) {
         final direction = rule.descending
             ? UnifiedSortDirection.descending
             : UnifiedSortDirection.ascending;
@@ -108,7 +110,8 @@ class PurchasesController extends ChangeNotifier {
           direction: direction,
           value: value,
         );
-      }).toList(growable: false);
+      })
+      .toList(growable: false);
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -273,8 +276,9 @@ class PurchasesController extends ChangeNotifier {
     _purchases = await _repository.getPurchases();
     _recalculateSummaries();
     if (purchaseId != null) {
-      _itemsByPurchaseId[purchaseId] =
-          await _repository.getPurchaseItems(purchaseId);
+      _itemsByPurchaseId[purchaseId] = await _repository.getPurchaseItems(
+        purchaseId,
+      );
     }
     notifyListeners();
   }
@@ -286,9 +290,7 @@ class PurchasesController extends ChangeNotifier {
     _totalRemainingByCurrency = _sumByCurrency((p) => p.remainingAmount);
   }
 
-  Map<String, double> _sumByCurrency(
-    double Function(PurchaseModel) valueOf,
-  ) {
+  Map<String, double> _sumByCurrency(double Function(PurchaseModel) valueOf) {
     final totals = <String, double>{};
     for (final p in _purchases) {
       final currency = p.currencyCode.trim().toUpperCase();

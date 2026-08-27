@@ -58,7 +58,8 @@ class InventoryController extends ChangeNotifier {
     return null;
   }
 
-  List<InventoryModel> get filteredItems => UnifiedFilterEngine.apply<InventoryModel>(
+  List<InventoryModel> get filteredItems =>
+      UnifiedFilterEngine.apply<InventoryModel>(
         _items,
         criteria: _criteriaFromQuery(),
         adapter: UnifiedFilterAdapter<InventoryModel>(
@@ -94,38 +95,41 @@ class InventoryController extends ChangeNotifier {
   }
 
   List<UnifiedSortCriterion<InventoryModel>> _sortsFromQuery() {
-    return query.state.sorts.map((rule) {
-      final direction = rule.descending
-          ? UnifiedSortDirection.descending
-          : UnifiedSortDirection.ascending;
-      Comparable<dynamic> value(InventoryModel item) {
-        switch (rule.field) {
-          case 'code':
-            return item.code.toLowerCase();
-          case 'name':
-            return item.name.toLowerCase();
-          case 'quantity':
-            return item.quantity;
-          case 'availableQuantity':
-            return item.availableQuantity;
-          case 'expectedQuantity':
-            return item.expectedQuantity;
-          case 'purchasePrice':
-            return item.purchasePrice;
-          case 'salePrice':
-            return item.salePrice;
-          case 'unitCost':
-            return item.unitCost;
-          default:
-            return item.name.toLowerCase();
-        }
-      }
-      return UnifiedSortCriterion<InventoryModel>(
-        key: rule.field,
-        value: value,
-        direction: direction,
-      );
-    }).toList(growable: false);
+    return query.state.sorts
+        .map((rule) {
+          final direction = rule.descending
+              ? UnifiedSortDirection.descending
+              : UnifiedSortDirection.ascending;
+          Comparable<dynamic> value(InventoryModel item) {
+            switch (rule.field) {
+              case 'code':
+                return item.code.toLowerCase();
+              case 'name':
+                return item.name.toLowerCase();
+              case 'quantity':
+                return item.quantity;
+              case 'availableQuantity':
+                return item.availableQuantity;
+              case 'expectedQuantity':
+                return item.expectedQuantity;
+              case 'purchasePrice':
+                return item.purchasePrice;
+              case 'salePrice':
+                return item.salePrice;
+              case 'unitCost':
+                return item.unitCost;
+              default:
+                return item.name.toLowerCase();
+            }
+          }
+
+          return UnifiedSortCriterion<InventoryModel>(
+            key: rule.field,
+            value: value,
+            direction: direction,
+          );
+        })
+        .toList(growable: false);
   }
 
   Future<void> loadInventory({bool force = false}) {

@@ -14,10 +14,9 @@ void main() {
 
       controller.setSearch('  invoice-10  ');
       controller.addFilter(filter);
-      controller.addSort(const UnifiedSortRule(
-        field: 'created_at',
-        label: 'تاريخ الإنشاء',
-      ));
+      controller.addSort(
+        const UnifiedSortRule(field: 'created_at', label: 'تاريخ الإنشاء'),
+      );
 
       expect(controller.state.search, '  invoice-10  ');
       expect(controller.state.filters, contains(filter));
@@ -93,9 +92,7 @@ void main() {
         valueLabel: 'مفتوح',
       );
       controller.addFilter(filter);
-      controller.addSort(
-        const UnifiedSortRule(field: 'name', label: 'الاسم'),
-      );
+      controller.addSort(const UnifiedSortRule(field: 'name', label: 'الاسم'));
       final before = controller.state;
 
       controller.removeFilterKey('missing');

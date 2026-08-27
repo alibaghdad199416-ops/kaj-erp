@@ -30,7 +30,6 @@ class AccountingPage extends StatefulWidget {
 }
 
 class _AccountingPageState extends State<AccountingPage> {
-
   @override
   void initState() {
     super.initState();
@@ -38,7 +37,6 @@ class _AccountingPageState extends State<AccountingPage> {
       await context.read<AccountingController>().loadAccounting();
     });
   }
-
 
   Future<void> _openAdd() async {
     final result = await showAppWorkspaceDialog<bool>(
@@ -150,7 +148,9 @@ class _AccountingPageState extends State<AccountingPage> {
                         filterButtonLabel: AppTranslation.translate('فلترة'),
                         sortButtonLabel: AppTranslation.translate('فرز'),
                         clearAllLabel: AppTranslation.translate('مسح الكل'),
-                        clearSearchTooltip: AppTranslation.translate('مسح البحث'),
+                        clearSearchTooltip: AppTranslation.translate(
+                          'مسح البحث',
+                        ),
                         ascendingLabel: AppTranslation.translate('تصاعدي'),
                         descendingLabel: AppTranslation.translate('تنازلي'),
                       ),

@@ -41,7 +41,8 @@ class _ReportSectionCustomizationDialogState
         section.key: UnifiedQueryController(
           UnifiedQueryState(
             search: widget.initialOptions.sectionQueries[section.key] ?? '',
-            filters: widget.initialOptions.sectionFilters[section.key] ?? const [],
+            filters:
+                widget.initialOptions.sectionFilters[section.key] ?? const [],
             sorts: _initialSorts(section.key),
           ),
         ),
@@ -49,7 +50,8 @@ class _ReportSectionCustomizationDialogState
     _selectedColumns = {
       for (final section in widget.sections)
         section.key:
-            (widget.initialOptions.selectedColumns[section.key] ?? section.columns)
+            (widget.initialOptions.selectedColumns[section.key] ??
+                    section.columns)
                 .toSet(),
     };
     _rowLimits = {
@@ -92,7 +94,11 @@ class _ReportSectionCustomizationDialogState
     ContextualReportSection section,
   ) {
     final options = <UnifiedQueryFilterOption>[];
-    for (var columnIndex = 0; columnIndex < section.columns.length; columnIndex++) {
+    for (
+      var columnIndex = 0;
+      columnIndex < section.columns.length;
+      columnIndex++
+    ) {
       final column = section.columns[columnIndex];
       if (column.trim().isEmpty || _isInternalColumn(column)) continue;
       final values = <String>{};
@@ -173,29 +179,30 @@ class _ReportSectionCustomizationDialogState
     BuildContext context,
     ContextualReportSection section,
   ) => [
-        for (final column in section.columns)
-          if (!_isInternalColumn(column))
-            UnifiedQuerySortOption(
-              rule: UnifiedSortRule(
-                field: column,
-                label: _label(context, column),
-              ),
-              icon: Icons.sort,
-            ),
-      ];
+    for (final column in section.columns)
+      if (!_isInternalColumn(column))
+        UnifiedQuerySortOption(
+          rule: UnifiedSortRule(field: column, label: _label(context, column)),
+          icon: Icons.sort,
+        ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: AppText(_bi(context, 'تخصيص بيانات التقرير', 'Customize report data')),
+      title: AppText(
+        _bi(context, 'تخصيص بيانات التقرير', 'Customize report data'),
+      ),
       content: SizedBox(
         width: AppResponsive.dialogWidth(context, 900),
         child: widget.sections.isEmpty
-            ? AppText(_bi(
-                context,
-                'لا توجد أقسام بيانات قابلة للتخصيص حاليًا.',
-                'There are no customizable data sections.',
-              ))
+            ? AppText(
+                _bi(
+                  context,
+                  'لا توجد أقسام بيانات قابلة للتخصيص حاليًا.',
+                  'There are no customizable data sections.',
+                ),
+              )
             : ListView.separated(
                 shrinkWrap: true,
                 itemCount: widget.sections.length,
@@ -220,13 +227,17 @@ class _ReportSectionCustomizationDialogState
                             ),
                             title: AppText(
                               _label(context, section.title),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            subtitle: AppText(_bi(
-                              context,
-                              '${section.rows.length} صف • ${section.columns.length} حقل',
-                              '${section.rows.length} rows • ${section.columns.length} fields',
-                            )),
+                            subtitle: AppText(
+                              _bi(
+                                context,
+                                '${section.rows.length} صف • ${section.columns.length} حقل',
+                                '${section.rows.length} rows • ${section.columns.length} fields',
+                              ),
+                            ),
                           ),
                           IgnorePointer(
                             ignoring: !enabled,
@@ -244,12 +255,32 @@ class _ReportSectionCustomizationDialogState
                                   sorts: _sortOptions(context, section),
                                   compact: true,
                                   padding: EdgeInsets.zero,
-                                  filterButtonLabel: _bi(context, 'فلترة', 'Filter'),
+                                  filterButtonLabel: _bi(
+                                    context,
+                                    'فلترة',
+                                    'Filter',
+                                  ),
                                   sortButtonLabel: _bi(context, 'فرز', 'Sort'),
-                                  clearAllLabel: _bi(context, 'مسح البحث والفرز والفلترة', 'Clear query'),
-                                  clearSearchTooltip: _bi(context, 'مسح البحث', 'Clear search'),
-                                  ascendingLabel: _bi(context, 'تصاعدي', 'Ascending'),
-                                  descendingLabel: _bi(context, 'تنازلي', 'Descending'),
+                                  clearAllLabel: _bi(
+                                    context,
+                                    'مسح البحث والفرز والفلترة',
+                                    'Clear query',
+                                  ),
+                                  clearSearchTooltip: _bi(
+                                    context,
+                                    'مسح البحث',
+                                    'Clear search',
+                                  ),
+                                  ascendingLabel: _bi(
+                                    context,
+                                    'تصاعدي',
+                                    'Ascending',
+                                  ),
+                                  descendingLabel: _bi(
+                                    context,
+                                    'تنازلي',
+                                    'Descending',
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Row(
@@ -261,7 +292,13 @@ class _ReportSectionCustomizationDialogState
                                           ..addAll(section.columns),
                                       ),
                                       icon: const Icon(Icons.select_all),
-                                      label: AppText(_bi(context, 'اختيار الكل', 'Select all')),
+                                      label: AppText(
+                                        _bi(
+                                          context,
+                                          'اختيار الكل',
+                                          'Select all',
+                                        ),
+                                      ),
                                     ),
                                     TextButton.icon(
                                       onPressed: selected.length <= 1
@@ -273,11 +310,13 @@ class _ReportSectionCustomizationDialogState
                                                 ..add(keep);
                                             }),
                                       icon: const Icon(Icons.filter_alt_off),
-                                      label: AppText(_bi(
-                                        context,
-                                        'إبقاء حقل واحد',
-                                        'Keep one field',
-                                      )),
+                                      label: AppText(
+                                        _bi(
+                                          context,
+                                          'إبقاء حقل واحد',
+                                          'Keep one field',
+                                        ),
+                                      ),
                                     ),
                                     const Spacer(),
                                     SizedBox(
@@ -304,7 +343,9 @@ class _ReportSectionCustomizationDialogState
                                   children: section.columns
                                       .map(
                                         (column) => FilterChip(
-                                          label: AppText(_label(context, column)),
+                                          label: AppText(
+                                            _label(context, column),
+                                          ),
                                           selected: selected.contains(column),
                                           onSelected: (value) => setState(() {
                                             if (value) {

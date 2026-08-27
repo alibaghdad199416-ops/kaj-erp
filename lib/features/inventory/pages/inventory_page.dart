@@ -390,11 +390,7 @@ class _InventoryPageState extends State<InventoryPage> {
         if (compact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              queryToolbar,
-              const SizedBox(height: 8),
-              warehouse,
-            ],
+            children: [queryToolbar, const SizedBox(height: 8), warehouse],
           );
         }
         return Row(

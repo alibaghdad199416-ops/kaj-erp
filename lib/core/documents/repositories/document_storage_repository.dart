@@ -32,11 +32,13 @@ class DocumentStorageRepository {
     final path = _path(documentId, versionId);
     var uploaded = false;
     try {
-      await _client.storage.from(bucketName).uploadBinary(
-        path,
-        bytes,
-        fileOptions: const FileOptions(upsert: false),
-      );
+      await _client.storage
+          .from(bucketName)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(upsert: false),
+          );
       uploaded = true;
 
       await _client.rpc(

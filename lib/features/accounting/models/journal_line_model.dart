@@ -25,15 +25,15 @@ class JournalLineModel {
       debit >= 0 && credit >= 0 && (debit == 0 || credit == 0);
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'entryId': entryId,
-        'accountId': accountId,
-        'accountCode': accountCode,
-        'accountName': accountName,
-        'debit': debit,
-        'credit': credit,
-        'description': description,
-      };
+    'id': id,
+    'entryId': entryId,
+    'accountId': accountId,
+    'accountCode': accountCode,
+    'accountName': accountName,
+    'debit': debit,
+    'credit': credit,
+    'description': description,
+  };
 
   factory JournalLineModel.fromMap(Map<String, dynamic> map) {
     final description = _text(map['description']);

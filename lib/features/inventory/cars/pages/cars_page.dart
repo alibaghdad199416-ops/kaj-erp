@@ -82,7 +82,9 @@ class _CarsPageState extends State<CarsPage> {
       }
       setState(() {
         _warehouses = warehouses;
-        _warehouseIdByReference = Map<String, String>.unmodifiable(idByReference);
+        _warehouseIdByReference = Map<String, String>.unmodifiable(
+          idByReference,
+        );
         _warehouseLabelById = Map<String, String>.unmodifiable(labelById);
         final token = _queryController.state.filters
             .where((item) => item.key == 'warehouse')
@@ -114,14 +116,18 @@ class _CarsPageState extends State<CarsPage> {
   }
 
   Set<String> _selectedWarehouseIds(UnifiedQueryState state) {
-    final token = state.filters.where((item) => item.key == 'warehouse').firstOrNull;
+    final token = state.filters
+        .where((item) => item.key == 'warehouse')
+        .firstOrNull;
     final value = token?.value;
     if (value is Iterable) return value.map((e) => e.toString()).toSet();
     return const <String>{};
   }
 
   String? _selectedStatus(UnifiedQueryState state) {
-    final token = state.filters.where((item) => item.key == 'status').firstOrNull;
+    final token = state.filters
+        .where((item) => item.key == 'status')
+        .firstOrNull;
     return token?.value.toString();
   }
 
@@ -159,7 +165,9 @@ class _CarsPageState extends State<CarsPage> {
   }
 
   Future<void> _selectWarehouses() async {
-    final selected = Set<String>.from(_selectedWarehouseIds(_queryController.state));
+    final selected = Set<String>.from(
+      _selectedWarehouseIds(_queryController.state),
+    );
     final accepted = await showAppWorkspaceDialogBuilder<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -227,44 +235,47 @@ class _CarsPageState extends State<CarsPage> {
   }
 
   List<UnifiedSortCriterion<CarModel>> _sorts(UnifiedQueryState state) {
-    return state.sorts.map((rule) {
-      final direction = rule.descending
-          ? UnifiedSortDirection.descending
-          : UnifiedSortDirection.ascending;
-      switch (rule.field) {
-        case 'date':
-          return UnifiedSortCriterion<CarModel>(
-            key: rule.field,
-            direction: direction,
-            value: (car) => DateTime.tryParse(car.purchaseDate ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0),
-          );
-        case 'number':
-          return UnifiedSortCriterion<CarModel>(
-            key: rule.field,
-            direction: direction,
-            value: (car) => car.carNumber,
-          );
-        case 'plate':
-          return UnifiedSortCriterion<CarModel>(
-            key: rule.field,
-            direction: direction,
-            value: (car) => car.plateNumber,
-          );
-        case 'cost':
-          return UnifiedSortCriterion<CarModel>(
-            key: rule.field,
-            direction: direction,
-            value: (car) => car.totalCost,
-          );
-        default:
-          return UnifiedSortCriterion<CarModel>(
-            key: rule.field,
-            direction: direction,
-            value: (car) => '${car.brand} ${car.model}',
-          );
-      }
-    }).toList(growable: false);
+    return state.sorts
+        .map((rule) {
+          final direction = rule.descending
+              ? UnifiedSortDirection.descending
+              : UnifiedSortDirection.ascending;
+          switch (rule.field) {
+            case 'date':
+              return UnifiedSortCriterion<CarModel>(
+                key: rule.field,
+                direction: direction,
+                value: (car) =>
+                    DateTime.tryParse(car.purchaseDate ?? '') ??
+                    DateTime.fromMillisecondsSinceEpoch(0),
+              );
+            case 'number':
+              return UnifiedSortCriterion<CarModel>(
+                key: rule.field,
+                direction: direction,
+                value: (car) => car.carNumber,
+              );
+            case 'plate':
+              return UnifiedSortCriterion<CarModel>(
+                key: rule.field,
+                direction: direction,
+                value: (car) => car.plateNumber,
+              );
+            case 'cost':
+              return UnifiedSortCriterion<CarModel>(
+                key: rule.field,
+                direction: direction,
+                value: (car) => car.totalCost,
+              );
+            default:
+              return UnifiedSortCriterion<CarModel>(
+                key: rule.field,
+                direction: direction,
+                value: (car) => '${car.brand} ${car.model}',
+              );
+          }
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -289,10 +300,18 @@ class _CarsPageState extends State<CarsPage> {
       viewPermission: 'cars.view',
     );
     final canViewInventoryValue = canViewPurchaseCost && canViewMaintenanceCost;
-    final availableCars = cars.where((car) => car.statusValue == CarStatus.available).length;
-    final purchasingCars = cars.where((car) => car.statusValue == CarStatus.purchasing).length;
-    final sellingCars = cars.where((car) => car.statusValue == CarStatus.selling).length;
-    final soldCars = cars.where((car) => car.statusValue == CarStatus.sold).length;
+    final availableCars = cars
+        .where((car) => car.statusValue == CarStatus.available)
+        .length;
+    final purchasingCars = cars
+        .where((car) => car.statusValue == CarStatus.purchasing)
+        .length;
+    final sellingCars = cars
+        .where((car) => car.statusValue == CarStatus.selling)
+        .length;
+    final soldCars = cars
+        .where((car) => car.statusValue == CarStatus.sold)
+        .length;
     final totalValueByCurrency = <String, double>{};
     for (final car in cars.where(
       (car) =>
@@ -320,7 +339,8 @@ class _CarsPageState extends State<CarsPage> {
         String? canonicalWarehouseId(CarModel car) {
           final raw = car.warehouseId?.trim() ?? '';
           if (raw.isEmpty) return null;
-          return _warehouseIdByReference[UnifiedFilterEngine.normalize(raw)] ?? raw;
+          return _warehouseIdByReference[UnifiedFilterEngine.normalize(raw)] ??
+              raw;
         }
 
         String? warehouseLabel(CarModel car) {
@@ -334,7 +354,9 @@ class _CarsPageState extends State<CarsPage> {
           criteria: UnifiedFilterCriteria(
             searchText: state.search,
             warehouseIds: selectedWarehouseIds,
-            statuses: selectedStatus == null ? const <String>{} : <String>{selectedStatus},
+            statuses: selectedStatus == null
+                ? const <String>{}
+                : <String>{selectedStatus},
           ),
           adapter: UnifiedFilterAdapter<CarModel>(
             searchableText: (car) => <Object?>[
@@ -357,16 +379,22 @@ class _CarsPageState extends State<CarsPage> {
           sorts: _sorts(state),
         );
 
-        final statusOptions = CarStatus.values.map(
-          (status) => DropdownMenuItem<String>(
-            value: status.name,
-            child: Text(_statusLabel(status)),
-          ),
-        ).toList();
+        final statusOptions = CarStatus.values
+            .map(
+              (status) => DropdownMenuItem<String>(
+                value: status.name,
+                child: Text(_statusLabel(status)),
+              ),
+            )
+            .toList();
 
         final sortOptions = <UnifiedQuerySortOption>[
           const UnifiedQuerySortOption(
-            rule: UnifiedSortRule(field: 'date', label: 'التاريخ', descending: true),
+            rule: UnifiedSortRule(
+              field: 'date',
+              label: 'التاريخ',
+              descending: true,
+            ),
             icon: Icons.calendar_today_outlined,
           ),
           const UnifiedQuerySortOption(
@@ -378,14 +406,20 @@ class _CarsPageState extends State<CarsPage> {
             icon: Icons.confirmation_number_outlined,
           ),
           const UnifiedQuerySortOption(
-            rule: UnifiedSortRule(field: 'cost', label: 'التكلفة', descending: true),
+            rule: UnifiedSortRule(
+              field: 'cost',
+              label: 'التكلفة',
+              descending: true,
+            ),
             icon: Icons.payments_outlined,
           ),
         ];
 
         return AppEntityPage(
           hideHeader: true,
-          title: context.l10n.isArabic ? 'إدارة السيارات' : 'Vehicle management',
+          title: context.l10n.isArabic
+              ? 'إدارة السيارات'
+              : 'Vehicle management',
           subtitle: context.l10n.isArabic
               ? 'إدارة بيانات السيارات ومتابعة حالاتها وقيمها وحركتها المخزنية.'
               : 'Manage vehicle records, availability, valuation and warehouse movement.',
@@ -395,13 +429,19 @@ class _CarsPageState extends State<CarsPage> {
             OutlinedButton.icon(
               onPressed: _openTransfers,
               icon: const Icon(Icons.swap_horiz),
-              label: AppText(context.l10n.isArabic ? 'نقل بين المخازن' : 'Warehouse transfers'),
+              label: AppText(
+                context.l10n.isArabic
+                    ? 'نقل بين المخازن'
+                    : 'Warehouse transfers',
+              ),
             ),
             if (canCreate)
               FilledButton.icon(
                 onPressed: _openAddCar,
                 icon: const Icon(Icons.add_rounded, size: 17),
-                label: AppText(context.l10n.isArabic ? 'إضافة سيارة' : 'Add vehicle'),
+                label: AppText(
+                  context.l10n.isArabic ? 'إضافة سيارة' : 'Add vehicle',
+                ),
               ),
           ],
           statistics: CarsStatistics(
@@ -419,7 +459,9 @@ class _CarsPageState extends State<CarsPage> {
               final compact = constraints.maxWidth < 700;
               final unifiedToolbar = UnifiedQueryToolbar(
                 controller: _queryController,
-                searchHint: context.l10n.isArabic ? 'ابحث في بيانات السيارات...' : 'Search vehicles...',
+                searchHint: context.l10n.isArabic
+                    ? 'ابحث في بيانات السيارات...'
+                    : 'Search vehicles...',
                 sorts: sortOptions,
               );
               final statusFilter = SizedBox(
@@ -477,7 +519,9 @@ class _CarsPageState extends State<CarsPage> {
           ),
           body: filteredCars.isEmpty
               ? AppEmpty(
-                  title: context.l10n.isArabic ? 'لا توجد سيارات مطابقة' : 'No matching vehicles',
+                  title: context.l10n.isArabic
+                      ? 'لا توجد سيارات مطابقة'
+                      : 'No matching vehicles',
                   message: 'جرّب تغيير معايير البحث أو أضف سيارة جديدة',
                   icon: Icons.directions_car_outlined,
                   action: canCreate
@@ -519,7 +563,8 @@ class _CarsPageState extends State<CarsPage> {
                             final warehouseId = canonicalWarehouseId(car);
                             if (warehouseId == null) return warehouseLabel(car);
                             for (final warehouse in _warehouses) {
-                              if (warehouse.id.trim() == warehouseId.trim()) return warehouse.name;
+                              if (warehouse.id.trim() == warehouseId.trim())
+                                return warehouse.name;
                             }
                             return warehouseLabel(car);
                           })(),

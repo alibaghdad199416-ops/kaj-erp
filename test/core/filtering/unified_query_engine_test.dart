@@ -117,8 +117,12 @@ void main() {
       final controller = UnifiedQueryController();
       addTearDown(controller.dispose);
 
-      controller.addSort(const UnifiedSortRule(field: 'date', label: 'التاريخ'));
-      controller.addSort(const UnifiedSortRule(field: 'total', label: 'الإجمالي'));
+      controller.addSort(
+        const UnifiedSortRule(field: 'date', label: 'التاريخ'),
+      );
+      controller.addSort(
+        const UnifiedSortRule(field: 'total', label: 'الإجمالي'),
+      );
       controller.removeSort('date');
 
       expect(controller.state.sorts, [

@@ -89,7 +89,9 @@ class _PermissionGuardState extends State<PermissionGuard> {
                   ),
                   const SizedBox(height: 24),
                   Tooltip(
-                    message: MaterialLocalizations.of(context).backButtonTooltip,
+                    message: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
                     child: FilledButton.icon(
                       onPressed: () async {
                         // Never push the protected dashboard blindly: a valid
@@ -110,7 +112,9 @@ class _PermissionGuardState extends State<PermissionGuard> {
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary,
                       ),
                     ),
                   ),

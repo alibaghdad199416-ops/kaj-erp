@@ -50,7 +50,8 @@ class _SalesPageState extends State<SalesPage> {
     };
 
     final filteredSales = UnifiedQueryExecutor<SaleModel>(
-      criteriaBuilder: (state) => UnifiedFilterCriteria(searchText: state.search),
+      criteriaBuilder: (state) =>
+          UnifiedFilterCriteria(searchText: state.search),
       filterAdapter: UnifiedFilterAdapter<SaleModel>(
         searchableText: (sale) => <Object?>[
           sale.invoiceNumber,
@@ -111,19 +112,25 @@ class _SalesPageState extends State<SalesPage> {
                   ),
                   KajCommercialMetricData(
                     label: AppTranslation.translate('الإيراد'),
-                    value: CurrencyTotalsFormatter.format(controller.revenueByCurrency),
+                    value: CurrencyTotalsFormatter.format(
+                      controller.revenueByCurrency,
+                    ),
                     icon: Icons.payments_outlined,
                     accent: const Color(0xFFCEB686),
                   ),
                   KajCommercialMetricData(
                     label: AppTranslation.translate('المحصل'),
-                    value: CurrencyTotalsFormatter.format(controller.paidByCurrency),
+                    value: CurrencyTotalsFormatter.format(
+                      controller.paidByCurrency,
+                    ),
                     icon: Icons.verified_outlined,
                     accent: const Color(0xFF00D17D),
                   ),
                   KajCommercialMetricData(
                     label: AppTranslation.translate('المتبقي'),
-                    value: CurrencyTotalsFormatter.format(controller.remainingByCurrency),
+                    value: CurrencyTotalsFormatter.format(
+                      controller.remainingByCurrency,
+                    ),
                     icon: Icons.schedule_outlined,
                     accent: const Color(0xFFE6A95C),
                   ),
@@ -170,13 +177,18 @@ class _SalesPageState extends State<SalesPage> {
                       UnifiedSortRule(
                         field: field,
                         label: labels[field] ?? field,
-                        descending: existing == null ? true : !existing.descending,
+                        descending: existing == null
+                            ? true
+                            : !existing.descending,
                       ),
                     );
                   },
                   itemBuilder: (_) => const [
                     PopupMenuItem(value: 'date', child: AppText('التاريخ')),
-                    PopupMenuItem(value: 'invoice', child: AppText('رقم الفاتورة')),
+                    PopupMenuItem(
+                      value: 'invoice',
+                      child: AppText('رقم الفاتورة'),
+                    ),
                     PopupMenuItem(value: 'customer', child: AppText('العميل')),
                     PopupMenuItem(value: 'total', child: AppText('الإجمالي')),
                   ],
@@ -188,7 +200,10 @@ class _SalesPageState extends State<SalesPage> {
                   ? Center(
                       child: AppText(
                         AppTranslation.translate('لا توجد مبيعات'),
-                        style: const TextStyle(fontSize: 18, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
                       ),
                     )
                   : IncrementalListView(
@@ -202,25 +217,39 @@ class _SalesPageState extends State<SalesPage> {
                           customerName: customerNames[sale.customerId],
                           onPrint: () async {
                             try {
-                              await const LegacyCommercialDocumentPdfService().printSale(
-                                sale: sale,
-                                customerName: customerNames[sale.customerId] ?? 'عميل غير محدد',
-                                carName: carNames[sale.carId] ?? 'سيارة غير محددة',
-                                language: context.l10n.isArabic ? 'ar' : 'en',
-                              );
+                              await const LegacyCommercialDocumentPdfService()
+                                  .printSale(
+                                    sale: sale,
+                                    customerName:
+                                        customerNames[sale.customerId] ??
+                                        'عميل غير محدد',
+                                    carName:
+                                        carNames[sale.carId] ??
+                                        'سيارة غير محددة',
+                                    language: context.l10n.isArabic
+                                        ? 'ar'
+                                        : 'en',
+                                  );
                             } catch (error) {
                               if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: AppText(
-                                    userFacingError(error, isArabic: context.l10n.isArabic),
+                                    userFacingError(
+                                      error,
+                                      isArabic: context.l10n.isArabic,
+                                    ),
                                   ),
                                 ),
                               );
                             }
                           },
                           onDelete: () async {
-                            if (!await PermissionAction.require(context, 'sales.delete')) return;
+                            if (!await PermissionAction.require(
+                              context,
+                              'sales.delete',
+                            ))
+                              return;
                             if (!context.mounted) return;
                             final confirmed = await showAppConfirmDialog(
                               context,
@@ -242,7 +271,8 @@ class _SalesPageState extends State<SalesPage> {
                                       error,
                                       isArabic: context.l10n.isArabic,
                                       arabicFallback: 'تعذر حذف فاتورة البيع.',
-                                      englishFallback: 'Unable to delete the sales invoice.',
+                                      englishFallback:
+                                          'Unable to delete the sales invoice.',
                                     ),
                                   ),
                                 ),

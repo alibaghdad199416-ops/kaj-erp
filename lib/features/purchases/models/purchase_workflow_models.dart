@@ -64,9 +64,12 @@ class PurchaseInvoicePaymentInput {
     if (paymentCurrency != 'USD' && paymentCurrency != 'IQD') {
       throw ArgumentError('عملة الدفعة غير مدعومة');
     }
-    if (!invoiceAmount.isFinite || !cashAmount.isFinite ||
-        invoiceAmount <= 0 || cashAmount <= 0 ||
-        !exchangeRate.isFinite || exchangeRate <= 0) {
+    if (!invoiceAmount.isFinite ||
+        !cashAmount.isFinite ||
+        invoiceAmount <= 0 ||
+        cashAmount <= 0 ||
+        !exchangeRate.isFinite ||
+        exchangeRate <= 0) {
       throw ArgumentError(
         'مبالغ الدفعة ومعامل التحويل يجب أن تكون أكبر من صفر وصالحة',
       );

@@ -36,7 +36,8 @@ class _SuppliersPageState extends State<SuppliersPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(context.read<SuppliersController>().loadSuppliers());
+      if (mounted)
+        unawaited(context.read<SuppliersController>().loadSuppliers());
     });
   }
 
@@ -47,37 +48,39 @@ class _SuppliersPageState extends State<SuppliersPage> {
   }
 
   List<UnifiedSortCriterion<SupplierModel>> _sorts(UnifiedQueryState state) {
-    return state.sorts.map((rule) {
-      final direction = rule.descending
-          ? UnifiedSortDirection.descending
-          : UnifiedSortDirection.ascending;
-      switch (rule.field) {
-        case 'name':
-          return UnifiedSortCriterion<SupplierModel>(
-            key: rule.field,
-            direction: direction,
-            value: (supplier) => supplier.name.toLowerCase(),
-          );
-        case 'balance':
-          return UnifiedSortCriterion<SupplierModel>(
-            key: rule.field,
-            direction: direction,
-            value: (supplier) => supplier.openingBalance,
-          );
-        case 'createdAt':
-          return UnifiedSortCriterion<SupplierModel>(
-            key: rule.field,
-            direction: direction,
-            value: (supplier) => supplier.createdAt,
-          );
-        default:
-          return UnifiedSortCriterion<SupplierModel>(
-            key: rule.field,
-            direction: direction,
-            value: (supplier) => supplier.name.toLowerCase(),
-          );
-      }
-    }).toList(growable: false);
+    return state.sorts
+        .map((rule) {
+          final direction = rule.descending
+              ? UnifiedSortDirection.descending
+              : UnifiedSortDirection.ascending;
+          switch (rule.field) {
+            case 'name':
+              return UnifiedSortCriterion<SupplierModel>(
+                key: rule.field,
+                direction: direction,
+                value: (supplier) => supplier.name.toLowerCase(),
+              );
+            case 'balance':
+              return UnifiedSortCriterion<SupplierModel>(
+                key: rule.field,
+                direction: direction,
+                value: (supplier) => supplier.openingBalance,
+              );
+            case 'createdAt':
+              return UnifiedSortCriterion<SupplierModel>(
+                key: rule.field,
+                direction: direction,
+                value: (supplier) => supplier.createdAt,
+              );
+            default:
+              return UnifiedSortCriterion<SupplierModel>(
+                key: rule.field,
+                direction: direction,
+                value: (supplier) => supplier.name.toLowerCase(),
+              );
+          }
+        })
+        .toList(growable: false);
   }
 
   String _statusLabel(bool active) => active ? 'نشط' : 'غير نشط';
@@ -92,7 +95,9 @@ class _SuppliersPageState extends State<SuppliersPage> {
       animation: _queryController,
       builder: (context, _) {
         final state = _queryController.state;
-        final statusToken = state.filters.where((item) => item.key == 'status').firstOrNull;
+        final statusToken = state.filters
+            .where((item) => item.key == 'status')
+            .firstOrNull;
         final status = statusToken?.value.toString();
         final visible = UnifiedFilterEngine.apply<SupplierModel>(
           suppliers,
@@ -119,7 +124,11 @@ class _SuppliersPageState extends State<SuppliersPage> {
 
         final sortOptions = <UnifiedQuerySortOption>[
           const UnifiedQuerySortOption(
-            rule: UnifiedSortRule(field: 'createdAt', label: 'الأحدث', descending: true),
+            rule: UnifiedSortRule(
+              field: 'createdAt',
+              label: 'الأحدث',
+              descending: true,
+            ),
             icon: Icons.schedule_rounded,
           ),
           const UnifiedQuerySortOption(
@@ -127,7 +136,11 @@ class _SuppliersPageState extends State<SuppliersPage> {
             icon: Icons.sort_by_alpha_rounded,
           ),
           const UnifiedQuerySortOption(
-            rule: UnifiedSortRule(field: 'balance', label: 'الرصيد', descending: true),
+            rule: UnifiedSortRule(
+              field: 'balance',
+              label: 'الرصيد',
+              descending: true,
+            ),
             icon: Icons.account_balance_wallet_outlined,
           ),
         ];
@@ -171,7 +184,10 @@ class _SuppliersPageState extends State<SuppliersPage> {
                     ),
                     items: const [
                       DropdownMenuItem(value: 'active', child: Text('نشط')),
-                      DropdownMenuItem(value: 'inactive', child: Text('غير نشط')),
+                      DropdownMenuItem(
+                        value: 'inactive',
+                        child: Text('غير نشط'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) {
@@ -201,7 +217,12 @@ class _SuppliersPageState extends State<SuppliersPage> {
                       children: [filter, clearStatus],
                     );
                   }
-                  return Row(children: [SizedBox(width: 220, child: filter), clearStatus]);
+                  return Row(
+                    children: [
+                      SizedBox(width: 220, child: filter),
+                      clearStatus,
+                    ],
+                  );
                 },
               ),
             ],
@@ -292,28 +313,87 @@ class _SuppliersPageState extends State<SuppliersPage> {
       photoBase64: supplier.photoBase64,
       summary: summary,
       identityFields: [
-        if (context.read<AccessController>().canViewField('suppliers', 'companyName', viewPermission: 'suppliers.view'))
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'companyName',
+          viewPermission: 'suppliers.view',
+        ))
           BusinessPartnerProfileField('اسم الشركة', supplier.companyName),
-        if (context.read<AccessController>().canViewField('suppliers', 'taxNumber', viewPermission: 'suppliers.view'))
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'taxNumber',
+          viewPermission: 'suppliers.view',
+        ))
           BusinessPartnerProfileField('الرقم الضريبي', supplier.taxNumber),
-        if (context.read<AccessController>().canViewField('suppliers', 'isActive', viewPermission: 'suppliers.view'))
-          BusinessPartnerProfileField('الحالة', supplier.isActive ? 'فعال' : 'متوقف'),
-        if (context.read<AccessController>().canViewField('suppliers', 'createdAt', viewPermission: 'suppliers.view'))
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'isActive',
+          viewPermission: 'suppliers.view',
+        ))
+          BusinessPartnerProfileField(
+            'الحالة',
+            supplier.isActive ? 'فعال' : 'متوقف',
+          ),
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'createdAt',
+          viewPermission: 'suppliers.view',
+        ))
           BusinessPartnerProfileField('تاريخ الإنشاء', supplier.createdAt),
-        if (supplier.updatedAt != null && context.read<AccessController>().canViewField('suppliers', 'updatedAt', viewPermission: 'suppliers.view'))
+        if (supplier.updatedAt != null &&
+            context.read<AccessController>().canViewField(
+              'suppliers',
+              'updatedAt',
+              viewPermission: 'suppliers.view',
+            ))
           BusinessPartnerProfileField('تاريخ التحديث', supplier.updatedAt),
       ],
       contactFields: [
-        if (context.read<AccessController>().canViewField('suppliers', 'phone', viewPermission: 'suppliers.view'))
-          BusinessPartnerProfileField('الهاتف', supplier.phone, icon: Icons.phone_outlined),
-        if (context.read<AccessController>().canViewField('suppliers', 'alternativePhone', viewPermission: 'suppliers.view'))
-          BusinessPartnerProfileField('هاتف بديل', supplier.alternativePhone, icon: Icons.phone_in_talk_outlined),
-        if (context.read<AccessController>().canViewField('suppliers', 'address', viewPermission: 'suppliers.view'))
-          BusinessPartnerProfileField('العنوان', supplier.address, icon: Icons.location_on_outlined),
-        if (context.read<AccessController>().canViewField('suppliers', 'currency', viewPermission: 'suppliers.view'))
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'phone',
+          viewPermission: 'suppliers.view',
+        ))
+          BusinessPartnerProfileField(
+            'الهاتف',
+            supplier.phone,
+            icon: Icons.phone_outlined,
+          ),
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'alternativePhone',
+          viewPermission: 'suppliers.view',
+        ))
+          BusinessPartnerProfileField(
+            'هاتف بديل',
+            supplier.alternativePhone,
+            icon: Icons.phone_in_talk_outlined,
+          ),
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'address',
+          viewPermission: 'suppliers.view',
+        ))
+          BusinessPartnerProfileField(
+            'العنوان',
+            supplier.address,
+            icon: Icons.location_on_outlined,
+          ),
+        if (context.read<AccessController>().canViewField(
+          'suppliers',
+          'currency',
+          viewPermission: 'suppliers.view',
+        ))
           BusinessPartnerProfileField('العملة', supplier.currency),
       ],
-      notes: context.read<AccessController>().canViewField('suppliers', 'notes', viewPermission: 'suppliers.view') ? supplier.notes : null,
+      notes:
+          context.read<AccessController>().canViewField(
+            'suppliers',
+            'notes',
+            viewPermission: 'suppliers.view',
+          )
+          ? supplier.notes
+          : null,
     );
   }
 
@@ -326,7 +406,8 @@ class _SuppliersPageState extends State<SuppliersPage> {
       windowKey: 'suppliers:add',
       child: const AddSupplierPage(),
     );
-    if (changed != null && mounted) await context.read<SuppliersController>().loadSuppliers();
+    if (changed != null && mounted)
+      await context.read<SuppliersController>().loadSuppliers();
   }
 
   Future<void> _openEdit(SupplierModel supplier) async {
@@ -338,7 +419,8 @@ class _SuppliersPageState extends State<SuppliersPage> {
       windowKey: 'suppliers:edit:${supplier.id}',
       child: AddSupplierPage(supplier: supplier),
     );
-    if (changed != null && mounted) await context.read<SuppliersController>().loadSuppliers();
+    if (changed != null && mounted)
+      await context.read<SuppliersController>().loadSuppliers();
   }
 
   Future<void> _toggle(SupplierModel supplier) async {
@@ -348,7 +430,9 @@ class _SuppliersPageState extends State<SuppliersPage> {
     final confirmed = await showAppConfirmDialog(
       context,
       title: activate ? 'تفعيل المورد' : 'تعطيل المورد',
-      message: activate ? 'هل تريد تفعيل هذا المورد؟' : 'هل تريد تعطيل هذا المورد؟',
+      message: activate
+          ? 'هل تريد تفعيل هذا المورد؟'
+          : 'هل تريد تعطيل هذا المورد؟',
       confirmLabel: activate ? 'تفعيل' : 'تعطيل',
     );
     if (!confirmed || !mounted) return;
@@ -356,7 +440,10 @@ class _SuppliersPageState extends State<SuppliersPage> {
       await context.read<SuppliersController>().toggleSupplierStatus(supplier);
     } catch (_) {
       if (!mounted) return;
-      _showError(context.read<SuppliersController>().errorMessage ?? 'تعذر تحديث حالة المورد.');
+      _showError(
+        context.read<SuppliersController>().errorMessage ??
+            'تعذر تحديث حالة المورد.',
+      );
     }
   }
 
@@ -375,12 +462,16 @@ class _SuppliersPageState extends State<SuppliersPage> {
       await context.read<SuppliersController>().deleteSupplier(supplier.id);
     } catch (_) {
       if (!mounted) return;
-      _showError(context.read<SuppliersController>().errorMessage ?? 'تعذر حذف المورد.');
+      _showError(
+        context.read<SuppliersController>().errorMessage ?? 'تعذر حذف المورد.',
+      );
     }
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: AppText(message)));
   }
 }
 
@@ -393,18 +484,42 @@ class _SupplierStatistics extends StatelessWidget {
     final ar = context.l10n.isArabic;
     String t(String arText, String enText) => ar ? arText : enText;
     final items = <({IconData icon, String label, String value})>[
-      (icon: Icons.local_shipping_outlined, label: t('إجمالي الموردين', 'Total suppliers'), value: '${controller.totalSuppliers}'),
-      (icon: Icons.check_circle_outline_rounded, label: t('الموردون النشطون', 'Active suppliers'), value: '${controller.activeSuppliers}'),
-      (icon: Icons.pause_circle_outline_rounded, label: t('غير النشطين', 'Inactive suppliers'), value: '${controller.inactiveSuppliers}'),
-      (icon: Icons.attach_money_rounded, label: t('الرصيد بالدولار', 'USD balance'), value: controller.totalOpeningBalanceUsd.toStringAsFixed(2)),
-      (icon: Icons.account_balance_wallet_outlined, label: t('الرصيد بالدينار', 'IQD balance'), value: controller.totalOpeningBalanceIqd.toStringAsFixed(0)),
+      (
+        icon: Icons.local_shipping_outlined,
+        label: t('إجمالي الموردين', 'Total suppliers'),
+        value: '${controller.totalSuppliers}',
+      ),
+      (
+        icon: Icons.check_circle_outline_rounded,
+        label: t('الموردون النشطون', 'Active suppliers'),
+        value: '${controller.activeSuppliers}',
+      ),
+      (
+        icon: Icons.pause_circle_outline_rounded,
+        label: t('غير النشطين', 'Inactive suppliers'),
+        value: '${controller.inactiveSuppliers}',
+      ),
+      (
+        icon: Icons.attach_money_rounded,
+        label: t('الرصيد بالدولار', 'USD balance'),
+        value: controller.totalOpeningBalanceUsd.toStringAsFixed(2),
+      ),
+      (
+        icon: Icons.account_balance_wallet_outlined,
+        label: t('الرصيد بالدينار', 'IQD balance'),
+        value: controller.totalOpeningBalanceIqd.toStringAsFixed(0),
+      ),
     ];
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         for (final item in items)
-          CompactMetricPill(icon: item.icon, label: item.label, value: item.value),
+          CompactMetricPill(
+            icon: item.icon,
+            label: item.label,
+            value: item.value,
+          ),
       ],
     );
   }

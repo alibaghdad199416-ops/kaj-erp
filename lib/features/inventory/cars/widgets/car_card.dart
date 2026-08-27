@@ -34,12 +34,18 @@ class CarCard extends StatelessWidget {
 
   Color _statusColor() {
     switch (car.statusValue.name) {
-      case 'purchasing': return const Color(0xFF8A5CF5);
-      case 'available': return const Color(0xFF16A36A);
-      case 'damaged': return const Color(0xFFD9534F);
-      case 'selling': return const Color(0xFFF59E0B);
-      case 'sold': return const Color(0xFF2F80ED);
-      default: return const Color(0xFF607D8B);
+      case 'purchasing':
+        return const Color(0xFF8A5CF5);
+      case 'available':
+        return const Color(0xFF16A36A);
+      case 'damaged':
+        return const Color(0xFFD9534F);
+      case 'selling':
+        return const Color(0xFFF59E0B);
+      case 'sold':
+        return const Color(0xFF2F80ED);
+      default:
+        return const Color(0xFF607D8B);
     }
   }
 
@@ -76,8 +82,12 @@ class CarCard extends StatelessWidget {
                   width: compact ? 56 : 68,
                   height: compact ? 56 : 68,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(KajDesignTokens.radiusMd),
-                    border: Border.all(color: KajDesignTokens.border(brightness)),
+                    borderRadius: BorderRadius.circular(
+                      KajDesignTokens.radiusMd,
+                    ),
+                    border: Border.all(
+                      color: KajDesignTokens.border(brightness),
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: _CarThumbnail(carId: car.id),
@@ -88,22 +98,28 @@ class CarCard extends StatelessWidget {
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-                          image,
-                          const SizedBox(width: 9),
-                          Expanded(child: details),
-                        ]),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            image,
+                            const SizedBox(width: 9),
+                            Expanded(child: details),
+                          ],
+                        ),
                         const SizedBox(height: 6),
                         _actions(context, colors),
                       ],
                     )
-                  : Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-                      image,
-                      const SizedBox(width: 10),
-                      Expanded(child: details),
-                      const SizedBox(width: 8),
-                      _actions(context, colors),
-                    ]);
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        image,
+                        const SizedBox(width: 10),
+                        Expanded(child: details),
+                        const SizedBox(width: 8),
+                        _actions(context, colors),
+                      ],
+                    );
             },
           ),
         ),
@@ -111,7 +127,11 @@ class CarCard extends StatelessWidget {
     );
   }
 
-  Widget _details(BuildContext context, ColorScheme colors, Color statusColor) => Column(
+  Widget _details(
+    BuildContext context,
+    ColorScheme colors,
+    Color statusColor,
+  ) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
       Row(
@@ -120,24 +140,43 @@ class CarCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                _field('brand', AppText(
-                  '${car.brand} ${car.model}'.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900),
-                )),
+                _field(
+                  'brand',
+                  AppText(
+                    '${car.brand} ${car.model}'.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                _field('year', AppText(
-                  '${car.year} • ${car.color}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant, fontWeight: FontWeight.w700),
-                )),
+                _field(
+                  'year',
+                  AppText(
+                    '${car.year} • ${car.color}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 6),
-          _field('status', _StatusBadge(color: statusColor, label: operationalStatusLabel(car.status))),
+          _field(
+            'status',
+            _StatusBadge(
+              color: statusColor,
+              label: operationalStatusLabel(car.status),
+            ),
+          ),
         ],
       ),
       const SizedBox(height: 5),
@@ -145,13 +184,58 @@ class CarCard extends StatelessWidget {
         spacing: 5,
         runSpacing: 4,
         children: <Widget>[
-          _field('chassis', _ValueChip(label: _t(context, 'رقم الشاصي', 'VIN'), value: car.chassis)),
-          _field('warehouseId', _ValueChip(label: _t(context, 'المخزن', 'Warehouse'), value: warehouseName ?? '')),
-          _field('carNumber', _ValueChip(label: _t(context, 'رقم السيارة', 'Vehicle no.'), value: carNumber ?? '')),
-          _field('plateNumber', _ValueChip(label: _t(context, 'اللوحة', 'Plate'), value: plateNumber ?? '')),
-          _field('purchasePrice', _ValueChip(label: _t(context, 'سعر الشراء', 'Purchase price'), value: '${MoneyFormatter.format(car.purchasePrice)} ${car.costCurrency ?? car.currency}')),
-          _field('maintenanceCost', _ValueChip(label: _t(context, 'كلفة الصيانة', 'Maintenance cost'), value: '${MoneyFormatter.format(car.maintenanceCost)} ${car.costCurrency ?? car.currency}')),
-          _field('salePrice', _ValueChip(label: _t(context, 'سعر البيع', 'Sale price'), value: '${MoneyFormatter.format(car.salePrice)} ${car.saleCurrency ?? car.currency}')),
+          _field(
+            'chassis',
+            _ValueChip(
+              label: _t(context, 'رقم الشاصي', 'VIN'),
+              value: car.chassis,
+            ),
+          ),
+          _field(
+            'warehouseId',
+            _ValueChip(
+              label: _t(context, 'المخزن', 'Warehouse'),
+              value: warehouseName ?? '',
+            ),
+          ),
+          _field(
+            'carNumber',
+            _ValueChip(
+              label: _t(context, 'رقم السيارة', 'Vehicle no.'),
+              value: carNumber ?? '',
+            ),
+          ),
+          _field(
+            'plateNumber',
+            _ValueChip(
+              label: _t(context, 'اللوحة', 'Plate'),
+              value: plateNumber ?? '',
+            ),
+          ),
+          _field(
+            'purchasePrice',
+            _ValueChip(
+              label: _t(context, 'سعر الشراء', 'Purchase price'),
+              value:
+                  '${MoneyFormatter.format(car.purchasePrice)} ${car.costCurrency ?? car.currency}',
+            ),
+          ),
+          _field(
+            'maintenanceCost',
+            _ValueChip(
+              label: _t(context, 'كلفة الصيانة', 'Maintenance cost'),
+              value:
+                  '${MoneyFormatter.format(car.maintenanceCost)} ${car.costCurrency ?? car.currency}',
+            ),
+          ),
+          _field(
+            'salePrice',
+            _ValueChip(
+              label: _t(context, 'سعر البيع', 'Sale price'),
+              value:
+                  '${MoneyFormatter.format(car.salePrice)} ${car.saleCurrency ?? car.currency}',
+            ),
+          ),
         ],
       ),
     ],
@@ -163,14 +247,25 @@ class CarCard extends StatelessWidget {
     alignment: WrapAlignment.end,
     crossAxisAlignment: WrapCrossAlignment.center,
     children: <Widget>[
-      if (onEdit != null) _ActionButton(icon: Icons.edit_outlined, label: _t(context, 'تعديل', 'Edit'), onPressed: onEdit!),
-      if (onHistory != null) _ActionButton(icon: Icons.history_rounded, label: _t(context, 'السجل', 'History'), onPressed: onHistory!),
-      if (onDelete != null) IconButton(
-        tooltip: _t(context, 'حذف', 'Delete'),
-        visualDensity: VisualDensity.compact,
-        onPressed: onDelete,
-        icon: Icon(Icons.delete_outline, color: colors.error),
-      ),
+      if (onEdit != null)
+        _ActionButton(
+          icon: Icons.edit_outlined,
+          label: _t(context, 'تعديل', 'Edit'),
+          onPressed: onEdit!,
+        ),
+      if (onHistory != null)
+        _ActionButton(
+          icon: Icons.history_rounded,
+          label: _t(context, 'السجل', 'History'),
+          onPressed: onHistory!,
+        ),
+      if (onDelete != null)
+        IconButton(
+          tooltip: _t(context, 'حذف', 'Delete'),
+          visualDensity: VisualDensity.compact,
+          onPressed: onDelete,
+          icon: Icon(Icons.delete_outline, color: colors.error),
+        ),
     ],
   );
 }
@@ -189,7 +284,9 @@ class _CarThumbnail extends StatelessWidget {
         }
         return ColoredBox(
           color: Theme.of(context).colorScheme.primary.withValues(alpha: .07),
-          child: const Center(child: Icon(Icons.directions_car_outlined, size: 40)),
+          child: const Center(
+            child: Icon(Icons.directions_car_outlined, size: 40),
+          ),
         );
       },
     );
@@ -210,13 +307,22 @@ class _ValueChip extends StatelessWidget {
         color: colors.surfaceContainerHighest.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: AppText('$label: ${value.trim().isEmpty ? '—' : value}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700)),
+      child: AppText(
+        '$label: ${value.trim().isEmpty ? '—' : value}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.icon, required this.label, required this.onPressed});
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
@@ -224,7 +330,10 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onPressed,
-    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5)),
+    style: TextButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+    ),
     icon: Icon(icon, size: 14),
     label: AppText(label, style: const TextStyle(fontSize: 10)),
   );
@@ -243,6 +352,13 @@ class _StatusBadge extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       border: Border.all(color: color.withValues(alpha: .28)),
     ),
-    child: AppText(label, style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
+    child: AppText(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 9.5,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
   );
 }
