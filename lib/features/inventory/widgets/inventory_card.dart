@@ -48,15 +48,15 @@ class InventoryCard extends StatelessWidget {
       child: InkWell(
         onTap: onView,
         child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _field(
+          padding: const EdgeInsets.all(10),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 560;
+              final image = _field(
                 'image',
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: compact ? 52 : 64,
+                  height: compact ? 52 : 64,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(
                       KajDesignTokens.radiusMd,
@@ -68,133 +68,161 @@ class InventoryCard extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: _image(context),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
+              );
+              final details = _details(context, colors);
+              return compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Expanded(
-                          child: _field(
-                            'name',
-                            AppText(
-                              item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            image,
+                            const SizedBox(width: 9),
+                            Expanded(child: details),
+                          ],
                         ),
-                        _field('quantity', _StatusBadge(item: item)),
+                        const SizedBox(height: 6),
+                        _actions(context),
                       ],
-                    ),
-                    const SizedBox(height: 3),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 4,
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        _field(
-                          'category',
-                          _ValueChip(
-                            label: _t(context, 'المجموعة', 'Group'),
-                            value: item.category,
-                          ),
-                        ),
-                        _field(
-                          'quantity',
-                          _ValueChip(
-                            label: _t(context, 'الكمية', 'Quantity'),
-                            value: '${item.quantity} ${item.unit}',
-                          ),
-                        ),
-                        _field(
-                          'quantity',
-                          _ValueChip(
-                            label: _t(context, 'المتاح', 'Available'),
-                            value: '${item.availableQuantity}',
-                          ),
-                        ),
-                        _field(
-                          'unitCost',
-                          _ValueChip(
-                            label: _t(context, 'الكلفة', 'Cost'),
-                            value:
-                                '${MoneyFormatter.format(item.unitCost)} ${item.costCurrency ?? item.currency}',
-                          ),
-                        ),
-                        _field(
-                          'salePrice',
-                          _ValueChip(
-                            label: _t(context, 'البيع', 'Sale'),
-                            value:
-                                '${MoneyFormatter.format(item.salePrice)} ${item.saleCurrency ?? item.currency}',
-                          ),
-                        ),
+                        image,
+                        const SizedBox(width: 10),
+                        Expanded(child: details),
+                        const SizedBox(width: 8),
+                        _actions(context),
                       ],
-                    ),
-                    const SizedBox(height: 3),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        _ActionButton(
-                          icon: Icons.visibility_outlined,
-                          label: _t(context, 'تفاصيل', 'Details'),
-                          onPressed: onView,
-                        ),
-                        PermissionVisibility(
-                          permission: 'inventory.update',
-                          child: _ActionButton(
-                            icon: Icons.edit_outlined,
-                            label: _t(context, 'تعديل', 'Edit'),
-                            onPressed: onEdit,
-                          ),
-                        ),
-                        PermissionVisibility(
-                          permission: 'inventory.view_history',
-                          child: _ActionButton(
-                            icon: Icons.history_rounded,
-                            label: _t(context, 'السجل', 'History'),
-                            onPressed: onHistory,
-                          ),
-                        ),
-                        PermissionVisibility(
-                          permission: 'inventory.delete',
-                          child: IconButton(
-                            tooltip: _t(context, 'حذف', 'Delete'),
-                            onPressed: onDelete,
-                            icon: Icon(Icons.delete_outline, color: colors.error),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                    );
+            },
           ),
         ),
       ),
     );
   }
 
+  Widget _details(BuildContext context, ColorScheme colors) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Row(
+        children: <Widget>[
+          Expanded(
+            child: _field(
+              'name',
+              AppText(
+                item.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _field('quantity', _StatusBadge(item: item)),
+        ],
+      ),
+      const SizedBox(height: 5),
+      Wrap(
+        spacing: 5,
+        runSpacing: 4,
+        children: <Widget>[
+          _field(
+            'category',
+            _ValueChip(
+              label: _t(context, 'المجموعة', 'Group'),
+              value: item.category,
+            ),
+          ),
+          _field(
+            'quantity',
+            _ValueChip(
+              label: _t(context, 'الكمية', 'Quantity'),
+              value: '${item.quantity} ${item.unit}',
+            ),
+          ),
+          _field(
+            'quantity',
+            _ValueChip(
+              label: _t(context, 'المتاح', 'Available'),
+              value: '${item.availableQuantity}',
+            ),
+          ),
+          _field(
+            'unitCost',
+            _ValueChip(
+              label: _t(context, 'الكلفة', 'Cost'),
+              value:
+                  '${MoneyFormatter.format(item.unitCost)} ${item.costCurrency ?? item.currency}',
+            ),
+          ),
+          _field(
+            'salePrice',
+            _ValueChip(
+              label: _t(context, 'البيع', 'Sale'),
+              value:
+                  '${MoneyFormatter.format(item.salePrice)} ${item.saleCurrency ?? item.currency}',
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  Widget _actions(BuildContext context) => Wrap(
+    spacing: 2,
+    runSpacing: 2,
+    alignment: WrapAlignment.end,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: <Widget>[
+      _ActionButton(
+        icon: Icons.visibility_outlined,
+        label: _t(context, 'تفاصيل', 'Details'),
+        onPressed: onView,
+      ),
+      PermissionVisibility(
+        permission: 'inventory.update',
+        child: _ActionButton(
+          icon: Icons.edit_outlined,
+          label: _t(context, 'تعديل', 'Edit'),
+          onPressed: onEdit,
+        ),
+      ),
+      PermissionVisibility(
+        permission: 'inventory.view_history',
+        child: _ActionButton(
+          icon: Icons.history_rounded,
+          label: _t(context, 'السجل', 'History'),
+          onPressed: onHistory,
+        ),
+      ),
+      PermissionVisibility(
+        permission: 'inventory.delete',
+        child: IconButton(
+          tooltip: _t(context, 'حذف', 'Delete'),
+          visualDensity: VisualDensity.compact,
+          onPressed: onDelete,
+          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+        ),
+      ),
+    ],
+  );
+
   Widget _image(BuildContext context) {
     final value = item.imageBase64;
     if (value == null || value.isEmpty) {
       return ColoredBox(
         color: Theme.of(context).colorScheme.primary.withValues(alpha: .06),
-        child: const Center(child: Icon(Icons.inventory_2_outlined, size: 38)),
+        child: const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
       );
     }
     final bytes = Base64ImageCache.instance.decode(value);
     if (bytes == null) {
-      return const Center(child: Icon(Icons.broken_image_outlined, size: 34));
+      return const Center(child: Icon(Icons.broken_image_outlined, size: 32));
     }
     return Image.memory(
       bytes,
@@ -202,7 +230,7 @@ class InventoryCard extends StatelessWidget {
       gaplessPlayback: true,
       filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) =>
-          const Center(child: Icon(Icons.broken_image_outlined, size: 34)),
+          const Center(child: Icon(Icons.broken_image_outlined, size: 32)),
     );
   }
 }
@@ -244,6 +272,10 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onPressed,
+    style: TextButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+    ),
     icon: Icon(icon, size: 14),
     label: AppText(label, style: const TextStyle(fontSize: 10)),
   );
@@ -261,7 +293,7 @@ class _StatusBadge extends StatelessWidget {
         ? (warning ? 'منخفض' : 'متوفر')
         : (warning ? 'Low stock' : 'Available');
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(999),
