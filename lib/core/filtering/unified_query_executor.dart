@@ -1,3 +1,5 @@
+export 'unified_filter_engine.dart';
+
 import 'unified_filter_engine.dart';
 import 'unified_query.dart';
 
