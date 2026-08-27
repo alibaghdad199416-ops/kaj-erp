@@ -92,28 +92,31 @@ void main() {
     ]);
   });
 
-  test('report export language remains part of the persisted unified options', () {
-    const options = ReportExportOptions(
-      language: 'en',
-      title: 'Sales / المبيعات',
-      sectionQueries: {'sales': 'USD'},
-      sectionFilters: {
-        'sales': [
-          UnifiedFilterToken(
-            key: 'Currency',
-            label: 'Currency',
-            value: 'USD',
-            valueLabel: 'USD',
-          ),
-        ],
-      },
-    );
-    final restored = ReportExportOptions.fromJson(options.toJson());
-    expect(restored.language, 'en');
-    expect(restored.title, options.title);
-    expect(restored.sectionQueries, options.sectionQueries);
-    expect(restored.sectionFilters['sales']?.single.value, 'USD');
-  });
+  test(
+    'report export language remains part of the persisted unified options',
+    () {
+      const options = ReportExportOptions(
+        language: 'en',
+        title: 'Sales / المبيعات',
+        sectionQueries: {'sales': 'USD'},
+        sectionFilters: {
+          'sales': [
+            UnifiedFilterToken(
+              key: 'Currency',
+              label: 'Currency',
+              value: 'USD',
+              valueLabel: 'USD',
+            ),
+          ],
+        },
+      );
+      final restored = ReportExportOptions.fromJson(options.toJson());
+      expect(restored.language, 'en');
+      expect(restored.title, options.title);
+      expect(restored.sectionQueries, options.sectionQueries);
+      expect(restored.sectionFilters['sales']?.single.value, 'USD');
+    },
+  );
 
   test('report customization survives json persistence including filters', () {
     const options = ReportExportOptions(
