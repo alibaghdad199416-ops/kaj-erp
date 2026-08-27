@@ -4,9 +4,6 @@ on:
   push:
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -25,15 +22,6 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: python -B tool/phase_a_apply.py
-      - run: git diff --check
-      - run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm -f tool/phase_a_apply.py .github/workflows/phase-a-apply.yml .github/workflows/_phase_a_apply.yml tool/phase_a_trigger.txt
-          git add lib
-          git commit -m 'refactor(phaseA): remove duplicated module chrome'
-          git push origin HEAD:main
       - run: python -B tool/stage2_database_migration_audit.py
       - run: python -B tool/verify_stage3_maintenance_closure.py
       - run: python -B tool/verify_stage3_maintenance_runtime_closure.py
