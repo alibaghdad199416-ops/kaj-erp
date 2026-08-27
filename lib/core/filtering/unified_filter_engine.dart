@@ -116,7 +116,7 @@ class UnifiedFilterAdapter<T> {
     this.userId,
     this.groupId,
     this.date,
-    this.fieldValues = const <String, Object? Function(T value)>{},
+    this.fieldValues = const {},
   });
 
   final Iterable<Object?> Function(T value) searchableText;
