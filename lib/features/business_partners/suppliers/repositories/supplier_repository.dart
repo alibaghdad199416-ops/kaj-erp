@@ -24,27 +24,6 @@ class SupplierRepository {
     return row == null ? null : SupplierModel.fromCloudMap(row);
   }
 
-  Future<List<SupplierModel>> searchSuppliers(String query) async {
-    final normalized = query.trim().toLowerCase();
-    if (normalized.isEmpty) return getSuppliers();
-    final suppliers = await getSuppliers();
-    return suppliers
-        .where((supplier) {
-          final values = <String?>[
-            supplier.name,
-            supplier.phone,
-            supplier.alternativePhone,
-            supplier.companyName,
-            supplier.taxNumber,
-            supplier.address,
-          ];
-          return values.any(
-            (value) => value?.toLowerCase().contains(normalized) ?? false,
-          );
-        })
-        .toList(growable: false);
-  }
-
   Future<void> addSupplier(SupplierModel supplier) async {
     supplier.validate();
     await CloudMasterDataService.instance.upsert(
