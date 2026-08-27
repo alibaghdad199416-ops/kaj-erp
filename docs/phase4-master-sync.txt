@@ -1,0 +1,8 @@
+KAJ ERP Phase 4 Master Sync
+
+Master ZIP (conversation): KAJ-ERP-Phase4-Final-Audited-Fixed.zip
+SHA-256: bfb4bd2f8369d0914479893d279f10f9f64942a896ffa706232afe26c99953f7
+Files: 1147
+ZIP integrity: testzip=None
+
+Important: the master ZIP is the full working reference for this audit cycle. GitHub main is kept as the development history. The local working archive cannot be uploaded as a binary through the current GitHub connector, so this manifest records the exact master checksum without pretending the binary archive itself was pushed.
