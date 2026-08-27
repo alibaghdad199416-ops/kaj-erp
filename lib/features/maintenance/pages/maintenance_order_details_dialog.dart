@@ -352,18 +352,9 @@ class _MaintenanceOrderDetailsDialogState
           : ListView(
               padding: const EdgeInsets.all(18),
               children: <Widget>[
-                KajRelationshipHero(
-                  eyebrow: _bi(
-                    'ملف صيانة متكامل',
-                    'INTEGRATED SERVICE DOSSIER',
-                  ),
-                  title: '${order.orderNumber} — ${order.carName}',
-                  subtitle: _bi(
-                    'نظرة موحدة على العميل والمركبة والمواد والكلفة والفاتورة والتحصيل وتسلسل التنفيذ.',
-                    'A unified view of customer, vehicle, materials, cost, invoice, collection, and execution history.',
-                  ),
-                  icon: Icons.fact_check_outlined,
-                  trailing: KajStatusBadge(
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: KajStatusBadge(
                     label: order.workflowLabel(_arabic),
                     color: order.isCancelled
                         ? KajDesignTokens.danger

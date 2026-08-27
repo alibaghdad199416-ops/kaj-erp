@@ -339,30 +339,21 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
           children: [
-            KajSignaturePageHero(
-              eyebrow: ar ? 'الوعي التشغيلي' : 'OPERATIONAL AWARENESS',
-              title: context.l10n.text('notifications'),
-              subtitle: ar
-                  ? 'مركز موحد للتنبيهات المهمة والإشعارات المحفوظة والإجراءات التي تحتاج إلى اهتمامك.'
-                  : 'A unified center for critical alerts, saved notifications and actions that require your attention.',
-              icon: Icons.notifications_active_outlined,
-              metrics: <KajSignatureMetricData>[
-                KajSignatureMetricData(
-                  label: ar ? 'غير مقروء' : 'UNREAD',
-                  value: '$_unreadCount',
-                  icon: Icons.mark_email_unread_outlined,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  avatar: const Icon(Icons.mark_email_unread_outlined, size: 17),
+                  label: AppText('${ar ? 'غير مقروء' : 'Unread'}: $_unreadCount'),
                 ),
-                KajSignatureMetricData(
-                  label: ar ? 'حرج' : 'CRITICAL',
-                  value: '$critical',
-                  icon: Icons.crisis_alert_rounded,
-                  accent: KajDesignTokens.danger,
+                Chip(
+                  avatar: Icon(Icons.crisis_alert_rounded, size: 17, color: KajDesignTokens.danger),
+                  label: AppText('${ar ? 'حرج' : 'Critical'}: $critical'),
                 ),
-                KajSignatureMetricData(
-                  label: ar ? 'تحذيرات' : 'WARNINGS',
-                  value: '$warning',
-                  icon: Icons.warning_amber_rounded,
-                  accent: KajDesignTokens.warning,
+                Chip(
+                  avatar: Icon(Icons.warning_amber_rounded, size: 17, color: KajDesignTokens.warning),
+                  label: AppText('${ar ? 'تحذيرات' : 'Warnings'}: $warning'),
                 ),
               ],
             ),

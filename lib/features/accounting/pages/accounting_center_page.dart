@@ -206,49 +206,6 @@ class _AccountingCenterPageState extends State<AccountingCenterPage> {
       ),
       body: Column(
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: KajExecutiveHero(
-              eyebrow: AppTranslation.translate('الإدارة المالية التنفيذية'),
-              title: AppTranslation.translate('المركز المالي والمحاسبي'),
-              subtitle: AppTranslation.translate(
-                'عرض موحد للحسابات والقيود والسيولة والأصول والتقارير المالية.',
-              ),
-              icon: Icons.account_balance_outlined,
-              metrics: <KajExecutiveMetricData>[
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('الحسابات'),
-                  value: controller.accounts.length.toString(),
-                  icon: Icons.account_tree_outlined,
-                  accent: KajDesignTokens.electricBlue,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('القيود'),
-                  value: controller.entries.length.toString(),
-                  icon: Icons.menu_book_outlined,
-                  accent: KajDesignTokens.staticGreen,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('ميزان USD'),
-                  value: MoneyFormatter.format(
-                    controller.usdTrial['debit'] ?? 0,
-                    currency: 'USD',
-                  ),
-                  icon: Icons.balance_outlined,
-                  accent: KajDesignTokens.champagneGold,
-                ),
-                KajExecutiveMetricData(
-                  label: AppTranslation.translate('ميزان IQD'),
-                  value: MoneyFormatter.format(
-                    controller.iqdTrial['debit'] ?? 0,
-                    currency: 'IQD',
-                  ),
-                  icon: Icons.currency_exchange_outlined,
-                  accent: KajDesignTokens.electricBlue,
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 12),
           Expanded(child: _sectionBody()),
         ],

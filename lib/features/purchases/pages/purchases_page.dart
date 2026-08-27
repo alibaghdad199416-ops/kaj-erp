@@ -12,7 +12,6 @@ import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/incremental_list_view.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_phase5_components.dart';
 import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 import 'package:quality_line_erp/features/purchases/controllers/purchases_controller.dart';
 import 'package:quality_line_erp/features/purchases/models/purchase_model.dart';
@@ -278,37 +277,6 @@ class _PurchasesPageState extends State<PurchasesPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          KajCommercialHero(
-            title: arabic ? 'مركز المشتريات' : 'Purchasing Center',
-            subtitle: arabic
-                ? 'متابعة الفواتير والمبالغ المستحقة ضمن مسار المشتريات الموحد.'
-                : 'Monitor invoices and outstanding balances within the unified purchasing workflow.',
-            icon: Icons.shopping_cart_checkout_outlined,
-            metrics: <KajCommercialMetricData>[
-              KajCommercialMetricData(
-                label: arabic ? 'الفواتير' : 'Invoices',
-                value: controller.purchasesCount.toString(),
-                icon: Icons.receipt_long_outlined,
-                accent: KajDesignTokens.champagneGold,
-              ),
-              KajCommercialMetricData(
-                label: arabic ? 'الإجمالي' : 'Total',
-                value: CurrencyTotalsFormatter.format(
-                  controller.totalPurchasesByCurrency,
-                ),
-                icon: Icons.payments_outlined,
-                accent: KajDesignTokens.champagneGold,
-              ),
-              KajCommercialMetricData(
-                label: arabic ? 'المتبقي' : 'Remaining',
-                value: CurrencyTotalsFormatter.format(
-                  controller.totalRemainingByCurrency,
-                ),
-                icon: Icons.account_balance_wallet_outlined,
-                accent: KajDesignTokens.champagneGold,
-              ),
-            ],
-          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,

@@ -14,7 +14,6 @@ import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
-import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';
 import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
@@ -407,30 +406,25 @@ class _MaintenancePageState extends State<MaintenancePage> {
       toolbar: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          KajRelationshipHero(
-            eyebrow: t('مركز عمليات ما بعد البيع', 'AFTERSALES COMMAND CENTER'),
-            title: t(
-              'الصيانة والخدمة بوضوح تنفيذي',
-              'Maintenance with executive clarity',
-            ),
-            subtitle: t(
-              'تابع استقبال المركبة، التشخيص، المواد، التنفيذ، الفوترة والتحصيل ضمن مسار بصري موحد ومتوافق مع هوية خط الجودة.',
-              'Control vehicle intake, diagnosis, parts, execution, invoicing, and collection through one premium KAJ workflow.',
-            ),
-            icon: Icons.car_repair_rounded,
-            primaryAction:
-                PermissionAction.allowed(context, 'maintenance.create')
-                ? FilledButton.icon(
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (PermissionAction.allowed(context, 'maintenance.create'))
+                  FilledButton.icon(
                     onPressed: () => _open(),
                     icon: const Icon(Icons.add_rounded),
                     label: AppText(t('أمر صيانة جديد', 'New service order')),
-                  )
-                : null,
-            secondaryAction: OutlinedButton.icon(
-              onPressed: () =>
-                  context.read<MaintenanceController>().loadOrders(force: true),
-              icon: const Icon(Icons.refresh_rounded),
-              label: AppText(t('تحديث مباشر', 'Live refresh')),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      context.read<MaintenanceController>().loadOrders(force: true),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: AppText(t('تحديث مباشر', 'Live refresh')),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),

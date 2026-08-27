@@ -17,7 +17,6 @@ import 'package:quality_line_erp/features/sales/widgets/sale_card.dart';
 import 'package:quality_line_erp/features/sales/widgets/sales_statistics.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
-import 'package:quality_line_erp/design_system/kaj_phase5_components.dart';
 import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 
 class SalesPage extends StatefulWidget {
@@ -95,48 +94,6 @@ class _SalesPageState extends State<SalesPage> {
       child: Scaffold(
         body: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-              child: KajCommercialHero(
-                title: AppTranslation.translate('مركز المبيعات'),
-                subtitle: AppTranslation.translate(
-                  'إدارة أوامر البيع والفواتير والتحصيلات وإعادة البيع ضمن تجربة تجارية موحدة.',
-                ),
-                icon: Icons.trending_up_rounded,
-                metrics: <KajCommercialMetricData>[
-                  KajCommercialMetricData(
-                    label: AppTranslation.translate('المعاملات'),
-                    value: controller.totalSales.toString(),
-                    icon: Icons.receipt_long_outlined,
-                    accent: const Color(0xFF62BEC1),
-                  ),
-                  KajCommercialMetricData(
-                    label: AppTranslation.translate('الإيراد'),
-                    value: CurrencyTotalsFormatter.format(
-                      controller.revenueByCurrency,
-                    ),
-                    icon: Icons.payments_outlined,
-                    accent: const Color(0xFFCEB686),
-                  ),
-                  KajCommercialMetricData(
-                    label: AppTranslation.translate('المحصل'),
-                    value: CurrencyTotalsFormatter.format(
-                      controller.paidByCurrency,
-                    ),
-                    icon: Icons.verified_outlined,
-                    accent: const Color(0xFF00D17D),
-                  ),
-                  KajCommercialMetricData(
-                    label: AppTranslation.translate('المتبقي'),
-                    value: CurrencyTotalsFormatter.format(
-                      controller.remainingByCurrency,
-                    ),
-                    icon: Icons.schedule_outlined,
-                    accent: const Color(0xFFE6A95C),
-                  ),
-                ],
-              ),
-            ),
             Card(
               margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
               child: const ListTile(

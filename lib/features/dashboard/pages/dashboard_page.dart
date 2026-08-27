@@ -52,47 +52,30 @@ class DashboardPage extends StatelessWidget {
                   ),
                   children: [
                     const SizedBox(height: 2),
-                    KajSignaturePageHero(
-                      eyebrow: context.l10n.isArabic
-                          ? 'مركز القيادة التنفيذي'
-                          : 'EXECUTIVE COMMAND CENTER',
-                      title: context.l10n.isArabic
-                          ? 'مرحباً بك${userName.isEmpty ? '' : '، $userName'}'
-                          : 'Welcome${userName.isEmpty ? '' : ', $userName'}',
-                      subtitle: context.l10n.isArabic
-                          ? 'نظرة تنفيذية لحظية على المبيعات والمخزون والصيانة والالتزامات المالية.'
-                          : 'A live executive view of sales, inventory, maintenance and financial commitments.',
-                      icon: Icons.space_dashboard_outlined,
-                      metrics: <KajSignatureMetricData>[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
                         if (can('todaySales'))
-                          KajSignatureMetricData(
-                            label: context.l10n.isArabic
-                                ? 'مبيعات اليوم'
-                                : 'TODAY SALES',
-                            value: CurrencyTotalsFormatter.format(
-                              dashboard.todaySalesByCurrency,
+                          Chip(
+                            avatar: const Icon(Icons.trending_up_rounded, size: 17),
+                            label: AppText(
+                              '${context.l10n.isArabic ? 'مبيعات اليوم' : 'Today sales'}: ${CurrencyTotalsFormatter.format(dashboard.todaySalesByCurrency)}',
                             ),
-                            icon: Icons.trending_up_rounded,
                           ),
                         if (can('availableCars'))
-                          KajSignatureMetricData(
-                            label: context.l10n.isArabic
-                                ? 'السيارات المتوفرة'
-                                : 'AVAILABLE VEHICLES',
-                            value: '${dashboard.availableCars}',
-                            icon: Icons.directions_car_filled_outlined,
-                            accent: KajDesignTokens.champagne,
+                          Chip(
+                            avatar: const Icon(Icons.directions_car_filled_outlined, size: 17),
+                            label: AppText(
+                              '${context.l10n.isArabic ? 'السيارات المتوفرة' : 'Available vehicles'}: ${dashboard.availableCars}',
+                            ),
                           ),
                         if (can('overdueInstallments'))
-                          KajSignatureMetricData(
-                            label: context.l10n.isArabic
-                                ? 'أقساط متأخرة'
-                                : 'OVERDUE INSTALLMENTS',
-                            value: '${dashboard.overdueInstallments}',
-                            icon: Icons.schedule_rounded,
-                            accent: dashboard.overdueInstallments > 0
-                                ? KajDesignTokens.warning
-                                : KajDesignTokens.success,
+                          Chip(
+                            avatar: const Icon(Icons.schedule_rounded, size: 17),
+                            label: AppText(
+                              '${context.l10n.isArabic ? 'الأقساط المتأخرة' : 'Overdue installments'}: ${dashboard.overdueInstallments}',
+                            ),
                           ),
                       ],
                     ),

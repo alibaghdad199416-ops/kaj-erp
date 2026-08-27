@@ -398,17 +398,9 @@ class _AddMaintenanceOrderPageState extends State<AddMaintenanceOrderPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            KajRelationshipHero(
-              eyebrow: t('تجربة خدمة راقية', 'PREMIUM SERVICE INTAKE'),
-              title: _editing
-                  ? t('تعديل أمر الصيانة', 'Edit maintenance order')
-                  : t('إنشاء أمر صيانة جديد', 'Create a new maintenance order'),
-              subtitle: t(
-                'نموذج تشغيلي منظم للسيارة والعميل والخدمات والمواد والتسعير، مع الحفاظ على تسلسل المراحل والارتباطات المالية والمخزنية.',
-                'A structured service intake for vehicle, customer, labor, materials, and pricing while preserving the complete operational and financial chain.',
-              ),
-              icon: Icons.precision_manufacturing_outlined,
-              trailing: KajStatusBadge(
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: KajStatusBadge(
                 label: _editing
                     ? t('وضع التعديل', 'EDIT MODE')
                     : t('مسودة جديدة', 'NEW DRAFT'),
