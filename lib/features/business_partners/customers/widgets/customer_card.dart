@@ -40,14 +40,14 @@ class CustomerCard extends StatelessWidget {
                   )
                 : Image.memory(_photoBytes!, fit: BoxFit.cover, gaplessPlayback: true),
           )));
-          final identity = Expanded(child: Column(
+          final identity = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _visible('name', AppText(customer.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900))),
               const SizedBox(height: 3),
               PartnerStatusBadge(label: t('عميل تجاري', 'Customer'), color: scheme.primary),
             ],
-          ));
+          );
           final info = Wrap(spacing: 5, runSpacing: 4, children: [
             _visible('phone', PartnerCompactValue(t('الهاتف', 'Phone'), customer.phone)),
             _visible('nationalId', PartnerCompactValue(t('الهوية', 'National ID'), customer.nationalId)),
@@ -61,7 +61,7 @@ class CustomerCard extends StatelessWidget {
           ]);
           if (compact) {
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [avatar, const SizedBox(width: 8), identity]),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [avatar, const SizedBox(width: 8), Expanded(child: identity)]),
               const SizedBox(height: 6), info, const SizedBox(height: 4), actions,
             ]);
           }
