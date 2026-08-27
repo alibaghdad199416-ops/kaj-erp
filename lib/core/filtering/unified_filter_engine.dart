@@ -15,7 +15,7 @@ class UnifiedSortCriterion<T> {
   });
 
   final String key;
-  final Comparable<Object?> Function(T value) value;
+  final Comparable<dynamic> Function(T value) value;
   final UnifiedSortDirection direction;
 }
 
@@ -128,7 +128,7 @@ abstract final class UnifiedFilterEngine {
     Iterable<T> values, {
     required UnifiedFilterCriteria criteria,
     required UnifiedFilterAdapter<T> adapter,
-    List<UnifiedSortCriterion<T>> sorts = const <UnifiedSortCriterion<dynamic>>[],
+    List<UnifiedSortCriterion<T>> sorts = const [],
   }) {
     final result = values
         .where((value) => matches(value, criteria: criteria, adapter: adapter))
@@ -154,8 +154,8 @@ abstract final class UnifiedFilterEngine {
   }
 
   static int _compareComparable(
-    Comparable<Object?> left,
-    Comparable<Object?> right,
+    Comparable<dynamic> left,
+    Comparable<dynamic> right,
   ) {
     try {
       return left.compareTo(right);
