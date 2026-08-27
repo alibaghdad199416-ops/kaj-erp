@@ -11,6 +11,8 @@ class KajQueryToolbar extends StatelessWidget {
     super.key,
     required this.controller,
     this.hintText = 'بحث في السجلات...',
+    this.filters = const <UnifiedQueryFilterOption>[],
+    this.sorts = const <UnifiedQuerySortOption>[],
     this.filterBuilder,
     this.sortBuilder,
     this.compact = false,
@@ -18,6 +20,8 @@ class KajQueryToolbar extends StatelessWidget {
 
   final UnifiedQueryController controller;
   final String hintText;
+  final List<UnifiedQueryFilterOption> filters;
+  final List<UnifiedQuerySortOption> sorts;
   final WidgetBuilder? filterBuilder;
   final WidgetBuilder? sortBuilder;
   final bool compact;
@@ -27,6 +31,8 @@ class KajQueryToolbar extends StatelessWidget {
     return UnifiedQueryToolbar(
       controller: controller,
       searchHint: hintText,
+      filters: filters,
+      sorts: sorts,
       filterBuilder: filterBuilder,
       sortBuilder: sortBuilder,
       compact: compact,
