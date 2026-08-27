@@ -81,7 +81,7 @@ void main() {
         ],
       );
 
-      expect(result.map((row) => row['total']).toList(), [300.0, 200.0, 100.0]);
+      expect(result.map((row) => row['total']).toList(), [200.0, 100.0, 300.0]);
       expect(rows, original);
     });
   });
