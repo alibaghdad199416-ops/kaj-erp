@@ -206,20 +206,6 @@ class CashboxRepository {
     });
   }
 
-  Future<List<CashTransactionModel>> searchTransactions(String query) async {
-    final value = query.trim().toLowerCase();
-    final transactions = await getTransactions();
-    if (value.isEmpty) return transactions;
-    return transactions
-        .where((item) {
-          return item.voucherNumber.toLowerCase().contains(value) ||
-              item.category.toLowerCase().contains(value) ||
-              (item.partyName ?? '').toLowerCase().contains(value) ||
-              (item.notes ?? '').toLowerCase().contains(value);
-        })
-        .toList(growable: false);
-  }
-
   Future<Map<String, double>> getCurrencySummary(String currency) async {
     final result = await _client.rpc(
       'erp_r22_cloud_cash_currency_summary',
