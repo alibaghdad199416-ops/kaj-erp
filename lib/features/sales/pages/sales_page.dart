@@ -11,12 +11,10 @@ import 'package:quality_line_erp/core/printing/legacy_commercial_document_pdf_se
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/features/inventory/cars/controllers/cars_controller.dart';
 import 'package:quality_line_erp/features/business_partners/customers/controllers/customers_controller.dart';
-
 import 'package:quality_line_erp/features/sales/controllers/sales_controller.dart';
 import 'package:quality_line_erp/features/sales/models/sale_model.dart';
 import 'package:quality_line_erp/features/sales/widgets/sale_card.dart';
 import 'package:quality_line_erp/features/sales/widgets/sales_statistics.dart';
-
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 import 'package:quality_line_erp/design_system/kaj_phase5_components.dart';
@@ -51,23 +49,12 @@ class _SalesPageState extends State<SalesPage> {
       for (final customer in customers) customer.id: customer.name,
     };
 
-    final latestSequenceByCar = <String, int>{};
-    for (final sale in controller.sales) {
-      final current = latestSequenceByCar[sale.carId] ?? 0;
-      if (sale.saleSequence > current) {
-        latestSequenceByCar[sale.carId] = sale.saleSequence;
-      }
-    }
-
     final filteredSales = UnifiedQueryExecutor<SaleModel>(
       criteriaBuilder: (state) => UnifiedFilterCriteria(searchText: state.search),
       filterAdapter: UnifiedFilterAdapter<SaleModel>(
         searchableText: (sale) => <Object?>[
-          sale.id,
           sale.invoiceNumber,
-          sale.carId,
           carNames[sale.carId],
-          sale.customerId,
           customerNames[sale.customerId],
           sale.paymentMethod,
           sale.notes,
@@ -82,10 +69,12 @@ class _SalesPageState extends State<SalesPage> {
       sort: (left, right, field) {
         switch (field) {
           case 'date':
-            return DateTime.tryParse(left.saleDate)?.compareTo(
-                  DateTime.tryParse(right.saleDate) ?? DateTime(1970),
-                ) ??
-                -1;
+            final l = DateTime.tryParse(left.saleDate);
+            final r = DateTime.tryParse(right.saleDate);
+            if (l == null && r == null) return 0;
+            if (l == null) return 1;
+            if (r == null) return -1;
+            return l.compareTo(r);
           case 'invoice':
             return left.invoiceNumber.compareTo(right.invoiceNumber);
           case 'customer':
