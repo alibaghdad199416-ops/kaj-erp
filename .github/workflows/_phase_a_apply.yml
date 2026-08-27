@@ -1,0 +1,31 @@
+name: Phase A module chrome cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+      - run: python -B tool/phase_a_apply.py
+      - run: dart format --output=none --set-exit-if-changed lib/design_system/kaj_commercial_stage6_components.dart lib/features/business_partners/pages/business_partners_page.dart lib/features/customer_service/pages/customer_service_page.dart lib/features/dashboard/pages/dashboard_page.dart lib/features/maintenance/pages/add_maintenance_order_page.dart lib/features/maintenance/pages/maintenance_order_details_dialog.dart lib/features/maintenance/pages/maintenance_page.dart lib/features/notifications/pages/notification_center_page.dart lib/features/purchases/pages/purchases_page.dart lib/features/sales/pages/sales_page.dart lib/features/accounting/pages/accounting_center_page.dart
+      - run: flutter analyze --no-fatal-infos
+      - run: git diff --check
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm tool/phase_a_apply.py .github/workflows/_phase_a_apply.yml
+          git add lib/design_system/kaj_commercial_stage6_components.dart lib/features/business_partners/pages/business_partners_page.dart lib/features/customer_service/pages/customer_service_page.dart lib/features/dashboard/pages/dashboard_page.dart lib/features/maintenance/pages/add_maintenance_order_page.dart lib/features/maintenance/pages/maintenance_order_details_dialog.dart lib/features/maintenance/pages/maintenance_page.dart lib/features/notifications/pages/notification_center_page.dart lib/features/purchases/pages/purchases_page.dart lib/features/sales/pages/sales_page.dart lib/features/accounting/pages/accounting_center_page.dart
+          git commit -m 'refactor(phaseA): remove duplicated module chrome'
+          git push origin HEAD:main
