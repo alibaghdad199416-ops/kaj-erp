@@ -15,6 +15,9 @@ class UnifiedQueryToolbar extends StatefulWidget {
     this.searchHint = 'بحث...',
     this.filters = const <UnifiedQueryFilterOption>[],
     this.sorts = const <UnifiedQuerySortOption>[],
+    this.filterBuilder,
+    this.sortBuilder,
+    this.compact = false,
     this.padding = EdgeInsets.zero,
   });
 
@@ -22,6 +25,9 @@ class UnifiedQueryToolbar extends StatefulWidget {
   final String searchHint;
   final List<UnifiedQueryFilterOption> filters;
   final List<UnifiedQuerySortOption> sorts;
+  final WidgetBuilder? filterBuilder;
+  final WidgetBuilder? sortBuilder;
+  final bool compact;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -68,6 +74,10 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
+    if (value.trim().isEmpty) {
+      widget.controller.setSearch('');
+      return;
+    }
     _debounce = Timer(const Duration(milliseconds: 250), () {
       if (mounted) widget.controller.setSearch(value);
     });
@@ -136,7 +146,10 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
           ),
           ...state.sorts.map(
             (rule) => InputChip(
-              avatar: const Icon(Icons.sort, size: 16),
+              avatar: Icon(
+                rule.descending ? Icons.south_rounded : Icons.north_rounded,
+                size: 16,
+              ),
               label: Text('${rule.label} ${rule.descending ? '↓' : '↑'}'),
               onDeleted: () => widget.controller.removeSort(rule.field),
             ),
@@ -150,14 +163,14 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 700;
+                  final compact = widget.compact || constraints.maxWidth < 700;
                   final search = TextField(
                     controller: _searchController,
                     onChanged: _onSearchChanged,
                     textDirection: Directionality.of(context),
                     decoration: InputDecoration(
                       hintText: widget.searchHint,
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search_rounded),
                       suffixIcon: state.search.trim().isEmpty
                           ? null
                           : IconButton(
@@ -167,21 +180,30 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                                 _searchController.clear();
                                 widget.controller.setSearch('');
                               },
-                              icon: const Icon(Icons.clear),
+                              icon: const Icon(Icons.clear_rounded),
                             ),
+                      isDense: true,
                     ),
                   );
+
+                  final filterControl = widget.filterBuilder?.call(context);
+                  final sortControl = widget.sortBuilder?.call(context);
                   final actions = Wrap(
                     spacing: 8,
                     runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (widget.filters.isNotEmpty)
+                      if (filterControl != null)
+                        filterControl
+                      else if (widget.filters.isNotEmpty)
                         OutlinedButton.icon(
                           onPressed: _addFilter,
                           icon: const Icon(Icons.filter_alt_outlined),
                           label: const Text('فلترة'),
                         ),
-                      if (widget.sorts.isNotEmpty)
+                      if (sortControl != null)
+                        sortControl
+                      else if (widget.sorts.isNotEmpty)
                         OutlinedButton.icon(
                           onPressed: _addSort,
                           icon: const Icon(Icons.sort),
@@ -190,11 +212,12 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                       if (!state.isEmpty)
                         TextButton.icon(
                           onPressed: widget.controller.clear,
-                          icon: const Icon(Icons.filter_alt_off_outlined),
+                          icon: const Icon(Icons.clear_all_rounded),
                           label: const Text('مسح الكل'),
                         ),
                     ],
                   );
+
                   if (compact) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
