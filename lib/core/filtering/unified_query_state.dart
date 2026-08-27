@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
-
 @immutable
 class UnifiedFilterToken {
   const UnifiedFilterToken({
