@@ -1,6 +1,6 @@
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_executor.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -61,12 +61,12 @@ class _CustomersPageState extends State<CustomersPage> {
   }
 
   List<CustomerModel> _applyQuery(List<CustomerModel> customers) {
-    final state = _queryController.state;
     final access = context.read<AccessController>();
-    final filtered = UnifiedFilterEngine.apply<CustomerModel>(
-      customers,
-      criteria: UnifiedFilterCriteria(searchText: state.search),
-      adapter: UnifiedFilterAdapter<CustomerModel>(
+    final executor = UnifiedQueryExecutor<CustomerModel>(
+      criteriaBuilder: (state) => UnifiedFilterCriteria(
+        searchText: state.search,
+      ),
+      filterAdapter: UnifiedFilterAdapter<CustomerModel>(
         searchableText: (customer) {
           final values = <Object?>[
             customer.name,
@@ -85,31 +85,19 @@ class _CustomersPageState extends State<CustomersPage> {
         },
         date: (customer) => customer.createdAtDate,
       ),
-    ).toList();
-
-    filtered.sort((a, b) {
-      for (final rule in state.sorts) {
-        late final int result;
-        if (rule.field == 'name') {
-          result = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        } else {
-          final aDate = a.createdAtDate;
-          final bDate = b.createdAtDate;
-          if (aDate == null && bDate == null) {
-            result = 0;
-          } else if (aDate == null) {
-            result = 1;
-          } else if (bDate == null) {
-            result = -1;
-          } else {
-            result = aDate.compareTo(bDate);
-          }
+      sort: (left, right, field) {
+        if (field == 'name') {
+          return left.name.toLowerCase().compareTo(right.name.toLowerCase());
         }
-        if (result != 0) return rule.descending ? -result : result;
-      }
-      return 0;
-    });
-    return filtered;
+        final aDate = left.createdAtDate;
+        final bDate = right.createdAtDate;
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return aDate.compareTo(bDate);
+      },
+    );
+    return executor.execute(customers, _queryController.state);
   }
 
   @override
