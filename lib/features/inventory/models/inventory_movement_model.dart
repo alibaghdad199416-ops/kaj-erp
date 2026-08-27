@@ -41,6 +41,16 @@ class InventoryMovementModel {
 
   bool get isIncoming => quantity > 0;
 
+  /// Defensive consistency check for movement values loaded from persistence.
+  /// Outgoing movements may have a negative quantity, so compare using its
+  /// absolute quantity while keeping cost values non-negative.
+  bool get hasConsistentCost {
+    if (quantity == 0 || unitCost < 0 || totalCost < 0) return false;
+    final expected = quantity.abs() * unitCost;
+    final tolerance = 0.01 * expected.abs().clamp(1, double.infinity);
+    return (totalCost - expected).abs() <= tolerance;
+  }
+
   String get typeLabel {
     switch (movementType) {
       case 'opening':
