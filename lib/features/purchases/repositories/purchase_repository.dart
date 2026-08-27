@@ -126,22 +126,6 @@ class PurchaseRepository {
 
   Future<int> getPurchasesCount() async => (await getPurchases()).length;
 
-  Future<List<PurchaseModel>> searchPurchases(String query) async {
-    final purchases = await getPurchases();
-    final normalized = query.trim().toLowerCase();
-    if (normalized.isEmpty) return purchases;
-    return purchases
-        .where(
-          (purchase) => <String?>[
-            purchase.invoiceNumber,
-            purchase.supplierName,
-            purchase.paymentMethod,
-            purchase.notes,
-          ].any((value) => value?.toLowerCase().contains(normalized) ?? false),
-        )
-        .toList(growable: false);
-  }
-
   void _validatePurchase({
     required PurchaseModel purchase,
     required List<PurchaseItemModel> items,
