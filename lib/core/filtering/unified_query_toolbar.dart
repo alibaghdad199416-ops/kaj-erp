@@ -40,6 +40,16 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
   }
 
   @override
+  void didUpdateWidget(covariant UnifiedQueryToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    oldWidget.controller.removeListener(_syncSearch);
+    widget.controller.addListener(_syncSearch);
+    _debounce?.cancel();
+    _syncSearch();
+  }
+
+  @override
   void dispose() {
     widget.controller.removeListener(_syncSearch);
     _debounce?.cancel();
@@ -83,7 +93,8 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
         ),
       ),
     );
-    if (option != null) widget.controller.addFilter(option.token);
+    if (!mounted || option == null) return;
+    widget.controller.addFilter(option.token);
   }
 
   Future<void> _addSort() async {
@@ -106,7 +117,8 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
         ),
       ),
     );
-    if (option != null) widget.controller.addSort(option.rule);
+    if (!mounted || option == null) return;
+    widget.controller.addSort(option.rule);
   }
 
   @override
@@ -122,13 +134,11 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
               onDeleted: () => widget.controller.removeFilter(token),
             ),
           ),
-          ...state.sorts.asMap().entries.map(
-            (entry) => InputChip(
+          ...state.sorts.map(
+            (rule) => InputChip(
               avatar: const Icon(Icons.sort, size: 16),
-              label: Text(
-                '${entry.value.label} ${entry.value.descending ? '↓' : '↑'}',
-              ),
-              onDeleted: () => widget.controller.removeSort(entry.value.field),
+              label: Text('${rule.label} ${rule.descending ? '↓' : '↑'}'),
+              onDeleted: () => widget.controller.removeSort(rule.field),
             ),
           ),
         ];
