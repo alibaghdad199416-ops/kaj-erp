@@ -1,5 +1,5 @@
 import 'unified_filter_engine.dart';
-import 'unified_query.dart';
+import 'unified_query_state.dart';
 
 /// Executes one deterministic search/filter/sort pipeline. I/O remains outside
 /// this class, so Cloud repositories and RLS stay authoritative.
