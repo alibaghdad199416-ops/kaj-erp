@@ -67,6 +67,10 @@ class _KajQueryToolbarState extends State<KajQueryToolbar> {
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
+    if (value.trim().isEmpty) {
+      widget.controller.setSearch('');
+      return;
+    }
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
       if (mounted) widget.controller.setSearch(value);
     });
