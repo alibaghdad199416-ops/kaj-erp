@@ -46,11 +46,6 @@ class ReportExportService {
         }
       })();
 
-  // Report artifacts are intentionally English-only. Keep the language behind
-  // a runtime getter so the analyzer does not fold English-only branches into
-  // dead code while the shared renderer remains structurally bilingual.
-  String get _exportLanguage => 'en';
-
   bool _isArabicExportLanguage(String language) => language == 'ar';
 
   Future<void> exportExcel(
@@ -65,7 +60,7 @@ class ReportExportService {
     final book = Excel.createExcel();
     final defaultSheet = book.getDefaultSheet();
     if (defaultSheet != null) book.delete(defaultSheet);
-    final language = _exportLanguage;
+    final language = options.language;
     final arabic = _isArabicExportLanguage(language);
     final generatedAt = DateTime.now();
     final usedSheetNames = <String>{};
@@ -369,7 +364,7 @@ class ReportExportService {
       sections: sections,
     );
     await PdfPrintService.print(
-      fileName: '${_fileName(module, 'en')}.pdf',
+      fileName: '${_fileName(module, options.language)}.pdf',
       bytes: bytes,
     );
   }
@@ -391,7 +386,7 @@ class ReportExportService {
       sections: sections,
     );
     await BinaryDownloadService.save(
-      fileName: '${_fileName(module, 'en')}.pdf',
+      fileName: '${_fileName(module, options.language)}.pdf',
       bytes: bytes,
       mimeType: 'application/pdf',
     );
@@ -406,7 +401,7 @@ class ReportExportService {
     List<ContextualReportSection> sections = const [],
   }) async {
     sections = const ContextualReportCustomizer().apply(sections, options);
-    final l = _exportLanguage;
+    final l = options.language;
     final arabic = _isArabicExportLanguage(l);
     // PdfGoogleFonts.notoNaskhArabicRegular is cached by PdfTextSupport.
     late final PdfFontPack fonts;
