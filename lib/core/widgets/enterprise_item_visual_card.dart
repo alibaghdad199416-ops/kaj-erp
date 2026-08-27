@@ -58,7 +58,11 @@ class EnterpriseItemVisualCard extends StatelessWidget {
     return '';
   }
 
-  String get _primaryNumber => '';
+  String get _primaryNumber => _valueFor(
+    _isCar
+        ? const ['carNumber', 'vehicleNumber', 'registrationNumber']
+        : const ['code', 'productCode', 'itemCode', 'sku', 'barcode'],
+  );
 
   String get _secondaryNumber => _valueFor(
     _isCar ? const ['chassis', 'chassisNumber', 'vin'] : const <String>[],
