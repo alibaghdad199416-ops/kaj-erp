@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 
 import 'package:quality_line_erp/features/maintenance/data/maintenance_repository.dart';
 import 'package:quality_line_erp/features/maintenance/models/maintenance_order_model.dart';
 
 class MaintenanceController extends ChangeNotifier {
   final MaintenanceRepository _repository = MaintenanceRepository();
+  final UnifiedQueryController query = UnifiedQueryController();
   List<MaintenanceOrderModel> _orders = [];
   bool _isLoading = false;
   Future<void>? _ordersLoadInFlight;
@@ -18,7 +21,88 @@ class MaintenanceController extends ChangeNotifier {
   String? _eligibleVehiclesError;
   static const Duration _eligibleTtl = Duration(seconds: 45);
 
-  List<MaintenanceOrderModel> get orders => List.unmodifiable(_orders);
+  MaintenanceController() {
+    query.addListener(_notifyQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    query.removeListener(_notifyQueryChanged);
+    query.dispose();
+    super.dispose();
+  }
+
+  void _notifyQueryChanged() => notifyListeners();
+
+  List<MaintenanceOrderModel> get orders => filteredOrders;
+
+  List<MaintenanceOrderModel> get filteredOrders =>
+      UnifiedFilterEngine.apply<MaintenanceOrderModel>(
+        _orders,
+        criteria: UnifiedFilterCriteria(
+          searchText: query.state.search,
+          statuses: _stageFilter,
+          currencies: _currencyFilter,
+        ),
+        adapter: UnifiedFilterAdapter<MaintenanceOrderModel>(
+          searchableText: (order) => <Object?>[
+            order.orderNumber,
+            order.carName,
+            order.customerName,
+            order.invoiceNumber,
+          ],
+          status: (order) => order.workflowStage,
+          currency: (order) => order.currencyCode,
+          date: (order) => order.createdAt,
+        ),
+        sorts: _sortsFromQuery(),
+      );
+
+  Set<String> get _stageFilter {
+    final token = query.state.filters
+        .where((item) => item.key == 'workflowStage')
+        .firstOrNull;
+    return token == null ? const <String>{} : {token.value.toString()};
+  }
+
+  Set<String> get _currencyFilter {
+    final token = query.state.filters
+        .where((item) => item.key == 'currency')
+        .firstOrNull;
+    return token == null ? const <String>{} : {token.value.toString()};
+  }
+
+  List<UnifiedSortCriterion<MaintenanceOrderModel>> _sortsFromQuery() =>
+      query.state.sorts.map((rule) {
+        final direction = rule.descending
+            ? UnifiedSortDirection.descending
+            : UnifiedSortDirection.ascending;
+        Comparable<dynamic> value(MaintenanceOrderModel order) {
+          switch (rule.field) {
+            case 'orderNumber':
+              return order.orderNumber.toLowerCase();
+            case 'vehicle':
+              return order.carName.toLowerCase();
+            case 'customer':
+              return (order.customerName ?? '').toLowerCase();
+            case 'cost':
+              return order.totalCost;
+            case 'price':
+              return order.salePrice;
+            case 'date':
+              return order.createdAt;
+            default:
+              return order.createdAt;
+          }
+        }
+
+        return UnifiedSortCriterion<MaintenanceOrderModel>(
+          key: rule.field,
+          direction: direction,
+          value: value,
+        );
+      }).toList(growable: false);
+
   bool get isLoading => _isLoading;
   bool get hasLoaded => _ordersLoadedAt != null;
   List<MaintenanceVehicleOption> get eligibleVehicles =>
