@@ -4,6 +4,8 @@ import 'package:quality_line_erp/core/exporting/excel_export_service.dart';
 import 'package:quality_line_erp/core/exporting/export_document.dart';
 import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
@@ -300,12 +302,67 @@ class _InventoryPageState extends State<InventoryPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 760;
-        final search = TextField(
-          onChanged: controller.setSearchQuery,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search),
-            hintText: AppTranslation.translate('بحث باسم المنتج...'),
+        final queryToolbar = KajQueryToolbar(
+          controller: controller.query,
+          hintText: AppTranslation.translate(
+            'بحث باسم المنتج أو الرمز أو الباركود...',
           ),
+          filters: [
+            for (final item in controller.groups)
+              UnifiedQueryFilterOption(
+                token: UnifiedFilterToken(
+                  key: 'inventory.group',
+                  label: AppTranslation.translate('المجموعة'),
+                  value: item.id,
+                  valueLabel: item.name,
+                ),
+                icon: Icons.category_outlined,
+              ),
+          ],
+          sorts: [
+            UnifiedQuerySortOption(
+              rule: UnifiedSortRule(
+                field: 'name',
+                label: AppTranslation.translate('اسم المنتج'),
+              ),
+              icon: Icons.sort_by_alpha_outlined,
+            ),
+            UnifiedQuerySortOption(
+              rule: UnifiedSortRule(
+                field: 'quantity',
+                label: AppTranslation.translate('الكمية'),
+              ),
+              icon: Icons.inventory_2_outlined,
+            ),
+            UnifiedQuerySortOption(
+              rule: UnifiedSortRule(
+                field: 'availableQuantity',
+                label: AppTranslation.translate('المتاح'),
+              ),
+              icon: Icons.check_circle_outline,
+            ),
+            UnifiedQuerySortOption(
+              rule: UnifiedSortRule(
+                field: 'expectedQuantity',
+                label: AppTranslation.translate('الرصيد المتوقع'),
+              ),
+              icon: Icons.insights_outlined,
+            ),
+            UnifiedQuerySortOption(
+              rule: UnifiedSortRule(
+                field: 'unitCost',
+                label: AppTranslation.translate('الكلفة'),
+              ),
+              icon: Icons.payments_outlined,
+            ),
+          ],
+          compact: true,
+          filterButtonLabel: AppTranslation.translate('فلترة'),
+          sortButtonLabel: AppTranslation.translate('فرز'),
+          clearAllLabel: AppTranslation.translate('مسح الكل'),
+          clearSearchTooltip: AppTranslation.translate('مسح البحث'),
+          ascendingLabel: AppTranslation.translate('تصاعدي'),
+          descendingLabel: AppTranslation.translate('تنازلي'),
         );
         final warehouse = DropdownButtonFormField<String>(
           isExpanded: true,
@@ -330,47 +387,21 @@ class _InventoryPageState extends State<InventoryPage> {
           onChanged: (value) =>
               controller.setWarehouseFilter(value == '__all__' ? null : value),
         );
-        final group = DropdownButtonFormField<String>(
-          isExpanded: true,
-          initialValue: controller.selectedGroupId ?? '__all__',
-          decoration: InputDecoration(
-            labelText: AppTranslation.translate('المجموعة'),
-          ),
-          items: [
-            DropdownMenuItem<String>(
-              value: '__all__',
-              child: AppText(
-                context.l10n.isArabic ? 'جميع المجموعات' : 'All groups',
-              ),
-            ),
-            ...controller.groups.map(
-              (item) => DropdownMenuItem<String>(
-                value: item.id,
-                child: AppText(item.name),
-              ),
-            ),
-          ],
-          onChanged: (value) =>
-              controller.setGroupFilter(value == '__all__' ? null : value),
-        );
         if (compact) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              search,
+              queryToolbar,
               const SizedBox(height: 8),
               warehouse,
-              const SizedBox(height: 8),
-              group,
             ],
           );
         }
         return Row(
           children: [
-            Expanded(child: search),
+            Expanded(child: queryToolbar),
             const SizedBox(width: 8),
             SizedBox(width: 210, child: warehouse),
-            const SizedBox(width: 8),
-            SizedBox(width: 210, child: group),
           ],
         );
       },

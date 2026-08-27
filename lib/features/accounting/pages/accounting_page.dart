@@ -10,6 +10,8 @@ import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_back_button.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 
 import 'package:quality_line_erp/features/accounting/controllers/accounting_controller.dart';
 import 'package:quality_line_erp/features/accounting/models/journal_entry_model.dart';
@@ -28,8 +30,6 @@ class AccountingPage extends StatefulWidget {
 }
 
 class _AccountingPageState extends State<AccountingPage> {
-  final _searchController = TextEditingController();
-  String _currencyFilter = 'ALL';
 
   @override
   void initState() {
@@ -39,11 +39,6 @@ class _AccountingPageState extends State<AccountingPage> {
     });
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   Future<void> _openAdd() async {
     final result = await showAppWorkspaceDialog<bool>(
@@ -95,47 +90,77 @@ class _AccountingPageState extends State<AccountingPage> {
                   ],
                   _summary(controller),
                   const SizedBox(height: 16),
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: AppTranslation.translate(
-                              'البحث في القيود',
+                      KajQueryToolbar(
+                        controller: controller.query,
+                        hintText: AppTranslation.translate('البحث في القيود'),
+                        filters: [
+                          UnifiedQueryFilterOption(
+                            token: UnifiedFilterToken(
+                              key: 'currency',
+                              label: AppTranslation.translate('العملة'),
+                              value: 'IQD',
+                              valueLabel: 'IQD',
                             ),
-                            prefixIcon: const Icon(Icons.search),
-                            isDense: true,
-                            border: const OutlineInputBorder(),
+                            icon: Icons.payments_outlined,
                           ),
-                        ),
+                          UnifiedQueryFilterOption(
+                            token: UnifiedFilterToken(
+                              key: 'currency',
+                              label: AppTranslation.translate('العملة'),
+                              value: 'USD',
+                              valueLabel: 'USD',
+                            ),
+                            icon: Icons.payments_outlined,
+                          ),
+                        ],
+                        sorts: [
+                          UnifiedQuerySortOption(
+                            rule: UnifiedSortRule(
+                              field: 'entryDate',
+                              label: AppTranslation.translate('تاريخ القيد'),
+                            ),
+                            icon: Icons.event_outlined,
+                          ),
+                          UnifiedQuerySortOption(
+                            rule: UnifiedSortRule(
+                              field: 'entryNumber',
+                              label: AppTranslation.translate('رقم القيد'),
+                            ),
+                            icon: Icons.tag_outlined,
+                          ),
+                          UnifiedQuerySortOption(
+                            rule: UnifiedSortRule(
+                              field: 'totalDebit',
+                              label: AppTranslation.translate('إجمالي المدين'),
+                            ),
+                            icon: Icons.account_balance_wallet_outlined,
+                          ),
+                          UnifiedQuerySortOption(
+                            rule: UnifiedSortRule(
+                              field: 'currency',
+                              label: AppTranslation.translate('العملة'),
+                            ),
+                            icon: Icons.payments_outlined,
+                          ),
+                        ],
+                        compact: true,
+                        filterButtonLabel: AppTranslation.translate('فلترة'),
+                        sortButtonLabel: AppTranslation.translate('فرز'),
+                        clearAllLabel: AppTranslation.translate('مسح الكل'),
+                        clearSearchTooltip: AppTranslation.translate('مسح البحث'),
+                        ascendingLabel: AppTranslation.translate('تصاعدي'),
+                        descendingLabel: AppTranslation.translate('تنازلي'),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
                       FilledButton.tonalIcon(
                         onPressed: _openAdd,
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: const AppText('قيد جديد'),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
-                    children: ['ALL', 'IQD', 'USD']
-                        .map(
-                          (currency) => ChoiceChip(
-                            selected: _currencyFilter == currency,
-                            onSelected: (_) =>
-                                setState(() => _currencyFilter = currency),
-                            label: AppText(
-                              currency == 'ALL' ? 'كل العملات' : currency,
-                            ),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        )
-                        .toList(growable: false),
                   ),
                   const SizedBox(height: 16),
                   if (controller.errorMessage != null)
@@ -148,26 +173,7 @@ class _AccountingPageState extends State<AccountingPage> {
                     ),
                   Builder(
                     builder: (context) {
-                      final query = _searchController.text.trim().toLowerCase();
-                      final entries = controller.entries
-                          .where((entry) {
-                            final matchesCurrency =
-                                _currencyFilter == 'ALL' ||
-                                entry.currency == _currencyFilter;
-                            final matchesQuery =
-                                query.isEmpty ||
-                                entry.entryNumber.toLowerCase().contains(
-                                  query,
-                                ) ||
-                                entry.description.toLowerCase().contains(
-                                  query,
-                                ) ||
-                                (entry.referenceType ?? '')
-                                    .toLowerCase()
-                                    .contains(query);
-                            return matchesCurrency && matchesQuery;
-                          })
-                          .toList(growable: false);
+                      final entries = controller.visibleEntries;
                       if (entries.isEmpty) {
                         return const Padding(
                           padding: EdgeInsets.all(50),

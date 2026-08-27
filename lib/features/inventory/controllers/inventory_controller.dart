@@ -51,11 +51,6 @@ class InventoryController extends ChangeNotifier {
   bool get hasLoaded => _inventoryLoadedAt.isNotEmpty;
   String? get selectedWarehouseId => _selectedWarehouseId;
 
-  /// Compatibility accessors retained while existing pages migrate to [query].
-  /// They contain no independent query state.
-  String get searchQuery => query.state.search;
-  String? get selectedGroupId => _groupFilterValue;
-
   String? get _groupFilterValue {
     for (final token in query.state.filters) {
       if (token.key == 'inventory.group') return token.value.toString();
@@ -222,32 +217,6 @@ class InventoryController extends ChangeNotifier {
 
   void invalidateInventoryCache() {
     _inventoryLoadedAt.clear();
-  }
-
-  @Deprecated('Use query.setSearch()')
-  void setSearchQuery(String value) => query.setSearch(value);
-
-  @Deprecated('Use query.addFilter()')
-  void setGroupFilter(String? value) {
-    if (value == null || value.isEmpty) {
-      query.removeFilterKey('inventory.group');
-      return;
-    }
-    var label = value;
-    for (final group in _groups) {
-      if (group.id == value) {
-        label = group.name;
-        break;
-      }
-    }
-    query.addFilter(
-      UnifiedFilterToken(
-        key: 'inventory.group',
-        label: 'Group',
-        value: value,
-        valueLabel: label,
-      ),
-    );
   }
 
   /// Warehouse selection is a Cloud data scope, not a local query filter.
