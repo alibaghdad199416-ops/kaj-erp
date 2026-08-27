@@ -50,4 +50,51 @@ void main() {
       UnifiedFilterEngine.normalize('ادارة السيارات'),
     );
   });
+
+  test('compound sorting keeps each criterion independently removable', () {
+    final rows = <Map<String, Object?>>[
+      {'name': 'B', 'status': 'open', 'score': 10},
+      {'name': 'A', 'status': 'open', 'score': 20},
+      {'name': 'C', 'status': 'closed', 'score': 20},
+    ];
+    final adapter = UnifiedFilterAdapter<Map<String, Object?>>(
+      searchableText: (row) => [row['name']],
+      status: (row) => row['status'],
+    );
+
+    final sorted = UnifiedFilterEngine.apply(
+      rows,
+      criteria: const UnifiedFilterCriteria(),
+      adapter: adapter,
+      sorts: [
+        UnifiedSortCriterion<Map<String, Object?>>(
+          key: 'score',
+          value: (row) => row['score']! as int,
+          direction: UnifiedSortDirection.descending,
+        ),
+        UnifiedSortCriterion<Map<String, Object?>>(
+          key: 'name',
+          value: (row) => row['name']! as String,
+        ),
+      ],
+    );
+
+    expect(sorted.map((row) => row['name']).toList(), ['A', 'C', 'B']);
+
+    final withoutScoreSort = UnifiedFilterEngine.apply(
+      rows,
+      criteria: const UnifiedFilterCriteria(),
+      adapter: adapter,
+      sorts: [
+        UnifiedSortCriterion<Map<String, Object?>>(
+          key: 'name',
+          value: (row) => row['name']! as String,
+        ),
+      ],
+    );
+    expect(
+      withoutScoreSort.map((row) => row['name']).toList(),
+      ['A', 'B', 'C'],
+    );
+  });
 }
