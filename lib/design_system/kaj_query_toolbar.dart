@@ -19,6 +19,13 @@ class KajQueryToolbar extends StatelessWidget {
     this.filterBuilder,
     this.sortBuilder,
     this.compact = false,
+    this.padding = EdgeInsets.zero,
+    this.filterButtonLabel = 'فلترة',
+    this.sortButtonLabel = 'فرز',
+    this.clearAllLabel = 'مسح الكل',
+    this.clearSearchTooltip = 'مسح البحث',
+    this.ascendingLabel = 'تصاعدي',
+    this.descendingLabel = 'تنازلي',
   });
 
   final UnifiedQueryController controller;
@@ -28,6 +35,13 @@ class KajQueryToolbar extends StatelessWidget {
   final WidgetBuilder? filterBuilder;
   final WidgetBuilder? sortBuilder;
   final bool compact;
+  final EdgeInsetsGeometry padding;
+  final String filterButtonLabel;
+  final String sortButtonLabel;
+  final String clearAllLabel;
+  final String clearSearchTooltip;
+  final String ascendingLabel;
+  final String descendingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +53,13 @@ class KajQueryToolbar extends StatelessWidget {
       filterBuilder: filterBuilder,
       sortBuilder: sortBuilder,
       compact: compact,
+      padding: padding,
+      filterButtonLabel: filterButtonLabel,
+      sortButtonLabel: sortButtonLabel,
+      clearAllLabel: clearAllLabel,
+      clearSearchTooltip: clearSearchTooltip,
+      ascendingLabel: ascendingLabel,
+      descendingLabel: descendingLabel,
     );
   }
 }
