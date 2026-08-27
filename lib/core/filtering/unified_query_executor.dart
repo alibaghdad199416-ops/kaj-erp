@@ -3,19 +3,23 @@ import 'unified_query.dart';
 
 /// Executes a complete module query in one deterministic pipeline.
 ///
-/// The filter adapter remains module-specific; sorting is described by the
-/// caller so the shared query state can support different ERP entities without
-/// introducing model-specific dependencies into the core layer.
+/// The adapter remains module-specific while query state, filtering lifecycle,
+/// and multi-sort ordering stay shared across ERP list screens.
 class UnifiedQueryExecutor<T> {
-  const UnifiedQueryExecutor({required this.filterAdapter, required this.sort});
+  const UnifiedQueryExecutor({
+    required this.criteriaBuilder,
+    required this.filterAdapter,
+    required this.sort,
+  });
 
+  final UnifiedFilterCriteria Function(UnifiedQueryState state) criteriaBuilder;
   final UnifiedFilterAdapter<T> filterAdapter;
   final int Function(T left, T right, String field) sort;
 
   List<T> execute(Iterable<T> values, UnifiedQueryState state) {
     final result = UnifiedFilterEngine.apply<T>(
       values,
-      criteria: UnifiedFilterCriteria(searchText: state.search),
+      criteria: criteriaBuilder(state),
       adapter: filterAdapter,
     ).toList();
 
