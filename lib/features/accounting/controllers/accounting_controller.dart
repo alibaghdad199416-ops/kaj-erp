@@ -1,6 +1,8 @@
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:flutter/material.dart';
 
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 
 import 'package:quality_line_erp/features/accounting/models/account_model.dart';
@@ -14,9 +16,12 @@ import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 
 class AccountingController extends ChangeNotifier {
   AccountingController({AccountingRepository? repository})
-    : _repository = repository ?? AccountingRepository();
+    : _repository = repository ?? AccountingRepository() {
+    query.addListener(_onQueryChanged);
+  }
 
   final AccountingRepository _repository;
+  final UnifiedQueryController query = UnifiedQueryController();
   List<AccountModel> _accounts = [];
   List<JournalEntryModel> _entries = [];
   final Map<String, List<JournalLineModel>> _lines = {};
@@ -38,6 +43,65 @@ class AccountingController extends ChangeNotifier {
       Map.unmodifiable(_receivablesByCurrency);
   Map<String, double> get payablesByCurrency =>
       Map.unmodifiable(_payablesByCurrency);
+
+  List<JournalEntryModel> get visibleEntries => UnifiedFilterEngine.apply(
+        _entries,
+        criteria: UnifiedFilterCriteria(
+          searchText: query.state.search,
+          statuses: {
+            for (final token in query.state.filters)
+              if (token.key == 'status') token.value.toString(),
+          },
+          currencies: {
+            for (final token in query.state.filters)
+              if (token.key == 'currency') token.value.toString(),
+          },
+        ),
+        adapter: UnifiedFilterAdapter<JournalEntryModel>(
+          searchableText: (entry) => <Object?>[
+            entry.entryNumber,
+            entry.description,
+            entry.currency,
+            entry.status,
+            entry.referenceType,
+            entry.referenceId,
+          ],
+          status: (entry) => entry.status,
+          currency: (entry) => entry.currency,
+          date: (entry) => entry.entryDate,
+        ),
+        sorts: query.state.sorts.map((rule) {
+          Comparable<dynamic> value(JournalEntryModel entry) {
+            switch (rule.field) {
+              case 'entryNumber':
+                return entry.entryNumber;
+              case 'description':
+                return entry.description;
+              case 'currency':
+                return entry.currency;
+              case 'status':
+                return entry.status;
+              case 'totalDebit':
+                return entry.totalDebit;
+              case 'totalCredit':
+                return entry.totalCredit;
+              case 'entryDate':
+              default:
+                return entry.entryDate;
+            }
+          }
+
+          return UnifiedSortCriterion<JournalEntryModel>(
+            key: rule.field,
+            value: value,
+            direction: rule.descending
+                ? UnifiedSortDirection.descending
+                : UnifiedSortDirection.ascending,
+          );
+        }).toList(growable: false),
+      );
+
+  void _onQueryChanged() => notifyListeners();
 
   Future<void> ensureAccountsLoaded({bool force = false}) {
     if (!force && _accounts.isNotEmpty) return Future<void>.value();
@@ -388,22 +452,8 @@ class AccountingController extends ChangeNotifier {
     }
   }
 
-  Future<void> searchEntries(String query) async {
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      _entries = await _repository.searchEntries(query);
-    } catch (error) {
-      AppLogger.debug('accounting_controller operation failed: $error');
-
-      _errorMessage = userFacingError(
-        error,
-        isArabic: AppTranslation.isArabic,
-        arabicFallback: 'تعذر البحث في القيود.',
-      );
-    } finally {
-      _setLoading(false);
-    }
+  Future<void> searchEntries(String value) async {
+    query.setSearch(value);
   }
 
   Future<void> _refresh() async {
@@ -426,5 +476,12 @@ class AccountingController extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    query.removeListener(_onQueryChanged);
+    query.dispose();
+    super.dispose();
   }
 }
