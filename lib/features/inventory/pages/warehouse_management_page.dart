@@ -53,6 +53,10 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
             .where((filter) => filter.key == 'status')
             .map((filter) => filter.value.toString())
             .toSet(),
+        types: state.filters
+            .where((filter) => filter.key == 'type')
+            .map((filter) => filter.value.toString())
+            .toSet(),
       ),
       filterAdapter: UnifiedFilterAdapter<WarehouseModel>(
         searchableText: (warehouse) => <Object?>[
@@ -163,15 +167,6 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
     final controller = context.watch<InventoryController>();
     final visible = _visible(controller.allWarehouses);
     final canCreate = PermissionAction.allowed(context, 'warehouses.create');
-    final state = _queryController.state;
-    final statusFilter = state.filters
-        .where((filter) => filter.key == 'status')
-        .map((filter) => filter.value.toString())
-        .firstOrNull;
-    final typeFilter = state.filters
-        .where((filter) => filter.key == 'type')
-        .map((filter) => filter.value.toString())
-        .firstOrNull;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -277,16 +272,16 @@ class _WarehouseManagementPageState extends State<WarehouseManagementPage> {
                       );
                     }
                   },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
                       value: 'all',
                       child: AppText('كل الأنواع'),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'normal',
                       child: AppText('اعتيادي'),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'scrap_consumption',
                       child: AppText('توالف واستهلاك'),
                     ),
@@ -756,7 +751,7 @@ class _WarehouseEditorState extends State<_WarehouseEditor> {
         notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
         isActive: _active,
         warehouseType: _warehouseType,
-        inventoryAccountId: null,
+        inventoryAccountId: old?.inventoryAccountId,
         scrapExpenseAccountId: _warehouseType == 'scrap_consumption'
             ? (_scrapExpenseIqdAccountId ?? _scrapExpenseUsdAccountId)
             : null,
