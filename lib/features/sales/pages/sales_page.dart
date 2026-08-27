@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 import 'package:quality_line_erp/core/widgets/incremental_list_view.dart';
 import 'package:provider/provider.dart';
@@ -14,12 +15,12 @@ import 'package:quality_line_erp/features/business_partners/customers/controller
 import 'package:quality_line_erp/features/sales/controllers/sales_controller.dart';
 import 'package:quality_line_erp/features/sales/models/sale_model.dart';
 import 'package:quality_line_erp/features/sales/widgets/sale_card.dart';
-import 'package:quality_line_erp/features/sales/widgets/sales_search.dart';
 import 'package:quality_line_erp/features/sales/widgets/sales_statistics.dart';
 
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 import 'package:quality_line_erp/design_system/kaj_phase5_components.dart';
+import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -29,13 +30,11 @@ class SalesPage extends StatefulWidget {
 }
 
 class _SalesPageState extends State<SalesPage> {
-  final TextEditingController _searchController = TextEditingController();
-
-  String _search = '';
+  late final UnifiedQueryController _queryController = UnifiedQueryController();
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _queryController.dispose();
     super.dispose();
   }
 
@@ -60,10 +59,9 @@ class _SalesPageState extends State<SalesPage> {
       }
     }
 
-    final List<SaleModel> sales = UnifiedFilterEngine.apply<SaleModel>(
-      controller.sales,
-      criteria: UnifiedFilterCriteria(searchText: _search),
-      adapter: UnifiedFilterAdapter<SaleModel>(
+    final filteredSales = UnifiedQueryExecutor<SaleModel>(
+      criteriaBuilder: (state) => UnifiedFilterCriteria(searchText: state.search),
+      filterAdapter: UnifiedFilterAdapter<SaleModel>(
         searchableText: (sale) => <Object?>[
           sale.id,
           sale.invoiceNumber,
@@ -81,7 +79,26 @@ class _SalesPageState extends State<SalesPage> {
         userId: (sale) => sale.createdByUserId,
         date: (sale) => DateTime.tryParse(sale.saleDate),
       ),
-    );
+      sort: (left, right, field) {
+        switch (field) {
+          case 'date':
+            return DateTime.tryParse(left.saleDate)?.compareTo(
+                  DateTime.tryParse(right.saleDate) ?? DateTime(1970),
+                ) ??
+                -1;
+          case 'invoice':
+            return left.invoiceNumber.compareTo(right.invoiceNumber);
+          case 'customer':
+            return (customerNames[left.customerId] ?? '').compareTo(
+              customerNames[right.customerId] ?? '',
+            );
+          case 'total':
+            return left.total.compareTo(right.total);
+          default:
+            return 0;
+        }
+      },
+    ).execute(controller.sales, _queryController.state);
 
     return Directionality(
       textDirection: Directionality.of(context),
@@ -105,25 +122,19 @@ class _SalesPageState extends State<SalesPage> {
                   ),
                   KajCommercialMetricData(
                     label: AppTranslation.translate('الإيراد'),
-                    value: CurrencyTotalsFormatter.format(
-                      controller.revenueByCurrency,
-                    ),
+                    value: CurrencyTotalsFormatter.format(controller.revenueByCurrency),
                     icon: Icons.payments_outlined,
                     accent: const Color(0xFFCEB686),
                   ),
                   KajCommercialMetricData(
                     label: AppTranslation.translate('المحصل'),
-                    value: CurrencyTotalsFormatter.format(
-                      controller.paidByCurrency,
-                    ),
+                    value: CurrencyTotalsFormatter.format(controller.paidByCurrency),
                     icon: Icons.verified_outlined,
                     accent: const Color(0xFF00D17D),
                   ),
                   KajCommercialMetricData(
                     label: AppTranslation.translate('المتبقي'),
-                    value: CurrencyTotalsFormatter.format(
-                      controller.remainingByCurrency,
-                    ),
+                    value: CurrencyTotalsFormatter.format(controller.remainingByCurrency),
                     icon: Icons.schedule_outlined,
                     accent: const Color(0xFFE6A95C),
                   ),
@@ -146,68 +157,81 @@ class _SalesPageState extends State<SalesPage> {
               paidByCurrency: controller.paidByCurrency,
               remainingByCurrency: controller.remainingByCurrency,
             ),
-            SalesSearch(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _search = value;
-                });
-              },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: KajQueryToolbar(
+                controller: _queryController,
+                hintText: context.l10n.isArabic
+                    ? 'البحث برقم الفاتورة أو العميل أو السيارة أو طريقة الدفع'
+                    : 'Search invoice, customer, vehicle or payment method',
+                sortBuilder: (context) => PopupMenuButton<String>(
+                  tooltip: context.l10n.isArabic ? 'الفرز' : 'Sort',
+                  icon: const Icon(Icons.sort_rounded),
+                  onSelected: (field) {
+                    const labels = <String, String>{
+                      'date': 'التاريخ',
+                      'invoice': 'رقم الفاتورة',
+                      'customer': 'العميل',
+                      'total': 'الإجمالي',
+                    };
+                    final existing = _queryController.state.sorts
+                        .where((item) => item.field == field)
+                        .firstOrNull;
+                    _queryController.addSort(
+                      UnifiedSortRule(
+                        field: field,
+                        label: labels[field] ?? field,
+                        descending: existing == null ? true : !existing.descending,
+                      ),
+                    );
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'date', child: AppText('التاريخ')),
+                    PopupMenuItem(value: 'invoice', child: AppText('رقم الفاتورة')),
+                    PopupMenuItem(value: 'customer', child: AppText('العميل')),
+                    PopupMenuItem(value: 'total', child: AppText('الإجمالي')),
+                  ],
+                ),
+              ),
             ),
             Expanded(
-              child: sales.isEmpty
+              child: filteredSales.isEmpty
                   ? Center(
                       child: AppText(
                         AppTranslation.translate('لا توجد مبيعات'),
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
                     )
                   : IncrementalListView(
                       padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
-                      itemCount: sales.length,
+                      itemCount: filteredSales.length,
                       itemBuilder: (context, index) {
-                        final sale = sales[index];
-
+                        final sale = filteredSales[index];
                         return SaleCard(
                           sale: sale,
                           carName: carNames[sale.carId],
                           customerName: customerNames[sale.customerId],
                           onPrint: () async {
                             try {
-                              await const LegacyCommercialDocumentPdfService()
-                                  .printSale(
-                                    sale: sale,
-                                    customerName:
-                                        customerNames[sale.customerId] ??
-                                        'عميل غير محدد',
-                                    carName:
-                                        carNames[sale.carId] ??
-                                        'سيارة غير محددة',
-                                    language: context.l10n.isArabic
-                                        ? 'ar'
-                                        : 'en',
-                                  );
+                              await const LegacyCommercialDocumentPdfService().printSale(
+                                sale: sale,
+                                customerName: customerNames[sale.customerId] ?? 'عميل غير محدد',
+                                carName: carNames[sale.carId] ?? 'سيارة غير محددة',
+                                language: context.l10n.isArabic ? 'ar' : 'en',
+                              );
                             } catch (error) {
                               if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: AppText(
-                                    userFacingError(
-                                      error,
-                                      isArabic: context.l10n.isArabic,
-                                    ),
+                                    userFacingError(error, isArabic: context.l10n.isArabic),
                                   ),
                                 ),
                               );
                             }
                           },
                           onDelete: () async {
-                            if (!await PermissionAction.require(
-                              context,
-                              'sales.delete',
-                            )) {
-                              return;
-                            }
+                            if (!await PermissionAction.require(context, 'sales.delete')) return;
                             if (!context.mounted) return;
                             final confirmed = await showAppConfirmDialog(
                               context,
@@ -229,8 +253,7 @@ class _SalesPageState extends State<SalesPage> {
                                       error,
                                       isArabic: context.l10n.isArabic,
                                       arabicFallback: 'تعذر حذف فاتورة البيع.',
-                                      englishFallback:
-                                          'Unable to delete the sales invoice.',
+                                      englishFallback: 'Unable to delete the sales invoice.',
                                     ),
                                   ),
                                 ),
