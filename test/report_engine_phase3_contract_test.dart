@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_state.dart';
 import 'package:quality_line_erp/features/settings/reports/models/contextual_report_section.dart';
 import 'package:quality_line_erp/features/settings/reports/models/report_export_options.dart';
 import 'package:quality_line_erp/features/settings/reports/services/contextual_report_customizer.dart';
@@ -20,6 +21,37 @@ void main() {
     expect(result.single.rows, [['C', '2023'], ['B', '2022']]);
   });
 
+  test('report customization uses unified generic field filters', () {
+    const section = ContextualReportSection(
+      key: 'sales', title: 'Sales', columns: ['Invoice', 'Currency', 'Status'],
+      rows: [
+        ['INV-001', 'IQD', 'Open'],
+        ['INV-002', 'USD', 'Open'],
+        ['INV-003', 'IQD', 'Paid'],
+      ],
+    );
+    const options = ReportExportOptions(
+      sectionFilters: {
+        'sales': [
+          UnifiedFilterToken(
+            key: 'Currency',
+            label: 'Currency',
+            value: 'IQD',
+            valueLabel: 'IQD',
+          ),
+          UnifiedFilterToken(
+            key: 'Status',
+            label: 'Status',
+            value: 'Open',
+            valueLabel: 'Open',
+          ),
+        ],
+      },
+    );
+    final result = const ContextualReportCustomizer().apply(const [section], options);
+    expect(result.single.rows, [['INV-001', 'IQD', 'Open']]);
+  });
+
   test('report customization uses unified Arabic search normalization', () {
     const section = ContextualReportSection(
       key: 'customers', title: 'Customers', columns: ['Name', 'Status'],
@@ -32,15 +64,26 @@ void main() {
     expect(result.single.rows, [['أحمد محمد', 'نشط'], ['احمد علي', 'متوقف']]);
   });
 
-  test('report customization survives json persistence', () {
+  test('report customization survives json persistence including filters', () {
     const options = ReportExportOptions(
       selectedColumns: {'sales': ['Invoice', 'Total']},
       sectionQueries: {'sales': 'USD'},
+      sectionFilters: {
+        'sales': [
+          UnifiedFilterToken(
+            key: 'Status',
+            label: 'Status',
+            value: 'Paid',
+            valueLabel: 'Paid',
+          ),
+        ],
+      },
       sortColumns: {'sales': 'Total'}, sortAscending: {'sales': true},
     );
     final restored = ReportExportOptions.fromJson(options.toJson());
     expect(restored.selectedColumns, options.selectedColumns);
     expect(restored.sectionQueries, options.sectionQueries);
+    expect(restored.sectionFilters['sales']?.single.value, 'Paid');
     expect(restored.sortColumns, options.sortColumns);
     expect(restored.sortAscending, options.sortAscending);
   });
