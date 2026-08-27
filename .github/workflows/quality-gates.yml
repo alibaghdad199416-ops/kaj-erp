@@ -30,7 +30,7 @@ jobs:
       - run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm -f tool/phase_a_apply.py .github/workflows/phase-a-apply.yml .github/workflows/_phase_a_apply.yml
+          git rm -f tool/phase_a_apply.py .github/workflows/phase-a-apply.yml .github/workflows/_phase_a_apply.yml tool/phase_a_trigger.txt
           git add lib
           git commit -m 'refactor(phaseA): remove duplicated module chrome'
           git push origin HEAD:main
