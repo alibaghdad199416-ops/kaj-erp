@@ -76,8 +76,10 @@ class MaintenanceController extends ChangeNotifier {
     return token == null ? const <String>{} : {token.value.toString()};
   }
 
-  List<UnifiedSortCriterion<MaintenanceOrderModel>> _sortsFromQuery() =>
-      query.state.sorts.map((rule) {
+  List<UnifiedSortCriterion<MaintenanceOrderModel>> _sortsFromQuery() => query
+      .state
+      .sorts
+      .map((rule) {
         final direction = rule.descending
             ? UnifiedSortDirection.descending
             : UnifiedSortDirection.ascending;
@@ -105,7 +107,8 @@ class MaintenanceController extends ChangeNotifier {
           direction: direction,
           value: value,
         );
-      }).toList(growable: false);
+      })
+      .toList(growable: false);
 
   bool get isLoading => _isLoading;
   bool get hasLoaded => _ordersLoadedAt != null;
