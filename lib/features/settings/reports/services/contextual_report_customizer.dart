@@ -5,8 +5,8 @@ import 'package:quality_line_erp/features/settings/reports/models/report_export_
 /// Applies report projection, filtering, sorting and row limits through the
 /// same unified filtering engine used by ERP module screens.
 ///
-/// The persisted ReportExportOptions shape remains backward compatible, while
-/// execution no longer maintains a second bespoke search/sort algorithm.
+/// Persisted ReportExportOptions remains backward compatible. New section
+/// filters use the generic field dimensions of the unified filter engine.
 class ContextualReportCustomizer {
   const ContextualReportCustomizer();
 
@@ -46,7 +46,7 @@ class ContextualReportCustomizer {
 
     final sorts = sortIndex < 0
         ? const <UnifiedSortCriterion<List<String>>>[]
-        : <UnifiedSortCriterion<List<String>>>[
+        : <UnifiedSortCriterion<List<String>>[
             UnifiedSortCriterion<List<String>>(
               key: sortColumn!,
               direction: (options.sortAscending[section.key] ?? true)
@@ -56,11 +56,30 @@ class ContextualReportCustomizer {
             ),
           ];
 
+    final filterTokens = options.sectionFilters[section.key] ?? const [];
+    final fieldFilters = <String, Set<String>>{};
+    for (final token in filterTokens) {
+      final values = fieldFilters.putIfAbsent(token.key, () => <String>{});
+      values.add(token.value.toString());
+    }
+
+    final fieldGetters = <String, Object? Function(List<String>)>{};
+    for (final token in filterTokens) {
+      final index = section.columns.indexOf(token.key);
+      if (index >= 0) {
+        fieldGetters[token.key] = (row) => index < row.length ? row[index] : '';
+      }
+    }
+
     final filteredAndSorted = UnifiedFilterEngine.apply<List<String>>(
       section.rows,
-      criteria: UnifiedFilterCriteria(searchText: query),
-      adapter: const UnifiedFilterAdapter<List<String>>(
+      criteria: UnifiedFilterCriteria(
+        searchText: query,
+        fieldValues: fieldFilters,
+      ),
+      adapter: UnifiedFilterAdapter<List<String>>(
         searchableText: _searchableRow,
+        fieldValues: fieldGetters,
       ),
       sorts: sorts,
     );
