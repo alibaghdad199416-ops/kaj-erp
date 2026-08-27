@@ -78,13 +78,10 @@ class RecycleBinItem {
       entityType: map['entity_type']?.toString() ?? '',
       recordId: map['record_id']?.toString() ?? '',
       title: title.isEmpty
-          ? _humanReference(
-              entityType: map['entity_type']?.toString() ?? '',
-              recordId: map['record_id']?.toString() ?? '',
-            )
+          ? _humanReference(map['entity_type']?.toString() ?? '')
           : title,
       deletedAt: DateTime.tryParse(map['deleted_at']?.toString() ?? ''),
-      deletedBy: map['deleted_by']?.toString(),
+      deletedBy: _nullableText(map['deleted_by']),
       deletedByName: deletedByName,
       payload: payload,
       sourceTable: map['source_table']?.toString() ?? '',
@@ -112,10 +109,7 @@ class RecycleBinItem {
     caseSensitive: false,
   ).hasMatch(value);
 
-  static String _humanReference({
-    required String entityType,
-    required String recordId,
-  }) {
+  static String _humanReference(String entityType) {
     const labels = <String, String>{
       'cars': 'سيارة',
       'products': 'منتج',
@@ -127,11 +121,8 @@ class RecycleBinItem {
       'expenses': 'مصروف',
       'warehouseTransfers': 'نقل مخزني',
     };
-    final label = labels[entityType] ??
+    return labels[entityType] ??
         (entityType.trim().isEmpty ? 'سجل محذوف' : entityType);
-    final shortId = recordId.trim();
-    if (shortId.isEmpty) return label;
-    return '$label — ${shortId.length > 8 ? shortId.substring(0, 8) : shortId}';
   }
 
   static String? _nullableText(Object? value) {
