@@ -34,18 +34,12 @@ class CarCard extends StatelessWidget {
 
   Color _statusColor() {
     switch (car.statusValue.name) {
-      case 'purchasing':
-        return const Color(0xFF8A5CF5);
-      case 'available':
-        return const Color(0xFF16A36A);
-      case 'damaged':
-        return const Color(0xFFD9534F);
-      case 'selling':
-        return const Color(0xFFF59E0B);
-      case 'sold':
-        return const Color(0xFF2F80ED);
-      default:
-        return const Color(0xFF607D8B);
+      case 'purchasing': return const Color(0xFF8A5CF5);
+      case 'available': return const Color(0xFF16A36A);
+      case 'damaged': return const Color(0xFFD9534F);
+      case 'selling': return const Color(0xFFF59E0B);
+      case 'sold': return const Color(0xFF2F80ED);
+      default: return const Color(0xFF607D8B);
     }
   }
 
@@ -72,175 +66,113 @@ class CarCard extends StatelessWidget {
       child: InkWell(
         onTap: onEdit,
         child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _field(
+          padding: const EdgeInsets.all(10),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 600;
+              final image = _field(
                 'images',
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: compact ? 56 : 68,
+                  height: compact ? 56 : 68,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      KajDesignTokens.radiusMd,
-                    ),
-                    border: Border.all(
-                      color: KajDesignTokens.border(brightness),
-                    ),
+                    borderRadius: BorderRadius.circular(KajDesignTokens.radiusMd),
+                    border: Border.all(color: KajDesignTokens.border(brightness)),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: _CarThumbnail(carId: car.id),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
+              );
+              final details = _details(context, colors, statusColor);
+              return compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              _field(
-                                'brand',
-                                AppText(
-                                  '${car.brand} ${car.model}'.trim(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 15.5,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              _field(
-                                'year',
-                                AppText(
-                                  '${car.year} • ${car.color}',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    color: colors.onSurfaceVariant,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _field(
-                          'status',
-                          _StatusBadge(
-                            color: statusColor,
-                            label: operationalStatusLabel(car.status),
-                          ),
-                        ),
+                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+                          image,
+                          const SizedBox(width: 9),
+                          Expanded(child: details),
+                        ]),
+                        const SizedBox(height: 6),
+                        _actions(context, colors),
                       ],
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 4,
-                      children: <Widget>[
-                        _field(
-                          'chassis',
-                          _ValueChip(
-                            label: _t(context, 'رقم الشاصي', 'VIN'),
-                            value: car.chassis,
-                          ),
-                        ),
-                        _field(
-                          'warehouseId',
-                          _ValueChip(
-                            label: _t(context, 'المخزن', 'Warehouse'),
-                            value: warehouseName ?? '',
-                          ),
-                        ),
-                        _field(
-                          'carNumber',
-                          _ValueChip(
-                            label: _t(context, 'رقم السيارة', 'Vehicle no.'),
-                            value: carNumber ?? '',
-                          ),
-                        ),
-                        _field(
-                          'plateNumber',
-                          _ValueChip(
-                            label: _t(context, 'اللوحة', 'Plate'),
-                            value: plateNumber ?? '',
-                          ),
-                        ),
-                        _field(
-                          'purchasePrice',
-                          _ValueChip(
-                            label: _t(context, 'سعر الشراء', 'Purchase price'),
-                            value:
-                                '${MoneyFormatter.format(car.purchasePrice)} ${car.costCurrency ?? car.currency}',
-                          ),
-                        ),
-                        _field(
-                          'maintenanceCost',
-                          _ValueChip(
-                            label: _t(
-                              context,
-                              'كلفة الصيانة',
-                              'Maintenance cost',
-                            ),
-                            value:
-                                '${MoneyFormatter.format(car.maintenanceCost)} ${car.costCurrency ?? car.currency}',
-                          ),
-                        ),
-                        _field(
-                          'salePrice',
-                          _ValueChip(
-                            label: _t(context, 'سعر البيع', 'Sale price'),
-                            value:
-                                '${MoneyFormatter.format(car.salePrice)} ${car.saleCurrency ?? car.currency}',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        if (onEdit != null)
-                          _ActionButton(
-                            icon: Icons.edit_outlined,
-                            label: _t(context, 'تعديل', 'Edit'),
-                            onPressed: onEdit!,
-                          ),
-                        if (onHistory != null)
-                          _ActionButton(
-                            icon: Icons.history_rounded,
-                            label: _t(context, 'السجل', 'History'),
-                            onPressed: onHistory!,
-                          ),
-                        if (onDelete != null)
-                          IconButton(
-                            tooltip: _t(context, 'حذف', 'Delete'),
-                            onPressed: onDelete,
-                            icon: Icon(
-                              Icons.delete_outline,
-                              color: colors.error,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                    )
+                  : Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+                      image,
+                      const SizedBox(width: 10),
+                      Expanded(child: details),
+                      const SizedBox(width: 8),
+                      _actions(context, colors),
+                    ]);
+            },
           ),
         ),
       ),
     );
   }
+
+  Widget _details(BuildContext context, ColorScheme colors, Color statusColor) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _field('brand', AppText(
+                  '${car.brand} ${car.model}'.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900),
+                )),
+                const SizedBox(height: 2),
+                _field('year', AppText(
+                  '${car.year} • ${car.color}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant, fontWeight: FontWeight.w700),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          _field('status', _StatusBadge(color: statusColor, label: operationalStatusLabel(car.status))),
+        ],
+      ),
+      const SizedBox(height: 5),
+      Wrap(
+        spacing: 5,
+        runSpacing: 4,
+        children: <Widget>[
+          _field('chassis', _ValueChip(label: _t(context, 'رقم الشاصي', 'VIN'), value: car.chassis)),
+          _field('warehouseId', _ValueChip(label: _t(context, 'المخزن', 'Warehouse'), value: warehouseName ?? '')),
+          _field('carNumber', _ValueChip(label: _t(context, 'رقم السيارة', 'Vehicle no.'), value: carNumber ?? '')),
+          _field('plateNumber', _ValueChip(label: _t(context, 'اللوحة', 'Plate'), value: plateNumber ?? '')),
+          _field('purchasePrice', _ValueChip(label: _t(context, 'سعر الشراء', 'Purchase price'), value: '${MoneyFormatter.format(car.purchasePrice)} ${car.costCurrency ?? car.currency}')),
+          _field('maintenanceCost', _ValueChip(label: _t(context, 'كلفة الصيانة', 'Maintenance cost'), value: '${MoneyFormatter.format(car.maintenanceCost)} ${car.costCurrency ?? car.currency}')),
+          _field('salePrice', _ValueChip(label: _t(context, 'سعر البيع', 'Sale price'), value: '${MoneyFormatter.format(car.salePrice)} ${car.saleCurrency ?? car.currency}')),
+        ],
+      ),
+    ],
+  );
+
+  Widget _actions(BuildContext context, ColorScheme colors) => Wrap(
+    spacing: 2,
+    runSpacing: 2,
+    alignment: WrapAlignment.end,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: <Widget>[
+      if (onEdit != null) _ActionButton(icon: Icons.edit_outlined, label: _t(context, 'تعديل', 'Edit'), onPressed: onEdit!),
+      if (onHistory != null) _ActionButton(icon: Icons.history_rounded, label: _t(context, 'السجل', 'History'), onPressed: onHistory!),
+      if (onDelete != null) IconButton(
+        tooltip: _t(context, 'حذف', 'Delete'),
+        visualDensity: VisualDensity.compact,
+        onPressed: onDelete,
+        icon: Icon(Icons.delete_outline, color: colors.error),
+      ),
+    ],
+  );
 }
 
 class _CarThumbnail extends StatelessWidget {
@@ -257,9 +189,7 @@ class _CarThumbnail extends StatelessWidget {
         }
         return ColoredBox(
           color: Theme.of(context).colorScheme.primary.withValues(alpha: .07),
-          child: Center(
-            child: const Icon(Icons.directions_car_outlined, size: 40),
-          ),
+          child: const Center(child: Icon(Icons.directions_car_outlined, size: 40)),
         );
       },
     );
@@ -280,22 +210,13 @@ class _ValueChip extends StatelessWidget {
         color: colors.surfaceContainerHighest.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: AppText(
-        '$label: ${value.trim().isEmpty ? '—' : value}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
-      ),
+      child: AppText('$label: ${value.trim().isEmpty ? '—' : value}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700)),
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
+  const _ActionButton({required this.icon, required this.label, required this.onPressed});
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
@@ -303,6 +224,7 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onPressed,
+    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5)),
     icon: Icon(icon, size: 14),
     label: AppText(label, style: const TextStyle(fontSize: 10)),
   );
@@ -315,19 +237,12 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
       color: color.withValues(alpha: .13),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(color: color.withValues(alpha: .28)),
     ),
-    child: AppText(
-      label,
-      style: TextStyle(
-        color: color,
-        fontSize: 9.5,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
+    child: AppText(label, style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w900)),
   );
 }
