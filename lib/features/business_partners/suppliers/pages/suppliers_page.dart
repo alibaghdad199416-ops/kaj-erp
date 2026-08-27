@@ -1,15 +1,16 @@
 import 'dart:async';
 
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_empty.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_loading.dart';
-import 'package:quality_line_erp/core/widgets/app_search.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
@@ -21,10 +22,6 @@ import 'package:quality_line_erp/features/business_partners/shared/data/business
 import 'package:quality_line_erp/features/business_partners/shared/widgets/business_partner_profile_dialog.dart';
 import 'add_supplier_page.dart';
 
-enum _SupplierFilter { all, active, inactive }
-
-enum _SupplierSort { newest, name, highestBalance }
-
 class SuppliersPage extends StatefulWidget {
   const SuppliersPage({super.key});
 
@@ -33,173 +30,187 @@ class SuppliersPage extends StatefulWidget {
 }
 
 class _SuppliersPageState extends State<SuppliersPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  _SupplierFilter _filter = _SupplierFilter.all;
-  _SupplierSort _sort = _SupplierSort.newest;
+  final UnifiedQueryController _queryController = UnifiedQueryController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted)
-        unawaited(context.read<SuppliersController>().loadSuppliers());
+      if (mounted) unawaited(context.read<SuppliersController>().loadSuppliers());
     });
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _queryController.dispose();
     super.dispose();
   }
 
-  List<SupplierModel> _visible(List<SupplierModel> suppliers) {
-    final statuses = switch (_filter) {
-      _SupplierFilter.all => const <String>{},
-      _SupplierFilter.active => const <String>{'active'},
-      _SupplierFilter.inactive => const <String>{'inactive'},
-    };
-    final result = UnifiedFilterEngine.apply<SupplierModel>(
-      suppliers,
-      criteria: UnifiedFilterCriteria(
-        searchText: _searchQuery,
-        statuses: statuses,
-      ),
-      adapter: UnifiedFilterAdapter<SupplierModel>(
-        searchableText: (supplier) => <Object?>[
-          supplier.id,
-          supplier.name,
-          supplier.phone,
-          supplier.alternativePhone,
-          supplier.companyName,
-          supplier.address,
-          supplier.taxNumber,
-          supplier.notes,
-        ],
-        status: (supplier) => supplier.isActive ? 'active' : 'inactive',
-        currency: (supplier) => supplier.currency,
-        date: (supplier) => supplier.createdAt,
-      ),
-    );
-
-    switch (_sort) {
-      case _SupplierSort.newest:
-        result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      case _SupplierSort.name:
-        result.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
-      case _SupplierSort.highestBalance:
-        result.sort((a, b) => b.openingBalance.compareTo(a.openingBalance));
-    }
-    return result;
+  List<UnifiedSortCriterion<SupplierModel>> _sorts(UnifiedQueryState state) {
+    return state.sorts.map((rule) {
+      final direction = rule.descending
+          ? UnifiedSortDirection.descending
+          : UnifiedSortDirection.ascending;
+      switch (rule.field) {
+        case 'name':
+          return UnifiedSortCriterion<SupplierModel>(
+            key: rule.field,
+            direction: direction,
+            value: (supplier) => supplier.name.toLowerCase(),
+          );
+        case 'balance':
+          return UnifiedSortCriterion<SupplierModel>(
+            key: rule.field,
+            direction: direction,
+            value: (supplier) => supplier.openingBalance,
+          );
+        case 'createdAt':
+          return UnifiedSortCriterion<SupplierModel>(
+            key: rule.field,
+            direction: direction,
+            value: (supplier) => supplier.createdAt,
+          );
+        default:
+          return UnifiedSortCriterion<SupplierModel>(
+            key: rule.field,
+            direction: direction,
+            value: (supplier) => supplier.name.toLowerCase(),
+          );
+      }
+    }).toList(growable: false);
   }
+
+  String _statusLabel(bool active) => active ? 'نشط' : 'غير نشط';
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<SuppliersController>();
     final suppliers = controller.suppliers;
-    final visible = _visible(suppliers);
     final canCreate = PermissionAction.allowed(context, 'suppliers.create');
 
-    return AppEntityPage(
-      hideHeader: true,
-      title: 'إدارة الموردين',
-      subtitle: 'إدارة بيانات الموردين وأرصدتهم وحالة تعاملهم.',
-      actions: [
-        IconButton(
-          tooltip: AppTranslation.translate('تحديث البيانات'),
-          onPressed: controller.isLoading ? null : controller.loadSuppliers,
-          icon: const Icon(Icons.refresh_rounded, size: 19),
-        ),
-        if (canCreate)
-          FilledButton.icon(
-            onPressed: _openAdd,
-            icon: const Icon(Icons.add_rounded, size: 17),
-            label: const AppText('إضافة مورد'),
+    return AnimatedBuilder(
+      animation: _queryController,
+      builder: (context, _) {
+        final state = _queryController.state;
+        final statusToken = state.filters.where((item) => item.key == 'status').firstOrNull;
+        final status = statusToken?.value.toString();
+        final visible = UnifiedFilterEngine.apply<SupplierModel>(
+          suppliers,
+          criteria: UnifiedFilterCriteria(
+            searchText: state.search,
+            statuses: status == null ? const <String>{} : <String>{status},
           ),
-      ],
-      statistics: _SupplierStatistics(controller: controller),
-      toolbar: LayoutBuilder(
-        builder: (context, constraints) {
-          final search = AppSearch(
-            controller: _searchController,
-            hintText: AppTranslation.translate(
-              'البحث بالاسم أو الهاتف أو الشركة',
-            ),
-            onChanged: (value) => setState(() => _searchQuery = value),
-          );
-          final filters = SegmentedButton<_SupplierFilter>(
-            segments: const [
-              ButtonSegment(value: _SupplierFilter.all, label: AppText('الكل')),
-              ButtonSegment(
-                value: _SupplierFilter.active,
-                label: AppText('نشط'),
-              ),
-              ButtonSegment(
-                value: _SupplierFilter.inactive,
-                label: AppText('غير نشط'),
-              ),
+          adapter: UnifiedFilterAdapter<SupplierModel>(
+            searchableText: (supplier) => <Object?>[
+              supplier.name,
+              supplier.phone,
+              supplier.alternativePhone,
+              supplier.companyName,
+              supplier.address,
+              supplier.taxNumber,
+              supplier.notes,
             ],
-            selected: {_filter},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) =>
-                setState(() => _filter = value.first),
-          );
-          final sort = PopupMenuButton<_SupplierSort>(
-            tooltip: AppTranslation.translate('الترتيب'),
-            initialValue: _sort,
-            onSelected: (value) => setState(() => _sort = value),
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: _SupplierSort.newest,
-                child: AppText('الأحدث أولاً'),
-              ),
-              PopupMenuItem(
-                value: _SupplierSort.name,
-                child: AppText('حسب الاسم'),
-              ),
-              PopupMenuItem(
-                value: _SupplierSort.highestBalance,
-                child: AppText('أعلى رصيد'),
-              ),
-            ],
-            child: ActionChip(
-              avatar: const Icon(Icons.sort_rounded, size: 17),
-              label: AppText(_sortLabel),
-              onPressed: null,
+            status: (supplier) => supplier.isActive ? 'active' : 'inactive',
+            currency: (supplier) => supplier.currency,
+            date: (supplier) => supplier.createdAt,
+          ),
+          sorts: _sorts(state),
+        );
+
+        final sortOptions = <UnifiedQuerySortOption>[
+          const UnifiedQuerySortOption(
+            rule: UnifiedSortRule(field: 'createdAt', label: 'الأحدث', descending: true),
+            icon: Icons.schedule_rounded,
+          ),
+          const UnifiedQuerySortOption(
+            rule: UnifiedSortRule(field: 'name', label: 'الاسم'),
+            icon: Icons.sort_by_alpha_rounded,
+          ),
+          const UnifiedQuerySortOption(
+            rule: UnifiedSortRule(field: 'balance', label: 'الرصيد', descending: true),
+            icon: Icons.account_balance_wallet_outlined,
+          ),
+        ];
+
+        return AppEntityPage(
+          hideHeader: true,
+          title: 'إدارة الموردين',
+          subtitle: 'إدارة بيانات الموردين وأرصدتهم وحالة تعاملهم.',
+          actions: [
+            IconButton(
+              tooltip: AppTranslation.translate('تحديث البيانات'),
+              onPressed: controller.isLoading ? null : controller.loadSuppliers,
+              icon: const Icon(Icons.refresh_rounded, size: 19),
             ),
-          );
-          final controls = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [filters, sort],
-          );
-          if (constraints.maxWidth < 760) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [search, const SizedBox(height: 8), controls],
-            );
-          }
-          return Row(
+            if (canCreate)
+              FilledButton.icon(
+                onPressed: _openAdd,
+                icon: const Icon(Icons.add_rounded, size: 17),
+                label: const AppText('إضافة مورد'),
+              ),
+          ],
+          statistics: _SupplierStatistics(controller: controller),
+          toolbar: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: search),
-              const SizedBox(width: 8),
-              controls,
+              UnifiedQueryToolbar(
+                controller: _queryController,
+                searchHint: 'البحث بالاسم أو الهاتف أو الشركة أو الرقم الضريبي',
+                sorts: sortOptions,
+              ),
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 560;
+                  final filter = DropdownButtonFormField<String>(
+                    value: status,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'الحالة',
+                      prefixIcon: Icon(Icons.flag_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'active', child: Text('نشط')),
+                      DropdownMenuItem(value: 'inactive', child: Text('غير نشط')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        _queryController.removeFilterKey('status');
+                      } else {
+                        _queryController.addFilter(
+                          UnifiedFilterToken(
+                            key: 'status',
+                            label: 'الحالة',
+                            value: value,
+                            valueLabel: _statusLabel(value == 'active'),
+                          ),
+                        );
+                      }
+                    },
+                  );
+                  final clearStatus = TextButton.icon(
+                    onPressed: status == null
+                        ? null
+                        : () => _queryController.removeFilterKey('status'),
+                    icon: const Icon(Icons.filter_alt_off_outlined),
+                    label: const AppText('مسح الحالة'),
+                  );
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [filter, clearStatus],
+                    );
+                  }
+                  return Row(children: [SizedBox(width: 220, child: filter), clearStatus]);
+                },
+              ),
             ],
-          );
-        },
-      ),
-      body: _buildBody(controller, suppliers, visible, canCreate),
+          ),
+          body: _buildBody(controller, suppliers, visible, canCreate),
+        );
+      },
     );
   }
-
-  String get _sortLabel => switch (_sort) {
-    _SupplierSort.newest => 'الأحدث أولاً',
-    _SupplierSort.name => 'حسب الاسم',
-    _SupplierSort.highestBalance => 'أعلى رصيد',
-  };
 
   Widget _buildBody(
     SuppliersController controller,
@@ -281,89 +292,28 @@ class _SuppliersPageState extends State<SuppliersPage> {
       photoBase64: supplier.photoBase64,
       summary: summary,
       identityFields: [
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'companyName',
-          viewPermission: 'suppliers.view',
-        ))
+        if (context.read<AccessController>().canViewField('suppliers', 'companyName', viewPermission: 'suppliers.view'))
           BusinessPartnerProfileField('اسم الشركة', supplier.companyName),
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'taxNumber',
-          viewPermission: 'suppliers.view',
-        ))
+        if (context.read<AccessController>().canViewField('suppliers', 'taxNumber', viewPermission: 'suppliers.view'))
           BusinessPartnerProfileField('الرقم الضريبي', supplier.taxNumber),
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'isActive',
-          viewPermission: 'suppliers.view',
-        ))
-          BusinessPartnerProfileField(
-            'الحالة',
-            supplier.isActive
-                ? AppTranslation.translate('فعال')
-                : AppTranslation.translate('متوقف'),
-          ),
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'createdAt',
-          viewPermission: 'suppliers.view',
-        ))
+        if (context.read<AccessController>().canViewField('suppliers', 'isActive', viewPermission: 'suppliers.view'))
+          BusinessPartnerProfileField('الحالة', supplier.isActive ? 'فعال' : 'متوقف'),
+        if (context.read<AccessController>().canViewField('suppliers', 'createdAt', viewPermission: 'suppliers.view'))
           BusinessPartnerProfileField('تاريخ الإنشاء', supplier.createdAt),
-        if (supplier.updatedAt != null &&
-            context.read<AccessController>().canViewField(
-              'suppliers',
-              'updatedAt',
-              viewPermission: 'suppliers.view',
-            ))
+        if (supplier.updatedAt != null && context.read<AccessController>().canViewField('suppliers', 'updatedAt', viewPermission: 'suppliers.view'))
           BusinessPartnerProfileField('تاريخ التحديث', supplier.updatedAt),
       ],
       contactFields: [
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'phone',
-          viewPermission: 'suppliers.view',
-        ))
-          BusinessPartnerProfileField(
-            'الهاتف',
-            supplier.phone,
-            icon: Icons.phone_outlined,
-          ),
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'alternativePhone',
-          viewPermission: 'suppliers.view',
-        ))
-          BusinessPartnerProfileField(
-            'هاتف بديل',
-            supplier.alternativePhone,
-            icon: Icons.phone_in_talk_outlined,
-          ),
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'address',
-          viewPermission: 'suppliers.view',
-        ))
-          BusinessPartnerProfileField(
-            'العنوان',
-            supplier.address,
-            icon: Icons.location_on_outlined,
-          ),
-        if (context.read<AccessController>().canViewField(
-          'suppliers',
-          'currency',
-          viewPermission: 'suppliers.view',
-        ))
+        if (context.read<AccessController>().canViewField('suppliers', 'phone', viewPermission: 'suppliers.view'))
+          BusinessPartnerProfileField('الهاتف', supplier.phone, icon: Icons.phone_outlined),
+        if (context.read<AccessController>().canViewField('suppliers', 'alternativePhone', viewPermission: 'suppliers.view'))
+          BusinessPartnerProfileField('هاتف بديل', supplier.alternativePhone, icon: Icons.phone_in_talk_outlined),
+        if (context.read<AccessController>().canViewField('suppliers', 'address', viewPermission: 'suppliers.view'))
+          BusinessPartnerProfileField('العنوان', supplier.address, icon: Icons.location_on_outlined),
+        if (context.read<AccessController>().canViewField('suppliers', 'currency', viewPermission: 'suppliers.view'))
           BusinessPartnerProfileField('العملة', supplier.currency),
       ],
-      notes:
-          context.read<AccessController>().canViewField(
-            'suppliers',
-            'notes',
-            viewPermission: 'suppliers.view',
-          )
-          ? supplier.notes
-          : null,
+      notes: context.read<AccessController>().canViewField('suppliers', 'notes', viewPermission: 'suppliers.view') ? supplier.notes : null,
     );
   }
 
@@ -376,9 +326,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
       windowKey: 'suppliers:add',
       child: const AddSupplierPage(),
     );
-    if (changed != null && mounted) {
-      await context.read<SuppliersController>().loadSuppliers();
-    }
+    if (changed != null && mounted) await context.read<SuppliersController>().loadSuppliers();
   }
 
   Future<void> _openEdit(SupplierModel supplier) async {
@@ -390,9 +338,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
       windowKey: 'suppliers:edit:${supplier.id}',
       child: AddSupplierPage(supplier: supplier),
     );
-    if (changed != null && mounted) {
-      await context.read<SuppliersController>().loadSuppliers();
-    }
+    if (changed != null && mounted) await context.read<SuppliersController>().loadSuppliers();
   }
 
   Future<void> _toggle(SupplierModel supplier) async {
@@ -402,9 +348,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
     final confirmed = await showAppConfirmDialog(
       context,
       title: activate ? 'تفعيل المورد' : 'تعطيل المورد',
-      message: activate
-          ? 'هل تريد تفعيل هذا المورد؟'
-          : 'هل تريد تعطيل هذا المورد؟',
+      message: activate ? 'هل تريد تفعيل هذا المورد؟' : 'هل تريد تعطيل هذا المورد؟',
       confirmLabel: activate ? 'تفعيل' : 'تعطيل',
     );
     if (!confirmed || !mounted) return;
@@ -412,10 +356,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
       await context.read<SuppliersController>().toggleSupplierStatus(supplier);
     } catch (_) {
       if (!mounted) return;
-      _showError(
-        context.read<SuppliersController>().errorMessage ??
-            'تعذر تحديث حالة المورد.',
-      );
+      _showError(context.read<SuppliersController>().errorMessage ?? 'تعذر تحديث حالة المورد.');
     }
   }
 
@@ -434,16 +375,12 @@ class _SuppliersPageState extends State<SuppliersPage> {
       await context.read<SuppliersController>().deleteSupplier(supplier.id);
     } catch (_) {
       if (!mounted) return;
-      _showError(
-        context.read<SuppliersController>().errorMessage ?? 'تعذر حذف المورد.',
-      );
+      _showError(context.read<SuppliersController>().errorMessage ?? 'تعذر حذف المورد.');
     }
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: AppText(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(message)));
   }
 }
 
@@ -456,44 +393,23 @@ class _SupplierStatistics extends StatelessWidget {
     final ar = context.l10n.isArabic;
     String t(String arText, String enText) => ar ? arText : enText;
     final items = <({IconData icon, String label, String value})>[
-      (
-        icon: Icons.local_shipping_outlined,
-        label: t('إجمالي الموردين', 'Total suppliers'),
-        value: '${controller.totalSuppliers}',
-      ),
-      (
-        icon: Icons.check_circle_outline_rounded,
-        label: t('الموردون النشطون', 'Active suppliers'),
-        value: '${controller.activeSuppliers}',
-      ),
-      (
-        icon: Icons.pause_circle_outline_rounded,
-        label: t('غير النشطين', 'Inactive suppliers'),
-        value: '${controller.inactiveSuppliers}',
-      ),
-      (
-        icon: Icons.attach_money_rounded,
-        label: t('الرصيد بالدولار', 'USD balance'),
-        value: controller.totalOpeningBalanceUsd.toStringAsFixed(2),
-      ),
-      (
-        icon: Icons.account_balance_wallet_outlined,
-        label: t('الرصيد بالدينار', 'IQD balance'),
-        value: controller.totalOpeningBalanceIqd.toStringAsFixed(0),
-      ),
+      (icon: Icons.local_shipping_outlined, label: t('إجمالي الموردين', 'Total suppliers'), value: '${controller.totalSuppliers}'),
+      (icon: Icons.check_circle_outline_rounded, label: t('الموردون النشطون', 'Active suppliers'), value: '${controller.activeSuppliers}'),
+      (icon: Icons.pause_circle_outline_rounded, label: t('غير النشطين', 'Inactive suppliers'), value: '${controller.inactiveSuppliers}'),
+      (icon: Icons.attach_money_rounded, label: t('الرصيد بالدولار', 'USD balance'), value: controller.totalOpeningBalanceUsd.toStringAsFixed(2)),
+      (icon: Icons.account_balance_wallet_outlined, label: t('الرصيد بالدينار', 'IQD balance'), value: controller.totalOpeningBalanceIqd.toStringAsFixed(0)),
     ];
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        for (var index = 0; index < items.length; index++) ...[
-          CompactMetricPill(
-            icon: items[index].icon,
-            label: items[index].label,
-            value: items[index].value,
-          ),
-          if (index != items.length - 1) const SizedBox(width: 8),
-        ],
+        for (final item in items)
+          CompactMetricPill(icon: item.icon, label: item.label, value: item.value),
       ],
     );
   }
+}
+
+extension _FirstOrNull<E> on Iterable<E> {
+  E? get firstOrNull => isEmpty ? null : first;
 }
