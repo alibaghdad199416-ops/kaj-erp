@@ -8,6 +8,8 @@ import 'package:quality_line_erp/core/filtering/unified_query.dart';
 ///
 /// The toolbar owns presentation only. Query state remains in the supplied
 /// [UnifiedQueryController], so modules do not maintain parallel search state.
+/// Optional labels keep the component reusable for Arabic/English screens
+/// without creating separate search/filter implementations.
 class UnifiedQueryToolbar extends StatefulWidget {
   const UnifiedQueryToolbar({
     super.key,
@@ -19,6 +21,12 @@ class UnifiedQueryToolbar extends StatefulWidget {
     this.sortBuilder,
     this.compact = false,
     this.padding = EdgeInsets.zero,
+    this.filterButtonLabel = 'فلترة',
+    this.sortButtonLabel = 'فرز',
+    this.clearAllLabel = 'مسح الكل',
+    this.clearSearchTooltip = 'مسح البحث',
+    this.ascendingLabel = 'تصاعدي',
+    this.descendingLabel = 'تنازلي',
   });
 
   final UnifiedQueryController controller;
@@ -29,6 +37,12 @@ class UnifiedQueryToolbar extends StatefulWidget {
   final WidgetBuilder? sortBuilder;
   final bool compact;
   final EdgeInsetsGeometry padding;
+  final String filterButtonLabel;
+  final String sortButtonLabel;
+  final String clearAllLabel;
+  final String clearSearchTooltip;
+  final String ascendingLabel;
+  final String descendingLabel;
 
   @override
   State<UnifiedQueryToolbar> createState() => _UnifiedQueryToolbarState();
@@ -41,7 +55,9 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(text: widget.controller.state.search);
+    _searchController = TextEditingController(
+      text: widget.controller.state.search,
+    );
     widget.controller.addListener(_syncSearch);
   }
 
@@ -131,7 +147,11 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                 (option) => ListTile(
                   leading: Icon(option.icon ?? Icons.sort),
                   title: Text(option.label),
-                  subtitle: Text(option.descending ? 'تنازلي' : 'تصاعدي'),
+                  subtitle: Text(
+                    option.descending
+                        ? widget.descendingLabel
+                        : widget.ascendingLabel,
+                  ),
                   onTap: () => Navigator.pop(context, option),
                 ),
               )
@@ -188,7 +208,7 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                       prefixIcon: const Icon(Icons.search_rounded),
                       suffixIcon: hasSearchText
                           ? IconButton(
-                              tooltip: 'مسح البحث',
+                              tooltip: widget.clearSearchTooltip,
                               onPressed: () {
                                 _debounce?.cancel();
                                 _searchController.clear();
@@ -214,7 +234,7 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                         OutlinedButton.icon(
                           onPressed: _addFilter,
                           icon: const Icon(Icons.filter_alt_outlined),
-                          label: const Text('فلترة'),
+                          label: Text(widget.filterButtonLabel),
                         ),
                       if (sortControl != null)
                         sortControl
@@ -222,13 +242,13 @@ class _UnifiedQueryToolbarState extends State<UnifiedQueryToolbar> {
                         OutlinedButton.icon(
                           onPressed: _addSort,
                           icon: const Icon(Icons.sort),
-                          label: const Text('فرز'),
+                          label: Text(widget.sortButtonLabel),
                         ),
                       if (!state.isEmpty)
                         TextButton.icon(
                           onPressed: widget.controller.clear,
                           icon: const Icon(Icons.clear_all_rounded),
-                          label: const Text('مسح الكل'),
+                          label: Text(widget.clearAllLabel),
                         ),
                     ],
                   );
