@@ -24,6 +24,17 @@ abstract final class KajDesignTokens {
   static const double space24 = 24;
   static const double space32 = 32;
 
+  // Shared ERP density contract. Prefer these values over per-screen control
+  // heights so dense data views remain predictable across modules.
+  static const double controlHeight = 40;
+  static const double controlHeightCompact = 36;
+  static const double toolbarMinHeight = 48;
+  static const double tableRowHeight = 44;
+  static const double tableRowHeightCompact = 40;
+  static const double cardMinHeight = 112;
+  static const double dialogMaxWidth = 640;
+  static const double contentMaxWidth = 1600;
+
   static const Color darkCanvas = Color(0xFF03070A);
   static const Color darkWorkspace = Color(0xFF050B10);
   static const Color darkSurface = Color(0xFF091117);

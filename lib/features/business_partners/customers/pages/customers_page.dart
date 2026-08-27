@@ -1,5 +1,6 @@
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_executor.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,7 +8,7 @@ import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_empty.dart';
 import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
-import 'package:quality_line_erp/core/widgets/app_search.dart';
+import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/features/business_partners/customers/controllers/customers_controller.dart';
@@ -19,8 +20,6 @@ import 'package:quality_line_erp/features/business_partners/shared/widgets/busin
 import 'add_customer_page.dart';
 import 'edit_customer_page.dart';
 
-enum _CustomerSort { newest, name }
-
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
 
@@ -29,55 +28,84 @@ class CustomersPage extends StatefulWidget {
 }
 
 class _CustomersPageState extends State<CustomersPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchText = '';
-  _CustomerSort _sort = _CustomerSort.newest;
+  late final UnifiedQueryController _queryController = UnifiedQueryController(
+    const UnifiedQueryState(
+      sorts: <UnifiedSortRule>[
+        UnifiedSortRule(
+          field: 'created_at',
+          label: 'الأحدث',
+          descending: true,
+        ),
+      ],
+    ),
+  );
 
   @override
   void initState() {
     super.initState();
+    _queryController.addListener(_onQueryChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) await context.read<CustomersController>().loadCustomers();
     });
   }
 
+  void _onQueryChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
-    _searchController.dispose();
+    _queryController.removeListener(_onQueryChanged);
+    _queryController.dispose();
     super.dispose();
+  }
+
+  List<CustomerModel> _applyQuery(List<CustomerModel> customers) {
+    final access = context.read<AccessController>();
+    final executor = UnifiedQueryExecutor<CustomerModel>(
+      criteriaBuilder: (state) => UnifiedFilterCriteria(
+        searchText: state.search,
+      ),
+      filterAdapter: UnifiedFilterAdapter<CustomerModel>(
+        searchableText: (customer) {
+          final values = <Object?>[
+            customer.name,
+            customer.phone,
+            customer.address,
+            customer.notes,
+          ];
+          if (access.canViewField(
+            'customers',
+            'nationalId',
+            viewPermission: 'customers.view',
+          )) {
+            values.add(customer.nationalId);
+          }
+          return values;
+        },
+        date: (customer) => customer.createdAtDate,
+      ),
+      sort: (left, right, field) {
+        if (field == 'name') {
+          return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+        }
+        final aDate = left.createdAtDate;
+        final bDate = right.createdAtDate;
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return aDate.compareTo(bDate);
+      },
+    );
+    return executor.execute(customers, _queryController.state);
   }
 
   @override
   Widget build(BuildContext context) {
     final customers = context.watch<CustomersController>().customers;
     final canCreate = PermissionAction.allowed(context, 'customers.create');
-    final query = _searchText.trim();
-    final filteredCustomers =
-        UnifiedFilterEngine.apply<CustomerModel>(
-          customers,
-          criteria: UnifiedFilterCriteria(searchText: query),
-          adapter: UnifiedFilterAdapter<CustomerModel>(
-            searchableText: (customer) => <Object?>[
-              customer.id,
-              customer.name,
-              customer.phone,
-              customer.address,
-              customer.nationalId,
-              customer.notes,
-            ],
-            date: (customer) => customer.createdAtDate,
-          ),
-        )..sort((a, b) {
-          if (_sort == _CustomerSort.name) {
-            return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-          }
-          final aDate = a.createdAtDate;
-          final bDate = b.createdAtDate;
-          if (aDate == null && bDate == null) return 0;
-          if (aDate == null) return 1;
-          if (bDate == null) return -1;
-          return bDate.compareTo(aDate);
-        });
+    final filteredCustomers = _applyQuery(customers);
+    final hasSearch = _queryController.state.search.trim().isNotEmpty;
 
     return AppEntityPage(
       hideHeader: true,
@@ -100,55 +128,35 @@ class _CustomersPageState extends State<CustomersPage> {
         totalCustomers: customers.length,
         visibleCustomers: filteredCustomers.length,
       ),
-      toolbar: LayoutBuilder(
-        builder: (context, constraints) {
-          final search = AppSearch(
-            controller: _searchController,
-            hintText: AppTranslation.translate(
-              'البحث بالاسم أو الهاتف أو العنوان',
-            ),
-            onChanged: (value) => setState(() => _searchText = value),
-          );
-          final sort = SegmentedButton<_CustomerSort>(
-            segments: const [
-              ButtonSegment(
-                value: _CustomerSort.newest,
-                label: AppText('الأحدث'),
-                icon: Icon(Icons.schedule_rounded, size: 16),
+      toolbar: KajQueryToolbar(
+        controller: _queryController,
+        hintText: 'البحث بالاسم أو الهاتف أو العنوان أو الملاحظات',
+        sortBuilder: (context) => PopupMenuButton<String>(
+          tooltip: 'الفرز',
+          icon: const Icon(Icons.sort_rounded),
+          onSelected: (field) {
+            _queryController.setSorts([
+              UnifiedSortRule(
+                field: field,
+                label: field == 'name' ? 'الاسم' : 'الأحدث',
+                descending: field == 'created_at',
               ),
-              ButtonSegment(
-                value: _CustomerSort.name,
-                label: AppText('الاسم'),
-                icon: Icon(Icons.sort_by_alpha_rounded, size: 16),
-              ),
-            ],
-            selected: {_sort},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) => setState(() => _sort = value.first),
-          );
-          if (constraints.maxWidth < 720) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [search, const SizedBox(height: 8), sort],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: search),
-              const SizedBox(width: 8),
-              sort,
-            ],
-          );
-        },
+            ]);
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'created_at', child: Text('الأحدث')),
+            PopupMenuItem(value: 'name', child: Text('الاسم')),
+          ],
+        ),
       ),
       body: filteredCustomers.isEmpty
           ? AppEmpty(
               title: 'لا يوجد عملاء',
-              message: query.isEmpty
-                  ? 'ابدأ بإضافة أول عميل إلى النظام.'
-                  : 'جرّب تغيير كلمات البحث.',
+              message: hasSearch
+                  ? 'جرّب تغيير كلمات البحث.'
+                  : 'ابدأ بإضافة أول عميل إلى النظام.',
               icon: Icons.people_outline_rounded,
-              action: canCreate && query.isEmpty
+              action: canCreate && !hasSearch
                   ? FilledButton.icon(
                       onPressed: _openAddCustomer,
                       icon: const Icon(Icons.add_rounded, size: 17),
@@ -236,12 +244,11 @@ class _CustomersPageState extends State<CustomersPage> {
             icon: Icons.location_on_outlined,
           ),
       ],
-      notes:
-          context.read<AccessController>().canViewField(
-            'customers',
-            'notes',
-            viewPermission: 'customers.view',
-          )
+      notes: context.read<AccessController>().canViewField(
+        'customers',
+        'notes',
+        viewPermission: 'customers.view',
+      )
           ? customer.notes
           : null,
     );

@@ -14,6 +14,7 @@ class RecycleBinItem {
     this.rootRecordId,
     this.deleteReason,
     this.relatedCount = 1,
+    this.humanReference,
   });
 
   final String? archiveId;
@@ -30,8 +31,16 @@ class RecycleBinItem {
   final String? rootRecordId;
   final String? deleteReason;
   final int relatedCount;
+  final String? humanReference;
 
   bool get isBatch => relatedCount > 1 || deletionBatchId != null;
+
+  /// Stable user-facing reference. Internal UUIDs remain available through
+  /// [recordId] for application logic but are not promoted as the display
+  /// reference when a business identifier is available.
+  String get displayReference => humanReference?.trim().isNotEmpty == true
+      ? humanReference!.trim()
+      : 'غير متوفر';
 
   factory RecycleBinItem.fromMap(Map<String, dynamic> map) {
     final payload = Map<String, dynamic>.from(
@@ -49,6 +58,12 @@ class RecycleBinItem {
       'nameAr',
       'name',
       'title',
+      'fullName',
+      'model',
+      'product_name',
+      'productName',
+    ]);
+    final humanReference = firstText(const [
       'order_number',
       'orderNumber',
       'document_number',
@@ -57,18 +72,20 @@ class RecycleBinItem {
       'invoiceNumber',
       'number',
       'code',
-      'fullName',
-      'model',
       'sku',
       'chassisNumber',
+      'plateNumber',
+      'plate_number',
     ]);
+
     return RecycleBinItem(
       archiveId: _nullableText(map['archive_id']),
       entityType: map['entity_type']?.toString() ?? '',
       recordId: map['record_id']?.toString() ?? '',
-      title: title.isEmpty ? map['record_id']?.toString() ?? '' : title,
+      title: title.isEmpty ? 'سجل محذوف' : title,
+      humanReference: humanReference.isEmpty ? null : humanReference,
       deletedAt: DateTime.tryParse(map['deleted_at']?.toString() ?? ''),
-      deletedBy: map['deleted_by']?.toString(),
+      deletedBy: _nullableText(map['deleted_by']),
       payload: payload,
       sourceTable: map['source_table']?.toString() ?? '',
       deletionMode: map['deletion_mode']?.toString() ?? 'soft',
