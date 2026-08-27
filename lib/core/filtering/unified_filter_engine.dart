@@ -1,11 +1,31 @@
 import 'package:flutter/foundation.dart';
 
-/// Canonical, composable filter criteria shared by ERP modules.
+/// Direction for a single unified sort criterion.
+enum UnifiedSortDirection { ascending, descending }
+
+/// A module-specific sort criterion. Criteria are applied in priority order,
+/// so callers can compose stable multi-column sorting without duplicating sort
+/// state in each screen.
+@immutable
+class UnifiedSortCriterion<T> {
+  const UnifiedSortCriterion({
+    required this.key,
+    required this.value,
+    this.direction = UnifiedSortDirection.ascending,
+  });
+
+  final String key;
+  final Comparable<Object?> Function(T value) value;
+  final UnifiedSortDirection direction;
+}
+
+/// Canonical, composable query criteria shared by ERP modules.
 ///
 /// Every populated condition is combined with logical AND. Individual values
 /// inside the same condition (for example several warehouses) are combined
-/// with logical OR. This prevents changing one control from accidentally
-/// clearing or bypassing another active filter.
+/// with logical OR. Sorting is intentionally separate from filtering so a
+/// screen can remove one filter or one sort criterion without clearing the
+/// rest of the query.
 @immutable
 class UnifiedFilterCriteria {
   const UnifiedFilterCriteria({
@@ -108,9 +128,41 @@ abstract final class UnifiedFilterEngine {
     Iterable<T> values, {
     required UnifiedFilterCriteria criteria,
     required UnifiedFilterAdapter<T> adapter,
-  }) => values
-      .where((value) => matches(value, criteria: criteria, adapter: adapter))
-      .toList(growable: false);
+    List<UnifiedSortCriterion<T>> sorts = const <UnifiedSortCriterion<dynamic>>[],
+  }) {
+    final result = values
+        .where((value) => matches(value, criteria: criteria, adapter: adapter))
+        .toList(growable: false);
+    if (sorts.isEmpty) return result;
+
+    final sorted = result.toList(growable: true);
+    sorted.sort((left, right) {
+      for (final sort in sorts) {
+        final comparison = _compareComparable(
+          sort.value(left),
+          sort.value(right),
+        );
+        if (comparison != 0) {
+          return sort.direction == UnifiedSortDirection.ascending
+              ? comparison
+              : -comparison;
+        }
+      }
+      return 0;
+    });
+    return List<T>.unmodifiable(sorted);
+  }
+
+  static int _compareComparable(
+    Comparable<Object?> left,
+    Comparable<Object?> right,
+  ) {
+    try {
+      return left.compareTo(right);
+    } catch (_) {
+      return normalize(left).compareTo(normalize(right));
+    }
+  }
 
   static bool matches<T>(
     T value, {
