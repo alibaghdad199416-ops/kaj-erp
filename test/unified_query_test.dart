@@ -86,6 +86,28 @@ void main() {
     ]);
   });
 
+  test('replacing a sort rule preserves its existing priority', () {
+    final controller = UnifiedQueryController();
+    controller.setSorts([
+      const UnifiedSortRule(field: 'status', label: 'الحالة'),
+      const UnifiedSortRule(field: 'name', label: 'الاسم'),
+    ]);
+
+    controller.addSort(
+      const UnifiedSortRule(
+        field: 'status',
+        label: 'الحالة',
+        descending: true,
+      ),
+    );
+
+    expect(controller.state.sorts.map((rule) => rule.field), [
+      'status',
+      'name',
+    ]);
+    expect(controller.state.sorts.first.descending, isTrue);
+  });
+
   test('unified executor applies filters before ordered multi-sort', () {
     const rows = <_Row>[
       _Row(name: 'Zaid', status: 'active'),
