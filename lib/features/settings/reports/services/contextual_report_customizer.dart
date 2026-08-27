@@ -40,13 +40,11 @@ class ContextualReportCustomizer {
 
     final query = (options.sectionQueries[section.key] ?? '').trim();
     final sortColumn = options.sortColumns[section.key];
-    final sortIndex = sortColumn == null
-        ? -1
-        : section.columns.indexOf(sortColumn);
+    final sortIndex = sortColumn == null ? -1 : section.columns.indexOf(sortColumn);
 
     final sorts = sortIndex < 0
         ? const <UnifiedSortCriterion<List<String>>>[]
-        : <UnifiedSortCriterion<List<String>>[
+        : <UnifiedSortCriterion<List<String>>>[
             UnifiedSortCriterion<List<String>>(
               key: sortColumn!,
               direction: (options.sortAscending[section.key] ?? true)
