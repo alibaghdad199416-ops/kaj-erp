@@ -419,8 +419,9 @@ class _MaintenancePageState extends State<MaintenancePage> {
                     label: AppText(t('أمر صيانة جديد', 'New service order')),
                   ),
                 OutlinedButton.icon(
-                  onPressed: () =>
-                      context.read<MaintenanceController>().loadOrders(force: true),
+                  onPressed: () => context
+                      .read<MaintenanceController>()
+                      .loadOrders(force: true),
                   icon: const Icon(Icons.refresh_rounded),
                   label: AppText(t('تحديث مباشر', 'Live refresh')),
                 ),

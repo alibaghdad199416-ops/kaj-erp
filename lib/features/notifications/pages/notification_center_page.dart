@@ -344,15 +344,28 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
               runSpacing: 8,
               children: [
                 Chip(
-                  avatar: const Icon(Icons.mark_email_unread_outlined, size: 17),
-                  label: AppText('${ar ? 'غير مقروء' : 'Unread'}: $_unreadCount'),
+                  avatar: const Icon(
+                    Icons.mark_email_unread_outlined,
+                    size: 17,
+                  ),
+                  label: AppText(
+                    '${ar ? 'غير مقروء' : 'Unread'}: $_unreadCount',
+                  ),
                 ),
                 Chip(
-                  avatar: Icon(Icons.crisis_alert_rounded, size: 17, color: KajDesignTokens.danger),
+                  avatar: Icon(
+                    Icons.crisis_alert_rounded,
+                    size: 17,
+                    color: KajDesignTokens.danger,
+                  ),
                   label: AppText('${ar ? 'حرج' : 'Critical'}: $critical'),
                 ),
                 Chip(
-                  avatar: Icon(Icons.warning_amber_rounded, size: 17, color: KajDesignTokens.warning),
+                  avatar: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 17,
+                    color: KajDesignTokens.warning,
+                  ),
                   label: AppText('${ar ? 'تحذيرات' : 'Warnings'}: $warning'),
                 ),
               ],

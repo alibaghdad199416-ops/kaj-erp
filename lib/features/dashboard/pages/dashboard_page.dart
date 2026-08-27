@@ -58,21 +58,30 @@ class DashboardPage extends StatelessWidget {
                       children: [
                         if (can('todaySales'))
                           Chip(
-                            avatar: const Icon(Icons.trending_up_rounded, size: 17),
+                            avatar: const Icon(
+                              Icons.trending_up_rounded,
+                              size: 17,
+                            ),
                             label: AppText(
                               '${context.l10n.isArabic ? 'مبيعات اليوم' : 'Today sales'}: ${CurrencyTotalsFormatter.format(dashboard.todaySalesByCurrency)}',
                             ),
                           ),
                         if (can('availableCars'))
                           Chip(
-                            avatar: const Icon(Icons.directions_car_filled_outlined, size: 17),
+                            avatar: const Icon(
+                              Icons.directions_car_filled_outlined,
+                              size: 17,
+                            ),
                             label: AppText(
                               '${context.l10n.isArabic ? 'السيارات المتوفرة' : 'Available vehicles'}: ${dashboard.availableCars}',
                             ),
                           ),
                         if (can('overdueInstallments'))
                           Chip(
-                            avatar: const Icon(Icons.schedule_rounded, size: 17),
+                            avatar: const Icon(
+                              Icons.schedule_rounded,
+                              size: 17,
+                            ),
                             label: AppText(
                               '${context.l10n.isArabic ? 'الأقساط المتأخرة' : 'Overdue installments'}: ${dashboard.overdueInstallments}',
                             ),
