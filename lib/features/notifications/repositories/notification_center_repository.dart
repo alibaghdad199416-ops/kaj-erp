@@ -100,7 +100,10 @@ class NotificationCenterRepository {
       'erp_r49_mark_cloud_notification_read',
       params: {'p_company_id': _companyId, 'p_notification_id': id},
     );
-    NotificationUnreadState.update(NotificationUnreadState.count.value - 1);
+    // The server is authoritative for the unread count. Do not decrement the
+    // local value blindly: the notification may already be read, another tab
+    // may have changed the count, or the RPC may be retried. The next count
+    // refresh synchronizes the shared unread state with Cloud.
   }
 
   Future<void> markAllAsRead() async {
