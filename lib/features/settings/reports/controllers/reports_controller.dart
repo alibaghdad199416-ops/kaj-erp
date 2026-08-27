@@ -20,6 +20,7 @@ class ReportsController extends ChangeNotifier {
   String? _errorMessage;
   DateTime? _startDate;
   DateTime? _endDate;
+  int _requestGeneration = 0;
 
   ReportModel get report => _report;
   bool get isLoading => _isLoading;
@@ -33,31 +34,51 @@ class ReportsController extends ChangeNotifier {
     DateTime? endDate,
     bool force = false,
   }) {
+    if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+      _errorMessage = AppTranslation.isArabic
+          ? 'تاريخ النهاية يجب أن يكون مساويًا أو بعد تاريخ البداية.'
+          : 'The end date must be on or after the start date.';
+      notifyListeners();
+      return Future<void>.value();
+    }
+
     final sameRange = _startDate == startDate && _endDate == endDate;
     if (!force && _hasLoaded && sameRange) return Future<void>.value();
     final active = _loadInFlight;
     if (active != null) return active;
 
-    final request = _loadReportsNow(startDate: startDate, endDate: endDate);
+    final generation = ++_requestGeneration;
+    final request = _loadReportsNow(
+      startDate: startDate,
+      endDate: endDate,
+      generation: generation,
+    );
     _loadInFlight = request;
     return request.whenComplete(() {
       if (identical(_loadInFlight, request)) _loadInFlight = null;
     });
   }
 
-  Future<void> _loadReportsNow({DateTime? startDate, DateTime? endDate}) async {
+  Future<void> _loadReportsNow({
+    DateTime? startDate,
+    DateTime? endDate,
+    required int generation,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     _startDate = startDate;
     _endDate = endDate;
     notifyListeners();
     try {
-      _report = await _repository.getReportsData(
+      final nextReport = await _repository.getReportsData(
         startDate: startDate,
         endDate: endDate,
       );
+      if (generation != _requestGeneration) return;
+      _report = nextReport;
       _hasLoaded = true;
     } catch (error) {
+      if (generation != _requestGeneration) return;
       AppLogger.debug('ReportsController.load failed: $error');
       _errorMessage = userFacingError(
         error,
@@ -65,6 +86,7 @@ class ReportsController extends ChangeNotifier {
         arabicFallback: 'تعذر تحميل التقارير.',
       );
     } finally {
+      if (generation != _requestGeneration) return;
       _isLoading = false;
       notifyListeners();
     }
