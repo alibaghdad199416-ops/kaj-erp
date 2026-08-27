@@ -40,7 +40,8 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
         maxHeight: widget.maxHeight,
         maxOutputBytes: widget.maxOutputBytes,
       );
-      if (result != null) widget.onChanged(result.base64);
+      if (!mounted || result == null) return;
+      widget.onChanged(result.base64);
     } on FormatException catch (error) {
       if (!mounted) return;
       final message = switch (error.message) {
@@ -58,7 +59,10 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
               : 'Invalid image file. Use JPG, PNG, or WEBP.',
       };
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: AppText(message), backgroundColor: Colors.red),
+        SnackBar(
+          content: AppText(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -68,6 +72,7 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
   @override
   Widget build(BuildContext context) {
     final bytes = _bytes;
+    final isArabic = context.l10n.isArabic;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -103,7 +108,9 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
                                 ),
                               )
                             : const Icon(Icons.add_photo_alternate_outlined),
-                        label: const AppText('اختيار صورة'),
+                        label: AppText(
+                          isArabic ? 'اختيار صورة' : 'Choose image',
+                        ),
                       ),
                       if (bytes != null)
                         TextButton.icon(
@@ -111,7 +118,7 @@ class _Base64PhotoPickerState extends State<Base64PhotoPicker> {
                               ? null
                               : () => widget.onChanged(null),
                           icon: const Icon(Icons.delete_outline),
-                          label: const AppText('إزالة'),
+                          label: AppText(isArabic ? 'إزالة' : 'Remove'),
                         ),
                     ],
                   ),
