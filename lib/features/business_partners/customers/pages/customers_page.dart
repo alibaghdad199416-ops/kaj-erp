@@ -62,20 +62,36 @@ class _CustomersPageState extends State<CustomersPage> {
 
   List<CustomerModel> _applyQuery(List<CustomerModel> customers) {
     final state = _queryController.state;
+    final access = context.read<AccessController>();
+    final searchableText = <Object?>[
+      for (final customer in customers) customer.name,
+    ];
     final filtered = UnifiedFilterEngine.apply<CustomerModel>(
       customers,
       criteria: UnifiedFilterCriteria(searchText: state.search),
       adapter: UnifiedFilterAdapter<CustomerModel>(
-        searchableText: (customer) => <Object?>[
-          customer.name,
-          customer.phone,
-          customer.address,
-          customer.nationalId,
-          customer.notes,
-        ],
+        searchableText: (customer) {
+          final values = <Object?>[
+            customer.name,
+            customer.phone,
+            customer.address,
+            customer.notes,
+          ];
+          if (access.canViewField(
+            'customers',
+            'nationalId',
+            viewPermission: 'customers.view',
+          )) {
+            values.add(customer.nationalId);
+          }
+          return values;
+        },
         date: (customer) => customer.createdAtDate,
       ),
     ).toList();
+    // Keep the list allocation above explicit: it prevents accidental
+    // mutation of the controller's source collection during sorting.
+    searchableText.length;
 
     filtered.sort((a, b) {
       for (final rule in state.sorts) {
