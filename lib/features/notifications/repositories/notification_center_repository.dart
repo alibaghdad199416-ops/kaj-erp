@@ -91,8 +91,9 @@ class NotificationCenterRepository {
       params: {'p_company_id': _companyId},
     );
     final count = (result as num?)?.toInt() ?? 0;
-    NotificationUnreadState.update(count.clamp(0, 1 << 31));
-    return count < 0 ? 0 : count;
+    final safeCount = count < 0 ? 0 : count;
+    NotificationUnreadState.update(safeCount);
+    return safeCount;
   }
 
   Future<void> markAsRead(String id) async {
