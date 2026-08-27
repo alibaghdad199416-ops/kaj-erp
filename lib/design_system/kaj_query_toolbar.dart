@@ -85,7 +85,8 @@ class _KajQueryToolbarState extends State<KajQueryToolbar> {
                 key: const ValueKey('kaj-unified-search'),
                 controller: _searchController,
                 onChanged: widget.controller.setSearch,
-                textDirection: TextDirection.rtl,
+                textDirection: Directionality.of(context),
+                textAlign: TextAlign.start,
                 decoration: InputDecoration(
                   hintText: widget.hintText,
                   prefixIcon: const Icon(Icons.search_rounded),
