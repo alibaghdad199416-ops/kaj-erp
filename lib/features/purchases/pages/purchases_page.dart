@@ -293,13 +293,17 @@ class _PurchasesPageState extends State<PurchasesPage> {
               ),
               KajCommercialMetricData(
                 label: arabic ? 'الإجمالي' : 'Total',
-                value: CurrencyTotalsFormatter.format(controller.totalPurchasesByCurrency),
+                value: CurrencyTotalsFormatter.format(
+                  controller.totalPurchasesByCurrency,
+                ),
                 icon: Icons.payments_outlined,
                 accent: KajDesignTokens.champagneGold,
               ),
               KajCommercialMetricData(
                 label: arabic ? 'المتبقي' : 'Remaining',
-                value: CurrencyTotalsFormatter.format(controller.totalRemainingByCurrency),
+                value: CurrencyTotalsFormatter.format(
+                  controller.totalRemainingByCurrency,
+                ),
                 icon: Icons.account_balance_wallet_outlined,
                 accent: KajDesignTokens.champagneGold,
               ),
