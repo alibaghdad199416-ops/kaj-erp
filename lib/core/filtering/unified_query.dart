@@ -35,8 +35,9 @@ class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryState get state => _state;
 
   void setSearch(String value) {
-    if (_state.search == value) return;
-    _state = _state.copyWith(search: value);
+    final normalized = value.trim();
+    if (_state.search == normalized) return;
+    _state = _state.copyWith(search: normalized);
     notifyListeners();
   }
 
