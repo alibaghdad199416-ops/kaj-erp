@@ -33,6 +33,9 @@ class RecycleBinRepository {
   }
 
   Future<void> restore(RecycleBinItem item) async {
+    if (item.recordId.trim().isEmpty || item.entityType.trim().isEmpty) {
+      throw ArgumentError('The deleted record reference is incomplete.');
+    }
     await _client.rpc(
       'erp_recycle_bin_restore',
       params: {
@@ -44,6 +47,12 @@ class RecycleBinRepository {
   }
 
   Future<void> permanentlyDelete(RecycleBinItem item) async {
+    if (item.entityType.trim().isEmpty) {
+      throw ArgumentError('The deleted record type is incomplete.');
+    }
+    if (item.archiveId == null && item.recordId.trim().isEmpty) {
+      throw ArgumentError('The deleted record reference is incomplete.');
+    }
     final response = item.archiveId == null
         ? await _client.rpc(
             'erp_recycle_bin_purge',
