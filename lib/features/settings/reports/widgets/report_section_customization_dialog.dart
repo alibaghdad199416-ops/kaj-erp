@@ -76,15 +76,15 @@ class _ReportSectionCustomizationDialogState
     ];
   }
 
-  @override
-  void dispose() {
-    for (final controller in _queries.values) {
-      controller.dispose();
-    }
-    for (final controller in _rowLimits.values) {
-      controller.dispose();
-    }
-    super.dispose();
+  bool _isInternalColumn(String column) {
+    final normalized = column
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .toLowerCase();
+    return normalized == 'id' ||
+        normalized.endsWith('id') ||
+        normalized.contains('uuid') ||
+        normalized.contains('payload') ||
+        normalized.contains('rawdata');
   }
 
   List<UnifiedQueryFilterOption> _filterOptions(
@@ -94,7 +94,7 @@ class _ReportSectionCustomizationDialogState
     final options = <UnifiedQueryFilterOption>[];
     for (var columnIndex = 0; columnIndex < section.columns.length; columnIndex++) {
       final column = section.columns[columnIndex];
-      if (column.trim().isEmpty) continue;
+      if (column.trim().isEmpty || _isInternalColumn(column)) continue;
       final values = <String>{};
       for (final row in section.rows) {
         if (columnIndex >= row.length) continue;
@@ -174,13 +174,14 @@ class _ReportSectionCustomizationDialogState
     ContextualReportSection section,
   ) => [
         for (final column in section.columns)
-          UnifiedQuerySortOption(
-            rule: UnifiedSortRule(
-              field: column,
-              label: _label(context, column),
+          if (!_isInternalColumn(column))
+            UnifiedQuerySortOption(
+              rule: UnifiedSortRule(
+                field: column,
+                label: _label(context, column),
+              ),
+              icon: Icons.sort,
             ),
-            icon: Icons.sort,
-          ),
       ];
 
   @override
