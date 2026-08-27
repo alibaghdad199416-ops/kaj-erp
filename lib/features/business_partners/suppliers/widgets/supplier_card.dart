@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/design_system/kaj_phase4_components.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
+import 'package:quality_line_erp/features/settings/access/widgets/permission_action.dart';
 import 'package:quality_line_erp/features/business_partners/shared/widgets/partner_compact_card_parts.dart';
 import 'package:quality_line_erp/features/business_partners/suppliers/models/supplier_model.dart';
 
