@@ -22,10 +22,9 @@ class UnifiedSortCriterion<T> {
 /// Canonical, composable query criteria shared by ERP modules.
 ///
 /// Every populated condition is combined with logical AND. Individual values
-/// inside the same condition (for example several warehouses) are combined
-/// with logical OR. Sorting is intentionally separate from filtering so a
-/// screen can remove one filter or one sort criterion without clearing the
-/// rest of the query.
+/// inside the same condition are combined with logical OR. Sorting is
+/// intentionally separate from filtering so a screen can remove one filter
+/// or one sort criterion without clearing the rest of the query.
 @immutable
 class UnifiedFilterCriteria {
   const UnifiedFilterCriteria({
@@ -38,6 +37,7 @@ class UnifiedFilterCriteria {
     this.currencies = const <String>{},
     this.userIds = const <String>{},
     this.groupIds = const <String>{},
+    this.fieldValues = const <String, Set<String>>{},
     this.fromDate,
     this.toDate,
   });
@@ -51,6 +51,11 @@ class UnifiedFilterCriteria {
   final Set<String> currencies;
   final Set<String> userIds;
   final Set<String> groupIds;
+
+  /// Generic exact-value filters for module-specific dimensions.
+  /// Each key is mapped by [UnifiedFilterAdapter.fieldValues].
+  final Map<String, Set<String>> fieldValues;
+
   final DateTime? fromDate;
   final DateTime? toDate;
 
@@ -64,6 +69,7 @@ class UnifiedFilterCriteria {
       currencies.isEmpty &&
       userIds.isEmpty &&
       groupIds.isEmpty &&
+      fieldValues.values.every((values) => values.isEmpty) &&
       fromDate == null &&
       toDate == null;
 
@@ -77,6 +83,7 @@ class UnifiedFilterCriteria {
     Set<String>? currencies,
     Set<String>? userIds,
     Set<String>? groupIds,
+    Map<String, Set<String>>? fieldValues,
     DateTime? fromDate,
     DateTime? toDate,
     bool clearFromDate = false,
@@ -91,6 +98,7 @@ class UnifiedFilterCriteria {
     currencies: currencies ?? this.currencies,
     userIds: userIds ?? this.userIds,
     groupIds: groupIds ?? this.groupIds,
+    fieldValues: fieldValues ?? this.fieldValues,
     fromDate: clearFromDate ? null : fromDate ?? this.fromDate,
     toDate: clearToDate ? null : toDate ?? this.toDate,
   );
@@ -109,6 +117,7 @@ class UnifiedFilterAdapter<T> {
     this.userId,
     this.groupId,
     this.date,
+    this.fieldValues = const <String, Object? Function(dynamic)>{},
   });
 
   final Iterable<Object?> Function(T value) searchableText;
@@ -121,6 +130,10 @@ class UnifiedFilterAdapter<T> {
   final Object? Function(T value)? userId;
   final Object? Function(T value)? groupId;
   final DateTime? Function(T value)? date;
+
+  /// Module-specific exact filter dimensions keyed by the same key used in
+  /// [UnifiedFilterCriteria.fieldValues].
+  final Map<String, Object? Function(T value)> fieldValues;
 }
 
 abstract final class UnifiedFilterEngine {
@@ -206,6 +219,15 @@ abstract final class UnifiedFilterEngine {
       criteria.groupIds,
       adapter.groupId?.call(value),
     );
+
+    final customFieldsMatch = criteria.fieldValues.entries.every((entry) {
+      final accepted = entry.value;
+      if (accepted.isEmpty) return true;
+      final getter = adapter.fieldValues[entry.key];
+      if (getter == null) return false;
+      return _matchesSet(accepted, getter(value));
+    });
+
     final dateMatches = _matchesDate(
       adapter.date?.call(value),
       criteria.fromDate,
@@ -221,6 +243,7 @@ abstract final class UnifiedFilterEngine {
         currencyMatches &&
         userMatches &&
         groupMatches &&
+        customFieldsMatch &&
         dateMatches;
   }
 
