@@ -60,6 +60,7 @@ class RecycleBinItem {
       'number',
       'code',
       'fullName',
+      'brand',
       'model',
       'sku',
       'chassisNumber',
@@ -72,14 +73,17 @@ class RecycleBinItem {
       payload['created_by_name'],
       payload['createdByName'],
     ]);
+    final entityType = map['entity_type']?.toString() ?? '';
+    final recordId = map['record_id']?.toString() ?? '';
+    final titleValue = title.isEmpty
+        ? '${_humanReference(entityType)}${_shortRecordSuffix(recordId)}'
+        : title;
 
     return RecycleBinItem(
       archiveId: _nullableText(map['archive_id']),
-      entityType: map['entity_type']?.toString() ?? '',
-      recordId: map['record_id']?.toString() ?? '',
-      title: title.isEmpty
-          ? _humanReference(map['entity_type']?.toString() ?? '')
-          : title,
+      entityType: entityType,
+      recordId: recordId,
+      title: titleValue,
       deletedAt: DateTime.tryParse(map['deleted_at']?.toString() ?? ''),
       deletedBy: _nullableText(map['deleted_by']),
       deletedByName: deletedByName,
@@ -102,6 +106,12 @@ class RecycleBinItem {
       return text;
     }
     return null;
+  }
+
+  static String _shortRecordSuffix(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    if (!_looksLikeUuid(text)) return '';
+    return ' — ${text.substring(0, 8)}';
   }
 
   static bool _looksLikeUuid(String value) => RegExp(
