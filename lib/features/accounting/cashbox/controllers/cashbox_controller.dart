@@ -234,15 +234,6 @@ class CashboxController extends ChangeNotifier {
     }
   }
 
-  Future<void> searchTransactions(String query) async {
-    _setLoading(true);
-    try {
-      _transactions = await _repository.searchTransactions(query);
-    } finally {
-      _setLoading(false);
-    }
-  }
-
   Future<void> _refresh() {
     final active = _refreshInFlight;
     if (active != null) return active;
