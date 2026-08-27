@@ -93,7 +93,9 @@ void main() {
         valueLabel: 'مفتوح',
       );
       controller.addFilter(filter);
-      controller.addSort(const UnifiedSortRule(field: 'name', label: 'الاسم'));
+      controller.addSort(
+        const UnifiedSortRule(field: 'name', label: 'الاسم'),
+      );
       final before = controller.state;
 
       controller.removeFilterKey('missing');
