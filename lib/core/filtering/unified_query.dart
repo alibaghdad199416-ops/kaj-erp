@@ -178,10 +178,13 @@ class UnifiedQueryController extends ChangeNotifier {
   }
 
   void addSort(UnifiedSortRule rule) {
-    final next = [
-      ..._state.sorts.where((item) => item.field != rule.field),
-      rule,
-    ];
+    final next = List<UnifiedSortRule>.from(_state.sorts);
+    final existingIndex = next.indexWhere((item) => item.field == rule.field);
+    if (existingIndex >= 0) {
+      next[existingIndex] = rule;
+    } else {
+      next.add(rule);
+    }
     setSorts(next);
   }
 
