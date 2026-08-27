@@ -10,14 +10,11 @@ class SaleModel {
   final String paymentMethod;
   final String saleDate;
   final String notes;
-  final String? invoiceNumber;
+  final String invoiceNumber;
   final String? opportunityId;
   final String? createdByUserId;
   final String? createdByUserName;
   final DateTime? updatedAt;
-
-  /// primary: first sale from the dealership.
-  /// resale: a later sale by the current customer to another customer.
   final String saleType;
   final String? previousSaleId;
   final String? sellerCustomerId;
@@ -35,7 +32,7 @@ class SaleModel {
     required this.paymentMethod,
     required this.saleDate,
     required this.notes,
-    this.invoiceNumber,
+    String? invoiceNumber,
     this.opportunityId,
     this.createdByUserId,
     this.createdByUserName,
@@ -46,9 +43,10 @@ class SaleModel {
     this.saleSequence = 1,
     this.currencyCode = 'USD',
     this.exchangeRate = 1,
-  });
+  }) : invoiceNumber = invoiceNumber ?? '';
 
   bool get isResale => saleType == 'resale';
+  double get total => salePrice;
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -60,7 +58,7 @@ class SaleModel {
     'paymentMethod': paymentMethod,
     'saleDate': saleDate,
     'notes': notes,
-    'invoiceNumber': invoiceNumber,
+    'invoiceNumber': invoiceNumber.isEmpty ? null : invoiceNumber,
     'opportunityId': opportunityId,
     'createdByUserId': createdByUserId,
     'createdByUserName': createdByUserName,
@@ -70,8 +68,6 @@ class SaleModel {
     'sellerCustomerId': sellerCustomerId,
     'saleSequence': saleSequence,
     'currencyCode': currencyCode,
-    // Commercial documents preserve the entered amount in the document currency.
-    // Currency equivalence is calculated only by payment/settlement workflows.
     'exchangeRate': 1,
     'amountUsd': currencyCode == 'USD' ? salePrice : 0,
     'amountIqd': currencyCode == 'IQD' ? salePrice : 0,
@@ -90,15 +86,8 @@ class SaleModel {
     invoiceNumber: ModelValueReader.nullableString(map, 'invoiceNumber'),
     opportunityId: ModelValueReader.nullableString(map, 'opportunityId'),
     createdByUserId: ModelValueReader.nullableString(map, 'createdByUserId'),
-    createdByUserName: ModelValueReader.nullableString(
-      map,
-      'createdByUserName',
-    ),
-    updatedAt: ModelValueReader.dateTime(
-      map,
-      'updatedAt',
-      aliases: const ['_cloudUpdatedAt'],
-    ),
+    createdByUserName: ModelValueReader.nullableString(map, 'createdByUserName'),
+    updatedAt: ModelValueReader.dateTime(map, 'updatedAt', aliases: const ['_cloudUpdatedAt']),
     saleType: ModelValueReader.string(map, 'saleType', fallback: 'primary'),
     previousSaleId: ModelValueReader.nullableString(map, 'previousSaleId'),
     sellerCustomerId: ModelValueReader.nullableString(map, 'sellerCustomerId'),
