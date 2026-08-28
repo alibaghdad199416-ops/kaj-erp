@@ -6,7 +6,7 @@ import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 import 'package:quality_line_erp/features/settings/reports/models/contextual_report_section.dart';
 import 'package:quality_line_erp/features/settings/reports/models/report_export_options.dart';
 import 'package:quality_line_erp/features/settings/reports/services/report_field_localizer.dart';
-import 'package:quality_line_erp/core/widgets/unified_query_toolbar.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 
 /// Report customization surface backed by the same query state used by ERP lists.
 /// Presentation-only controls (columns, section visibility and row limit) are
@@ -329,45 +329,34 @@ class _ReportSectionCustomizationDialogState
                                         ),
                                       ),
                                     ),
-                                    const Spacer(),
-                                    SizedBox(
-                                      width: 180,
-                                      child: TextField(
-                                        controller: _rowLimits[section.key],
-                                        keyboardType: TextInputType.number,
-                                        decoration: InputDecoration(
-                                          isDense: true,
-                                          labelText: _bi(
-                                            context,
-                                            'حد الصفوف (0 = الكل)',
-                                            'Row limit (0 = all)',
-                                          ),
-                                        ),
-                                      ),
-                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: section.columns
-                                      .map(
-                                        (column) => FilterChip(
-                                          label: AppText(
-                                            _label(context, column),
-                                          ),
-                                          selected: selected.contains(column),
-                                          onSelected: (value) => setState(() {
-                                            if (value) {
-                                              selected.add(column);
-                                            } else if (selected.length > 1) {
-                                              selected.remove(column);
-                                            }
-                                          }),
-                                        ),
-                                      )
-                                      .toList(growable: false),
+                                ...[
+                                  for (final column in section.columns)
+                                    CheckboxListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      value: selected.contains(column),
+                                      onChanged: (value) => setState(() {
+                                        if (value == true) {
+                                          selected.add(column);
+                                        } else if (selected.length > 1) {
+                                          selected.remove(column);
+                                        }
+                                      }),
+                                      title: AppText(_label(context, column)),
+                                    ),
+                                ],
+                                TextField(
+                                  controller: _rowLimits[section.key],
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: _bi(
+                                      context,
+                                      'حد الصفوف (0 = بلا حد)',
+                                      'Row limit (0 = unlimited)',
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -384,10 +373,9 @@ class _ReportSectionCustomizationDialogState
           onPressed: () => Navigator.pop(context),
           child: AppText(_bi(context, 'إلغاء', 'Cancel')),
         ),
-        FilledButton.icon(
+        FilledButton(
           onPressed: () => Navigator.pop(context, _result()),
-          icon: const Icon(Icons.check),
-          label: AppText(_bi(context, 'تطبيق التخصيص', 'Apply customization')),
+          child: AppText(_bi(context, 'تطبيق', 'Apply')),
         ),
       ],
     );
