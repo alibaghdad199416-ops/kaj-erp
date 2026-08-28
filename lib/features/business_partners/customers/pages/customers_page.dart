@@ -2,7 +2,6 @@ import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
@@ -263,6 +262,7 @@ class _CustomersPageState extends State<CustomersPage> {
 
   Future<void> _editCustomer(CustomerModel customer) async {
     if (!await PermissionAction.require(context, 'customers.update')) return;
+    if (!mounted) return;
     await showAppModuleDialog(
       context: context,
       title: 'تعديل عميل',
@@ -273,6 +273,7 @@ class _CustomersPageState extends State<CustomersPage> {
 
   Future<void> _deleteCustomer(CustomerModel customer) async {
     if (!await PermissionAction.require(context, 'customers.delete')) return;
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AppDialog(

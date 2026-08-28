@@ -4,7 +4,6 @@ import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
@@ -58,25 +57,25 @@ class _SuppliersPageState extends State<SuppliersPage> {
               return UnifiedSortCriterion<SupplierModel>(
                 key: rule.field,
                 direction: direction,
-                value: (supplier) => supplier.name.toLowerCase(),
+                initialValue: (supplier) => supplier.name.toLowerCase(),
               );
             case 'balance':
               return UnifiedSortCriterion<SupplierModel>(
                 key: rule.field,
                 direction: direction,
-                value: (supplier) => supplier.openingBalance,
+                initialValue: (supplier) => supplier.openingBalance,
               );
             case 'createdAt':
               return UnifiedSortCriterion<SupplierModel>(
                 key: rule.field,
                 direction: direction,
-                value: (supplier) => supplier.createdAt,
+                initialValue: (supplier) => supplier.createdAt,
               );
             default:
               return UnifiedSortCriterion<SupplierModel>(
                 key: rule.field,
                 direction: direction,
-                value: (supplier) => supplier.name.toLowerCase(),
+                initialValue: (supplier) => supplier.name.toLowerCase(),
               );
           }
         })
@@ -176,16 +175,16 @@ class _SuppliersPageState extends State<SuppliersPage> {
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 560;
                   final filter = DropdownButtonFormField<String>(
-                    value: status,
+                    initialValue: status,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'الحالة',
                       prefixIcon: Icon(Icons.flag_outlined),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'active', child: Text('نشط')),
+                      DropdownMenuItem(initialValue: 'active', child: Text('نشط')),
                       DropdownMenuItem(
-                        value: 'inactive',
+                        initialValue: 'inactive',
                         child: Text('غير نشط'),
                       ),
                     ],
@@ -197,7 +196,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
                           UnifiedFilterToken(
                             key: 'status',
                             label: 'الحالة',
-                            value: value,
+                            initialValue: value,
                             valueLabel: _statusLabel(value == 'active'),
                           ),
                         );
@@ -487,27 +486,27 @@ class _SupplierStatistics extends StatelessWidget {
       (
         icon: Icons.local_shipping_outlined,
         label: t('إجمالي الموردين', 'Total suppliers'),
-        value: '${controller.totalSuppliers}',
+        initialValue: '${controller.totalSuppliers}',
       ),
       (
         icon: Icons.check_circle_outline_rounded,
         label: t('الموردون النشطون', 'Active suppliers'),
-        value: '${controller.activeSuppliers}',
+        initialValue: '${controller.activeSuppliers}',
       ),
       (
         icon: Icons.pause_circle_outline_rounded,
         label: t('غير النشطين', 'Inactive suppliers'),
-        value: '${controller.inactiveSuppliers}',
+        initialValue: '${controller.inactiveSuppliers}',
       ),
       (
         icon: Icons.attach_money_rounded,
         label: t('الرصيد بالدولار', 'USD balance'),
-        value: controller.totalOpeningBalanceUsd.toStringAsFixed(2),
+        initialValue: controller.totalOpeningBalanceUsd.toStringAsFixed(2),
       ),
       (
         icon: Icons.account_balance_wallet_outlined,
         label: t('الرصيد بالدينار', 'IQD balance'),
-        value: controller.totalOpeningBalanceIqd.toStringAsFixed(0),
+        initialValue: controller.totalOpeningBalanceIqd.toStringAsFixed(0),
       ),
     ];
     return Wrap(
@@ -518,7 +517,7 @@ class _SupplierStatistics extends StatelessWidget {
           CompactMetricPill(
             icon: item.icon,
             label: item.label,
-            value: item.value,
+            initialValue: item.value,
           ),
       ],
     );

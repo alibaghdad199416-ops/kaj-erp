@@ -86,9 +86,10 @@ class ReportsController extends ChangeNotifier {
         arabicFallback: 'تعذر تحميل التقارير.',
       );
     } finally {
-      if (generation != _requestGeneration) return;
-      _isLoading = false;
-      notifyListeners();
+      if (generation == _requestGeneration) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

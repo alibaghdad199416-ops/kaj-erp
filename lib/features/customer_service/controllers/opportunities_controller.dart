@@ -1,7 +1,6 @@
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:flutter/material.dart';
 
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/features/sales/models/sale_model.dart';

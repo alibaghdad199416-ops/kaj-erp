@@ -10,7 +10,6 @@ import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_page_lifecycle_scope.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
-import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';
 import 'package:quality_line_erp/features/inventory/controllers/inventory_controller.dart';
 import 'package:quality_line_erp/features/inventory/models/inventory_model.dart';
 import 'package:quality_line_erp/features/maintenance/controllers/maintenance_controller.dart';

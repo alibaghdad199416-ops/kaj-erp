@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/data/query_page.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 
 import 'package:quality_line_erp/features/inventory/data/inventory_repository.dart';

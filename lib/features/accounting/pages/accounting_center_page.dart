@@ -13,8 +13,6 @@ import 'package:quality_line_erp/core/widgets/app_entity_page.dart';
 import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
-import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_phase6_components.dart';
 import 'package:quality_line_erp/features/accounting/cashbox/pages/cashbox_page.dart';
 import 'package:quality_line_erp/features/accounting/expenses/pages/expenses_page.dart';
 import 'package:quality_line_erp/features/accounting/installments/pages/installments_page.dart';

@@ -13,7 +13,6 @@ import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';
 import 'package:quality_line_erp/core/widgets/compact_metric_pill.dart';
 import 'package:quality_line_erp/design_system/kaj_phase3_components.dart';
-import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';
 import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/features/customer_service/controllers/opportunities_controller.dart';

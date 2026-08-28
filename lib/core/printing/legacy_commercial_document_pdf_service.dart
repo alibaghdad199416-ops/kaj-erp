@@ -89,7 +89,7 @@ class LegacyCommercialDocumentPdfService {
       <String, Object?>{
         'action': 'print',
         'createdAt': DateTime.now().toIso8601String(),
-        'userName': sale.createdByUserName ?? '',
+        'userName': sale.createdByUserName,
       },
     ],
   );

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:ui' as ui;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +12,6 @@ import 'package:quality_line_erp/core/exporting/binary_download_service.dart';
 import 'package:quality_line_erp/core/exporting/excel_export_service.dart';
 import 'package:quality_line_erp/core/exporting/export_document.dart';
 import 'package:quality_line_erp/core/exporting/pdf_export_service.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/widgets/app_full_page_route.dart';
@@ -95,7 +96,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   void initState() {
     super.initState();
     _queryController.addListener(_queryChanged);
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -106,7 +107,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
   }
 
   void _queryChanged() {
-    _load();
+    unawaited(_load());
   }
 
   String? get _selectedType {
@@ -192,8 +193,9 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     if (!await PermissionAction.require(
       context,
       PermissionCodes.recycleBinRestore,
-    ))
+)
       return;
+    if (!mounted) return;
     final arabic = context.l10n.isArabic;
     if (!await _confirm(
       arabic ? 'استعادة المحذوفات' : 'Restore deleted data',
@@ -234,8 +236,9 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     if (!await PermissionAction.require(
       context,
       PermissionCodes.recycleBinPurge,
-    ))
+)
       return;
+    if (!mounted) return;
     final arabic = context.l10n.isArabic;
     if (!await _confirm(
       arabic ? 'حذف نهائي' : 'Permanent deletion',

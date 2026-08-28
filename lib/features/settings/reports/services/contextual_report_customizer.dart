@@ -53,7 +53,7 @@ class ContextualReportCustomizer {
     final sortAscending = options.sortAscending[section.key] ?? true;
     final sorts = <UnifiedSortCriterion<List<String>>>[
       if (sortField != null && sortField.isNotEmpty)
-        if (section.columns.indexOf(sortField) >= 0)
+        if (section.columns.contains(sortField))
           UnifiedSortCriterion<List<String>>(
             key: sortField,
             direction: sortAscending

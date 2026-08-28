@@ -2,7 +2,6 @@ import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:quality_line_erp/design_system/kaj_inventory_stage4_components.dart';
 
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/widgets/app_workspace_dialog.dart';

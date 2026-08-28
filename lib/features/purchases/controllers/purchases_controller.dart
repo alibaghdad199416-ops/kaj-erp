@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';

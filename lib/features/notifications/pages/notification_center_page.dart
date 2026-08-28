@@ -6,14 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:quality_line_erp/app/route_names.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/events/app_data_change_bus.dart';
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
-import 'package:quality_line_erp/core/filtering/unified_query_executor.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/core/logging/app_logger.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_signature_components.dart';
 import 'package:quality_line_erp/features/notifications/models/notification_alert.dart';
 import 'package:quality_line_erp/features/notifications/repositories/notification_center_repository.dart';
 

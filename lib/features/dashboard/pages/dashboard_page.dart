@@ -9,7 +9,6 @@ import 'package:quality_line_erp/core/utils/money_formatter.dart';
 import 'package:quality_line_erp/core/widgets/app_module_dialog.dart';
 import 'package:quality_line_erp/design_system/kaj_brand_motif.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
-import 'package:quality_line_erp/design_system/kaj_signature_components.dart';
 import 'package:quality_line_erp/features/settings/reports/pages/reports_page.dart';
 import 'package:quality_line_erp/features/settings/access/controllers/access_controller.dart';
 
@@ -23,9 +22,6 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<DashboardController>();
     final dashboard = controller.dashboard;
-    final userName = context.select<AccessController, String>(
-      (access) => access.currentUser?.fullName ?? '',
-    );
     final access = context.watch<AccessController>();
     bool can(String field) => access.canViewField(
       'dashboard',

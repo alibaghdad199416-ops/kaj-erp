@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
@@ -101,7 +100,7 @@ class _CarsPageState extends State<CarsPage> {
               UnifiedFilterToken(
                 key: 'warehouse',
                 label: 'المخازن',
-                value: retained,
+                initialValue: retained,
                 valueLabel: 'المخازن المحددة (${retained.length})',
               ),
             );
@@ -141,7 +140,7 @@ class _CarsPageState extends State<CarsPage> {
       UnifiedFilterToken(
         key: 'status',
         label: 'الحالة',
-        value: status.name,
+        initialValue: status.name,
         valueLabel: _statusLabel(status),
       ),
     );
@@ -180,7 +179,7 @@ class _CarsPageState extends State<CarsPage> {
               children: _warehouses.map((warehouse) {
                 final checked = selected.contains(warehouse.id);
                 return CheckboxListTile(
-                  value: checked,
+                  initialValue: checked,
                   title: AppText('${warehouse.code} — ${warehouse.name}'),
                   onChanged: (value) => setDialogState(() {
                     if (value == true) {
@@ -225,7 +224,7 @@ class _CarsPageState extends State<CarsPage> {
         UnifiedFilterToken(
           key: 'warehouse',
           label: 'المخازن',
-          value: Set<String>.unmodifiable(selected),
+          initialValue: Set<String>.unmodifiable(selected),
           valueLabel: labels.length <= 2
               ? labels.join('، ')
               : 'المخازن المحددة (${labels.length})',
@@ -245,7 +244,7 @@ class _CarsPageState extends State<CarsPage> {
               return UnifiedSortCriterion<CarModel>(
                 key: rule.field,
                 direction: direction,
-                value: (car) =>
+                initialValue: (car) =>
                     DateTime.tryParse(car.purchaseDate ?? '') ??
                     DateTime.fromMillisecondsSinceEpoch(0),
               );
@@ -253,25 +252,25 @@ class _CarsPageState extends State<CarsPage> {
               return UnifiedSortCriterion<CarModel>(
                 key: rule.field,
                 direction: direction,
-                value: (car) => car.carNumber,
+                initialValue: (car) => car.carNumber,
               );
             case 'plate':
               return UnifiedSortCriterion<CarModel>(
                 key: rule.field,
                 direction: direction,
-                value: (car) => car.plateNumber,
+                initialValue: (car) => car.plateNumber,
               );
             case 'cost':
               return UnifiedSortCriterion<CarModel>(
                 key: rule.field,
                 direction: direction,
-                value: (car) => car.totalCost,
+                initialValue: (car) => car.totalCost,
               );
             default:
               return UnifiedSortCriterion<CarModel>(
                 key: rule.field,
                 direction: direction,
-                value: (car) => '${car.brand} ${car.model}',
+                initialValue: (car) => '${car.brand} ${car.model}',
               );
           }
         })
@@ -382,7 +381,7 @@ class _CarsPageState extends State<CarsPage> {
         final statusOptions = CarStatus.values
             .map(
               (status) => DropdownMenuItem<String>(
-                value: status.name,
+                initialValue: status.name,
                 child: Text(_statusLabel(status)),
               ),
             )
@@ -467,7 +466,7 @@ class _CarsPageState extends State<CarsPage> {
               final statusFilter = SizedBox(
                 width: compact ? double.infinity : 180,
                 child: DropdownButtonFormField<String>(
-                  value: selectedStatus,
+                  initialValue: selectedStatus,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'الحالة',
