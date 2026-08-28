@@ -39,6 +39,37 @@ void main() {
       expect(controller.state, next);
     });
 
+    test('UnifiedQueryState copyWith canonicalizes duplicate keys and fields', () {
+      const initial = UnifiedQueryState(
+        filters: [
+          UnifiedFilterToken(
+            key: 'status',
+            label: 'Status',
+            value: 'open',
+            valueLabel: 'Open',
+          ),
+          UnifiedFilterToken(
+            key: 'status',
+            label: 'Status',
+            value: 'closed',
+            valueLabel: 'Closed',
+          ),
+        ],
+        sorts: [
+          UnifiedSortRule(field: 'date', label: 'Date'),
+          UnifiedSortRule(field: 'date', label: 'Date', descending: true),
+        ],
+      );
+
+      final next = initial.copyWith(search: '  customer  ');
+
+      expect(next.search, 'customer');
+      expect(next.filters, hasLength(1));
+      expect(next.filters.single.value, 'closed');
+      expect(next.sorts, hasLength(1));
+      expect(next.sorts.single.descending, isTrue);
+    });
+
     test('setFilters canonicalizes duplicate keys using the latest token', () {
       final controller = UnifiedQueryController();
       addTearDown(controller.dispose);
