@@ -41,19 +41,23 @@ class ContextualReportCustomizer {
         : safeIndexes;
 
     final query = (options.sectionQueries[section.key] ?? '').trim();
-    final sortField = options.sortColumns[section.key];
+    final persistedRules = options.sortRules[section.key];
+    final rules = persistedRules == null || persistedRules.isEmpty
+        ? _legacySortRules(options, section.key)
+        : persistedRules;
     final sorts = <UnifiedSortCriterion<List<String>>>[
-      if (sortField != null && section.columns.contains(sortField))
-        UnifiedSortCriterion<List<String>>(
-          key: sortField,
-          direction: (options.sortAscending[section.key] ?? true)
-              ? UnifiedSortDirection.ascending
-              : UnifiedSortDirection.descending,
-          value: (row) => _sortableValue(
-            row,
-            section.columns.indexOf(sortField),
+      for (final rule in rules)
+        if (section.columns.contains(rule.field))
+          UnifiedSortCriterion<List<String>>(
+            key: rule.field,
+            direction: rule.descending
+                ? UnifiedSortDirection.descending
+                : UnifiedSortDirection.ascending,
+            value: (row) => _sortableValue(
+              row,
+              section.columns.indexOf(rule.field),
+            ),
           ),
-        ),
     ];
 
     final filterTokens = options.sectionFilters[section.key] ?? const [];
@@ -104,6 +108,21 @@ class ContextualReportCustomizer {
           )
           .toList(growable: false),
     );
+  }
+
+  static List<UnifiedSortRule> _legacySortRules(
+    ReportExportOptions options,
+    String key,
+  ) {
+    final field = options.sortColumns[key];
+    if (field == null || field.isEmpty) return const [];
+    return [
+      UnifiedSortRule(
+        field: field,
+        label: field,
+        descending: options.sortAscending[key] == false,
+      ),
+    ];
   }
 
   static Iterable<Object?> _searchableRow(List<String> row) => row;
