@@ -48,7 +48,7 @@ class InventoryCard extends StatelessWidget {
       child: InkWell(
         onTap: onView,
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(KajDesignTokens.space10),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 560;
@@ -78,11 +78,11 @@ class InventoryCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             image,
-                            const SizedBox(width: 9),
+                            const SizedBox(width: KajDesignTokens.space8),
                             Expanded(child: details),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: KajDesignTokens.space6),
                         _actions(context),
                       ],
                     )
@@ -90,9 +90,9 @@ class InventoryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         image,
-                        const SizedBox(width: 10),
+                        const SizedBox(width: KajDesignTokens.space10),
                         Expanded(child: details),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: KajDesignTokens.space8),
                         _actions(context),
                       ],
                     );
@@ -126,10 +126,21 @@ class InventoryCard extends StatelessWidget {
           _field('quantity', _StatusBadge(item: item)),
         ],
       ),
-      const SizedBox(height: 5),
+      const SizedBox(height: KajDesignTokens.space6),
+      if (item.code.trim().isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: KajDesignTokens.space6),
+          child: _field(
+            'code',
+            _ValueChip(
+              label: _t(context, 'الكود', 'Code'),
+              value: item.code,
+            ),
+          ),
+        ),
       Wrap(
-        spacing: 5,
-        runSpacing: 4,
+        spacing: KajDesignTokens.space6,
+        runSpacing: KajDesignTokens.space4,
         children: <Widget>[
           _field(
             'category',
@@ -188,6 +199,7 @@ class InventoryCard extends StatelessWidget {
         permission: 'inventory.update',
         child: _ActionButton(
           icon: Icons.edit_outlined,
+          iconColor: const Color(0xFF16A36A),
           label: _t(context, 'تعديل', 'Edit'),
           onPressed: onEdit,
         ),
@@ -247,10 +259,10 @@ class _ValueChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: KajDesignTokens.space8, vertical: KajDesignTokens.space4),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: .42),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
       ),
       child: AppText(
         '$label: ${value.trim().isEmpty ? '—' : value}',
@@ -265,10 +277,12 @@ class _ValueChip extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
+    this.iconColor,
     required this.label,
     required this.onPressed,
   });
   final IconData icon;
+  final Color? iconColor;
   final String label;
   final VoidCallback onPressed;
 
@@ -279,7 +293,7 @@ class _ActionButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
     ),
-    icon: Icon(icon, size: 14),
+    icon: Icon(icon, size: 14, color: iconColor),
     label: AppText(label, style: const TextStyle(fontSize: 10)),
   );
 }
@@ -290,13 +304,24 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final warning = item.isLowStock;
-    final color = warning ? const Color(0xFFF59E0B) : const Color(0xFF16A36A);
+    final warning = item.isStockItem && item.isLowStock;
+    final inactive = item.isStockItem && !item.isActive;
+    final color = item.isService
+        ? Theme.of(context).colorScheme.secondary
+        : inactive
+            ? Theme.of(context).colorScheme.onSurfaceVariant
+            : warning
+                ? Theme.of(context).colorScheme.tertiary
+                : Theme.of(context).colorScheme.primary;
     final label = context.l10n.isArabic
-        ? (warning ? 'منخفض' : 'متوفر')
-        : (warning ? 'Low stock' : 'Available');
+        ? (item.isService
+            ? 'خدمة'
+            : (warning ? 'منخفض' : (item.isActive ? 'متوفر' : 'غير فعال')))
+        : (item.isService
+            ? 'Service'
+            : (warning ? 'Low stock' : (item.isActive ? 'Available' : 'Inactive')));
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: KajDesignTokens.space8, vertical: KajDesignTokens.space4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(999),
