@@ -45,6 +45,15 @@ class UnifiedQuery<T> {
       );
 }
 
+/// Shared null-safe access to the first item of an iterable.
+///
+/// This belongs in the query core because migrated module pages use it while
+/// reading optional filter tokens. Keeping one implementation avoids each
+/// feature introducing its own helper or depending on a collection package.
+extension UnifiedIterableFirstOrNull<E> on Iterable<E> {
+  E? get firstOrNull => isEmpty ? null : first;
+}
+
 class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryController([
     UnifiedQueryState initial = const UnifiedQueryState(),
