@@ -53,8 +53,10 @@ class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryState _state;
   UnifiedQueryState get state => _state;
 
-  /// Replaces the complete query atomically. Modules should prefer this
-  /// boundary over maintaining parallel search/filter/sort state locally.
+  /// Canonical mutation boundary for module query state.
+  ///
+  /// Modules should update search, filters and sorts through this controller
+  /// rather than keeping parallel page-local query state.
   void setState(UnifiedQueryState next) {
     if (_state == next) return;
     _state = next;
