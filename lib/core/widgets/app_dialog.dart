@@ -6,12 +6,8 @@ import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 /// Compatibility wrapper retained for older module dialogs.
 /// New code should prefer [showAppConfirmDialog] or the module-dialog helpers.
 class AppDialog extends AlertDialog {
-  AppDialog({
-    super.key,
-    required String title,
-    super.content,
-    super.actions,
-  }) : super(title: AppText(AppTranslation.translate(title)));
+  AppDialog({super.key, required String title, super.content, super.actions})
+    : super(title: AppText(AppTranslation.translate(title)));
 }
 
 Future<bool> showAppConfirmDialog(
