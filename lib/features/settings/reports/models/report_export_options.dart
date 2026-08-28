@@ -16,6 +16,7 @@ class ReportExportOptions {
     this.sectionFilters = const {},
     this.sortColumns = const {},
     this.sortAscending = const {},
+    this.sortRules = const {},
     this.sectionEnabled = const {},
     this.sectionRowLimits = const {},
   });
@@ -31,12 +32,14 @@ class ReportExportOptions {
   final bool includeModuleDetails;
   final Map<String, List<String>> selectedColumns;
   final Map<String, String> sectionQueries;
-
-  /// Persisted unified filter tokens. Older presets simply omit this key.
   final Map<String, List<UnifiedFilterToken>> sectionFilters;
-
   final Map<String, String> sortColumns;
   final Map<String, bool> sortAscending;
+
+  /// Multi-sort query state. [sortColumns]/[sortAscending] remain supported
+  /// for old presets and are used as a fallback when this map is absent.
+  final Map<String, List<UnifiedSortRule>> sortRules;
+
   final Map<String, bool> sectionEnabled;
   final Map<String, int> sectionRowLimits;
 
@@ -55,6 +58,7 @@ class ReportExportOptions {
     Map<String, List<UnifiedFilterToken>>? sectionFilters,
     Map<String, String>? sortColumns,
     Map<String, bool>? sortAscending,
+    Map<String, List<UnifiedSortRule>>? sortRules,
     Map<String, bool>? sectionEnabled,
     Map<String, int>? sectionRowLimits,
   }) => ReportExportOptions(
@@ -72,6 +76,7 @@ class ReportExportOptions {
     sectionFilters: sectionFilters ?? this.sectionFilters,
     sortColumns: sortColumns ?? this.sortColumns,
     sortAscending: sortAscending ?? this.sortAscending,
+    sortRules: sortRules ?? this.sortRules,
     sectionEnabled: sectionEnabled ?? this.sectionEnabled,
     sectionRowLimits: sectionRowLimits ?? this.sectionRowLimits,
   );
@@ -102,6 +107,17 @@ class ReportExportOptions {
     },
     'sortColumns': sortColumns,
     'sortAscending': sortAscending,
+    'sortRules': {
+      for (final entry in sortRules.entries)
+        entry.key: [
+          for (final rule in entry.value)
+            {
+              'field': rule.field,
+              'label': rule.label,
+              'descending': rule.descending,
+            },
+        ],
+    },
     'sectionEnabled': sectionEnabled,
     'sectionRowLimits': sectionRowLimits,
   };
@@ -122,6 +138,21 @@ class ReportExportOptions {
                   raw['valueLabel']?.toString() ??
                   raw['value']?.toString() ??
                   '',
+            ),
+      ];
+    }
+
+    final rawSortRules = json['sortRules'] as Map? ?? const {};
+    final sortRules = <String, List<UnifiedSortRule>>{};
+    for (final entry in rawSortRules.entries) {
+      final values = entry.value as List? ?? const [];
+      sortRules[entry.key.toString()] = [
+        for (final raw in values)
+          if (raw is Map)
+            UnifiedSortRule(
+              field: raw['field']?.toString() ?? '',
+              label: raw['label']?.toString() ?? '',
+              descending: raw['descending'] == true,
             ),
       ];
     }
@@ -152,6 +183,7 @@ class ReportExportOptions {
       sortAscending: Map<String, bool>.from(
         json['sortAscending'] as Map? ?? const {},
       ),
+      sortRules: sortRules,
       sectionEnabled: (json['sectionEnabled'] as Map? ?? const {}).map(
         (key, value) => MapEntry(key.toString(), value == true),
       ),
