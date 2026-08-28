@@ -330,6 +330,6 @@ class KajWorkflowRibbon extends StatelessWidget {
 }
 
 extension KajRelationshipCopy on BuildContext {
-  String relationshipText(String arabic, String english) =>
+  String relationshipTextCopy(String arabic, String english) =>
       l10n.isArabic ? arabic : english;
 }
