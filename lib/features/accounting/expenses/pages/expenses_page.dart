@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:quality_line_erp/core/utils/money_formatter.dart';
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/widgets/incremental_list_view.dart';
 import 'package:provider/provider.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
@@ -24,9 +25,8 @@ class ExpensesPage extends StatefulWidget {
 }
 
 class _ExpensesPageState extends State<ExpensesPage> {
-  String _query = '';
-  String _currency = 'ALL';
-  String _category = 'ALL';
+  final UnifiedQueryController _queryController = UnifiedQueryController();
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +35,32 @@ class _ExpensesPageState extends State<ExpensesPage> {
         unawaited(context.read<ExpensesController>().loadExpenses());
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  String? _filterValue(UnifiedQueryState state, String key) {
+    final token = state.filters.where((item) => item.key == key).firstOrNull;
+    return token?.value.toString();
+  }
+
+  void _setFilter(String key, String label, String value) {
+    if (value == 'ALL' || value.isEmpty) {
+      _queryController.removeFilterKey(key);
+      return;
+    }
+    _queryController.addFilter(
+      UnifiedFilterToken(
+        key: key,
+        label: label,
+        value: value,
+        valueLabel: value,
+      ),
+    );
   }
 
   Future<void> _deleteExpense(
@@ -75,13 +101,16 @@ class _ExpensesPageState extends State<ExpensesPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<ExpensesController>();
+    final queryState = _queryController.state;
+    final currency = _filterValue(queryState, 'currency') ?? 'ALL';
+    final category = _filterValue(queryState, 'category') ?? 'ALL';
 
     final filtered = UnifiedFilterEngine.apply<ExpenseModel>(
       controller.expenses,
       criteria: UnifiedFilterCriteria(
-        searchText: _query,
-        currencies: _currency == 'ALL' ? const <String>{} : <String>{_currency},
-        types: _category == 'ALL' ? const <String>{} : <String>{_category},
+        searchText: queryState.search,
+        currencies: currency == 'ALL' ? const <String>{} : <String>{currency},
+        types: category == 'ALL' ? const <String>{} : <String>{category},
       ),
       adapter: UnifiedFilterAdapter<ExpenseModel>(
         searchableText: (expense) => <Object?>[
@@ -124,7 +153,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
               SizedBox(
                 width: 300,
                 child: TextField(
-                  onChanged: (value) => setState(() => _query = value),
+                  onChanged: _queryController.setSearch,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
                     labelText: AppTranslation.translate('بحث المصروفات'),
@@ -132,16 +161,20 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 ),
               ),
               DropdownButton<String>(
-                value: _currency,
+                value: currency,
                 items: const [
                   DropdownMenuItem(value: 'ALL', child: AppText('كل العملات')),
                   DropdownMenuItem(value: 'USD', child: AppText('USD')),
                   DropdownMenuItem(value: 'IQD', child: AppText('IQD')),
                 ],
-                onChanged: (v) => setState(() => _currency = v ?? 'ALL'),
+                onChanged: (v) => _setFilter(
+                  'currency',
+                  context.l10n.isArabic ? 'العملة' : 'Currency',
+                  v ?? 'ALL',
+                ),
               ),
               DropdownButton<String>(
-                value: _category,
+                value: category,
                 items: [
                   DropdownMenuItem(
                     value: 'ALL',
@@ -151,7 +184,11 @@ class _ExpensesPageState extends State<ExpensesPage> {
                     (c) => DropdownMenuItem(value: c, child: AppText(c)),
                   ),
                 ],
-                onChanged: (v) => setState(() => _category = v ?? 'ALL'),
+                onChanged: (v) => _setFilter(
+                  'category',
+                  context.l10n.isArabic ? 'التصنيف' : 'Category',
+                  v ?? 'ALL',
+                ),
               ),
             ],
           ),

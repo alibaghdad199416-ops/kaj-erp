@@ -4,6 +4,8 @@ import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
 
+export 'kaj_relationship_stage5_components.dart';
+
 /// Phase 3 presentation primitives for the maintenance and opportunity flows.
 ///
 /// These widgets intentionally keep business state outside the design system.

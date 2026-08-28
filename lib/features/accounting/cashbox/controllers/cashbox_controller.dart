@@ -24,6 +24,7 @@ class CashboxController extends ChangeNotifier {
   bool _isLoading = false;
   Future<void>? _refreshInFlight;
   String? _errorMessage;
+  String _transactionSearch = '';
   Map<String, double> _usdSummary = const {
     'receipts': 0,
     'payments': 0,
@@ -35,8 +36,23 @@ class CashboxController extends ChangeNotifier {
     'balance': 0,
   };
 
-  List<CashTransactionModel> get transactions =>
-      List.unmodifiable(_transactions);
+  List<CashTransactionModel> get transactions {
+    final query = _transactionSearch.trim().toLowerCase();
+    if (query.isEmpty) return List.unmodifiable(_transactions);
+    return List.unmodifiable(
+      _transactions.where((item) {
+        final haystack = <Object?>[
+          item.voucherNumber,
+          item.type,
+          item.description,
+          item.notes,
+          item.reference,
+        ].whereType<String>().join(' ').toLowerCase();
+        return haystack.contains(query);
+      }),
+    );
+  }
+
   List<CashAccountModel> get cashAccounts => List.unmodifiable(_cashAccounts);
   List<AccountModel> get ledgerAccounts => List.unmodifiable(_ledgerAccounts);
   Map<String, double> get balances => Map.unmodifiable(_balances);
@@ -47,6 +63,13 @@ class CashboxController extends ChangeNotifier {
   Map<String, double> get usdSummary => Map.unmodifiable(_usdSummary);
   Map<String, double> get iqdSummary => Map.unmodifiable(_iqdSummary);
 
+  void searchTransactions(String value) {
+    final normalized = value.trim();
+    if (_transactionSearch == normalized) return;
+    _transactionSearch = normalized;
+    notifyListeners();
+  }
+
   Future<void> loadTransactions() async {
     _setLoading(true);
     _errorMessage = null;
@@ -54,7 +77,6 @@ class CashboxController extends ChangeNotifier {
       await _refresh();
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
-
       _errorMessage = userFacingError(
         error,
         isArabic: AppTranslation.isArabic,
@@ -73,7 +95,6 @@ class CashboxController extends ChangeNotifier {
       await _refresh();
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
-
       _errorMessage = userFacingError(
         error,
         isArabic: AppTranslation.isArabic,
@@ -126,7 +147,6 @@ class CashboxController extends ChangeNotifier {
       await _refresh();
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
-
       _errorMessage = userFacingError(
         error,
         isArabic: AppTranslation.isArabic,
@@ -174,7 +194,6 @@ class CashboxController extends ChangeNotifier {
       await _refresh();
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
-
       _errorMessage = userFacingError(
         error,
         isArabic: AppTranslation.isArabic,
@@ -206,7 +225,6 @@ class CashboxController extends ChangeNotifier {
       await _refresh();
     } catch (error) {
       AppLogger.debug('cashbox_controller operation failed: $error');
-
       _errorMessage = userFacingError(
         error,
         isArabic: AppTranslation.isArabic,

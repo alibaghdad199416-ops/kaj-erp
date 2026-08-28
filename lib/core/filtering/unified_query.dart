@@ -45,9 +45,11 @@ class UnifiedQuery<T> {
       );
 }
 
-/// Null-safe access to the first item of an iterable without requiring
-/// the collection package. Kept in the shared query layer so every module
-/// using Unified Query can use the same convenience API.
+/// Shared null-safe access to the first item of an iterable.
+///
+/// This belongs in the query core because migrated module pages use it while
+/// reading optional filter tokens. Keeping one implementation avoids each
+/// feature introducing its own helper or depending on a collection package.
 extension UnifiedIterableFirstOrNull<E> on Iterable<E> {
   E? get firstOrNull => isEmpty ? null : first;
 }
@@ -60,18 +62,33 @@ class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryState _state;
   UnifiedQueryState get state => _state;
 
-  void setSearch(String value) {
-    final normalized = value.trim();
-    if (_state.search == normalized) return;
-    _state = _state.copyWith(search: normalized);
+  /// Canonical mutation boundary for module query state.
+  ///
+  /// Modules should update search, filters and sorts through this controller
+  /// rather than keeping parallel page-local query state.
+  void setState(UnifiedQueryState next) {
+    if (_state == next) return;
+    _state = next;
     notifyListeners();
   }
 
+  void setSearch(String value) {
+    final normalized = value.trim();
+    if (_state.search == normalized) return;
+    setState(_state.copyWith(search: normalized));
+  }
+
   void setFilters(Iterable<UnifiedFilterToken> values) {
-    final next = List<UnifiedFilterToken>.unmodifiable(values);
+    // A query can have at most one active value per filter key. This keeps
+    // all module query state canonical even when callers replace the list
+    // directly instead of going through addFilter().
+    final byKey = <String, UnifiedFilterToken>{};
+    for (final token in values) {
+      byKey[token.key] = token;
+    }
+    final next = List<UnifiedFilterToken>.unmodifiable(byKey.values);
     if (listEquals(_state.filters, next)) return;
-    _state = _state.copyWith(filters: next);
-    notifyListeners();
+    setState(_state.copyWith(filters: next));
   }
 
   void addFilter(UnifiedFilterToken token) {
@@ -81,25 +98,19 @@ class UnifiedQueryController extends ChangeNotifier {
     setFilters([...next, token]);
   }
 
-  void removeFilter(UnifiedFilterToken token) {
-    final next = _state.removeFilter(token);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
-  }
+  void removeFilter(UnifiedFilterToken token) =>
+      setState(_state.removeFilter(token));
 
-  void removeFilterKey(String key) {
-    final next = _state.removeFilterKey(key);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
-  }
+  void removeFilterKey(String key) => setState(_state.removeFilterKey(key));
 
   void setSorts(Iterable<UnifiedSortRule> values) {
-    final next = List<UnifiedSortRule>.unmodifiable(values);
+    final byField = <String, UnifiedSortRule>{};
+    for (final rule in values) {
+      byField[rule.field] = rule;
+    }
+    final next = List<UnifiedSortRule>.unmodifiable(byField.values);
     if (listEquals(_state.sorts, next)) return;
-    _state = _state.copyWith(sorts: next);
-    notifyListeners();
+    setState(_state.copyWith(sorts: next));
   }
 
   void addSort(UnifiedSortRule rule) {
@@ -114,23 +125,9 @@ class UnifiedQueryController extends ChangeNotifier {
     setSorts(next);
   }
 
-  void removeSort(String field) {
-    final next = _state.removeSort(field);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
-  }
+  void removeSort(String field) => setState(_state.removeSort(field));
 
-  void removeSortAt(int index) {
-    final next = _state.removeSortAt(index);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
-  }
+  void removeSortAt(int index) => setState(_state.removeSortAt(index));
 
-  void clear() {
-    if (_state.isEmpty) return;
-    _state = const UnifiedQueryState();
-    notifyListeners();
-  }
+  void clear() => setState(const UnifiedQueryState());
 }

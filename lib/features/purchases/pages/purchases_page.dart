@@ -57,23 +57,36 @@ class _PurchasesPageState extends State<PurchasesPage> {
           title: AppText('تفاصيل فاتورة ${purchase.invoiceNumber}'),
           content: SizedBox(
             width: AppResponsive.dialogWidth(context, 760),
-            child: ListView(shrinkWrap: true, children: [
-              AppText('المورد: ${purchase.supplierName}'),
-              AppText('العملة: ${purchase.currencyCode}'),
-              AppText('الإجمالي: ${MoneyFormatter.withCurrency(purchase.totalAmount, purchase.currencyCode)}'),
-              AppText('المدفوع: ${MoneyFormatter.withCurrency(purchase.paidAmount, purchase.currencyCode)}'),
-              AppText('المتبقي: ${MoneyFormatter.withCurrency(purchase.remainingAmount, purchase.currencyCode)}'),
-              const Divider(height: 28),
-              const AppText('بنود الفاتورة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              ...items.map((item) => Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                AppText(item.carName, style: const TextStyle(fontWeight: FontWeight.w900)),
-                AppText('رقم الشاصي: ${item.chassisNumber}'),
-                AppText('الكلفة: ${MoneyFormatter.withCurrency(item.purchasePrice, purchase.currencyCode)}'),
-                AppText('التكاليف الإضافية: ${MoneyFormatter.withCurrency(item.additionalCosts, purchase.currencyCode)}'),
-                AppText('الكلفة النهائية: ${MoneyFormatter.withCurrency(item.totalCost, purchase.currencyCode)}'),
-              ]))),
-            ],),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                AppText('المورد: ${purchase.supplierName}'),
+                AppText('العملة: ${purchase.currencyCode}'),
+                AppText('الإجمالي: ${MoneyFormatter.withCurrency(purchase.totalAmount, purchase.currencyCode)}'),
+                AppText('المدفوع: ${MoneyFormatter.withCurrency(purchase.paidAmount, purchase.currencyCode)}'),
+                AppText('المتبقي: ${MoneyFormatter.withCurrency(purchase.remainingAmount, purchase.currencyCode)}'),
+                const Divider(height: 28),
+                const AppText('بنود الفاتورة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                ...items.map(
+                  (item) => Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppText(item.carName, style: const TextStyle(fontWeight: FontWeight.w900)),
+                          AppText('رقم الشاصي: ${item.chassisNumber}'),
+                          AppText('الكلفة: ${MoneyFormatter.withCurrency(item.purchasePrice, purchase.currencyCode)}'),
+                          AppText('التكاليف الإضافية: ${MoneyFormatter.withCurrency(item.additionalCosts, purchase.currencyCode)}'),
+                          AppText('الكلفة النهائية: ${MoneyFormatter.withCurrency(item.totalCost, purchase.currencyCode)}'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             FilledButton.icon(onPressed: () => _printPurchase(purchase), icon: const Icon(Icons.print_outlined), label: AppText(AppTranslation.translate('طباعة الحزمة الرسمية'))),

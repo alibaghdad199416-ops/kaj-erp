@@ -10,6 +10,7 @@ import 'package:quality_line_erp/features/inventory/asset_history/models/asset_h
 import 'package:quality_line_erp/features/inventory/asset_history/repositories/asset_history_repository.dart';
 import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 
 class AssetHistoryPage extends StatefulWidget {
@@ -212,7 +213,7 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
     final state = _queryController.state;
     final fieldValues = <String, Set<String>>{};
     for (final token in state.filters) {
-      fieldValues[token.key] = {...?fieldValues[token.key], token.value};
+      fieldValues[token.key] = {...?fieldValues[token.key], token.value.toString()};
     }
     return UnifiedFilterEngine.apply(
       events,
