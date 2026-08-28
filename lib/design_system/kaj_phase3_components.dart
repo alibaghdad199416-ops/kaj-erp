@@ -4,6 +4,14 @@ import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/design_system/kaj_surface.dart';
 
+export 'kaj_relationship_stage5_components.dart';
+
+/// Compatibility helper used by relationship-oriented module surfaces.
+extension KajRelationshipText on BuildContext {
+  String relationshipText(String arabic, String english) =>
+      l10n.isArabic ? arabic : english;
+}
+
 /// Phase 3 presentation primitives for the maintenance and opportunity flows.
 ///
 /// These widgets intentionally keep business state outside the design system.
@@ -128,9 +136,9 @@ class KajPhaseHero extends StatelessWidget {
                   runSpacing: KajDesignTokens.space8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: <Widget>[
-                    ?secondaryAction,
-                    ?primaryAction,
-                    ?trailing,
+                    if (secondaryAction != null) secondaryAction!,
+                    if (primaryAction != null) primaryAction!,
+                    if (trailing != null) trailing!,
                   ],
                 );
 
