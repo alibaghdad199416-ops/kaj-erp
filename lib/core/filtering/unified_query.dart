@@ -70,7 +70,14 @@ class UnifiedQueryController extends ChangeNotifier {
   }
 
   void setFilters(Iterable<UnifiedFilterToken> values) {
-    final next = List<UnifiedFilterToken>.unmodifiable(values);
+    // A query can have at most one active value per filter key. This keeps
+    // all module query state canonical even when callers replace the list
+    // directly instead of going through addFilter().
+    final byKey = <String, UnifiedFilterToken>{};
+    for (final token in values) {
+      byKey[token.key] = token;
+    }
+    final next = List<UnifiedFilterToken>.unmodifiable(byKey.values);
     if (listEquals(_state.filters, next)) return;
     setState(_state.copyWith(filters: next));
   }
@@ -82,12 +89,17 @@ class UnifiedQueryController extends ChangeNotifier {
     setFilters([...next, token]);
   }
 
-  void removeFilter(UnifiedFilterToken token) => setState(_state.removeFilter(token));
+  void removeFilter(UnifiedFilterToken token) =>
+      setState(_state.removeFilter(token));
 
   void removeFilterKey(String key) => setState(_state.removeFilterKey(key));
 
   void setSorts(Iterable<UnifiedSortRule> values) {
-    final next = List<UnifiedSortRule>.unmodifiable(values);
+    final byField = <String, UnifiedSortRule>{};
+    for (final rule in values) {
+      byField[rule.field] = rule;
+    }
+    final next = List<UnifiedSortRule>.unmodifiable(byField.values);
     if (listEquals(_state.sorts, next)) return;
     setState(_state.copyWith(sorts: next));
   }
