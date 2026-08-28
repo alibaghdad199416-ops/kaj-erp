@@ -23,7 +23,7 @@ class LegacyCommercialDocumentPdfService {
       language: language,
     );
     await PdfPrintService.print(
-      fileName: 'sale-${sale.invoiceNumber ?? sale.id}.pdf',
+      fileName: 'sale-${sale.invoiceNumber}.pdf',
       bytes: bytes,
     );
   }
@@ -39,8 +39,8 @@ class LegacyCommercialDocumentPdfService {
     order: <String, Object?>{
       'documentType': 'فاتورة بيع',
       'documentReference': sale.id,
-      'orderNumber': sale.invoiceNumber ?? sale.id,
-      'invoiceNumber': sale.invoiceNumber ?? sale.id,
+      'orderNumber': sale.invoiceNumber,
+      'invoiceNumber': sale.invoiceNumber,
       'orderDate': sale.saleDate,
       'documentDate': sale.saleDate,
       'partnerName': customerName,
@@ -71,7 +71,7 @@ class LegacyCommercialDocumentPdfService {
     logistics: const <Map<String, Object?>>[],
     invoices: <Map<String, Object?>>[
       <String, Object?>{
-        'invoiceNumber': sale.invoiceNumber ?? sale.id,
+        'invoiceNumber': sale.invoiceNumber,
         'invoiceDate': sale.saleDate,
         'total': sale.salePrice,
         'paid': sale.paidAmount,
