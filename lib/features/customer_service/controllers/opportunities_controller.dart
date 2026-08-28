@@ -26,6 +26,26 @@ class OpportunitiesController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  int get pendingCount =>
+      _items.where((item) => item.status == OpportunityStatus.pending).length;
+  int get wonCount =>
+      _items.where((item) => item.status == OpportunityStatus.won).length;
+  int get lostCount =>
+      _items.where((item) => item.status == OpportunityStatus.lost).length;
+
+  Map<String, double> get pipelineValueByCurrency {
+    final totals = <String, double>{};
+    for (final item in _items) {
+      if (item.status != OpportunityStatus.pending) continue;
+      totals.update(
+        item.currency,
+        (value) => value + item.expectedValue,
+        ifAbsent: () => item.expectedValue,
+      );
+    }
+    return Map.unmodifiable(totals);
+  }
+
   List<OpportunityModel> get visibleOpportunities => UnifiedFilterEngine.apply(
     _items,
     criteria: UnifiedFilterCriteria(
