@@ -130,9 +130,9 @@ class KajPhaseHero extends StatelessWidget {
                   runSpacing: KajDesignTokens.space8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: <Widget>[
-                    if (secondaryAction != null) secondaryAction!,
-                    if (primaryAction != null) primaryAction!,
-                    if (trailing != null) trailing!,
+                    ?secondaryAction,
+                    ?primaryAction,
+                    ?trailing,
                   ],
                 );
 
