@@ -9,9 +9,9 @@ LIB = ROOT / "lib"
 # These patterns are intentionally conservative: form-local controllers are
 # valid, while list-page search/filter state is a Phase 1 migration target.
 PAGE_PATTERNS = {
-    "legacy_search_state": re.compile(r"final\\s+_search\\s*=\\s*TextEditingController|TextEditingController\\s+_search"),
-    "legacy_stage_state": re.compile(r"String\\s+_stage\\s*=|final\\s+_stage\\s*="),
-    "legacy_choice_filter": re.compile(r"\\bChoiceChip\\s*\\("),
+    "legacy_search_state": re.compile(r"final\s+_search\s*=\s*TextEditingController|TextEditingController\s+_search"),
+    "legacy_stage_state": re.compile(r"String\s+_stage\s*=|final\s+_stage\s*="),
+    "legacy_choice_filter": re.compile(r"\bChoiceChip\s*\("),
 }
 
 MODULE_PAGES = (
