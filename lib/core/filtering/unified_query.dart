@@ -45,13 +45,6 @@ class UnifiedQuery<T> {
       );
 }
 
-/// Null-safe access to the first item of an iterable without requiring
-/// the collection package. Kept in the shared query layer so every module
-/// using Unified Query can use the same convenience API.
-extension UnifiedIterableFirstOrNull<E> on Iterable<E> {
-  E? get firstOrNull => isEmpty ? null : first;
-}
-
 class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryController([
     UnifiedQueryState initial = const UnifiedQueryState(),
@@ -87,15 +80,9 @@ class UnifiedQueryController extends ChangeNotifier {
     setFilters([...next, token]);
   }
 
-  void removeFilter(UnifiedFilterToken token) {
-    final next = _state.removeFilter(token);
-    setState(next);
-  }
+  void removeFilter(UnifiedFilterToken token) => setState(_state.removeFilter(token));
 
-  void removeFilterKey(String key) {
-    final next = _state.removeFilterKey(key);
-    setState(next);
-  }
+  void removeFilterKey(String key) => setState(_state.removeFilterKey(key));
 
   void setSorts(Iterable<UnifiedSortRule> values) {
     final next = List<UnifiedSortRule>.unmodifiable(values);
@@ -115,15 +102,9 @@ class UnifiedQueryController extends ChangeNotifier {
     setSorts(next);
   }
 
-  void removeSort(String field) {
-    final next = _state.removeSort(field);
-    setState(next);
-  }
+  void removeSort(String field) => setState(_state.removeSort(field));
 
-  void removeSortAt(int index) {
-    final next = _state.removeSortAt(index);
-    setState(next);
-  }
+  void removeSortAt(int index) => setState(_state.removeSortAt(index));
 
   void clear() => setState(const UnifiedQueryState());
 }
