@@ -41,7 +41,7 @@ class SaleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final invoice = (sale.invoiceNumber ?? '').trim();
+    final invoice = sale.invoiceNumber.trim();
     final title = invoice.isEmpty
         ? AppTranslation.translate('فاتورة بيع')
         : '${AppTranslation.translate('فاتورة')} $invoice';
