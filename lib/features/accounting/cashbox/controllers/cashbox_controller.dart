@@ -53,6 +53,7 @@ class CashboxController extends ChangeNotifier {
       }),
     );
   }
+
   List<CashAccountModel> get cashAccounts => List.unmodifiable(_cashAccounts);
   List<AccountModel> get ledgerAccounts => List.unmodifiable(_ledgerAccounts);
   Map<String, double> get balances => Map.unmodifiable(_balances);

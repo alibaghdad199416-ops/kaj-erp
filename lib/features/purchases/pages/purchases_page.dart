@@ -64,9 +64,10 @@ class _PurchasesPageState extends State<PurchasesPage> {
 
   Future<void> _openDetails(PurchaseModel purchase) async {
     try {
-      final items = await context
-          .read<PurchasesController>()
-          .loadPurchaseItems(purchase.id, forceRefresh: true);
+      final items = await context.read<PurchasesController>().loadPurchaseItems(
+        purchase.id,
+        forceRefresh: true,
+      );
       if (!mounted) return;
 
       await showAppWorkspaceDialogBuilder<void>(
@@ -92,10 +93,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                 const Divider(height: 28),
                 const AppText(
                   'بنود الفاتورة',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 8),
                 ...items.map(
@@ -107,9 +105,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                         children: [
                           AppText(
                             item.carName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                           AppText('رقم الشاصي: ${item.chassisNumber}'),
                           AppText(
@@ -133,9 +129,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
             FilledButton.icon(
               onPressed: () => _printPurchase(purchase),
               icon: const Icon(Icons.print_outlined),
-              label: AppText(
-                AppTranslation.translate('طباعة الحزمة الرسمية'),
-              ),
+              label: AppText(AppTranslation.translate('طباعة الحزمة الرسمية')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
