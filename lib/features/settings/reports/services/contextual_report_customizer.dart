@@ -42,8 +42,10 @@ class ContextualReportCustomizer {
     // current public projection while preserving the user's query/sort state.
     final visibleIndexes = safeIndexes.isEmpty
         ? List<int>.generate(section.columns.length, (index) => index)
-            .where((index) => !_isHiddenColumn(section, section.columns[index]))
-            .toList(growable: false)
+              .where(
+                (index) => !_isHiddenColumn(section, section.columns[index]),
+              )
+              .toList(growable: false)
         : safeIndexes;
 
     final query = (options.sectionQueries[section.key] ?? '').trim();

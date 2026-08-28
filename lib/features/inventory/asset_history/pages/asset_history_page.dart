@@ -125,34 +125,52 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
   void _retry() => setState(() => _future = _load());
 
   String _eventType(AssetHistoryEvent event) =>
-      event.eventType?.trim().isNotEmpty == true ? event.eventType!.trim() : event.title;
+      event.eventType?.trim().isNotEmpty == true
+      ? event.eventType!.trim()
+      : event.title;
 
   List<UnifiedQueryFilterOption> _filters(
     BuildContext context,
     List<AssetHistoryEvent> events,
   ) {
-    final types = events.map(_eventType).where((e) => e.isNotEmpty).toSet().toList()..sort();
-    final statuses = events
-        .expand((e) => [e.statusBefore ?? '', e.statusAfter ?? ''])
-        .where((e) => e.trim().isNotEmpty)
-        .toSet()
-        .toList()..sort();
+    final types =
+        events.map(_eventType).where((e) => e.isNotEmpty).toSet().toList()
+          ..sort();
+    final statuses =
+        events
+            .expand((e) => [e.statusBefore ?? '', e.statusAfter ?? ''])
+            .where((e) => e.trim().isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     return [
       for (final value in types.take(30))
         UnifiedQueryFilterOption(
           token: UnifiedFilterToken(
-            key: 'eventType', label: context.l10n.isArabic ? 'نوع الحركة' : 'Event type',
-            value: value, valueLabel: value,
+            key: 'eventType',
+            label: context.l10n.isArabic ? 'نوع الحركة' : 'Event type',
+            value: value,
+            valueLabel: value,
           ),
           icon: Icons.category_outlined,
         ),
       for (final value in statuses.take(30)) ...[
         UnifiedQueryFilterOption(
-          token: UnifiedFilterToken(key: 'statusBefore', label: context.l10n.isArabic ? 'الحالة السابقة' : 'Previous status', value: value, valueLabel: value),
+          token: UnifiedFilterToken(
+            key: 'statusBefore',
+            label: context.l10n.isArabic ? 'الحالة السابقة' : 'Previous status',
+            value: value,
+            valueLabel: value,
+          ),
           icon: Icons.flag_outlined,
         ),
         UnifiedQueryFilterOption(
-          token: UnifiedFilterToken(key: 'statusAfter', label: context.l10n.isArabic ? 'الحالة اللاحقة' : 'New status', value: value, valueLabel: value),
+          token: UnifiedFilterToken(
+            key: 'statusAfter',
+            label: context.l10n.isArabic ? 'الحالة اللاحقة' : 'New status',
+            value: value,
+            valueLabel: value,
+          ),
           icon: Icons.flag_outlined,
         ),
       ],
@@ -161,19 +179,31 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
 
   List<UnifiedQuerySortOption> _sorts(BuildContext context) => [
     UnifiedQuerySortOption(
-      rule: UnifiedSortRule(field: 'date', label: context.l10n.isArabic ? 'التاريخ' : 'Date'),
+      rule: UnifiedSortRule(
+        field: 'date',
+        label: context.l10n.isArabic ? 'التاريخ' : 'Date',
+      ),
       icon: Icons.schedule_outlined,
     ),
     UnifiedQuerySortOption(
-      rule: UnifiedSortRule(field: 'quantity', label: context.l10n.isArabic ? 'الكمية' : 'Quantity'),
+      rule: UnifiedSortRule(
+        field: 'quantity',
+        label: context.l10n.isArabic ? 'الكمية' : 'Quantity',
+      ),
       icon: Icons.numbers_outlined,
     ),
     UnifiedQuerySortOption(
-      rule: UnifiedSortRule(field: 'totalCost', label: context.l10n.isArabic ? 'الكلفة الإجمالية' : 'Total cost'),
+      rule: UnifiedSortRule(
+        field: 'totalCost',
+        label: context.l10n.isArabic ? 'الكلفة الإجمالية' : 'Total cost',
+      ),
       icon: Icons.payments_outlined,
     ),
     UnifiedQuerySortOption(
-      rule: UnifiedSortRule(field: 'event', label: context.l10n.isArabic ? 'الحركة' : 'Event'),
+      rule: UnifiedSortRule(
+        field: 'event',
+        label: context.l10n.isArabic ? 'الحركة' : 'Event',
+      ),
       icon: Icons.swap_horiz_outlined,
     ),
   ];
@@ -186,12 +216,23 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
     }
     return UnifiedFilterEngine.apply(
       events,
-      criteria: UnifiedFilterCriteria(searchText: state.search, fieldValues: fieldValues),
+      criteria: UnifiedFilterCriteria(
+        searchText: state.search,
+        fieldValues: fieldValues,
+      ),
       adapter: UnifiedFilterAdapter<AssetHistoryEvent>(
         searchableText: (e) => [
-          e.title, e.details, e.reference, e.referenceDocumentNumber, e.productName,
-          e.sourceName, e.destinationName, e.performedBy, e.eventType,
-          e.statusBefore, e.statusAfter,
+          e.title,
+          e.details,
+          e.reference,
+          e.referenceDocumentNumber,
+          e.productName,
+          e.sourceName,
+          e.destinationName,
+          e.performedBy,
+          e.eventType,
+          e.statusBefore,
+          e.statusAfter,
         ],
         fieldValues: {
           'eventType': _eventType,
@@ -203,14 +244,21 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
         for (final rule in state.sorts)
           UnifiedSortCriterion<AssetHistoryEvent>(
             key: rule.field,
-            direction: rule.descending ? UnifiedSortDirection.descending : UnifiedSortDirection.ascending,
+            direction: rule.descending
+                ? UnifiedSortDirection.descending
+                : UnifiedSortDirection.ascending,
             value: (e) {
               switch (rule.field) {
-                case 'date': return e.date ?? DateTime.fromMillisecondsSinceEpoch(0);
-                case 'quantity': return e.quantity ?? 0;
-                case 'totalCost': return e.totalCost ?? 0;
-                case 'event': return e.title.toLowerCase();
-                default: return e.title.toLowerCase();
+                case 'date':
+                  return e.date ?? DateTime.fromMillisecondsSinceEpoch(0);
+                case 'quantity':
+                  return e.quantity ?? 0;
+                case 'totalCost':
+                  return e.totalCost ?? 0;
+                case 'event':
+                  return e.title.toLowerCase();
+                default:
+                  return e.title.toLowerCase();
               }
             },
           ),
@@ -218,95 +266,215 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
     );
   }
 
-  ExportDocument _document(BuildContext context, List<AssetHistoryEvent> events) {
+  ExportDocument _document(
+    BuildContext context,
+    List<AssetHistoryEvent> events,
+  ) {
     final arabic = context.l10n.isArabic;
     return ExportDocument(
-      title: arabic ? 'سجل الأصل' : 'Asset History', subtitle: widget.assetId, language: arabic ? 'ar' : 'en',
+      title: arabic ? 'سجل الأصل' : 'Asset History',
+      subtitle: widget.assetId,
+      language: arabic ? 'ar' : 'en',
       columns: const <ExportColumn>[
-        ExportColumn(key: 'date', label: 'Date / Time', type: ExportValueType.dateTime),
-        ExportColumn(key: 'event', label: 'Event'), ExportColumn(key: 'product', label: 'Product'),
-        ExportColumn(key: 'quantity', label: 'Quantity', type: ExportValueType.decimal),
-        ExportColumn(key: 'from', label: 'From'), ExportColumn(key: 'to', label: 'To'),
+        ExportColumn(
+          key: 'date',
+          label: 'Date / Time',
+          type: ExportValueType.dateTime,
+        ),
+        ExportColumn(key: 'event', label: 'Event'),
+        ExportColumn(key: 'product', label: 'Product'),
+        ExportColumn(
+          key: 'quantity',
+          label: 'Quantity',
+          type: ExportValueType.decimal,
+        ),
+        ExportColumn(key: 'from', label: 'From'),
+        ExportColumn(key: 'to', label: 'To'),
         ExportColumn(key: 'performedBy', label: 'Performed by'),
-        ExportColumn(key: 'unitCost', label: 'Unit cost', type: ExportValueType.money),
-        ExportColumn(key: 'totalCost', label: 'Total cost', type: ExportValueType.money),
-        ExportColumn(key: 'reference', label: 'Reference'), ExportColumn(key: 'details', label: 'Details', width: 2),
+        ExportColumn(
+          key: 'unitCost',
+          label: 'Unit cost',
+          type: ExportValueType.money,
+        ),
+        ExportColumn(
+          key: 'totalCost',
+          label: 'Total cost',
+          type: ExportValueType.money,
+        ),
+        ExportColumn(key: 'reference', label: 'Reference'),
+        ExportColumn(key: 'details', label: 'Details', width: 2),
       ],
-      rows: events.map((event) => <Object?>[
-        event.date, widget._eventTitleEn(event), event.productName ?? '', event.quantity,
-        event.sourceName ?? event.warehouseBefore ?? '', event.destinationName ?? event.warehouseAfter ?? '',
-        event.performedBy ?? '', event.unitCost, event.totalCost,
-        event.referenceDocumentNumber ?? event.reference ?? '', widget._eventDetailsEn(event),
-      ]).toList(growable: false),
+      rows: events
+          .map(
+            (event) => <Object?>[
+              event.date,
+              widget._eventTitleEn(event),
+              event.productName ?? '',
+              event.quantity,
+              event.sourceName ?? event.warehouseBefore ?? '',
+              event.destinationName ?? event.warehouseAfter ?? '',
+              event.performedBy ?? '',
+              event.unitCost,
+              event.totalCost,
+              event.referenceDocumentNumber ?? event.reference ?? '',
+              widget._eventDetailsEn(event),
+            ],
+          )
+          .toList(growable: false),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: AppResponsive.dialogWidth(context, 720), height: AppResponsive.dialogHeight(context, 620),
+      width: AppResponsive.dialogWidth(context, 720),
+      height: AppResponsive.dialogHeight(context, 620),
       child: FutureBuilder<List<AssetHistoryEvent>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState != ConnectionState.done)
+            return const Center(child: CircularProgressIndicator());
           if (snapshot.hasError) {
-            return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              AppText(userFacingError(snapshot.error!, isArabic: context.l10n.isArabic, arabicFallback: 'تعذر تحميل سجل الأصل.', englishFallback: 'Unable to load the asset history.')),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(onPressed: _retry, icon: const Icon(Icons.refresh), label: AppText(context.l10n.isArabic ? 'إعادة المحاولة' : 'Retry')),
-            ]));
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppText(
+                    userFacingError(
+                      snapshot.error!,
+                      isArabic: context.l10n.isArabic,
+                      arabicFallback: 'تعذر تحميل سجل الأصل.',
+                      englishFallback: 'Unable to load the asset history.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _retry,
+                    icon: const Icon(Icons.refresh),
+                    label: AppText(
+                      context.l10n.isArabic ? 'إعادة المحاولة' : 'Retry',
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
           final events = snapshot.data ?? const <AssetHistoryEvent>[];
           final arabic = context.l10n.isArabic;
           final visible = _filtered(events);
-          return Column(children: [
-            UnifiedQueryToolbar(
-              controller: _queryController,
-              searchHint: arabic ? 'بحث في سجل الأصل...' : 'Search asset history...',
-              filters: _filters(context, events), sorts: _sorts(context),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                OutlinedButton.icon(
-                  onPressed: visible.isEmpty ? null : () => ExcelExportService().save(_document(context, visible)),
-                  icon: const Icon(Icons.table_view_outlined), label: const AppText('Excel'),
+          return Column(
+            children: [
+              UnifiedQueryToolbar(
+                controller: _queryController,
+                searchHint: arabic
+                    ? 'بحث في سجل الأصل...'
+                    : 'Search asset history...',
+                filters: _filters(context, events),
+                sorts: _sorts(context),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: visible.isEmpty
+                          ? null
+                          : () => ExcelExportService().save(
+                              _document(context, visible),
+                            ),
+                      icon: const Icon(Icons.table_view_outlined),
+                      label: const AppText('Excel'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: visible.isEmpty
+                          ? null
+                          : () => PdfExportService().save(
+                              _document(context, visible),
+                            ),
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                      label: const AppText('PDF'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: visible.isEmpty ? null : () => PdfExportService().save(_document(context, visible)),
-                  icon: const Icon(Icons.picture_as_pdf_outlined), label: const AppText('PDF'),
-                ),
-              ]),
-            ),
-            if (events.isEmpty)
-              Expanded(child: Center(child: AppText(arabic ? 'لا توجد حركات مسجلة حتى الآن.' : 'No history has been recorded yet.')))
-            else if (visible.isEmpty)
-              Expanded(child: Center(child: AppText(arabic ? 'لا توجد نتائج مطابقة للبحث أو الفلاتر.' : 'No results match the current query.')))
-            else
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+              ),
+              if (events.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: AppText(
+                      arabic
+                          ? 'لا توجد حركات مسجلة حتى الآن.'
+                          : 'No history has been recorded yet.',
+                    ),
+                  ),
+                )
+              else if (visible.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: AppText(
+                      arabic
+                          ? 'لا توجد نتائج مطابقة للبحث أو الفلاتر.'
+                          : 'No results match the current query.',
+                    ),
+                  ),
+                )
+              else
+                Expanded(
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: [
-                        DataColumn(label: AppText(arabic ? 'التاريخ' : 'Date')),
-                        DataColumn(label: AppText(arabic ? 'الحركة' : 'Event')),
-                        DataColumn(label: AppText(arabic ? 'التفاصيل' : 'Details')),
-                        DataColumn(label: AppText(arabic ? 'المرجع' : 'Reference')),
-                      ],
-                      rows: visible.map((event) => DataRow(cells: [
-                        DataCell(AppText(event.date == null ? '—' : DateFormat('yyyy/MM/dd – HH:mm').format(event.date!.toLocal()))),
-                        DataCell(AppText(event.title)),
-                        DataCell(SizedBox(width: 320, child: AppText(widget._eventDetailsUi(event, arabic), maxLines: 4, overflow: TextOverflow.ellipsis))),
-                        DataCell(AppText(event.reference ?? '—')),
-                      ])).toList(growable: false),
+                    padding: const EdgeInsets.all(16),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: [
+                          DataColumn(
+                            label: AppText(arabic ? 'التاريخ' : 'Date'),
+                          ),
+                          DataColumn(
+                            label: AppText(arabic ? 'الحركة' : 'Event'),
+                          ),
+                          DataColumn(
+                            label: AppText(arabic ? 'التفاصيل' : 'Details'),
+                          ),
+                          DataColumn(
+                            label: AppText(arabic ? 'المرجع' : 'Reference'),
+                          ),
+                        ],
+                        rows: visible
+                            .map(
+                              (event) => DataRow(
+                                cells: [
+                                  DataCell(
+                                    AppText(
+                                      event.date == null
+                                          ? '—'
+                                          : DateFormat(
+                                              'yyyy/MM/dd – HH:mm',
+                                            ).format(event.date!.toLocal()),
+                                    ),
+                                  ),
+                                  DataCell(AppText(event.title)),
+                                  DataCell(
+                                    SizedBox(
+                                      width: 320,
+                                      child: AppText(
+                                        widget._eventDetailsUi(event, arabic),
+                                        maxLines: 4,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(AppText(event.reference ?? '—')),
+                                ],
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ]);
+            ],
+          );
         },
       ),
     );

@@ -132,10 +132,7 @@ class InventoryCard extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: KajDesignTokens.space6),
           child: _field(
             'code',
-            _ValueChip(
-              label: _t(context, 'الكود', 'Code'),
-              value: item.code,
-            ),
+            _ValueChip(label: _t(context, 'الكود', 'Code'), value: item.code),
           ),
         ),
       Wrap(
@@ -259,7 +256,10 @@ class _ValueChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: KajDesignTokens.space8, vertical: KajDesignTokens.space4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: KajDesignTokens.space8,
+        vertical: KajDesignTokens.space4,
+      ),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(KajDesignTokens.radiusSm),
@@ -309,19 +309,24 @@ class _StatusBadge extends StatelessWidget {
     final color = item.isService
         ? Theme.of(context).colorScheme.secondary
         : inactive
-            ? Theme.of(context).colorScheme.onSurfaceVariant
-            : warning
-                ? Theme.of(context).colorScheme.tertiary
-                : Theme.of(context).colorScheme.primary;
+        ? Theme.of(context).colorScheme.onSurfaceVariant
+        : warning
+        ? Theme.of(context).colorScheme.tertiary
+        : Theme.of(context).colorScheme.primary;
     final label = context.l10n.isArabic
         ? (item.isService
-            ? 'خدمة'
-            : (warning ? 'منخفض' : (item.isActive ? 'متوفر' : 'غير فعال')))
+              ? 'خدمة'
+              : (warning ? 'منخفض' : (item.isActive ? 'متوفر' : 'غير فعال')))
         : (item.isService
-            ? 'Service'
-            : (warning ? 'Low stock' : (item.isActive ? 'Available' : 'Inactive')));
+              ? 'Service'
+              : (warning
+                    ? 'Low stock'
+                    : (item.isActive ? 'Available' : 'Inactive')));
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: KajDesignTokens.space8, vertical: KajDesignTokens.space4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: KajDesignTokens.space8,
+        vertical: KajDesignTokens.space4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(999),
