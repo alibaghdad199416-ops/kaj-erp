@@ -68,11 +68,15 @@ class UnifiedQueryState {
     String? search,
     List<UnifiedFilterToken>? filters,
     List<UnifiedSortRule>? sorts,
-  }) => UnifiedQueryState(
-    search: search ?? this.search,
-    filters: List.unmodifiable(filters ?? this.filters),
-    sorts: List.unmodifiable(sorts ?? this.sorts),
-  );
+  }) {
+    final canonicalFilters = _canonicalizeFilters(filters ?? this.filters);
+    final canonicalSorts = _canonicalizeSorts(sorts ?? this.sorts);
+    return UnifiedQueryState(
+      search: (search ?? this.search).trim(),
+      filters: List.unmodifiable(canonicalFilters),
+      sorts: List.unmodifiable(canonicalSorts),
+    );
+  }
 
   UnifiedQueryState removeFilter(UnifiedFilterToken token) => copyWith(
     filters: filters.where((item) => item != token).toList(growable: false),
@@ -93,6 +97,30 @@ class UnifiedQueryState {
   }
 
   UnifiedQueryState clear() => const UnifiedQueryState();
+
+  static List<UnifiedFilterToken> _canonicalizeFilters(
+    Iterable<UnifiedFilterToken> values,
+  ) {
+    final byKey = <String, UnifiedFilterToken>{};
+    for (final token in values) {
+      final key = token.key.trim();
+      if (key.isEmpty) continue;
+      byKey[key] = token;
+    }
+    return byKey.values.toList(growable: false);
+  }
+
+  static List<UnifiedSortRule> _canonicalizeSorts(
+    Iterable<UnifiedSortRule> values,
+  ) {
+    final byField = <String, UnifiedSortRule>{};
+    for (final rule in values) {
+      final field = rule.field.trim();
+      if (field.isEmpty) continue;
+      byField[field] = rule;
+    }
+    return byField.values.toList(growable: false);
+  }
 
   @override
   bool operator ==(Object other) =>
