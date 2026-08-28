@@ -50,7 +50,7 @@ void main() {
     },
   );
 
-  test('report customization applies multi-sort after filtering', () {
+  test('report customization applies persisted sort after filtering', () {
     const section = ContextualReportSection(
       key: 'items',
       title: 'Items',
@@ -58,7 +58,7 @@ void main() {
       rows: [
         ['B', 'Z', '5'],
         ['A', 'B', '10'],
-        ['A', 'A', '20'],
+        ['C', 'A', '20'],
       ],
     );
     final options = ReportExportOptions(
@@ -72,16 +72,11 @@ void main() {
           ),
         ],
       },
-      sortRules: {
-        'items': [
-          UnifiedSortRule(field: 'Group', label: 'Group'),
-          UnifiedSortRule(field: 'Name', label: 'Name'),
-        ],
-      },
+      sortColumns: const {'items': 'Group'},
+      sortAscending: const {'items': true},
     );
     final result = const ContextualReportCustomizer().apply([section], options);
     expect(result.single.rows, [
-      ['A', 'A', '20'],
       ['A', 'B', '10'],
     ]);
   });
