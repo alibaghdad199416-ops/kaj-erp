@@ -62,9 +62,11 @@ class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryState get state => _state;
 
   void setSearch(String value) {
-    final normalized = value.trim();
-    if (_state.search == normalized) return;
-    _state = _state.copyWith(search: normalized);
+    // Preserve the user's exact query in controller state. Matching/search
+    // normalization belongs to the execution layer (UnifiedFilterEngine),
+    // not to the immutable UI/query state.
+    if (_state.search == value) return;
+    _state = _state.copyWith(search: value);
     notifyListeners();
   }
 
