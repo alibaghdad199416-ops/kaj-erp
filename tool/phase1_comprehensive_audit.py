@@ -7,12 +7,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / "lib"
 
-# These patterns are intentionally conservative: form-local controllers are
-# valid, while list-page search/filter state is a Phase 1 migration target.
+# The audit targets page-local query state, not individual widgets. A ChoiceChip
+# is a valid presentation primitive and must not be treated as legacy by itself.
 PAGE_PATTERNS = {
-    "legacy_search_state": re.compile(r"final\s+_search\s*=\s*TextEditingController|TextEditingController\s+_search"),
-    "legacy_stage_state": re.compile(r"String\s+_stage\s*=|final\s+_stage\s*="),
-    "legacy_choice_filter": re.compile(r"\bChoiceChip\s*\("),
+    "legacy_search_state": re.compile(
+        r"final\s+_search\s*=\s*TextEditingController|"
+        r"TextEditingController\s+_search"
+    ),
+    "legacy_stage_state": re.compile(
+        r"(?:String|final)\s+_stage\s*=|"
+        r"(?:String|final)\s+selectedStage\s*="
+    ),
 }
 
 MODULE_PAGES = (
@@ -44,7 +49,8 @@ def main() -> int:
 
     findings: list[tuple[str, Path]] = []
     page_files = [
-        p for p in dart_files()
+        p
+        for p in dart_files()
         if any(f"/{module}/" in p.as_posix() for module in MODULE_PAGES)
         and "/pages/" in p.as_posix()
     ]
