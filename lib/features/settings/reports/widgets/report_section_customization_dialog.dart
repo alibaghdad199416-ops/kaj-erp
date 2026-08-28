@@ -6,7 +6,7 @@ import 'package:quality_line_erp/core/widgets/app_responsive.dart';
 import 'package:quality_line_erp/features/settings/reports/models/contextual_report_section.dart';
 import 'package:quality_line_erp/features/settings/reports/models/report_export_options.dart';
 import 'package:quality_line_erp/features/settings/reports/services/report_field_localizer.dart';
-import 'package:quality_line_erp/core/widgets/unified_query_toolbar.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 
 /// Report customization surface backed by the same query state used by ERP lists.
 /// Presentation-only controls (columns, section visibility and row limit) are
