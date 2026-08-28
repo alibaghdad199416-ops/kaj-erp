@@ -1,0 +1,107 @@
+name: Phase 4 R105 cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply R105 cleanup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          def edit(path, replacements):
+              p = root / path
+              s = p.read_text(encoding='utf-8')
+              original = s
+              for old, new in replacements:
+                  if old not in s:
+                      print(f'pattern not found: {path}: {old!r}')
+                  s = s.replace(old, new)
+              if s != original:
+                  p.write_text(s, encoding='utf-8')
+                  print(f'updated {path}')
+
+          remove_imports = {
+              'lib/features/accounting/controllers/accounting_controller.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/accounting/pages/accounting_center_page.dart': ["import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';\n", "import 'package:quality_line_erp/design_system/kaj_phase6_components.dart';\n"],
+              'lib/features/business_partners/customers/pages/customers_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/business_partners/suppliers/pages/suppliers_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/customer_service/controllers/opportunities_controller.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/customer_service/pages/customer_service_page.dart': ["import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';\n"],
+              'lib/features/dashboard/pages/dashboard_page.dart': ["import 'package:quality_line_erp/design_system/kaj_signature_components.dart';\n"],
+              'lib/features/inventory/cars/pages/cars_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/inventory/controllers/inventory_controller.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/inventory/pages/warehouse_management_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/maintenance/controllers/maintenance_controller.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/maintenance/pages/add_maintenance_order_page.dart': ["import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';\n"],
+              'lib/features/maintenance/pages/maintenance_order_details_dialog.dart': ["import 'package:quality_line_erp/design_system/kaj_relationship_stage5_components.dart';\n"],
+              'lib/features/notifications/pages/notification_center_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n", "import 'package:quality_line_erp/core/filtering/unified_query_executor.dart';\n", "import 'package:quality_line_erp/design_system/kaj_signature_components.dart';\n"],
+              'lib/features/purchases/controllers/purchases_controller.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/sales/pages/sales_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'lib/features/settings/recycle_bin/pages/recycle_bin_page.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'test/core/filtering/unified_query_engine_test.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+              'test/unified_filter_engine_test.dart': ["import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';\n"],
+          }
+          for path, imports in remove_imports.items():
+              edit(path, [(x, '') for x in imports])
+
+          edit('lib/features/dashboard/pages/dashboard_page.dart', [
+              ("    final userName = context.select<AccessController, String>(\n      (access) => access.currentUser?.fullName ?? '',\n    );\n", ''),
+          ])
+
+          edit('lib/features/business_partners/suppliers/pages/suppliers_page.dart', [
+              ('value:', 'initialValue:'),
+          ])
+          edit('lib/features/inventory/cars/pages/cars_page.dart', [
+              ('value:', 'initialValue:'),
+          ])
+
+          edit('lib/features/business_partners/customers/pages/customers_page.dart', [
+              ("    if (!await PermissionAction.require(context, 'customers.update')) return;\n    await showAppModuleDialog(", "    if (!await PermissionAction.require(context, 'customers.update')) return;\n    if (!mounted) return;\n    await showAppModuleDialog("),
+              ("    if (!await PermissionAction.require(context, 'customers.delete')) return;\n    final confirmed", "    if (!await PermissionAction.require(context, 'customers.delete')) return;\n    if (!mounted) return;\n    final confirmed"),
+          ])
+
+          edit('lib/features/settings/reports/controllers/reports_controller.dart', [
+              ("    } finally {\n      if (generation != _requestGeneration) return;\n      _isLoading = false;\n      notifyListeners();\n    }", "    } finally {\n      if (generation == _requestGeneration) {\n        _isLoading = false;\n        notifyListeners();\n      }\n    }"),
+          ])
+
+          edit('lib/features/settings/reports/services/contextual_report_customizer.dart', [
+              ('section.columns.indexOf(sortField) >= 0', 'section.columns.contains(sortField)'),
+          ])
+
+          edit('lib/features/settings/recycle_bin/pages/recycle_bin_page.dart', [
+              ("import 'package:flutter/material.dart';\n", "import 'dart:async';\n\nimport 'package:flutter/material.dart';\n"),
+              ("    _load();\n  }\n\n  @override\n  void dispose()", "    unawaited(_load());\n  }\n\n  @override\n  void dispose()"),
+              ("  void _queryChanged() {\n    _load();\n  }", "  void _queryChanged() {\n    unawaited(_load());\n  }"),
+              ("    ))\n      return;\n    final arabic = context.l10n.isArabic;", ")\n      return;\n    if (!mounted) return;\n    final arabic = context.l10n.isArabic;"),
+          ])
+
+          edit('lib/features/notifications/pages/notification_center_page.dart', [
+              ("    _load();\n", "    unawaited(_load());\n"),
+          ])
+
+          edit('lib/core/printing/legacy_commercial_document_pdf_service.dart', [
+              ("'userName': sale.createdByUserName ?? '',", "'userName': sale.createdByUserName,"),
+          ])
+          PY
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib test
+          git diff --cached --quiet || git commit -m "fix(phase4-r105): clean remaining analyzer hygiene"
+          git rm -f .github/workflows/r105-cleanup.yml
+          git commit -m "chore(phase4-r105): remove temporary cleanup workflow"
+          git push
