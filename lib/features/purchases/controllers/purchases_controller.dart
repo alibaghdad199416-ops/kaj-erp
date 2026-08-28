@@ -66,19 +66,17 @@ class PurchasesController extends ChangeNotifier {
         sorts: _sortsFromQuery(),
       );
 
-  Set<String> get _statusFilter {
-    final token = query.state.filters
-        .where((item) => item.key == 'paymentStatus')
-        .firstOrNull;
-    return token == null ? const <String>{} : {token.value.toString()};
-  }
+  Set<String> get _statusFilter => query.state.filters
+      .where((item) => item.key == 'paymentStatus')
+      .map((item) => item.value.toString())
+      .where((value) => value.trim().isNotEmpty)
+      .toSet();
 
-  Set<String> get _currencyFilter {
-    final token = query.state.filters
-        .where((item) => item.key == 'currency')
-        .firstOrNull;
-    return token == null ? const <String>{} : {token.value.toString()};
-  }
+  Set<String> get _currencyFilter => query.state.filters
+      .where((item) => item.key == 'currency')
+      .map((item) => item.value.toString().trim().toUpperCase())
+      .where((value) => value.isNotEmpty)
+      .toSet();
 
   List<UnifiedSortCriterion<PurchaseModel>> _sortsFromQuery() => query
       .state
