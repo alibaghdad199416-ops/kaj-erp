@@ -9,13 +9,9 @@ class AppDialog extends AlertDialog {
   AppDialog({
     super.key,
     required String title,
-    Widget? content,
-    List<Widget>? actions,
-  }) : super(
-         title: AppText(AppTranslation.translate(title)),
-         content: content,
-         actions: actions,
-       );
+    super.content,
+    super.actions,
+  }) : super(title: AppText(AppTranslation.translate(title)));
 }
 
 Future<bool> showAppConfirmDialog(
