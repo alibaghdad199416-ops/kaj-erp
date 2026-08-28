@@ -4,21 +4,16 @@ import 'package:quality_line_erp/features/settings/reports/models/report_export_
 
 /// Applies report projection, filtering, sorting and row limits through the
 /// same unified filtering engine used by ERP module screens.
-///
-/// Persisted ReportExportOptions remains backward compatible. New section
-/// filters use the generic field dimensions of the unified filter engine.
 class ContextualReportCustomizer {
   const ContextualReportCustomizer();
 
   List<ContextualReportSection> apply(
     List<ContextualReportSection> sections,
     ReportExportOptions options,
-  ) {
-    return sections
-        .where((section) => options.sectionEnabled[section.key] ?? true)
-        .map((section) => _applySection(section, options))
-        .toList(growable: false);
-  }
+  ) => sections
+      .where((section) => options.sectionEnabled[section.key] ?? true)
+      .map((section) => _applySection(section, options))
+      .toList(growable: false);
 
   ContextualReportSection _applySection(
     ContextualReportSection section,
@@ -37,9 +32,6 @@ class ContextualReportCustomizer {
     final safeIndexes = candidateIndexes
         .where((index) => !_isHiddenColumn(section, section.columns[index]))
         .toList(growable: false);
-    // A preset may have been saved before an internal column was retired or
-    // hidden. Never emit a section with zero visible columns: fall back to the
-    // current public projection while preserving the user's query/sort state.
     final visibleIndexes = safeIndexes.isEmpty
         ? List<int>.generate(section.columns.length, (index) => index)
               .where(
@@ -49,25 +41,27 @@ class ContextualReportCustomizer {
         : safeIndexes;
 
     final query = (options.sectionQueries[section.key] ?? '').trim();
-    final rules = options.sortRules[section.key] ?? const <UnifiedSortRule>[];
+    final sortField = options.sortColumns[section.key];
     final sorts = <UnifiedSortCriterion<List<String>>>[
-      for (final rule in rules)
-        if (section.columns.indexOf(rule.field) >= 0)
-          UnifiedSortCriterion<List<String>>(
-            key: rule.field,
-            direction: rule.descending
-                ? UnifiedSortDirection.descending
-                : UnifiedSortDirection.ascending,
-            value: (row) =>
-                _sortableValue(row, section.columns.indexOf(rule.field)),
+      if (sortField != null && section.columns.contains(sortField))
+        UnifiedSortCriterion<List<String>>(
+          key: sortField,
+          direction: (options.sortAscending[section.key] ?? true)
+              ? UnifiedSortDirection.ascending
+              : UnifiedSortDirection.descending,
+          value: (row) => _sortableValue(
+            row,
+            section.columns.indexOf(sortField),
           ),
+        ),
     ];
 
     final filterTokens = options.sectionFilters[section.key] ?? const [];
     final fieldFilters = <String, Set<String>>{};
     for (final token in filterTokens) {
-      final values = fieldFilters.putIfAbsent(token.key, () => <String>{});
-      values.add(token.value.toString());
+      fieldFilters.putIfAbsent(token.key, () => <String>{}).add(
+        token.value.toString(),
+      );
     }
 
     final fieldGetters = <String, Object? Function(List<String>)>{};
@@ -125,10 +119,7 @@ class ContextualReportCustomizer {
         .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
         .toLowerCase();
     if (normalized == 'id') return true;
-    // Business-facing product references and descriptions are report data.
-    // Only technical identifiers/raw payload columns are suppressed.
-    return normalized == 'id' ||
-        normalized.endsWith('id') ||
+    return normalized.endsWith('id') ||
         normalized.contains('uuid') ||
         normalized.contains('payload') ||
         normalized.contains('rawdata') ||
