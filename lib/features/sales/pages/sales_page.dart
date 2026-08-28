@@ -17,7 +17,6 @@ import 'package:quality_line_erp/features/sales/models/sale_model.dart';
 import 'package:quality_line_erp/features/sales/widgets/sale_card.dart';
 import 'package:quality_line_erp/features/sales/widgets/sales_statistics.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
-import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -41,12 +40,9 @@ class _SalesPageState extends State<SalesPage> {
     final cars = context.watch<CarsController>().cars;
     final customers = context.watch<CustomersController>().customers;
     final carNames = {
-      for (final car in cars)
-        car.id: '${car.brand} ${car.model} ${car.year} — ${car.chassis}',
+      for (final car in cars) car.id: '${car.brand} ${car.model} ${car.year} — ${car.chassis}',
     };
-    final customerNames = {
-      for (final customer in customers) customer.id: customer.name,
-    };
+    final customerNames = {for (final customer in customers) customer.id: customer.name};
 
     final filteredSales = UnifiedQueryExecutor<SaleModel>(
       criteriaBuilder: (state) => UnifiedFilterCriteria(searchText: state.search),
