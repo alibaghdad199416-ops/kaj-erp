@@ -49,17 +49,18 @@ class ContextualReportCustomizer {
         : safeIndexes;
 
     final query = (options.sectionQueries[section.key] ?? '').trim();
-    final rules = options.sortRules[section.key] ?? const <UnifiedSortRule>[];
+    final sortField = options.sortColumns[section.key];
+    final sortAscending = options.sortAscending[section.key] ?? true;
     final sorts = <UnifiedSortCriterion<List<String>>>[
-      for (final rule in rules)
-        if (section.columns.indexOf(rule.field) >= 0)
+      if (sortField != null && sortField.isNotEmpty)
+        if (section.columns.indexOf(sortField) >= 0)
           UnifiedSortCriterion<List<String>>(
-            key: rule.field,
-            direction: rule.descending
-                ? UnifiedSortDirection.descending
-                : UnifiedSortDirection.ascending,
+            key: sortField,
+            direction: sortAscending
+                ? UnifiedSortDirection.ascending
+                : UnifiedSortDirection.descending,
             value: (row) =>
-                _sortableValue(row, section.columns.indexOf(rule.field)),
+                _sortableValue(row, section.columns.indexOf(sortField)),
           ),
     ];
 
