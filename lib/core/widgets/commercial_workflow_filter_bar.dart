@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:quality_line_erp/core/filtering/unified_query.dart';
 import 'package:quality_line_erp/core/localization/app_localizations.dart';
 import 'package:quality_line_erp/design_system/kaj_design_tokens.dart';
 import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
@@ -7,6 +8,7 @@ import 'package:quality_line_erp/core/widgets/app_horizontal_strip.dart';
 class CommercialWorkflowFilterBar extends StatelessWidget {
   const CommercialWorkflowFilterBar({
     super.key,
+    this.queryController,
     required this.searchController,
     required this.status,
     required this.onSearchChanged,
@@ -16,6 +18,11 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
     required this.resultCount,
   });
 
+  /// Preferred query-state owner for newly migrated workflow screens.
+  /// When supplied, search and status changes are written directly to the
+  /// shared Unified Query controller instead of introducing another state
+  /// channel in the widget itself.
+  final UnifiedQueryController? queryController;
   final TextEditingController searchController;
   final String status;
   final ValueChanged<String> onSearchChanged;
@@ -23,6 +30,31 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
   final VoidCallback onCreate;
   final String createLabel;
   final int resultCount;
+
+  void _setStatus(String value, BuildContext context) {
+    final controller = queryController;
+    if (controller == null) {
+      onStatusChanged(value);
+      return;
+    }
+    controller.removeFilterKey('status');
+    if (value == 'all') return;
+    final label = switch (value) {
+      'draft' => context.l10n.isArabic ? 'مسودة' : 'Draft',
+      'approved' => context.l10n.isArabic ? 'مصدق' : 'Approved',
+      'invoiced' => context.l10n.isArabic ? 'مفوتر' : 'Invoiced',
+      'paid' => context.l10n.isArabic ? 'مسدد' : 'Paid',
+      _ => value,
+    };
+    controller.addFilter(
+      UnifiedFilterToken(
+        key: 'status',
+        label: context.l10n.isArabic ? 'الحالة' : 'Status',
+        value: value,
+        valueLabel: label,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +76,7 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
           showCheckmark: false,
           shape: const StadiumBorder(),
           visualDensity: VisualDensity.compact,
-          onSelected: (_) => onStatusChanged(entry.$1),
+          onSelected: (_) => _setStatus(entry.$1, context),
           selectedColor: KajDesignTokens.electricBlue.withValues(alpha: .20),
           side: BorderSide(
             color: status == entry.$1
@@ -88,7 +120,10 @@ class CommercialWorkflowFilterBar extends StatelessWidget {
         builder: (context, constraints) {
           final search = TextField(
             controller: searchController,
-            onChanged: onSearchChanged,
+            onChanged: (value) {
+              queryController?.setSearch(value);
+              onSearchChanged(value);
+            },
             decoration: InputDecoration(
               isDense: true,
               prefixIcon: const Icon(Icons.search_rounded, size: 19),
