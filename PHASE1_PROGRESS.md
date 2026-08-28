@@ -21,6 +21,7 @@ The current Quality Gate result is **not a Phase 1 stop condition**. It is track
 
 - Centralized `UnifiedQueryController` mutations through one canonical state boundary.
 - Canonicalized filter keys and sort fields when query collections are replaced directly.
+- Restored the shared `firstOrNull` helper required by migrated query consumers.
 - Added regression coverage for search normalization, filter replacement/canonicalization, sort replacement/toggling, invalid sort removal, atomic state replacement, and clear behavior.
 - Added a conservative structural audit for legacy page-local query state.
 - Corrected the audit so ordinary `ChoiceChip` presentation is not treated as legacy query state.
@@ -39,3 +40,7 @@ The current Quality Gate result is **not a Phase 1 stop condition**. It is track
 ## Resume rule
 
 If execution is interrupted, resume from the newest commit on `phase1-comprehensive-repair` and continue the active review targets above; do not restart the phase from `main` and do not discard completed repairs.
+
+## Latest checkpoint
+
+The newest checkpoint is the commit immediately preceding this ledger update. Continue from the current branch tip and re-review the query-core consumers before closing Phase 1.
