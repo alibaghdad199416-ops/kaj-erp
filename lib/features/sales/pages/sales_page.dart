@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query.dart';
+import 'package:quality_line_erp/core/filtering/unified_query_toolbar.dart';
 import 'package:quality_line_erp/core/widgets/app_dialog.dart';
 import 'package:quality_line_erp/core/widgets/incremental_list_view.dart';
 import 'package:provider/provider.dart';
@@ -17,7 +18,6 @@ import 'package:quality_line_erp/features/sales/widgets/sale_card.dart';
 import 'package:quality_line_erp/features/sales/widgets/sales_statistics.dart';
 import 'package:quality_line_erp/core/errors/user_facing_error.dart';
 import 'package:quality_line_erp/core/utils/currency_totals_formatter.dart';
-import 'package:quality_line_erp/design_system/kaj_query_toolbar.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -49,8 +49,7 @@ class _SalesPageState extends State<SalesPage> {
     };
 
     final filteredSales = UnifiedQueryExecutor<SaleModel>(
-      criteriaBuilder: (state) =>
-          UnifiedFilterCriteria(searchText: state.search),
+      criteriaBuilder: (state) => UnifiedFilterCriteria(searchText: state.search),
       filterAdapter: UnifiedFilterAdapter<SaleModel>(
         searchableText: (sale) => <Object?>[
           sale.invoiceNumber,
@@ -78,9 +77,7 @@ class _SalesPageState extends State<SalesPage> {
           case 'invoice':
             return left.invoiceNumber.compareTo(right.invoiceNumber);
           case 'customer':
-            return (customerNames[left.customerId] ?? '').compareTo(
-              customerNames[right.customerId] ?? '',
-            );
+            return (customerNames[left.customerId] ?? '').compareTo(customerNames[right.customerId] ?? '');
           case 'total':
             return left.total.compareTo(right.total);
           default:
@@ -88,6 +85,13 @@ class _SalesPageState extends State<SalesPage> {
         }
       },
     ).execute(controller.sales, _queryController.state);
+
+    final sortOptions = <UnifiedQuerySortOption>[
+      UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'date', label: context.l10n.isArabic ? 'التاريخ' : 'Date', descending: true), icon: Icons.event_outlined),
+      UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'invoice', label: context.l10n.isArabic ? 'رقم الفاتورة' : 'Invoice', descending: true), icon: Icons.receipt_long_outlined),
+      UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'customer', label: context.l10n.isArabic ? 'العميل' : 'Customer'), icon: Icons.person_outline),
+      UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'total', label: context.l10n.isArabic ? 'الإجمالي' : 'Total', descending: true), icon: Icons.payments_outlined),
+    ];
 
     return Directionality(
       textDirection: Directionality.of(context),
@@ -99,9 +103,7 @@ class _SalesPageState extends State<SalesPage> {
               child: const ListTile(
                 leading: Icon(Icons.history_outlined),
                 title: AppText('سجل الفواتير القديمة'),
-                subtitle: AppText(
-                  'هذا السجل للعرض والطباعة فقط. إنشاء وتعديل المبيعات يتم من تبويب أوامر البيع لضمان التجهيز والفوترة وCOGS والإيراد والتحصيل المترابط.',
-                ),
+                subtitle: AppText('هذا السجل للعرض والطباعة فقط. إنشاء وتعديل المبيعات يتم من تبويب أوامر البيع لضمان التجهيز والفوترة وCOGS والإيراد والتحصيل المترابط.'),
               ),
             ),
             SalesStatistics(
@@ -112,57 +114,21 @@ class _SalesPageState extends State<SalesPage> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: KajQueryToolbar(
+              child: UnifiedQueryToolbar(
                 controller: _queryController,
-                hintText: context.l10n.isArabic
-                    ? 'البحث برقم الفاتورة أو العميل أو السيارة أو طريقة الدفع'
-                    : 'Search invoice, customer, vehicle or payment method',
-                sortBuilder: (context) => PopupMenuButton<String>(
-                  tooltip: context.l10n.isArabic ? 'الفرز' : 'Sort',
-                  icon: const Icon(Icons.sort_rounded),
-                  onSelected: (field) {
-                    const labels = <String, String>{
-                      'date': 'التاريخ',
-                      'invoice': 'رقم الفاتورة',
-                      'customer': 'العميل',
-                      'total': 'الإجمالي',
-                    };
-                    final existing = _queryController.state.sorts
-                        .where((item) => item.field == field)
-                        .firstOrNull;
-                    _queryController.addSort(
-                      UnifiedSortRule(
-                        field: field,
-                        label: labels[field] ?? field,
-                        descending: existing == null
-                            ? true
-                            : !existing.descending,
-                      ),
-                    );
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'date', child: AppText('التاريخ')),
-                    PopupMenuItem(
-                      value: 'invoice',
-                      child: AppText('رقم الفاتورة'),
-                    ),
-                    PopupMenuItem(value: 'customer', child: AppText('العميل')),
-                    PopupMenuItem(value: 'total', child: AppText('الإجمالي')),
-                  ],
-                ),
+                searchHint: context.l10n.isArabic ? 'البحث برقم الفاتورة أو العميل أو السيارة أو طريقة الدفع' : 'Search invoice, customer, vehicle or payment method',
+                sorts: sortOptions,
+                compact: true,
+                sortButtonLabel: context.l10n.isArabic ? 'الفرز' : 'Sort',
+                clearAllLabel: context.l10n.isArabic ? 'مسح الكل' : 'Clear all',
+                clearSearchTooltip: context.l10n.isArabic ? 'مسح البحث' : 'Clear search',
+                ascendingLabel: context.l10n.isArabic ? 'تصاعدي' : 'Ascending',
+                descendingLabel: context.l10n.isArabic ? 'تنازلي' : 'Descending',
               ),
             ),
             Expanded(
               child: filteredSales.isEmpty
-                  ? Center(
-                      child: AppText(
-                        AppTranslation.translate('لا توجد مبيعات'),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    )
+                  ? Center(child: AppText(AppTranslation.translate('لا توجد مبيعات'), style: const TextStyle(fontSize: 18, color: Colors.grey)))
                   : IncrementalListView(
                       padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
                       itemCount: filteredSales.length,
@@ -174,66 +140,27 @@ class _SalesPageState extends State<SalesPage> {
                           customerName: customerNames[sale.customerId],
                           onPrint: () async {
                             try {
-                              await const LegacyCommercialDocumentPdfService()
-                                  .printSale(
-                                    sale: sale,
-                                    customerName:
-                                        customerNames[sale.customerId] ??
-                                        'عميل غير محدد',
-                                    carName:
-                                        carNames[sale.carId] ??
-                                        'سيارة غير محددة',
-                                    language: context.l10n.isArabic
-                                        ? 'ar'
-                                        : 'en',
-                                  );
+                              await const LegacyCommercialDocumentPdfService().printSale(
+                                sale: sale,
+                                customerName: customerNames[sale.customerId] ?? 'عميل غير محدد',
+                                carName: carNames[sale.carId] ?? 'سيارة غير محددة',
+                                language: context.l10n.isArabic ? 'ar' : 'en',
+                              );
                             } catch (error) {
                               if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: AppText(
-                                    userFacingError(
-                                      error,
-                                      isArabic: context.l10n.isArabic,
-                                    ),
-                                  ),
-                                ),
-                              );
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(userFacingError(error, isArabic: context.l10n.isArabic))));
                             }
                           },
                           onDelete: () async {
-                            if (!await PermissionAction.require(
-                              context,
-                              'sales.delete',
-                            ))
-                              return;
+                            if (!await PermissionAction.require(context, 'sales.delete')) return;
                             if (!context.mounted) return;
-                            final confirmed = await showAppConfirmDialog(
-                              context,
-                              title: 'حذف فاتورة البيع',
-                              message:
-                                  'سيتم عكس الارتباطات المحاسبية والمخزنية المرتبطة قبل حذف الفاتورة. هل تريد المتابعة؟',
-                              confirmLabel: 'حذف الفاتورة',
-                              destructive: true,
-                            );
+                            final confirmed = await showAppConfirmDialog(context, title: 'حذف فاتورة البيع', message: 'سيتم عكس الارتباطات المحاسبية والمخزنية المرتبطة قبل حذف الفاتورة. هل تريد المتابعة؟', confirmLabel: 'حذف الفاتورة', destructive: true);
                             if (confirmed != true || !context.mounted) return;
                             try {
                               await controller.removeSale(sale.id);
                             } catch (error) {
                               if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: AppText(
-                                    userFacingError(
-                                      error,
-                                      isArabic: context.l10n.isArabic,
-                                      arabicFallback: 'تعذر حذف فاتورة البيع.',
-                                      englishFallback:
-                                          'Unable to delete the sales invoice.',
-                                    ),
-                                  ),
-                                ),
-                              );
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(userFacingError(error, isArabic: context.l10n.isArabic, arabicFallback: 'تعذر حذف فاتورة البيع.', englishFallback: 'Unable to delete the sales invoice.'))));
                             }
                           },
                         );
