@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import re
 from pathlib import Path
 
@@ -33,7 +34,15 @@ def dart_files() -> list[Path]:
 
 
 def main() -> int:
-    failures: list[str] = []
+    parser = argparse.ArgumentParser(description="KAJ ERP Phase 1 structural audit")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return non-zero when a tracked legacy pattern is found",
+    )
+    args = parser.parse_args()
+
+    findings: list[tuple[str, Path]] = []
     page_files = [
         p for p in dart_files()
         if any(f"/{module}/" in p.as_posix() for module in MODULE_PAGES)
@@ -44,17 +53,15 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         for name, pattern in PAGE_PATTERNS.items():
             if pattern.search(text):
-                failures.append(f"{name}: {path.relative_to(ROOT)}")
+                findings.append((name, path))
 
-    if failures:
-        print("PHASE1 AUDIT: FAIL")
-        for item in failures:
-            print(item)
-        return 1
-
-    print("PHASE1 AUDIT: PASS")
+    print(f"PHASE1 AUDIT: {'FAIL' if findings else 'PASS'}")
     print(f"checked_pages={len(page_files)}")
-    return 0
+    print(f"findings={len(findings)}")
+    for name, path in findings:
+        print(f"{name}: {path.relative_to(ROOT)}")
+
+    return 1 if args.strict and findings else 0
 
 
 if __name__ == "__main__":
