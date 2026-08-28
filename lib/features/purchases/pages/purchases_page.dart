@@ -19,6 +19,7 @@ import 'package:quality_line_erp/features/settings/access/widgets/permission_act
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
+
   @override
   State<PurchasesPage> createState() => _PurchasesPageState();
 }
@@ -35,7 +36,10 @@ class _PurchasesPageState extends State<PurchasesPage> {
   Future<void> _printPurchase(PurchaseModel purchase) async {
     final controller = context.read<PurchasesController>();
     try {
-      final items = await controller.loadPurchaseItems(purchase.id, forceRefresh: true);
+      final items = await controller.loadPurchaseItems(
+        purchase.id,
+        forceRefresh: true,
+      );
       await const LegacyCommercialDocumentPdfService().printPurchase(
         purchase: purchase,
         items: items,
@@ -43,60 +47,147 @@ class _PurchasesPageState extends State<PurchasesPage> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(userFacingError(error, isArabic: context.l10n.isArabic, arabicFallback: 'تعذر طباعة فاتورة الشراء.', englishFallback: 'Unable to print the purchase invoice.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: context.l10n.isArabic,
+              arabicFallback: 'تعذر طباعة فاتورة الشراء.',
+              englishFallback: 'Unable to print the purchase invoice.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _openDetails(PurchaseModel purchase) async {
     try {
-      final items = await context.read<PurchasesController>().loadPurchaseItems(purchase.id, forceRefresh: true);
+      final items = await context
+          .read<PurchasesController>()
+          .loadPurchaseItems(purchase.id, forceRefresh: true);
       if (!mounted) return;
+
       await showAppWorkspaceDialogBuilder<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: AppText('تفاصيل فاتورة ${purchase.invoiceNumber}'),
           content: SizedBox(
             width: AppResponsive.dialogWidth(context, 760),
-            child: ListView(shrinkWrap: true, children: [
-              AppText('المورد: ${purchase.supplierName}'),
-              AppText('العملة: ${purchase.currencyCode}'),
-              AppText('الإجمالي: ${MoneyFormatter.withCurrency(purchase.totalAmount, purchase.currencyCode)}'),
-              AppText('المدفوع: ${MoneyFormatter.withCurrency(purchase.paidAmount, purchase.currencyCode)}'),
-              AppText('المتبقي: ${MoneyFormatter.withCurrency(purchase.remainingAmount, purchase.currencyCode)}'),
-              const Divider(height: 28),
-              const AppText('بنود الفاتورة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              ...items.map((item) => Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                AppText(item.carName, style: const TextStyle(fontWeight: FontWeight.w900)),
-                AppText('رقم الشاصي: ${item.chassisNumber}'),
-                AppText('الكلفة: ${MoneyFormatter.withCurrency(item.purchasePrice, purchase.currencyCode)}'),
-                AppText('التكاليف الإضافية: ${MoneyFormatter.withCurrency(item.additionalCosts, purchase.currencyCode)}'),
-                AppText('الكلفة النهائية: ${MoneyFormatter.withCurrency(item.totalCost, purchase.currencyCode)}'),
-              ]))),
-            ],),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                AppText('المورد: ${purchase.supplierName}'),
+                AppText('العملة: ${purchase.currencyCode}'),
+                AppText(
+                  'الإجمالي: ${MoneyFormatter.withCurrency(purchase.totalAmount, purchase.currencyCode)}',
+                ),
+                AppText(
+                  'المدفوع: ${MoneyFormatter.withCurrency(purchase.paidAmount, purchase.currencyCode)}',
+                ),
+                AppText(
+                  'المتبقي: ${MoneyFormatter.withCurrency(purchase.remainingAmount, purchase.currencyCode)}',
+                ),
+                const Divider(height: 28),
+                const AppText(
+                  'بنود الفاتورة',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...items.map(
+                  (item) => Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppText(
+                            item.carName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          AppText('رقم الشاصي: ${item.chassisNumber}'),
+                          AppText(
+                            'الكلفة: ${MoneyFormatter.withCurrency(item.purchasePrice, purchase.currencyCode)}',
+                          ),
+                          AppText(
+                            'التكاليف الإضافية: ${MoneyFormatter.withCurrency(item.additionalCosts, purchase.currencyCode)}',
+                          ),
+                          AppText(
+                            'الكلفة النهائية: ${MoneyFormatter.withCurrency(item.totalCost, purchase.currencyCode)}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
-            FilledButton.icon(onPressed: () => _printPurchase(purchase), icon: const Icon(Icons.print_outlined), label: AppText(AppTranslation.translate('طباعة الحزمة الرسمية'))),
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const AppText('إغلاق')),
+            FilledButton.icon(
+              onPressed: () => _printPurchase(purchase),
+              icon: const Icon(Icons.print_outlined),
+              label: AppText(
+                AppTranslation.translate('طباعة الحزمة الرسمية'),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const AppText('إغلاق'),
+            ),
           ],
         ),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(userFacingError(error, isArabic: context.l10n.isArabic, arabicFallback: 'تعذر تحميل تفاصيل فاتورة الشراء.', englishFallback: 'Unable to load purchase invoice details.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: context.l10n.isArabic,
+              arabicFallback: 'تعذر تحميل تفاصيل فاتورة الشراء.',
+              englishFallback: 'Unable to load purchase invoice details.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _delete(PurchaseModel purchase) async {
     if (!await PermissionAction.require(context, 'purchases.delete')) return;
     if (!mounted) return;
-    final ok = await showAppConfirmDialog(context, title: 'حذف فاتورة الشراء', message: 'هل تريد حذف الفاتورة ${purchase.invoiceNumber}؟', confirmLabel: 'حذف', destructive: true);
+    final ok = await showAppConfirmDialog(
+      context,
+      title: 'حذف فاتورة الشراء',
+      message: 'هل تريد حذف الفاتورة ${purchase.invoiceNumber}؟',
+      confirmLabel: 'حذف',
+      destructive: true,
+    );
     if (ok != true || !mounted) return;
     try {
       await context.read<PurchasesController>().deletePurchase(purchase.id);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AppText(userFacingError(error, isArabic: context.l10n.isArabic, arabicFallback: 'تعذر حذف فاتورة الشراء.', englishFallback: 'Unable to delete the purchase invoice.'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppText(
+            userFacingError(
+              error,
+              isArabic: context.l10n.isArabic,
+              arabicFallback: 'تعذر حذف فاتورة الشراء.',
+              englishFallback: 'Unable to delete the purchase invoice.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -106,17 +197,66 @@ class _PurchasesPageState extends State<PurchasesPage> {
       ('partial', 'جزئية', 'Partial'),
       ('credit', 'آجلة', 'Credit'),
     ])
-      UnifiedQueryFilterOption(token: UnifiedFilterToken(key: 'paymentStatus', label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status', value: entry.$1, valueLabel: context.l10n.isArabic ? entry.$2 : entry.$3), icon: Icons.payments_outlined),
+      UnifiedQueryFilterOption(
+        token: UnifiedFilterToken(
+          key: 'paymentStatus',
+          label: context.l10n.isArabic ? 'حالة الدفع' : 'Payment status',
+          value: entry.$1,
+          valueLabel: context.l10n.isArabic ? entry.$2 : entry.$3,
+        ),
+        icon: Icons.payments_outlined,
+      ),
     for (final currency in const ['IQD', 'USD'])
-      UnifiedQueryFilterOption(token: UnifiedFilterToken(key: 'currency', label: context.l10n.isArabic ? 'العملة' : 'Currency', value: currency, valueLabel: currency), icon: Icons.currency_exchange_outlined),
+      UnifiedQueryFilterOption(
+        token: UnifiedFilterToken(
+          key: 'currency',
+          label: context.l10n.isArabic ? 'العملة' : 'Currency',
+          value: currency,
+          valueLabel: currency,
+        ),
+        icon: Icons.currency_exchange_outlined,
+      ),
   ];
 
   List<UnifiedQuerySortOption> _sorts(BuildContext context) => [
-    UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'date', label: context.l10n.isArabic ? 'التاريخ' : 'Date', descending: true), icon: Icons.event_outlined),
-    UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'invoiceNumber', label: context.l10n.isArabic ? 'رقم الفاتورة' : 'Invoice number'), icon: Icons.tag_outlined),
-    UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'supplier', label: context.l10n.isArabic ? 'المورد' : 'Supplier'), icon: Icons.business_outlined),
-    UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'total', label: context.l10n.isArabic ? 'الإجمالي' : 'Total', descending: true), icon: Icons.summarize_outlined),
-    UnifiedQuerySortOption(rule: UnifiedSortRule(field: 'remaining', label: context.l10n.isArabic ? 'المتبقي' : 'Remaining', descending: true), icon: Icons.hourglass_bottom_outlined),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'date',
+        label: context.l10n.isArabic ? 'التاريخ' : 'Date',
+        descending: true,
+      ),
+      icon: Icons.event_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'invoiceNumber',
+        label: context.l10n.isArabic ? 'رقم الفاتورة' : 'Invoice number',
+      ),
+      icon: Icons.tag_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'supplier',
+        label: context.l10n.isArabic ? 'المورد' : 'Supplier',
+      ),
+      icon: Icons.business_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'total',
+        label: context.l10n.isArabic ? 'الإجمالي' : 'Total',
+        descending: true,
+      ),
+      icon: Icons.summarize_outlined,
+    ),
+    UnifiedQuerySortOption(
+      rule: UnifiedSortRule(
+        field: 'remaining',
+        label: context.l10n.isArabic ? 'المتبقي' : 'Remaining',
+        descending: true,
+      ),
+      icon: Icons.hourglass_bottom_outlined,
+    ),
   ];
 
   @override
@@ -126,39 +266,90 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final items = controller.purchases;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          Chip(avatar: const Icon(Icons.receipt_long_outlined, size: 17), label: AppText(arabic ? 'المشتريات' : 'Purchases')),
-          Chip(avatar: const Icon(Icons.description_outlined, size: 17), label: AppText('${arabic ? 'الفواتير' : 'Invoices'}: ${controller.purchasesCount}')),
-          Chip(avatar: const Icon(Icons.account_balance_wallet_outlined, size: 17), label: AppText('${arabic ? 'المتبقي' : 'Remaining'}: ${CurrencyTotalsFormatter.format(controller.totalRemainingByCurrency)}')),
-        ]),
-        const SizedBox(height: 8),
-        Card(margin: EdgeInsets.zero, child: Padding(padding: const EdgeInsets.all(10), child: AppText(arabic ? 'سجل الفواتير القديمة للعرض والطباعة. إنشاء وتعديل المشتريات يتم من تبويب أوامر الشراء لضمان الاستلام والفوترة والقيود والمدفوعات المترابطة.' : 'Legacy invoices are for viewing and printing. Create and edit purchases from Purchase Orders so receiving, invoicing, journals, and payments remain linked.'))),
-        const SizedBox(height: 8),
-        UnifiedQueryToolbar(
-          controller: controller.query,
-          searchHint: arabic ? 'بحث برقم الفاتورة أو المورد أو الملاحظات...' : 'Search invoice number, supplier, or notes...',
-          filters: _filters(context),
-          sorts: _sorts(context),
-          compact: true,
-          filterButtonLabel: arabic ? 'فلترة' : 'Filter',
-          sortButtonLabel: arabic ? 'فرز' : 'Sort',
-          clearAllLabel: arabic ? 'مسح الكل' : 'Clear all',
-          clearSearchTooltip: arabic ? 'مسح البحث' : 'Clear search',
-          ascendingLabel: arabic ? 'تصاعدي' : 'Ascending',
-          descendingLabel: arabic ? 'تنازلي' : 'Descending',
-        ),
-        const SizedBox(height: 8),
-        Expanded(child: controller.isLoading && items.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : items.isEmpty
-                ? Center(child: AppText(controller.errorMessage ?? AppTranslation.translate('لا توجد فواتير مشتريات')))
-                : IncrementalListView(itemCount: items.length, itemBuilder: (context, index) {
-                    final purchase = items[index];
-                    return PurchaseCard(purchase: purchase, onView: () => _openDetails(purchase), onDelete: () => _delete(purchase), onPrint: () => _printPurchase(purchase));
-                  })),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Chip(
+                avatar: const Icon(Icons.receipt_long_outlined, size: 17),
+                label: AppText(arabic ? 'المشتريات' : 'Purchases'),
+              ),
+              Chip(
+                avatar: const Icon(Icons.description_outlined, size: 17),
+                label: AppText(
+                  '${arabic ? 'الفواتير' : 'Invoices'}: ${controller.purchasesCount}',
+                ),
+              ),
+              Chip(
+                avatar: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 17,
+                ),
+                label: AppText(
+                  '${arabic ? 'المتبقي' : 'Remaining'}: ${CurrencyTotalsFormatter.format(controller.totalRemainingByCurrency)}',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: AppText(
+                arabic
+                    ? 'سجل الفواتير القديمة للعرض والطباعة. إنشاء وتعديل المشتريات يتم من تبويب أوامر الشراء لضمان الاستلام والفوترة والقيود والمدفوعات المترابطة.'
+                    : 'Legacy invoices are for viewing and printing. Create and edit purchases from Purchase Orders so receiving, invoicing, journals, and payments remain linked.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          UnifiedQueryToolbar(
+            controller: controller.query,
+            searchHint: arabic
+                ? 'بحث برقم الفاتورة أو المورد أو الملاحظات...'
+                : 'Search invoice number, supplier, or notes...',
+            filters: _filters(context),
+            sorts: _sorts(context),
+            compact: true,
+            filterButtonLabel: arabic ? 'فلترة' : 'Filter',
+            sortButtonLabel: arabic ? 'فرز' : 'Sort',
+            clearAllLabel: arabic ? 'مسح الكل' : 'Clear all',
+            clearSearchTooltip: arabic ? 'مسح البحث' : 'Clear search',
+            ascendingLabel: arabic ? 'تصاعدي' : 'Ascending',
+            descendingLabel: arabic ? 'تنازلي' : 'Descending',
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: controller.isLoading && items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : items.isEmpty
+                ? Center(
+                    child: AppText(
+                      controller.errorMessage ??
+                          AppTranslation.translate('لا توجد فواتير مشتريات'),
+                    ),
+                  )
+                : IncrementalListView(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final purchase = items[index];
+                      return PurchaseCard(
+                        purchase: purchase,
+                        onView: () => _openDetails(purchase),
+                        onDelete: () => _delete(purchase),
+                        onPrint: () => _printPurchase(purchase),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
