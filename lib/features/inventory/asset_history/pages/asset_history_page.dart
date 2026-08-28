@@ -212,7 +212,8 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
     final state = _queryController.state;
     final fieldValues = <String, Set<String>>{};
     for (final token in state.filters) {
-      fieldValues[token.key] = {...?fieldValues[token.key], token.value};
+      final values = fieldValues.putIfAbsent(token.key, () => <String>{});
+      values.add(token.value.toString());
     }
     return UnifiedFilterEngine.apply(
       events,
@@ -332,8 +333,9 @@ class _AssetHistoryPageState extends State<AssetHistoryPage> {
       child: FutureBuilder<List<AssetHistoryEvent>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done)
+          if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
+          }
           if (snapshot.hasError) {
             return Center(
               child: Column(
