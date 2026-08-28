@@ -39,6 +39,38 @@ void main() {
       expect(controller.state, next);
     });
 
+    test('setFilters canonicalizes duplicate keys using the latest token', () {
+      final controller = UnifiedQueryController();
+      addTearDown(controller.dispose);
+
+      controller.setFilters([
+        const UnifiedFilterToken(
+          key: 'currency',
+          label: 'Currency',
+          value: 'USD',
+          valueLabel: 'USD',
+        ),
+        const UnifiedFilterToken(
+          key: 'status',
+          label: 'Status',
+          value: 'open',
+          valueLabel: 'Open',
+        ),
+        const UnifiedFilterToken(
+          key: 'currency',
+          label: 'Currency',
+          value: 'IQD',
+          valueLabel: 'IQD',
+        ),
+      ]);
+
+      expect(controller.state.filters, hasLength(2));
+      expect(
+        controller.state.filters.firstWhere((item) => item.key == 'currency').value,
+        'IQD',
+      );
+    });
+
     test('replacing a filter key removes the previous token', () {
       final controller = UnifiedQueryController();
       addTearDown(controller.dispose);
@@ -62,6 +94,23 @@ void main() {
 
       expect(controller.state.filters, hasLength(1));
       expect(controller.state.filters.single.value, 'IQD');
+    });
+
+    test('setSorts canonicalizes duplicate fields using the latest rule', () {
+      final controller = UnifiedQueryController();
+      addTearDown(controller.dispose);
+
+      controller.setSorts([
+        const UnifiedSortRule(field: 'date', label: 'Date'),
+        const UnifiedSortRule(field: 'customer', label: 'Customer'),
+        const UnifiedSortRule(field: 'date', label: 'Date', descending: true),
+      ]);
+
+      expect(controller.state.sorts, hasLength(2));
+      expect(
+        controller.state.sorts.firstWhere((item) => item.field == 'date').descending,
+        isTrue,
+      );
     });
 
     test('adding the same sort field toggles direction', () {
