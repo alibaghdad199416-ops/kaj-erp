@@ -37,24 +37,29 @@ class ContextualReportCustomizer {
     final safeIndexes = candidateIndexes
         .where((index) => !_isHiddenColumn(section, section.columns[index]))
         .toList(growable: false);
+    // A preset may have been saved before an internal column was retired or
+    // hidden. Never emit a section with zero visible columns: fall back to the
+    // current public projection while preserving the user's query/sort state.
+    final visibleIndexes = safeIndexes.isEmpty
+        ? List<int>.generate(section.columns.length, (index) => index)
+            .where((index) => !_isHiddenColumn(section, section.columns[index]))
+            .toList(growable: false)
+        : safeIndexes;
 
     final query = (options.sectionQueries[section.key] ?? '').trim();
-    final sortColumn = options.sortColumns[section.key];
-    final sortIndex = sortColumn == null
-        ? -1
-        : section.columns.indexOf(sortColumn);
-
-    final sorts = sortIndex < 0
-        ? const <UnifiedSortCriterion<List<String>>>[]
-        : <UnifiedSortCriterion<List<String>>>[
-            UnifiedSortCriterion<List<String>>(
-              key: sortColumn!,
-              direction: (options.sortAscending[section.key] ?? true)
-                  ? UnifiedSortDirection.ascending
-                  : UnifiedSortDirection.descending,
-              value: (row) => _sortableValue(row, sortIndex),
-            ),
-          ];
+    final rules = options.sortRules[section.key] ?? const <UnifiedSortRule>[];
+    final sorts = <UnifiedSortCriterion<List<String>>>[
+      for (final rule in rules)
+        if (section.columns.indexOf(rule.field) >= 0)
+          UnifiedSortCriterion<List<String>>(
+            key: rule.field,
+            direction: rule.descending
+                ? UnifiedSortDirection.descending
+                : UnifiedSortDirection.ascending,
+            value: (row) =>
+                _sortableValue(row, section.columns.indexOf(rule.field)),
+          ),
+    ];
 
     final filterTokens = options.sectionFilters[section.key] ?? const [];
     final fieldFilters = <String, Set<String>>{};
@@ -92,12 +97,12 @@ class ContextualReportCustomizer {
     return ContextualReportSection(
       key: section.key,
       title: section.title,
-      columns: safeIndexes
+      columns: visibleIndexes
           .map((index) => section.columns[index])
           .toList(growable: false),
       rows: rows
           .map(
-            (row) => safeIndexes
+            (row) => visibleIndexes
                 .map((index) => index < row.length ? row[index] : '')
                 .toList(growable: false),
           )
@@ -118,28 +123,13 @@ class ContextualReportCustomizer {
         .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
         .toLowerCase();
     if (normalized == 'id') return true;
-    const retiredCatalogFields = <String>{
-      'productcode',
-      'sku',
-      'internalcode',
-      'serialnumber',
-      'nameen',
-      'englishname',
-    };
-    final sectionToken = '${section.key} ${section.title}'.toLowerCase();
-    final productSection =
-        sectionToken.contains('product') ||
-        sectionToken.contains('منتج') ||
-        sectionToken.contains('مادة');
-    if (productSection &&
-        const {'description', 'الوصف'}.contains(column.trim().toLowerCase())) {
-      return true;
-    }
-    return normalized.endsWith('id') ||
+    // Business-facing product references and descriptions are report data.
+    // Only technical identifiers/raw payload columns are suppressed.
+    return normalized == 'id' ||
+        normalized.endsWith('id') ||
         normalized.contains('uuid') ||
         normalized.contains('payload') ||
         normalized.contains('rawdata') ||
-        normalized.contains('verification') ||
-        retiredCatalogFields.contains(normalized);
+        normalized.contains('verification');
   }
 }
