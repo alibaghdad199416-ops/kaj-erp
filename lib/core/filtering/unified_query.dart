@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:quality_line_erp/core/filtering/unified_filter_engine.dart';
 import 'package:quality_line_erp/core/filtering/unified_query_state.dart';
 
+export 'unified_filter_engine.dart';
 export 'unified_query_executor.dart';
 export 'unified_query_state.dart';
 
