@@ -60,18 +60,24 @@ class UnifiedQueryController extends ChangeNotifier {
   UnifiedQueryState _state;
   UnifiedQueryState get state => _state;
 
+  /// Replaces the complete query atomically. Modules should prefer this
+  /// boundary over maintaining parallel search/filter/sort state locally.
+  void setState(UnifiedQueryState next) {
+    if (_state == next) return;
+    _state = next;
+    notifyListeners();
+  }
+
   void setSearch(String value) {
     final normalized = value.trim();
     if (_state.search == normalized) return;
-    _state = _state.copyWith(search: normalized);
-    notifyListeners();
+    setState(_state.copyWith(search: normalized));
   }
 
   void setFilters(Iterable<UnifiedFilterToken> values) {
     final next = List<UnifiedFilterToken>.unmodifiable(values);
     if (listEquals(_state.filters, next)) return;
-    _state = _state.copyWith(filters: next);
-    notifyListeners();
+    setState(_state.copyWith(filters: next));
   }
 
   void addFilter(UnifiedFilterToken token) {
@@ -83,23 +89,18 @@ class UnifiedQueryController extends ChangeNotifier {
 
   void removeFilter(UnifiedFilterToken token) {
     final next = _state.removeFilter(token);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
+    setState(next);
   }
 
   void removeFilterKey(String key) {
     final next = _state.removeFilterKey(key);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
+    setState(next);
   }
 
   void setSorts(Iterable<UnifiedSortRule> values) {
     final next = List<UnifiedSortRule>.unmodifiable(values);
     if (listEquals(_state.sorts, next)) return;
-    _state = _state.copyWith(sorts: next);
-    notifyListeners();
+    setState(_state.copyWith(sorts: next));
   }
 
   void addSort(UnifiedSortRule rule) {
@@ -116,21 +117,13 @@ class UnifiedQueryController extends ChangeNotifier {
 
   void removeSort(String field) {
     final next = _state.removeSort(field);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
+    setState(next);
   }
 
   void removeSortAt(int index) {
     final next = _state.removeSortAt(index);
-    if (next == _state) return;
-    _state = next;
-    notifyListeners();
+    setState(next);
   }
 
-  void clear() {
-    if (_state.isEmpty) return;
-    _state = const UnifiedQueryState();
-    notifyListeners();
-  }
+  void clear() => setState(const UnifiedQueryState());
 }
