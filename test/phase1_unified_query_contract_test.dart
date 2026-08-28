@@ -17,6 +17,28 @@ void main() {
       expect(notifications, 1);
     });
 
+    test('setState replaces the complete canonical query atomically', () {
+      final controller = UnifiedQueryController();
+      addTearDown(controller.dispose);
+
+      const next = UnifiedQueryState(
+        search: 'customer',
+        filters: [
+          UnifiedFilterToken(
+            key: 'status',
+            label: 'Status',
+            value: 'open',
+            valueLabel: 'Open',
+          ),
+        ],
+        sorts: [UnifiedSortRule(field: 'date', label: 'Date')],
+      );
+
+      controller.setState(next);
+
+      expect(controller.state, next);
+    });
+
     test('replacing a filter key removes the previous token', () {
       final controller = UnifiedQueryController();
       addTearDown(controller.dispose);
@@ -52,6 +74,19 @@ void main() {
 
       controller.addSort(rule);
       expect(controller.state.sorts.single.descending, isTrue);
+    });
+
+    test('removing an invalid sort index leaves state unchanged', () {
+      final controller = UnifiedQueryController();
+      addTearDown(controller.dispose);
+
+      controller.addSort(
+        const UnifiedSortRule(field: 'date', label: 'Date'),
+      );
+      final before = controller.state;
+      controller.removeSortAt(99);
+
+      expect(controller.state, before);
     });
 
     test('clear restores an empty canonical query state', () {
